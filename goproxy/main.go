@@ -1358,12 +1358,15 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 	eventCount := 0
 	startTime := time.Now()
 	var firstEventTime time.Time
+	var lastEventType string
+	var lastEventTime time.Time
 	log.Printf("📡 Stream started")
 	
 	for scanner.Scan() {
 		eventCount++
+		lastEventTime = time.Now()
 		if eventCount == 1 {
-			firstEventTime = time.Now()
+			firstEventTime = lastEventTime
 			log.Printf("📡 First event received after %v", firstEventTime.Sub(startTime))
 		}
 		line := scanner.Text()
@@ -1375,6 +1378,9 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			if err := json.Unmarshal([]byte(dataStr), &eventData); err == nil {
 				modified := false
 				eventType, _ := eventData["type"].(string)
+				
+				// Track last event type for debugging
+				lastEventType = eventType
 				
 				// Check if this is a content_block_delta
 				if eventType == "content_block_delta" {
@@ -1441,7 +1447,13 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Printf("❌ Error reading stream after %d events (duration: %v): %v", eventCount, time.Since(startTime), err)
+		timeSinceLastEvent := time.Since(lastEventTime)
+		log.Printf("❌ Error reading stream after %d events (duration: %v, last_event: %s, time_since_last: %v): %v", 
+			eventCount, time.Since(startTime), lastEventType, timeSinceLastEvent, err)
+		// Send error event to client so they know stream failed
+		errorEvent := fmt.Sprintf("event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"stream_error\",\"message\":\"Stream interrupted: %s\"}}\n\n", err.Error())
+		fmt.Fprint(w, errorEvent)
+		flusher.Flush()
 	} else if eventCount == 0 {
 		log.Printf("⚠️ Stream ended with 0 events (duration: %v)", time.Since(startTime))
 	} else {

@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -96,8 +98,20 @@ func (p *Proxy) createHTTPProxyTransport() (*http.Transport, error) {
 		return nil, err
 	}
 
+	// Custom dialer with aggressive TCP KeepAlive to prevent proxy idle timeout
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 5 * time.Second, // Send keepalive every 5s to prevent 15s idle timeout
+	}
+
 	transport := &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
+		Proxy:                 http.ProxyURL(proxyURL),
+		DialContext:           dialer.DialContext,
+		IdleConnTimeout:       120 * time.Second,
+		ResponseHeaderTimeout: 0, // No timeout for streaming
+		ExpectContinueTimeout: 10 * time.Second,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
 	}
 	return transport, nil
 }
@@ -111,13 +125,36 @@ func (p *Proxy) createSOCKS5ProxyTransport() (*http.Transport, error) {
 		}
 	}
 
-	dialer, err := proxy.SOCKS5("tcp", p.Host+":"+itoa(p.Port), auth, proxy.Direct)
+	// Create base dialer with TCP KeepAlive
+	baseDialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 5 * time.Second, // Send keepalive every 5s
+	}
+
+	dialer, err := proxy.SOCKS5("tcp", p.Host+":"+itoa(p.Port), auth, baseDialer)
 	if err != nil {
 		return nil, err
 	}
 
+	// Wrap to add keepalive to proxied connections
 	transport := &http.Transport{
-		DialContext: dialer.(proxy.ContextDialer).DialContext,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := dialer.(proxy.ContextDialer).DialContext(ctx, network, addr)
+			if err != nil {
+				return nil, err
+			}
+			// Enable TCP KeepAlive on the connection
+			if tcpConn, ok := conn.(*net.TCPConn); ok {
+				tcpConn.SetKeepAlive(true)
+				tcpConn.SetKeepAlivePeriod(5 * time.Second)
+			}
+			return conn, nil
+		},
+		IdleConnTimeout:       120 * time.Second,
+		ResponseHeaderTimeout: 0, // No timeout for streaming
+		ExpectContinueTimeout: 10 * time.Second,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
 	}
 	return transport, nil
 }

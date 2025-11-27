@@ -120,27 +120,18 @@ func (p *ProxyPool) SelectProxyWithKey() (*Proxy, string, error) {
 	return p.getKeyForProxy(proxy)
 }
 
-// SelectProxyWithKeyByClient returns a consistent proxy+key for same client API key
-// This ensures the same client always uses the same proxy/key combination
+// SelectProxyWithKeyByClient returns proxy+key using round-robin rotation
+// Each request gets the next available proxy in rotation
 func (p *ProxyPool) SelectProxyWithKeyByClient(clientAPIKey string) (*Proxy, string, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	if len(p.proxies) == 0 {
 		return nil, "", ErrNoAvailableProxy
 	}
 
-	// Hash client API key to get consistent proxy index
-	hash := 0
-	for _, c := range clientAPIKey {
-		hash = hash*31 + int(c)
-	}
-	if hash < 0 {
-		hash = -hash
-	}
-
-	// Find available proxy starting from hashed index
-	startIdx := hash % len(p.proxies)
+	// Round-robin through available proxies
+	startIdx := p.current
 	for i := 0; i < len(p.proxies); i++ {
 		idx := (startIdx + i) % len(p.proxies)
 		proxy := p.proxies[idx]
@@ -155,6 +146,8 @@ func (p *ProxyPool) SelectProxyWithKeyByClient(clientAPIKey string) (*Proxy, str
 			// Return primary key (priority 1) first
 			for _, binding := range bindings {
 				if binding.Priority == 1 && binding.IsActive {
+					// Move to next proxy for next request
+					p.current = (idx + 1) % len(p.proxies)
 					return proxy, binding.FactoryKeyID, nil
 				}
 			}
@@ -162,6 +155,8 @@ func (p *ProxyPool) SelectProxyWithKeyByClient(clientAPIKey string) (*Proxy, str
 			// Fallback to any active binding
 			for _, binding := range bindings {
 				if binding.IsActive {
+					// Move to next proxy for next request
+					p.current = (idx + 1) % len(p.proxies)
 					return proxy, binding.FactoryKeyID, nil
 				}
 			}
@@ -304,7 +299,7 @@ func (p *ProxyPool) CreateHTTPClientWithProxy(proxy *Proxy) (*http.Client, error
 
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   60 * time.Second,
+		Timeout:   0, // No timeout for streaming responses (Claude thinking can take >30s)
 	}
 
 	return client, nil
