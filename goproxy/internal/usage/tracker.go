@@ -14,6 +14,8 @@ type RequestLog struct {
 	FactoryKeyID string    `bson:"factoryKeyId"`
 	TokensUsed   int64     `bson:"tokensUsed"`
 	StatusCode   int       `bson:"statusCode"`
+	LatencyMs    int64     `bson:"latencyMs"`
+	IsSuccess    bool      `bson:"isSuccess"`
 	CreatedAt    time.Time `bson:"createdAt"`
 }
 
@@ -41,15 +43,20 @@ func UpdateUsage(apiKey string, tokensUsed int64) error {
 	return nil
 }
 
-func LogRequest(userKeyID, factoryKeyID string, tokensUsed int64, statusCode int) {
+func LogRequest(userKeyID, factoryKeyID string, tokensUsed int64, statusCode int, latencyMs int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Determine if request was successful (2xx status code)
+	isSuccess := statusCode >= 200 && statusCode < 300
 
 	logEntry := RequestLog{
 		UserKeyID:    userKeyID,
 		FactoryKeyID: factoryKeyID,
 		TokensUsed:   tokensUsed,
 		StatusCode:   statusCode,
+		LatencyMs:    latencyMs,
+		IsSuccess:    isSuccess,
 		CreatedAt:    time.Now(),
 	}
 

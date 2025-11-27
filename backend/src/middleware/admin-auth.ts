@@ -10,7 +10,7 @@ const sessions: Map<string, { username: string; role: string; expiresAt: number 
 export async function adminAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
   
-  // Check if IP is blocked
+  // Check if IP is blocked (only for repeated bad credentials, not missing auth)
   const attempt = failedAttempts.get(clientIP);
   if (attempt && attempt.blockedUntil > Date.now()) {
     const retryAfter = Math.ceil((attempt.blockedUntil - Date.now()) / 1000);
@@ -20,9 +20,19 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
     });
     return;
   }
+  
+  // If no auth headers at all, just return 401 without counting as failed attempt
+  const sessionToken = req.headers['x-session-token'] as string;
+  const authHeader = req.headers.authorization;
+  if (!sessionToken && !authHeader) {
+    res.status(401).json({ 
+      error: 'Authentication required',
+      hint: 'Use Basic Auth with username:password or X-Session-Token header'
+    });
+    return;
+  }
 
   // Check session token first
-  const sessionToken = req.headers['x-session-token'] as string;
   if (sessionToken) {
     const session = sessions.get(sessionToken);
     if (session && session.expiresAt > Date.now()) {
@@ -33,7 +43,6 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
   }
 
   // Check Basic Auth (username:password)
-  const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Basic ')) {
     const base64Credentials = authHeader.substring(6);
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');

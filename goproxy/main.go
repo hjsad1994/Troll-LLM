@@ -450,6 +450,9 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 		}
 	}
 	
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+	
 	resp, err := client.Do(proxyReq)
 	if err != nil {
 		log.Printf("Error: request failed: %v", err)
@@ -469,10 +472,10 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	// Handle response
 	if openaiReq.Stream {
 		// Streaming response
-		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
 	} else {
 		// Non-streaming response
-		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
 	}
 }
 
@@ -533,6 +536,9 @@ func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiRe
 		}
 	}
 	
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+	
 	resp, err := client.Do(proxyReq)
 	if err != nil {
 		log.Printf("Error: request failed: %v", err)
@@ -552,15 +558,15 @@ func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiRe
 	// Handle response
 	if openaiReq.Stream {
 		// Streaming response
-		handleFactoryOpenAIStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+		handleFactoryOpenAIStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
 	} else {
 		// Non-streaming response
-		handleFactoryOpenAINonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+		handleFactoryOpenAINonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
 	}
 }
 
 // Handle Anthropic non-streaming response
-func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
 	// Read response body (automatically handle gzip)
 	body, err := readResponseBody(resp)
 	if err != nil {
@@ -570,6 +576,11 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		// Log failed request for analytics
+		if userApiKey != "" {
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+		}
 		// Forward error response directly
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
@@ -613,8 +624,9 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 			} else if debugMode {
 				log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
 			}
-			// Log request for analytics
-			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode)
+			// Log request for analytics (include latency)
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode, latencyMs)
 		}
 	}
 
@@ -639,7 +651,8 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 }
 
 // Handle Anthropic streaming response
-func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
+	_ = requestStartTime // Streaming latency tracked at end
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -666,7 +679,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 }
 
 // Handle Factory OpenAI non-streaming response
-func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
 	// Debug mode: log response headers
 	if debugMode {
 		log.Printf("📋 Response headers:")
@@ -697,6 +710,11 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		// Log failed request for analytics
+		if userApiKey != "" {
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+		}
 		// Forward error response directly
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
@@ -746,8 +764,9 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 			} else if debugMode {
 				log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
 			}
-			// Log request for analytics
-			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode)
+			// Log request for analytics (include latency)
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode, latencyMs)
 		}
 	}
 
@@ -768,7 +787,7 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 }
 
 // Handle Factory OpenAI streaming response
-func handleFactoryOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+func handleFactoryOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -1250,19 +1269,27 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	// Handle response based on streaming
 	if stream {
-		handleAnthropicMessagesStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID)
+		handleAnthropicMessagesStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart)
 	} else {
-		handleAnthropicMessagesNonStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID)
+		handleAnthropicMessagesNonStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart)
 	}
 }
 
 // Handle non-streaming response from Factory AI (Anthropic format)
-func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
 	body, err := readResponseBody(resp)
 	if err != nil {
 		log.Printf("Error reading response: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to read response"}}`, http.StatusInternalServerError)
 		return
+	}
+
+	// Log failed request for analytics
+	if resp.StatusCode != http.StatusOK {
+		if userApiKey != "" {
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+		}
 	}
 
 	// Filter Droid identity from response content and track usage
@@ -1289,8 +1316,9 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 					} else if debugMode {
 						log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
 					}
-					// Log request for analytics
-					usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode)
+					// Log request for analytics (include latency)
+					latencyMs := time.Since(requestStartTime).Milliseconds()
+					usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode, latencyMs)
 				}
 			}
 
@@ -1327,13 +1355,18 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 }
 
 // Handle streaming response from Factory AI (Anthropic SSE format)
-func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
 	log.Printf("📥 Stream response status: %d", resp.StatusCode)
 	
 	// If not 200, log response body for debugging
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("❌ Stream error response: %s", string(body))
+		// Log failed request for analytics
+		if userApiKey != "" {
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(body)
@@ -1441,8 +1474,9 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			} else if debugMode {
 				log.Printf("📊 Updated usage (stream): raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
 			}
-			// Log request for analytics
-			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, 200)
+			// Log request for analytics (include latency)
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, 200, latencyMs)
 		}
 	}
 

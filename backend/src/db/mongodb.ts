@@ -91,8 +91,11 @@ const requestLogSchema = new mongoose.Schema({
   factoryKeyId: { type: String, required: true },
   tokensUsed: { type: Number, required: true },
   statusCode: { type: Number, required: true },
+  latencyMs: { type: Number }, // Request latency in milliseconds
+  isSuccess: { type: Boolean, default: true }, // true if statusCode 2xx
   createdAt: { type: Date, default: Date.now, expires: 2592000 }, // 30 days TTL
 });
+requestLogSchema.index({ createdAt: -1 }); // Index for time-based queries
 
 // User Schema (Admin users)
 const userSchema = new mongoose.Schema({

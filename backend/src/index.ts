@@ -19,8 +19,7 @@ app.use(express.json());
 // Static files
 app.use('/static', express.static(path.join(process.cwd(), 'static')));
 
-// Admin static files
-app.use('/admin', express.static(path.join(process.cwd(), 'static/admin')));
+// NOTE: Admin static files moved AFTER API routes to avoid conflicts
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -51,6 +50,9 @@ app.post('/api/login', loginHandler);
 // Admin routes (protected)
 app.use('/admin', adminAuth, adminRoutes);
 app.use('/admin/proxies', adminAuth, proxyRoutes);
+
+// Admin static files (AFTER API routes to avoid conflicts)
+app.use('/admin', express.static(path.join(process.cwd(), 'static/admin')));
 
 // Root
 app.get('/', (_req, res) => {

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import * as userKeyService from '../services/userkey.service.js';
 import * as factoryKeyService from '../services/factorykey.service.js';
+import * as metricsService from '../services/metrics.service.js';
 
 const router = Router();
 
@@ -276,6 +277,36 @@ router.post('/factory-keys/:id/reset', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error resetting factory key:', error);
     res.status(500).json({ error: 'Failed to reset factory key' });
+  }
+});
+
+// GET /admin/metrics - Get system-wide metrics
+router.get('/metrics', async (req: Request, res: Response) => {
+  try {
+    const period = (req.query.period as string) || 'all';
+    const validPeriods = ['1h', '24h', '7d', 'all'];
+    
+    if (!validPeriods.includes(period)) {
+      res.status(400).json({ 
+        error: 'Invalid period', 
+        valid_periods: validPeriods 
+      });
+      return;
+    }
+
+    const metrics = await metricsService.getSystemMetrics(period);
+
+    res.json({
+      total_requests: metrics.totalRequests,
+      total_tokens: metrics.totalTokens,
+      avg_latency_ms: metrics.avgLatencyMs,
+      success_rate: metrics.successRate,
+      period: metrics.period,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting metrics:', error);
+    res.status(500).json({ error: 'Failed to get metrics' });
   }
 });
 
