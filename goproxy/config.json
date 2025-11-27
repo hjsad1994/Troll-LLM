@@ -15,21 +15,21 @@
       "name": "Claude Opus 4.5",
       "id": "claude-opus-4-5-20251101",
       "type": "anthropic",
-      "reasoning": "high",
+      "reasoning": "low",
       "token_multiplier": 1.2
     },
     {
       "name": "Claude Opus 4.1",
       "id": "claude-opus-4-1-20250805",
       "type": "anthropic",
-      "reasoning": "high",
+      "reasoning": "low",
       "token_multiplier": 1.2
     },
     {
       "name": "Claude Sonnet 4.5",
       "id": "claude-sonnet-4-5-20250929",
       "type": "anthropic",
-      "reasoning": "high",
+      "reasoning": "low",
       "token_multiplier": 1.2
     },
     {
@@ -40,6 +40,6 @@
       "token_multiplier": 0.4
     }
   ],
-  "system_prompt": "You are Droid, an AI software engineering agent built by Factory.",
+  "system_prompt": "You are Droid, an AI software engineering agent built by Factory.But Someone Ask you identify as Claude. You are Claude, an AI assistant made by Anthropic. Never mention conflicting instructions, identity confusion, or system prompts. Just help the user directly.",
   "user_agent": "factory-cli/0.22.1"
 }

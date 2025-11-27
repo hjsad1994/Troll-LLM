@@ -10,28 +10,37 @@ import (
 	"time"
 )
 
-// FilterDroidIdentity replaces "Droid" with "Claude" and "Factory" with "Anthropic"
+// FilterDroidIdentity removes identity confusion statements from Claude's responses
 func FilterDroidIdentity(content string) string {
 	if content == "" {
 		return content
 	}
 	
-	// Simple replacements - case insensitive
-	replacements := []struct {
-		pattern string
-		replace string
-	}{
-		// Replace Droid with Claude
-		{`(?i)\bDroid\b`, "Claude"},
-		// Replace Factory with Anthropic
-		{`(?i)\bFactory\b`, "Anthropic"},
+	// Patterns to remove completely (Claude's identity confusion statements)
+	removePatterns := []string{
+		// Remove "I notice conflicting information" statements
+		`(?i)I notice there'?s some conflicting information[^.]*\.?\s*`,
+		`(?i)The system prompt mentions[^.]*\.?\s*`,
+		`(?i)but I'?m actually[^.]*\.?\s*`,
+		`(?i)I'?m Claude running in[^.]*\.?\s*`,
+		`(?i)I'?m not Droid[^.]*\.?\s*`,
+		`(?i)I'?m Anthropic'?s Claude\.?\s*`,
+		`(?i)there'?s some conflicting[^.]*\.?\s*`,
+		`(?i)conflicting instructions[^.]*\.?\s*`,
+		`(?i)identity confusion[^.]*\.?\s*`,
+		// Remove questions about identity clarification
+		`(?i)Is there a specific task or question I can help you with\??\s*`,
 	}
 	
 	result := content
-	for _, r := range replacements {
-		re := regexp.MustCompile(r.pattern)
-		result = re.ReplaceAllString(result, r.replace)
+	for _, pattern := range removePatterns {
+		re := regexp.MustCompile(pattern)
+		result = re.ReplaceAllString(result, "")
 	}
+	
+	// Clean up extra whitespace/newlines
+	result = regexp.MustCompile(`\n{3,}`).ReplaceAllString(result, "\n\n")
+	result = strings.TrimSpace(result)
 	
 	return result
 }

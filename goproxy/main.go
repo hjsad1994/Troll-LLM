@@ -1124,57 +1124,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("🧠 Client requested thinking (budget: %d)", anthropicReq.Thinking.BudgetTokens)
 	}
 	
-	// Adjust max_tokens to reasonable values (Factory AI expects larger values for Claude)
-	// Claude models support extended thinking which requires token budget
-	if debugMode {
-		log.Printf("🔍 Model reasoning: %s, thinking: %v, max_tokens: %d", model.Reasoning, anthropicReq.Thinking, anthropicReq.MaxTokens)
-	}
-	
-	// Check if conversation history has assistant messages without thinking blocks
-	// If so, we cannot enable thinking (Claude API requires thinking blocks in history)
-	hasAssistantWithoutThinking := false
-	for _, msg := range anthropicReq.Messages {
-		if msg.Role == "assistant" {
-			// Check if first content block is thinking
-			if content, ok := msg.Content.([]interface{}); ok && len(content) > 0 {
-				if firstBlock, ok := content[0].(map[string]interface{}); ok {
-					blockType, _ := firstBlock["type"].(string)
-					if blockType != "thinking" && blockType != "redacted_thinking" {
-						hasAssistantWithoutThinking = true
-						break
-					}
-				}
-			} else if contentArr, ok := msg.Content.([]map[string]interface{}); ok && len(contentArr) > 0 {
-				blockType, _ := contentArr[0]["type"].(string)
-				if blockType != "thinking" && blockType != "redacted_thinking" {
-					hasAssistantWithoutThinking = true
-					break
-				}
-			} else {
-				// String content or unknown format - no thinking block
-				hasAssistantWithoutThinking = true
-				break
-			}
-		}
-	}
-	
-	// DISABLED: Auto-enable thinking causes issues with Claude Code CLI
-	// if model.Reasoning == "high" && anthropicReq.Thinking == nil && !hasAssistantWithoutThinking {
-	// 	anthropicReq.Thinking = &transformers.ThinkingConfig{
-	// 		Type:         "enabled",
-	// 		BudgetTokens: 10000,
-	// 	}
-	// 	if debugMode {
-	// 		log.Printf("🔍 Model reasoning: high, auto-enabled thinking (budget=%d)", anthropicReq.Thinking.BudgetTokens)
-	// 	}
-	// }
-	// Don't disable thinking based on history - let Factory API handle it
-	// Claude Code CLI needs thinking for tool calls
-	if hasAssistantWithoutThinking && anthropicReq.Thinking != nil {
-		log.Printf("ℹ️ Note: history has assistant messages without thinking blocks")
-	}
-	
-	// Log final thinking status
+	// Log thinking status
 	if anthropicReq.Thinking != nil {
 		log.Printf("🧠 Thinking: ENABLED (budget: %d)", anthropicReq.Thinking.BudgetTokens)
 	} else {
@@ -1330,9 +1280,9 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 						if text, ok := block["text"].(string); ok {
 							block["text"] = transformers.FilterDroidIdentity(text)
 						}
-						// Filter thinking blocks
-						if thinking, ok := block["thinking"].(string); ok {
-							block["thinking"] = transformers.FilterDroidIdentity(thinking)
+						// Redact thinking blocks - hide system prompt from users
+						if blockType, ok := block["type"].(string); ok && blockType == "thinking" {
+							block["thinking"] = "[redacted]"
 						}
 					}
 				}
@@ -1415,19 +1365,26 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				// Track last event type for debugging
 				lastEventType = eventType
 				
-				// Check if this is a content_block_delta
+				// Check if this is a content_block_delta - redact thinking content
 				if eventType == "content_block_delta" {
 					if delta, ok := eventData["delta"].(map[string]interface{}); ok {
-						// DISABLED: Filter may cause issues with Claude Code CLI
-						// if text, ok := delta["text"].(string); ok {
-						// 	delta["text"] = transformers.FilterDroidIdentity(text)
-						// 	modified = true
-						// }
-						// if thinking, ok := delta["thinking"].(string); ok {
-						// 	delta["thinking"] = transformers.FilterDroidIdentity(thinking)
-						// 	modified = true
-						// }
-						_ = delta // avoid unused variable
+						deltaType, _ := delta["type"].(string)
+						// Redact thinking delta - hide system prompt from users
+						if deltaType == "thinking_delta" {
+							delta["thinking"] = ""
+							modified = true
+						}
+					}
+				}
+				
+				// Redact content_block_start for thinking blocks
+				if eventType == "content_block_start" {
+					if contentBlock, ok := eventData["content_block"].(map[string]interface{}); ok {
+						blockType, _ := contentBlock["type"].(string)
+						if blockType == "thinking" {
+							contentBlock["thinking"] = "[redacted]"
+							modified = true
+						}
 					}
 				}
 				

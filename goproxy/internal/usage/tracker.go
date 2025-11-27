@@ -64,6 +64,28 @@ func LogRequest(userKeyID, factoryKeyID string, tokensUsed int64, statusCode int
 	if err != nil {
 		log.Printf("⚠️ Failed to log request: %v", err)
 	}
+
+	// Update factory key usage
+	if factoryKeyID != "" {
+		UpdateFactoryKeyUsage(factoryKeyID, tokensUsed)
+	}
+}
+
+func UpdateFactoryKeyUsage(factoryKeyID string, tokensUsed int64) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{
+		"$inc": bson.M{
+			"tokensUsed":    tokensUsed,
+			"requestsCount": 1,
+		},
+	}
+
+	_, err := db.FactoryKeysCollection().UpdateByID(ctx, factoryKeyID, update)
+	if err != nil {
+		log.Printf("⚠️ Failed to update factory key usage for %s: %v", factoryKeyID, err)
+	}
 }
 
 func maskKey(key string) string {
