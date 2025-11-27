@@ -1,0 +1,150 @@
+package ratelimit
+
+import (
+	"sync"
+	"time"
+)
+
+// DefaultRPM is the rate limit for all API keys (600 requests per minute)
+const DefaultRPM = 600
+
+type RateLimiter struct {
+	mu       sync.Mutex
+	requests map[string][]time.Time
+	window   time.Duration
+}
+
+func NewRateLimiter() *RateLimiter {
+	return &RateLimiter{
+		requests: make(map[string][]time.Time),
+		window:   time.Minute,
+	}
+}
+
+func (r *RateLimiter) Allow(key string, limit int) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+	windowStart := now.Add(-r.window)
+
+	// Get existing requests for this key
+	reqs, exists := r.requests[key]
+	if !exists {
+		r.requests[key] = []time.Time{now}
+		return true
+	}
+
+	// Filter out old requests
+	var valid []time.Time
+	for _, t := range reqs {
+		if t.After(windowStart) {
+			valid = append(valid, t)
+		}
+	}
+
+	// Check if under limit
+	if len(valid) >= limit {
+		r.requests[key] = valid
+		return false
+	}
+
+	// Add new request
+	valid = append(valid, now)
+	r.requests[key] = valid
+	return true
+}
+
+func (r *RateLimiter) RetryAfter(key string, limit int) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	reqs, exists := r.requests[key]
+	if !exists || len(reqs) < limit {
+		return 0
+	}
+
+	now := time.Now()
+	windowStart := now.Add(-r.window)
+
+	// Find oldest request in window
+	var oldest time.Time
+	for _, t := range reqs {
+		if t.After(windowStart) {
+			if oldest.IsZero() || t.Before(oldest) {
+				oldest = t
+			}
+		}
+	}
+
+	if oldest.IsZero() {
+		return 0
+	}
+
+	// Calculate when oldest will expire
+	expiresAt := oldest.Add(r.window)
+	retryAfter := int(expiresAt.Sub(now).Seconds())
+	if retryAfter < 0 {
+		return 0
+	}
+	return retryAfter + 1
+}
+
+func (r *RateLimiter) CurrentCount(key string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+	windowStart := now.Add(-r.window)
+
+	reqs, exists := r.requests[key]
+	if !exists {
+		return 0
+	}
+
+	count := 0
+	for _, t := range reqs {
+		if t.After(windowStart) {
+			count++
+		}
+	}
+	return count
+}
+
+// Remaining returns the number of requests remaining in the current window
+func (r *RateLimiter) Remaining(key string, limit int) int {
+	count := r.CurrentCount(key)
+	remaining := limit - count
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
+// GetLimit returns the default rate limit (5 RPM)
+func GetLimit() int {
+	return DefaultRPM
+}
+
+// Cleanup old entries periodically
+func (r *RateLimiter) Cleanup() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+	windowStart := now.Add(-r.window)
+
+	for key, reqs := range r.requests {
+		var valid []time.Time
+		for _, t := range reqs {
+			if t.After(windowStart) {
+				valid = append(valid, t)
+			}
+		}
+		if len(valid) == 0 {
+			delete(r.requests, key)
+		} else {
+			r.requests[key] = valid
+		}
+	}
+}

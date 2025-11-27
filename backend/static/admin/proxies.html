@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxies - F-Proxy Admin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <nav class="sidebar">
+            <div class="logo">🔧 F-Proxy Admin</div>
+            <ul class="nav-links">
+                <li><a href="/admin/">📊 Dashboard</a></li>
+                <li><a href="/admin/keys.html">🔑 User Keys</a></li>
+                <li><a href="/admin/factory-keys.html">🏭 Factory Keys</a></li>
+                <li><a href="/admin/proxies.html" class="active">🌐 Proxies</a></li>
+                <li><a href="/status" target="_blank">📡 Status Page</a></li>
+            </ul>
+            <div class="user-info">
+                <span id="username">admin</span>
+                <button onclick="logout()" class="btn-logout">Logout</button>
+            </div>
+        </nav>
+        
+        <main class="content">
+            <header>
+                <h1>🌐 Proxies</h1>
+            </header>
+            
+            <div class="toolbar">
+                <div>
+                    <span id="statsInfo" style="color: #94a3b8;"></span>
+                </div>
+                <button class="btn btn-primary" onclick="showModal('createModal')">+ New Proxy</button>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Host:Port</th>
+                            <th>Status</th>
+                            <th>Latency</th>
+                            <th>Keys</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="proxiesTable">
+                        <tr><td colspan="7" class="empty-state">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Create Modal -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Proxy</h2>
+                <button class="modal-close" onclick="hideModal('createModal')">&times;</button>
+            </div>
+            <form onsubmit="createProxy(event)">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="createName" required placeholder="e.g., US Proxy 1">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="createType">
+                            <option value="http">HTTP</option>
+                            <option value="socks5">SOCKS5</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Port</label>
+                        <input type="number" id="createPort" required placeholder="8080">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Host</label>
+                    <input type="text" id="createHost" required placeholder="proxy.example.com">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Username (optional)</label>
+                        <input type="text" id="createUsername" placeholder="username">
+                    </div>
+                    <div class="form-group">
+                        <label>Password (optional)</label>
+                        <input type="password" id="createPassword" placeholder="password">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Create Proxy</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Proxy</h2>
+                <button class="modal-close" onclick="hideModal('editModal')">&times;</button>
+            </div>
+            <form onsubmit="updateProxy(event)">
+                <input type="hidden" id="editProxyId">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="editName" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Host</label>
+                        <input type="text" id="editHost" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Port</label>
+                        <input type="number" id="editPort" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="editUsername">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="editPassword" placeholder="(unchanged)">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Save Changes</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Bind Keys Modal -->
+    <div class="modal" id="bindModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Manage Key Bindings</h2>
+                <button class="modal-close" onclick="hideModal('bindModal')">&times;</button>
+            </div>
+            <input type="hidden" id="bindProxyId">
+            <h3 style="margin-bottom: 16px;">Current Bindings</h3>
+            <div id="currentBindings" style="margin-bottom: 24px;"></div>
+            
+            <h3 style="margin-bottom: 16px;">Add Binding</h3>
+            <form onsubmit="addBinding(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Factory Key</label>
+                        <select id="bindFactoryKey">
+                            <option value="">Select key...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="bindPriority">
+                            <option value="1">1 (Primary)</option>
+                            <option value="2">2 (Secondary)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Bind Key</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="admin.js"></script>
+    <script>
+        let allProxies = [];
+        let allFactoryKeys = [];
+        
+        checkAuth();
+        loadProxies();
+        loadFactoryKeys();
+        
+        async function loadProxies() {
+            try {
+                const resp = await fetchWithAuth('/admin/proxies');
+                if (!resp.ok) throw new Error('Failed to load');
+                
+                const data = await resp.json();
+                allProxies = data.proxies || [];
+                
+                document.getElementById('statsInfo').textContent = 
+                    `Total: ${data.total || 0} | Healthy: ${data.healthy || 0} | Unhealthy: ${data.unhealthy || 0}`;
+                
+                renderProxies(allProxies);
+            } catch (err) {
+                document.getElementById('proxiesTable').innerHTML = 
+                    '<tr><td colspan="7" class="empty-state"><div class="icon">❌</div>Failed to load proxies</td></tr>';
+            }
+        }
+        
+        async function loadFactoryKeys() {
+            try {
+                const resp = await fetchWithAuth('/admin/factory-keys');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                allFactoryKeys = data.keys || [];
+            } catch (err) {
+                console.error('Failed to load factory keys:', err);
+            }
+        }
+        
+        function renderProxies(proxies) {
+            if (proxies.length === 0) {
+                document.getElementById('proxiesTable').innerHTML = 
+                    '<tr><td colspan="7" class="empty-state"><div class="icon">🌐</div>No proxies yet. Add your first proxy!</td></tr>';
+                return;
+            }
+            
+            document.getElementById('proxiesTable').innerHTML = proxies.map(proxy => {
+                const statusClass = proxy.status === 'healthy' ? 'healthy' : proxy.status === 'unhealthy' ? 'unhealthy' : '';
+                const statusIcon = proxy.status === 'healthy' ? '✅' : proxy.status === 'unhealthy' ? '❌' : '❓';
+                return `
+                <tr>
+                    <td><strong>${proxy.name}</strong></td>
+                    <td><span class="badge">${proxy.type.toUpperCase()}</span></td>
+                    <td><code>${proxy.host}:${proxy.port}</code></td>
+                    <td>${statusIcon} <span class="badge badge-${statusClass}">${proxy.status}</span></td>
+                    <td>${proxy.lastLatencyMs ? proxy.lastLatencyMs + 'ms' : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="showBindings('${proxy._id}')">
+                            Bindings
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editProxy('${proxy._id}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProxy('${proxy._id}')">Delete</button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+        
+        async function createProxy(e) {
+            e.preventDefault();
+            try {
+                const resp = await fetchWithAuth('/admin/proxies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('createName').value,
+                        type: document.getElementById('createType').value,
+                        host: document.getElementById('createHost').value,
+                        port: parseInt(document.getElementById('createPort').value),
+                        username: document.getElementById('createUsername').value || undefined,
+                        password: document.getElementById('createPassword').value || undefined
+                    })
+                });
+                
+                if (!resp.ok) throw new Error('Failed to create');
+                
+                hideModal('createModal');
+                showToast('Proxy created successfully');
+                loadProxies();
+                
+                // Reset form
+                document.getElementById('createName').value = '';
+                document.getElementById('createHost').value = '';
+                document.getElementById('createPort').value = '';
+                document.getElementById('createUsername').value = '';
+                document.getElementById('createPassword').value = '';
+            } catch (err) {
+                showToast('Failed to create proxy', 'error');
+            }
+        }
+        
+        function editProxy(proxyId) {
+            const proxy = allProxies.find(p => p._id === proxyId);
+            if (!proxy) return;
+            
+            document.getElementById('editProxyId').value = proxyId;
+            document.getElementById('editName').value = proxy.name;
+            document.getElementById('editHost').value = proxy.host;
+            document.getElementById('editPort').value = proxy.port;
+            document.getElementById('editUsername').value = proxy.username || '';
+            document.getElementById('editPassword').value = '';
+            showModal('editModal');
+        }
+        
+        async function updateProxy(e) {
+            e.preventDefault();
+            const proxyId = document.getElementById('editProxyId').value;
+            
+            const data = {
+                name: document.getElementById('editName').value,
+                host: document.getElementById('editHost').value,
+                port: parseInt(document.getElementById('editPort').value)
+            };
+            
+            const username = document.getElementById('editUsername').value;
+            const password = document.getElementById('editPassword').value;
+            if (username) data.username = username;
+            if (password) data.password = password;
+            
+            try {
+                const resp = await fetchWithAuth(`/admin/proxies/${proxyId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!resp.ok) throw new Error('Failed to update');
+                
+                hideModal('editModal');
+                showToast('Proxy updated successfully');
+                loadProxies();
+            } catch (err) {
+                showToast('Failed to update proxy', 'error');
+            }
+        }
+        
+        async function deleteProxy(proxyId) {
+            if (!await confirmAction('Delete this proxy? All key bindings will also be removed.')) return;
+            
+            try {
+                const resp = await fetchWithAuth(`/admin/proxies/${proxyId}`, { method: 'DELETE' });
+                if (!resp.ok) throw new Error('Failed to delete');
+                
+                showToast('Proxy deleted');
+                loadProxies();
+            } catch (err) {
+                showToast('Failed to delete proxy', 'error');
+            }
+        }
+        
+        async function showBindings(proxyId) {
+            document.getElementById('bindProxyId').value = proxyId;
+            
+            // Load current bindings
+            try {
+                const resp = await fetchWithAuth(`/admin/proxies/${proxyId}/keys`);
+                if (!resp.ok) throw new Error('Failed to load');
+                
+                const data = await resp.json();
+                const bindings = data.bindings || [];
+                
+                if (bindings.length === 0) {
+                    document.getElementById('currentBindings').innerHTML = '<p style="color: #64748b;">No keys bound yet</p>';
+                } else {
+                    document.getElementById('currentBindings').innerHTML = bindings.map(b => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #0f172a; border-radius: 8px; margin-bottom: 8px;">
+                            <div>
+                                <code>${b.factoryKeyId}</code>
+                                <span class="badge" style="margin-left: 8px;">Priority ${b.priority}</span>
+                            </div>
+                            <button class="btn btn-sm btn-danger" onclick="unbindKey('${proxyId}', '${b.factoryKeyId}')">Unbind</button>
+                        </div>
+                    `).join('');
+                }
+                
+                // Populate factory keys dropdown
+                const select = document.getElementById('bindFactoryKey');
+                select.innerHTML = '<option value="">Select key...</option>' + 
+                    allFactoryKeys.map(k => `<option value="${k.id || k._id}">${k.id || k._id}</option>`).join('');
+                
+                showModal('bindModal');
+            } catch (err) {
+                showToast('Failed to load bindings', 'error');
+            }
+        }
+        
+        async function addBinding(e) {
+            e.preventDefault();
+            const proxyId = document.getElementById('bindProxyId').value;
+            const factoryKeyId = document.getElementById('bindFactoryKey').value;
+            const priority = parseInt(document.getElementById('bindPriority').value);
+            
+            if (!factoryKeyId) {
+                showToast('Please select a factory key', 'error');
+                return;
+            }
+            
+            try {
+                const resp = await fetchWithAuth(`/admin/proxies/${proxyId}/keys`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ factoryKeyId, priority })
+                });
+                
+                if (!resp.ok) {
+                    const data = await resp.json();
+                    throw new Error(data.error || 'Failed to bind');
+                }
+                
+                showToast('Key bound successfully');
+                showBindings(proxyId); // Refresh
+            } catch (err) {
+                showToast(err.message || 'Failed to bind key', 'error');
+            }
+        }
+        
+        async function unbindKey(proxyId, factoryKeyId) {
+            if (!await confirmAction('Unbind this key from the proxy?')) return;
+            
+            try {
+                const resp = await fetchWithAuth(`/admin/proxies/${proxyId}/keys/${factoryKeyId}`, { 
+                    method: 'DELETE' 
+                });
+                if (!resp.ok) throw new Error('Failed to unbind');
+                
+                showToast('Key unbound');
+                showBindings(proxyId); // Refresh
+            } catch (err) {
+                showToast('Failed to unbind key', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

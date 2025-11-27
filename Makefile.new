@@ -1,0 +1,143 @@
+.PHONY: all dev dev-backend dev-proxy build install clean help
+
+# Default target
+all: build
+
+# ==================== Development ====================
+
+# Run both services in development mode
+dev:
+	@echo "Starting both services..."
+	@echo "Run 'make dev-backend' and 'make dev-proxy' in separate terminals"
+
+# Run Node.js backend in development mode
+dev-backend:
+	@echo "🚀 Starting Node.js backend..."
+	cd backend && npm run dev
+
+# Run Go proxy in development mode
+dev-proxy:
+	@echo "🚀 Starting Go proxy..."
+	cd goproxy && go run main.go
+
+# ==================== Installation ====================
+
+# Install all dependencies
+install: install-backend install-proxy
+	@echo "✅ All dependencies installed"
+
+# Install Node.js dependencies
+install-backend:
+	@echo "📦 Installing Node.js dependencies..."
+	cd backend && npm install
+
+# Install Go dependencies
+install-proxy:
+	@echo "📦 Installing Go dependencies..."
+	cd goproxy && go mod download && go mod tidy
+
+# ==================== Build ====================
+
+# Build all services
+build: build-backend build-proxy
+	@echo "✅ All services built"
+
+# Build Node.js backend
+build-backend:
+	@echo "🔨 Building Node.js backend..."
+	cd backend && npm run build
+
+# Build Go proxy
+build-proxy:
+	@echo "🔨 Building Go proxy..."
+	cd goproxy && go build -ldflags="-s -w" -o ../dist/goproxy main.go
+
+# ==================== Docker ====================
+
+# Build and run with Docker Compose
+docker-up:
+	@echo "🐳 Starting services with Docker..."
+	docker-compose up -d
+
+# Stop Docker services
+docker-down:
+	@echo "🐳 Stopping Docker services..."
+	docker-compose down
+
+# Build Docker images
+docker-build:
+	@echo "🐳 Building Docker images..."
+	docker-compose build
+
+# ==================== Testing ====================
+
+# Run all tests
+test: test-backend test-proxy
+
+# Run Node.js tests
+test-backend:
+	@echo "🧪 Running Node.js tests..."
+	cd backend && npm test
+
+# Run Go tests
+test-proxy:
+	@echo "🧪 Running Go tests..."
+	cd goproxy && go test -v ./...
+
+# ==================== Utilities ====================
+
+# Clean build artifacts
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf dist/
+	rm -rf backend/dist/
+	rm -rf backend/node_modules/
+	cd goproxy && go clean
+
+# Format code
+fmt:
+	@echo "🎨 Formatting code..."
+	cd goproxy && go fmt ./...
+
+# Lint code
+lint: lint-backend lint-proxy
+
+lint-backend:
+	@echo "🔍 Linting Node.js code..."
+	cd backend && npm run lint
+
+lint-proxy:
+	@echo "🔍 Linting Go code..."
+	cd goproxy && go vet ./...
+
+# ==================== Help ====================
+
+help:
+	@echo "F-Proxy - Makefile Commands"
+	@echo ""
+	@echo "Development:"
+	@echo "  make dev-backend    - Run Node.js backend (port 3000)"
+	@echo "  make dev-proxy      - Run Go proxy (port 8003)"
+	@echo ""
+	@echo "Installation:"
+	@echo "  make install        - Install all dependencies"
+	@echo "  make install-backend- Install Node.js deps"
+	@echo "  make install-proxy  - Install Go deps"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build          - Build all services"
+	@echo "  make build-backend  - Build Node.js backend"
+	@echo "  make build-proxy    - Build Go proxy"
+	@echo ""
+	@echo "Docker:"
+	@echo "  make docker-up      - Start with Docker Compose"
+	@echo "  make docker-down    - Stop Docker services"
+	@echo "  make docker-build   - Build Docker images"
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test           - Run all tests"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  make clean          - Clean build artifacts"
+	@echo "  make fmt            - Format code"
+	@echo "  make lint           - Lint code"

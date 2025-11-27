@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F-Proxy Admin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <nav class="sidebar">
+            <div class="logo">🔧 F-Proxy Admin</div>
+            <ul class="nav-links">
+                <li><a href="/admin/" class="active">📊 Dashboard</a></li>
+                <li><a href="/admin/keys.html">🔑 User Keys</a></li>
+                <li><a href="/admin/factory-keys.html">🏭 Factory Keys</a></li>
+                <li><a href="/admin/proxies.html">🌐 Proxies</a></li>
+                <li><a href="/status" target="_blank">📡 Status Page</a></li>
+            </ul>
+            <div class="user-info">
+                <span id="username">admin</span>
+                <button onclick="logout()" class="btn-logout">Logout</button>
+            </div>
+        </nav>
+        
+        <main class="content">
+            <header>
+                <h1>Dashboard</h1>
+            </header>
+            
+            <div id="loginForm" class="login-container" style="display: none;">
+                <h2>🔐 Admin Login</h2>
+                <form onsubmit="login(event)">
+                    <input type="text" id="loginUsername" placeholder="Username" required>
+                    <input type="password" id="loginPassword" placeholder="Password" required>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+                <p id="loginError" class="error"></p>
+            </div>
+            
+            <div id="dashboard" class="dashboard-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🔑</div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="totalKeys">-</span>
+                        <span class="stat-label">User Keys</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏭</div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="totalFactoryKeys">-</span>
+                        <span class="stat-label">Factory Keys</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🌐</div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="totalProxies">-</span>
+                        <span class="stat-label">Proxies</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" id="healthIcon">⏳</div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="healthStatus">-</span>
+                        <span class="stat-label">System Health</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="quick-actions">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <a href="/admin/keys.html" class="btn btn-primary">+ New User Key</a>
+                    <a href="/admin/factory-keys.html" class="btn btn-secondary">+ New Factory Key</a>
+                    <a href="/admin/proxies.html" class="btn btn-secondary">+ New Proxy</a>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="admin.js"></script>
+    <script>
+        checkAuth();
+        loadDashboard();
+        
+        async function loadDashboard() {
+            try {
+                // Load user keys stats
+                const keysResp = await fetchWithAuth('/admin/keys');
+                if (keysResp.ok) {
+                    const data = await keysResp.json();
+                    document.getElementById('totalKeys').textContent = data.total || 0;
+                }
+                
+                // Load factory keys stats
+                const factoryResp = await fetchWithAuth('/admin/factory-keys');
+                if (factoryResp.ok) {
+                    const data = await factoryResp.json();
+                    document.getElementById('totalFactoryKeys').textContent = data.total || 0;
+                }
+                
+                // Load proxies stats
+                const proxiesResp = await fetchWithAuth('/admin/proxies');
+                if (proxiesResp.ok) {
+                    const data = await proxiesResp.json();
+                    document.getElementById('totalProxies').textContent = data.total || 0;
+                }
+                
+                // Load health status
+                const statusResp = await fetch('/api/status');
+                if (statusResp.ok) {
+                    const data = await statusResp.json();
+                    const icons = { healthy: '✅', degraded: '⚠️', down: '❌', unknown: '❓' };
+                    document.getElementById('healthIcon').textContent = icons[data.status] || '❓';
+                    document.getElementById('healthStatus').textContent = data.status || 'Unknown';
+                }
+            } catch (err) {
+                console.error('Failed to load dashboard:', err);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1562 @@
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"compress/gzip"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"strconv"
+
+	"goproxy/config"
+	"goproxy/db"
+	"goproxy/internal/keypool"
+	"goproxy/internal/proxy"
+	"goproxy/internal/ratelimit"
+	"goproxy/internal/usage"
+	"goproxy/internal/userkey"
+	"goproxy/transformers"
+
+	"github.com/andybalholm/brotli"
+	"github.com/joho/godotenv"
+	"golang.org/x/net/http2"
+)
+
+var (
+	startTime      = time.Now()
+	httpClient     *http.Client
+	debugMode      = false // Debug mode, disabled by default
+	proxyPool      *proxy.ProxyPool
+	factoryKeyPool *keypool.KeyPool
+	healthChecker  *proxy.HealthChecker
+	rateLimiter    *ratelimit.RateLimiter
+)
+
+// Initialize HTTP client with HTTP/2 support and browser-like characteristics
+func initHTTPClient() {
+	// Configure TLS to mimic modern browsers
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		MaxVersion: tls.VersionTLS13,
+		// Use common browser Cipher Suites
+		CipherSuites: []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		},
+		InsecureSkipVerify: false,
+	}
+
+	// Create HTTP/2 capable Transport
+	transport := &http.Transport{
+		TLSClientConfig:       tlsConfig,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	// Configure HTTP/2
+	if err := http2.ConfigureTransport(transport); err != nil {
+		log.Printf("⚠️ HTTP/2 configuration failed, will use HTTP/1.1: %v", err)
+	}
+
+	httpClient = &http.Client{
+		Transport: transport,
+		Timeout:   0, // No timeout for streaming responses
+	}
+
+	log.Printf("✅ HTTP client initialized successfully (HTTP/2 enabled)")
+}
+
+// Get environment variable with default value support
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// Read response body and automatically handle compression
+func readResponseBody(resp *http.Response) ([]byte, error) {
+	var reader io.Reader = resp.Body
+	contentEncoding := resp.Header.Get("Content-Encoding")
+
+	// Select decompression method based on Content-Encoding header
+	switch contentEncoding {
+	case "gzip":
+		if debugMode {
+			log.Printf("📦 Detected gzip compression (Content-Encoding), decompressing...")
+		}
+		gzipReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader: %v", err)
+		}
+		defer gzipReader.Close()
+		reader = gzipReader
+
+	case "br":
+		if debugMode {
+			log.Printf("📦 Detected Brotli compression (Content-Encoding), decompressing...")
+		}
+		reader = brotli.NewReader(resp.Body)
+
+	case "":
+		// No compression
+		if debugMode {
+			log.Printf("ℹ️ No compression encoding")
+		}
+
+	default:
+		if debugMode {
+			log.Printf("⚠️ Unknown compression encoding: %s", contentEncoding)
+		}
+	}
+
+	// Read (possibly decompressed) data
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if debugMode && contentEncoding != "" {
+		log.Printf("✅ Decompression successful, decompressed size: %d bytes", len(body))
+	}
+
+	return body, nil
+}
+
+// min function
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// Response recorder
+type responseRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (r *responseRecorder) WriteHeader(code int) {
+	r.statusCode = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// checkRateLimit checks if request is within rate limit for the given API key
+// Returns true if allowed, false if rate limited (response already sent)
+func checkRateLimit(w http.ResponseWriter, apiKey string) bool {
+	// Default limit for unknown users
+	limit := ratelimit.DefaultRPM
+
+	// Lookup user to get tier-specific limit
+	user, err := userkey.GetKeyByID(apiKey)
+	if err == nil && user != nil {
+		limit = user.GetRPMLimit()
+	}
+
+	// Check rate limit
+	if !rateLimiter.Allow(apiKey, limit) {
+		retryAfter := rateLimiter.RetryAfter(apiKey, limit)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(limit))
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(time.Duration(retryAfter)*time.Second).Unix(), 10))
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`{"error": {"message": "Rate limit exceeded. Please retry after ` + strconv.Itoa(retryAfter) + ` seconds.", "type": "rate_limit_error"}}`))
+		log.Printf("⚠️ Rate limit exceeded for key %s (limit: %d RPM)", apiKey[:min(8, len(apiKey))]+"...", limit)
+		return false
+	}
+
+	// Add rate limit headers to successful responses
+	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(limit))
+	w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(rateLimiter.Remaining(apiKey, limit)))
+	w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(time.Minute).Unix(), 10))
+	return true
+}
+
+// Health check endpoint
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":    "healthy",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"uptime":    time.Since(startTime).Seconds(),
+	}); err != nil {
+		log.Printf("Error: failed to encode response: %v", err)
+	}
+}
+
+// Model list endpoint
+func modelsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	models := config.GetAllModels()
+	openaiModels := make([]map[string]interface{}, 0, len(models))
+
+	for _, model := range models {
+		openaiModels = append(openaiModels, map[string]interface{}{
+			"id":       model.ID,
+			"object":   "model",
+			"created":  time.Now().Unix(),
+			"owned_by": "trollLLM",
+		})
+	}
+
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"object": "list",
+		"data":   openaiModels,
+	}); err != nil {
+		log.Printf("Error: failed to encode response: %v", err)
+	}
+}
+
+// API documentation endpoint
+func docsHandler(w http.ResponseWriter, r *http.Request) {
+	htmlContent, err := os.ReadFile("docs.html")
+	if err != nil {
+		http.Error(w, "Documentation not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, err := w.Write(htmlContent); err != nil {
+		log.Printf("Error: failed to write response: %v", err)
+	}
+}
+
+// OpenAI compatible chat endpoint
+func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get client Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, `{"error": {"message": "Authorization header is required", "type": "invalid_request_error"}}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Extract client API Key for rate limiting
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		http.Error(w, `{"error": {"message": "Invalid authorization header format", "type": "invalid_request_error"}}`, http.StatusUnauthorized)
+		return
+	}
+	clientAPIKey := parts[1]
+
+	// Validate API key - either from env (PROXY_API_KEY) or MongoDB (user_keys)
+	proxyAPIKey := getEnv("PROXY_API_KEY", "")
+	clientKeyMask := clientAPIKey
+	if len(clientKeyMask) > 8 {
+		clientKeyMask = clientKeyMask[:4] + "..." + clientKeyMask[len(clientKeyMask)-4:]
+	}
+	
+	if proxyAPIKey != "" {
+		// Validate with fixed PROXY_API_KEY from env
+		if clientAPIKey != proxyAPIKey {
+			log.Printf("❌ API Key validation failed (env): %s", clientKeyMask)
+			http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			return
+		}
+		log.Printf("🔑 Key validated (env): %s", clientKeyMask)
+	} else {
+		// Validate from MongoDB user_keys collection
+		userKey, err := userkey.ValidateKey(clientAPIKey)
+		if err != nil {
+			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
+			if err == userkey.ErrQuotaExhausted {
+				http.Error(w, `{"error": {"message": "Token quota exhausted", "type": "rate_limit_error"}}`, http.StatusTooManyRequests)
+			} else if err == userkey.ErrKeyRevoked {
+				http.Error(w, `{"error": {"message": "API key has been revoked", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			} else {
+				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			}
+			return
+		}
+		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
+	}
+
+	// Check rate limit
+	if !checkRateLimit(w, clientAPIKey) {
+		return
+	}
+
+	// Get factory key from proxy pool or environment
+	var selectedProxy *proxy.Proxy
+	var factoryAPIKey string
+	
+	if proxyPool != nil && proxyPool.HasProxies() {
+		// Use proxy pool - sticky routing based on client API key
+		var factoryKeyID string
+		var err error
+		selectedProxy, factoryKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+		if err != nil {
+			log.Printf("❌ Failed to select proxy: %v", err)
+			http.Error(w, `{"error": {"message": "No available proxies", "type": "server_error"}}`, http.StatusServiceUnavailable)
+			return
+		}
+		factoryAPIKey = factoryKeyPool.GetAPIKey(factoryKeyID)
+		if factoryAPIKey == "" {
+			log.Printf("❌ Factory key %s not found in pool", factoryKeyID)
+			http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
+			return
+		}
+		log.Printf("🔄 [OpenAI] Using proxy %s with key %s", selectedProxy.Name, factoryKeyID)
+	} else {
+		// Fallback to environment variable
+		factoryAPIKey = getEnv("FACTORY_API_KEY", "")
+		if factoryAPIKey == "" {
+			log.Printf("❌ No proxies configured and FACTORY_API_KEY not set")
+			http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
+			return
+		}
+	}
+	authHeader = "Bearer " + factoryAPIKey
+
+	// Read request body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: failed to read request body: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to read request body", "type": "invalid_request_error"}}`, http.StatusBadRequest)
+		return
+	}
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("Warning: failed to close request body: %v", err)
+		}
+	}()
+
+	// 📝 Detailed log: record complete request (debug mode only)
+	if debugMode {
+		log.Printf("📥 ========== Request Received ==========")
+		log.Printf("📥 Method: %s", r.Method)
+		log.Printf("📥 URL: %s", r.URL.String())
+		log.Printf("📥 Headers:")
+		for key, values := range r.Header {
+			for _, value := range values {
+				log.Printf("📥   %s: %s", key, value)
+			}
+		}
+		log.Printf("📥 Request Body:")
+		log.Printf("📥 %s", string(bodyBytes))
+		log.Printf("📥 ================================")
+	}
+
+	// Parse OpenAI request
+	var openaiReq transformers.OpenAIRequest
+	if err := json.Unmarshal(bodyBytes, &openaiReq); err != nil {
+		log.Printf("Error: failed to parse request body: %v", err)
+		http.Error(w, `{"error": {"message": "Invalid JSON", "type": "invalid_request_error"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Check if model is supported
+	model := config.GetModelByID(openaiReq.Model)
+	if model == nil {
+		log.Printf("❌ Unsupported model: %s", openaiReq.Model)
+		http.Error(w, fmt.Sprintf(`{"error": {"message": "Model '%s' not found", "type": "invalid_request_error"}}`, openaiReq.Model), http.StatusNotFound)
+		return
+	}
+
+	if debugMode {
+		log.Printf("✅ %s [%s] stream=%v", openaiReq.Model, model.Type, openaiReq.Stream)
+	}
+
+	// Get factoryKeyID for logging (use "env" if from environment variable)
+	var factoryKeyID string
+	if proxyPool != nil && proxyPool.HasProxies() {
+		_, factoryKeyID, _ = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+	} else {
+		factoryKeyID = "env"
+	}
+
+	// Route request based on model type
+	switch model.Type {
+	case "anthropic":
+		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID)
+	case "openai":
+		handleFactoryOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID)
+	default:
+		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
+	}
+}
+
+// Handle Anthropic type request
+func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string) {
+	// Transform request
+	anthropicReq := transformers.TransformToAnthropic(openaiReq)
+
+	// Get endpoint
+	endpoint := config.GetEndpointByType("anthropic")
+	if endpoint == nil {
+		http.Error(w, `{"error": {"message": "Anthropic endpoint not configured", "type": "configuration_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Serialize request
+	reqBody, err := json.Marshal(anthropicReq)
+	if err != nil {
+		log.Printf("Error: failed to serialize request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if debugMode {
+		log.Printf("📤 /v1/chat/completions→Anthropic body:")
+		log.Printf("📤 %s", string(reqBody))
+	}
+
+	// Create HTTP request
+	proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		log.Printf("Error: failed to create request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to create request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Set request headers
+	clientHeaders := extractClientHeaders(r)
+	headers := transformers.GetAnthropicHeaders(authHeader, clientHeaders, openaiReq.Stream, model.ID)
+	for key, value := range headers {
+		proxyReq.Header.Set(key, value)
+	}
+
+	// Send request (using proxy client if selected, otherwise global client)
+	client := httpClient
+	if selectedProxy != nil {
+		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
+		if err != nil {
+			log.Printf("⚠️ Failed to create proxy client, falling back to direct: %v", err)
+		} else {
+			client = proxyClient
+		}
+	}
+	
+	resp, err := client.Do(proxyReq)
+	if err != nil {
+		log.Printf("Error: request failed: %v", err)
+		http.Error(w, `{"error": {"message": "Request to upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Warning: failed to close response body: %v", err)
+		}
+	}()
+
+	if debugMode {
+		log.Printf("📥 Anthropic response: %d", resp.StatusCode)
+	}
+
+	// Handle response
+	if openaiReq.Stream {
+		// Streaming response
+		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+	} else {
+		// Non-streaming response
+		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+	}
+}
+
+// Handle Factory OpenAI type request
+func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string) {
+	// Transform request
+	factoryReq := transformers.TransformToFactoryOpenAI(openaiReq)
+
+	// Get endpoint
+	endpoint := config.GetEndpointByType("openai")
+	if endpoint == nil {
+		http.Error(w, `{"error": {"message": "OpenAI endpoint not configured", "type": "configuration_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Serialize request
+	reqBody, err := json.Marshal(factoryReq)
+	if err != nil {
+		log.Printf("Error: failed to serialize request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Create HTTP request
+	proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		log.Printf("Error: failed to create request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to create request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Set request headers
+	clientHeaders := extractClientHeaders(r)
+	headers := transformers.GetFactoryOpenAIHeaders(authHeader, clientHeaders)
+	for key, value := range headers {
+		proxyReq.Header.Set(key, value)
+	}
+
+	// Debug mode: save request to file
+	if debugMode && proxyReq.Body != nil {
+		bodyBytes, _ := io.ReadAll(proxyReq.Body)
+		proxyReq.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		timestamp := time.Now().Format("20060102_150405")
+		requestFile := fmt.Sprintf("request_openai_%s.json", timestamp)
+		if err := os.WriteFile(requestFile, bodyBytes, 0644); err == nil {
+			log.Printf("💾 Complete request saved to: %s", requestFile)
+		}
+	}
+
+	// Send request (using proxy client if selected, otherwise global client)
+	client := httpClient
+	if selectedProxy != nil {
+		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
+		if err != nil {
+			log.Printf("⚠️ Failed to create proxy client, falling back to direct: %v", err)
+		} else {
+			client = proxyClient
+		}
+	}
+	
+	resp, err := client.Do(proxyReq)
+	if err != nil {
+		log.Printf("Error: request failed: %v", err)
+		http.Error(w, `{"error": {"message": "Request to upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Warning: failed to close response body: %v", err)
+		}
+	}()
+
+	if debugMode {
+		log.Printf("📥 Factory OpenAI response: %d", resp.StatusCode)
+	}
+
+	// Handle response
+	if openaiReq.Stream {
+		// Streaming response
+		handleFactoryOpenAIStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+	} else {
+		// Non-streaming response
+		handleFactoryOpenAINonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID)
+	}
+}
+
+// Handle Anthropic non-streaming response
+func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+	// Read response body (automatically handle gzip)
+	body, err := readResponseBody(resp)
+	if err != nil {
+		log.Printf("Error: failed to read response: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to read response", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		// Forward error response directly
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		if _, err := w.Write(body); err != nil {
+			log.Printf("Error: failed to write error response: %v", err)
+		}
+		return
+	}
+
+	// Parse Anthropic response
+	var anthropicResp map[string]interface{}
+	if err := json.Unmarshal(body, &anthropicResp); err != nil {
+		log.Printf("Error: failed to parse response: %v", err)
+		log.Printf("Raw response content: %s", string(body))
+		http.Error(w, `{"error": {"message": "Failed to parse response", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if debugMode {
+		log.Printf("📋 Parsed Anthropic response successfully")
+		log.Printf("📋 Response keys: %v", getMapKeys(anthropicResp))
+	}
+
+	// Extract and track token usage
+	if usageData, ok := anthropicResp["usage"].(map[string]interface{}); ok {
+		inputTokens := int64(0)
+		outputTokens := int64(0)
+		if it, ok := usageData["input_tokens"].(float64); ok {
+			inputTokens = int64(it)
+		}
+		if ot, ok := usageData["output_tokens"].(float64); ok {
+			outputTokens = int64(ot)
+		}
+		totalTokens := inputTokens + outputTokens
+		billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+		
+		// Update user usage in database
+		if userApiKey != "" {
+			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
+				log.Printf("⚠️ Failed to update usage: %v", err)
+			} else if debugMode {
+				log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+			}
+			// Log request for analytics
+			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode)
+		}
+	}
+
+	// Transform to OpenAI format
+	transformer := transformers.NewAnthropicResponseTransformer(modelID, "")
+	openaiResp, err := transformer.TransformNonStreamResponse(anthropicResp)
+	if err != nil {
+		log.Printf("Error: failed to transform response: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to transform response", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if debugMode {
+		log.Printf("✅ Transformed to OpenAI format successfully")
+	}
+
+	// Return OpenAI format response
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(openaiResp); err != nil {
+		log.Printf("Error: failed to encode response: %v", err)
+	}
+}
+
+// Handle Anthropic streaming response
+func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, `{"error": {"message": "Streaming not supported", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Create transformer
+	transformer := transformers.NewAnthropicResponseTransformer(modelID, "")
+
+	// Transform streaming response
+	outputChan := transformer.TransformStream(resp.Body)
+
+	for chunk := range outputChan {
+		if _, err := fmt.Fprint(w, chunk); err != nil {
+			log.Printf("Error: failed to write streaming response: %v", err)
+			return
+		}
+		flusher.Flush()
+	}
+}
+
+// Handle Factory OpenAI non-streaming response
+func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+	// Debug mode: log response headers
+	if debugMode {
+		log.Printf("📋 Response headers:")
+		for key, values := range resp.Header {
+			for _, value := range values {
+				log.Printf("   %s: %s", key, value)
+			}
+		}
+	}
+
+	// Read response body (automatically handle compression)
+	body, err := readResponseBody(resp)
+	if err != nil {
+		log.Printf("Error: failed to read response: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to read response", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Debug mode: save complete response to file
+	if debugMode {
+		timestamp := time.Now().Format("20060102_150405")
+		responseFile := fmt.Sprintf("response_%s.bin", timestamp)
+		if err := os.WriteFile(responseFile, body, 0644); err != nil {
+			log.Printf("⚠️ Unable to save response to file: %v", err)
+		} else {
+			log.Printf("💾 Complete response saved to: %s", responseFile)
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		// Forward error response directly
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		if _, err := w.Write(body); err != nil {
+			log.Printf("Error: failed to write error response: %v", err)
+		}
+		return
+	}
+
+	// Parse Factory OpenAI response
+	var factoryResp map[string]interface{}
+	if err := json.Unmarshal(body, &factoryResp); err != nil {
+		log.Printf("Error: failed to parse response: %v", err)
+		if debugMode {
+			log.Printf("Raw response content (first 200 bytes): %s", string(body[:min(200, len(body))]))
+			log.Printf("Raw response content (hex first 50 bytes): % x", body[:min(50, len(body))])
+		}
+		// Return error
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		errorMsg := `{"error": {"message": "Failed to parse Factory API response", "type": "server_error"}}`
+		w.Write([]byte(errorMsg))
+		return
+	}
+
+	// Extract and track token usage
+	if usageData, ok := factoryResp["usage"].(map[string]interface{}); ok {
+		inputTokens := int64(0)
+		outputTokens := int64(0)
+		if it, ok := usageData["input_tokens"].(float64); ok {
+			inputTokens = int64(it)
+		} else if it, ok := usageData["prompt_tokens"].(float64); ok {
+			inputTokens = int64(it)
+		}
+		if ot, ok := usageData["output_tokens"].(float64); ok {
+			outputTokens = int64(ot)
+		} else if ot, ok := usageData["completion_tokens"].(float64); ok {
+			outputTokens = int64(ot)
+		}
+		totalTokens := inputTokens + outputTokens
+		billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+		
+		// Update user usage in database
+		if userApiKey != "" {
+			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
+				log.Printf("⚠️ Failed to update usage: %v", err)
+			} else if debugMode {
+				log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+			}
+			// Log request for analytics
+			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode)
+		}
+	}
+
+	// Transform to OpenAI format
+	transformer := transformers.NewFactoryOpenAIResponseTransformer(modelID, "")
+	openaiResp, err := transformer.TransformNonStreamResponse(factoryResp)
+	if err != nil {
+		log.Printf("Error: failed to transform response: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to transform response", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Return OpenAI format response
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(openaiResp); err != nil {
+		log.Printf("Error: failed to encode response: %v", err)
+	}
+}
+
+// Handle Factory OpenAI streaming response
+func handleFactoryOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, `{"error": {"message": "Streaming not supported", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Create transformer
+	transformer := transformers.NewFactoryOpenAIResponseTransformer(modelID, "")
+
+	// Transform streaming response
+	outputChan := transformer.TransformStream(resp.Body)
+
+	for chunk := range outputChan {
+		if _, err := fmt.Fprint(w, chunk); err != nil {
+			log.Printf("Error: failed to write streaming response: %v", err)
+			return
+		}
+		flusher.Flush()
+	}
+}
+
+// Helper function to get map keys for debugging
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// sanitizeBlockedContent removes or replaces content that Factory AI blocks
+// This includes phrases like "You are Claude Code" which trigger 403 errors
+func sanitizeBlockedContent(text string) string {
+	// List of blocked phrases that Factory AI rejects
+	blockedPhrases := []string{
+		"You are Claude Code",
+		"You are Claude",
+		"Claude Code",
+		"I am Claude Code",
+		"I'm Claude Code",
+		"As Claude Code",
+	}
+	
+	result := text
+	for _, phrase := range blockedPhrases {
+		// Case-insensitive replacement
+		result = strings.ReplaceAll(result, phrase, "You are an AI assistant")
+		result = strings.ReplaceAll(result, strings.ToLower(phrase), "you are an AI assistant")
+	}
+	return result
+}
+
+// sanitizeAnthropicMessages sanitizes all messages to remove blocked content
+func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []transformers.AnthropicMessage {
+	for i := range messages {
+		// Handle string content
+		if strContent, ok := messages[i].Content.(string); ok {
+			messages[i].Content = sanitizeBlockedContent(strContent)
+			continue
+		}
+		
+		// Handle array content
+		if arrContent, ok := messages[i].Content.([]map[string]interface{}); ok {
+			for j := range arrContent {
+				if text, ok := arrContent[j]["text"].(string); ok {
+					arrContent[j]["text"] = sanitizeBlockedContent(text)
+				}
+			}
+			messages[i].Content = arrContent
+		}
+		
+		// Handle []interface{} content
+		if arrContent, ok := messages[i].Content.([]interface{}); ok {
+			for j := range arrContent {
+				if block, ok := arrContent[j].(map[string]interface{}); ok {
+					if text, ok := block["text"].(string); ok {
+						block["text"] = sanitizeBlockedContent(text)
+					}
+				}
+			}
+			messages[i].Content = arrContent
+		}
+	}
+	return messages
+}
+
+// combineSystemText flattens Anthropic system prompt entries into a single string
+func combineSystemText(systemEntries []map[string]interface{}) string {
+	var builder strings.Builder
+	for _, entry := range systemEntries {
+		text, _ := entry["text"].(string)
+		if text == "" {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteString("\n\n")
+		}
+		builder.WriteString(text)
+	}
+	return builder.String()
+}
+
+// Extract client request headers
+func extractClientHeaders(r *http.Request) map[string]string {
+	headers := make(map[string]string)
+
+	// Extract headers to forward
+	forwardHeaders := []string{
+		"x-session-id",
+		"x-assistant-message-id",
+		"x-stainless-arch",
+		"x-stainless-lang",
+		"x-stainless-os",
+		"x-stainless-runtime",
+		"x-stainless-retry-count",
+		"x-stainless-package-version",
+		"x-stainless-runtime-version",
+	}
+
+	for _, header := range forwardHeaders {
+		if value := r.Header.Get(header); value != "" {
+			headers[header] = value
+		}
+	}
+
+	return headers
+}
+
+// Anthropic Messages API endpoint - Direct pass-through to Factory AI
+// Supports Anthropic native provider in Droid CLI and Anthropic SDK
+func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Method not allowed"}}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Validate Authorization header (support both Authorization/Bearer and x-api-key)
+	authHeader := r.Header.Get("Authorization")
+	clientAPIKey := ""
+
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
+			http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid authorization header format"}}`, http.StatusUnauthorized)
+			return
+		}
+		clientAPIKey = parts[1]
+	} else if xAPIKey := r.Header.Get("x-api-key"); xAPIKey != "" {
+		// Anthropic SDKs send x-api-key without Authorization header
+		clientAPIKey = xAPIKey
+		authHeader = "Bearer " + xAPIKey
+	} else {
+		http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Authorization header is required"}}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Validate API key - either from env (PROXY_API_KEY) or MongoDB (user_keys)
+	proxyAPIKey := getEnv("PROXY_API_KEY", "")
+	clientKeyMask := clientAPIKey
+	if len(clientKeyMask) > 8 {
+		clientKeyMask = clientKeyMask[:4] + "..." + clientKeyMask[len(clientKeyMask)-4:]
+	}
+	
+	if proxyAPIKey != "" {
+		// Validate with fixed PROXY_API_KEY from env
+		if clientAPIKey != proxyAPIKey {
+			log.Printf("❌ API Key validation failed (env): %s", clientKeyMask)
+			http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+			return
+		}
+		log.Printf("🔑 Key validated (env): %s", clientKeyMask)
+	} else {
+		// Validate from MongoDB user_keys collection
+		userKey, err := userkey.ValidateKey(clientAPIKey)
+		if err != nil {
+			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
+			if err == userkey.ErrQuotaExhausted {
+				http.Error(w, `{"type":"error","error":{"type":"rate_limit_error","message":"Token quota exhausted"}}`, http.StatusTooManyRequests)
+			} else if err == userkey.ErrKeyRevoked {
+				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"API key has been revoked"}}`, http.StatusUnauthorized)
+			} else {
+				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+			}
+			return
+		}
+		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
+	}
+
+	// Check rate limit
+	if !checkRateLimit(w, clientAPIKey) {
+		return
+	}
+
+	// Get factory key from proxy pool or environment
+	var selectedProxy *proxy.Proxy
+	var factoryAPIKey string
+	var factoryKeyID string
+	
+	if proxyPool != nil && proxyPool.HasProxies() {
+		// Use proxy pool - sticky routing based on client API key
+		var err error
+		selectedProxy, factoryKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+		if err != nil {
+			log.Printf("❌ Failed to select proxy: %v", err)
+			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"No available proxies"}}`, http.StatusServiceUnavailable)
+			return
+		}
+		factoryAPIKey = factoryKeyPool.GetAPIKey(factoryKeyID)
+		if factoryAPIKey == "" {
+			log.Printf("❌ Factory key %s not found in pool", factoryKeyID)
+			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
+			return
+		}
+		log.Printf("🔄 [Anthropic] Using proxy %s with key %s", selectedProxy.Name, factoryKeyID)
+	} else {
+		// Fallback to environment variable
+		factoryAPIKey = getEnv("FACTORY_API_KEY", "")
+		factoryKeyID = "env"
+		if factoryAPIKey == "" {
+			log.Printf("❌ No proxies configured and FACTORY_API_KEY not set")
+			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
+			return
+		}
+	}
+	authHeader = "Bearer " + factoryAPIKey
+
+	// Read request body (no parsing - direct pass-through)
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading request body: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Failed to read request body"}}`, http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if debugMode {
+		log.Printf("📥 /v1/messages request received")
+		log.Printf("📥 Body: %s", string(bodyBytes))
+	}
+
+	// Parse Anthropic request
+	var anthropicReq transformers.AnthropicRequest
+	if err := json.Unmarshal(bodyBytes, &anthropicReq); err != nil {
+		log.Printf("Error parsing request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Invalid JSON"}}`, http.StatusBadRequest)
+		return
+	}
+
+	stream := anthropicReq.Stream
+
+	// Get model to validate and configure request
+	model := config.GetModelByID(anthropicReq.Model)
+	if model == nil {
+		log.Printf("❌ Unsupported model: %s", anthropicReq.Model)
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Model not found"}}`, http.StatusNotFound)
+		return
+	}
+
+	// Normalize message content format (convert string to array if needed)
+	for i := range anthropicReq.Messages {
+		if strContent, ok := anthropicReq.Messages[i].Content.(string); ok {
+			// Convert string to array format
+			anthropicReq.Messages[i].Content = []map[string]interface{}{
+				{
+					"type": "text",
+					"text": strContent,
+				},
+			}
+			if debugMode {
+				log.Printf("🔄 Normalized message %d content from string to array", i)
+			}
+		}
+	}
+
+	// Sanitize messages to remove blocked content (e.g., "Claude Code" phrases)
+	anthropicReq.Messages = sanitizeAnthropicMessages(anthropicReq.Messages)
+	if debugMode {
+		log.Printf("🧹 Sanitized messages to remove blocked content")
+	}
+
+	// Get Anthropic endpoint from config (same as existing handler)
+	endpoint := config.GetEndpointByType("anthropic")
+	if endpoint == nil {
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Anthropic endpoint not configured"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Add system prompt if not present (Factory AI requires this)
+	if debugMode {
+		log.Printf("🔍 System prompt check: len(System)=%d", len(anthropicReq.System))
+	}
+	userSystemCount := len(anthropicReq.System)
+	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.System))
+	systemPrompt := config.GetSystemPrompt()
+	if systemPrompt != "" {
+		if debugMode {
+			log.Printf("🔍 System prompt from config: %q", systemPrompt)
+		}
+		anthropicReq.System = []map[string]interface{}{
+			{
+				"type": "text",
+				"text": systemPrompt,
+			},
+		}
+		if debugMode {
+			log.Printf("✅ Enforced proxy system prompt")
+		}
+	} else {
+		anthropicReq.System = nil
+	}
+	if userSystemText != "" && userSystemCount > 0 {
+		prepend := transformers.AnthropicMessage{
+			Role: "user",
+			Content: []map[string]interface{}{
+				{
+					"type": "text",
+					"text": userSystemText,
+				},
+			},
+		}
+		anthropicReq.Messages = append([]transformers.AnthropicMessage{prepend}, anthropicReq.Messages...)
+		if debugMode {
+			log.Printf("🔁 Moved %d system instructions into conversation", userSystemCount)
+		}
+	}
+
+	// Let client control thinking - don't force disable
+	// Claude needs thinking to reason before calling tools
+	if anthropicReq.Thinking != nil {
+		log.Printf("🧠 Client requested thinking (budget: %d)", anthropicReq.Thinking.BudgetTokens)
+	}
+	
+	// Adjust max_tokens to reasonable values (Factory AI expects larger values for Claude)
+	// Claude models support extended thinking which requires token budget
+	if debugMode {
+		log.Printf("🔍 Model reasoning: %s, thinking: %v, max_tokens: %d", model.Reasoning, anthropicReq.Thinking, anthropicReq.MaxTokens)
+	}
+	
+	// Check if conversation history has assistant messages without thinking blocks
+	// If so, we cannot enable thinking (Claude API requires thinking blocks in history)
+	hasAssistantWithoutThinking := false
+	for _, msg := range anthropicReq.Messages {
+		if msg.Role == "assistant" {
+			// Check if first content block is thinking
+			if content, ok := msg.Content.([]interface{}); ok && len(content) > 0 {
+				if firstBlock, ok := content[0].(map[string]interface{}); ok {
+					blockType, _ := firstBlock["type"].(string)
+					if blockType != "thinking" && blockType != "redacted_thinking" {
+						hasAssistantWithoutThinking = true
+						break
+					}
+				}
+			} else if contentArr, ok := msg.Content.([]map[string]interface{}); ok && len(contentArr) > 0 {
+				blockType, _ := contentArr[0]["type"].(string)
+				if blockType != "thinking" && blockType != "redacted_thinking" {
+					hasAssistantWithoutThinking = true
+					break
+				}
+			} else {
+				// String content or unknown format - no thinking block
+				hasAssistantWithoutThinking = true
+				break
+			}
+		}
+	}
+	
+	// DISABLED: Auto-enable thinking causes issues with Claude Code CLI
+	// if model.Reasoning == "high" && anthropicReq.Thinking == nil && !hasAssistantWithoutThinking {
+	// 	anthropicReq.Thinking = &transformers.ThinkingConfig{
+	// 		Type:         "enabled",
+	// 		BudgetTokens: 10000,
+	// 	}
+	// 	if debugMode {
+	// 		log.Printf("🔍 Model reasoning: high, auto-enabled thinking (budget=%d)", anthropicReq.Thinking.BudgetTokens)
+	// 	}
+	// }
+	// Don't disable thinking based on history - let Factory API handle it
+	// Claude Code CLI needs thinking for tool calls
+	if hasAssistantWithoutThinking && anthropicReq.Thinking != nil {
+		log.Printf("ℹ️ Note: history has assistant messages without thinking blocks")
+	}
+	
+	// Log final thinking status
+	if anthropicReq.Thinking != nil {
+		log.Printf("🧠 Thinking: ENABLED (budget: %d)", anthropicReq.Thinking.BudgetTokens)
+	} else {
+		log.Printf("🧠 Thinking: DISABLED")
+	}
+
+	// Ensure max_tokens is always large enough for thinking + response
+	if anthropicReq.MaxTokens <= 0 {
+		maxLimit := 64000
+		if model.ID == "claude-opus-4-1-20250805" {
+			maxLimit = 32000
+		}
+		anthropicReq.MaxTokens = maxLimit
+		if debugMode {
+			log.Printf("✅ Set default max_tokens: %d", anthropicReq.MaxTokens)
+		}
+	}
+
+	if anthropicReq.Thinking != nil {
+		minTokens := anthropicReq.Thinking.BudgetTokens + 4000 // reserve space for final response
+		if anthropicReq.MaxTokens < minTokens {
+			if debugMode {
+				log.Printf("🔧 max_tokens(%d) < thinking budget requirement(%d), increasing", anthropicReq.MaxTokens, minTokens)
+			}
+			anthropicReq.MaxTokens = minTokens
+		}
+	} else if anthropicReq.MaxTokens == 0 {
+		// Set reasonable default if not specified
+		maxLimit := 64000
+		if model.ID == "claude-opus-4-1-20250805" {
+			maxLimit = 32000
+		}
+		anthropicReq.MaxTokens = maxLimit
+		if debugMode {
+			log.Printf("✅ Set default max_tokens: %d", anthropicReq.MaxTokens)
+		}
+	}
+
+	// Re-serialize to send (with added system prompt and thinking config)
+	reqBody, err := json.Marshal(anthropicReq)
+	if err != nil {
+		log.Printf("Error serializing request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to serialize request"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if debugMode {
+		log.Printf("📤 /v1/messages request body:")
+		log.Printf("📤 %s", string(reqBody))
+	}
+
+	// Create request to Factory AI
+	proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		log.Printf("Error creating request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to create request"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers using the same helper as existing Anthropic handler
+	clientHeaders := extractClientHeaders(r)
+	headers := transformers.GetAnthropicHeaders(authHeader, clientHeaders, stream, model.ID)
+	for key, value := range headers {
+		proxyReq.Header.Set(key, value)
+	}
+
+	// Send request (using proxy client if selected, otherwise global client)
+	client := httpClient
+	if selectedProxy != nil {
+		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
+		if err != nil {
+			log.Printf("⚠️ Failed to create proxy client, falling back to direct: %v", err)
+		} else {
+			client = proxyClient
+		}
+	}
+	
+	log.Printf("📤 Sending request to Factory API...")
+	reqStart := time.Now()
+	resp, err := client.Do(proxyReq)
+	if err != nil {
+		log.Printf("❌ Request failed after %v: %v", time.Since(reqStart), err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to upstream failed"}}`, http.StatusBadGateway)
+		return
+	}
+	log.Printf("📥 Response received after %v", time.Since(reqStart))
+	defer resp.Body.Close()
+
+	if debugMode {
+		log.Printf("📥 Factory AI response: %d", resp.StatusCode)
+	}
+
+	// Handle response based on streaming
+	if stream {
+		handleAnthropicMessagesStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID)
+	} else {
+		handleAnthropicMessagesNonStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID)
+	}
+}
+
+// Handle non-streaming response from Factory AI (Anthropic format)
+func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+	body, err := readResponseBody(resp)
+	if err != nil {
+		log.Printf("Error reading response: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to read response"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Filter Droid identity from response content and track usage
+	if resp.StatusCode == http.StatusOK {
+		var anthropicResp map[string]interface{}
+		if err := json.Unmarshal(body, &anthropicResp); err == nil {
+			// Extract and track token usage
+			if usageData, ok := anthropicResp["usage"].(map[string]interface{}); ok {
+				inputTokens := int64(0)
+				outputTokens := int64(0)
+				if it, ok := usageData["input_tokens"].(float64); ok {
+					inputTokens = int64(it)
+				}
+				if ot, ok := usageData["output_tokens"].(float64); ok {
+					outputTokens = int64(ot)
+				}
+				totalTokens := inputTokens + outputTokens
+				billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+				
+				// Update user usage in database
+				if userApiKey != "" {
+					if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
+						log.Printf("⚠️ Failed to update usage: %v", err)
+					} else if debugMode {
+						log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+					}
+					// Log request for analytics
+					usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode)
+				}
+			}
+
+			// Filter content blocks (both text and thinking)
+			if content, ok := anthropicResp["content"].([]interface{}); ok {
+				for _, item := range content {
+					if block, ok := item.(map[string]interface{}); ok {
+						// Filter text blocks
+						if text, ok := block["text"].(string); ok {
+							block["text"] = transformers.FilterDroidIdentity(text)
+						}
+						// Filter thinking blocks
+						if thinking, ok := block["thinking"].(string); ok {
+							block["thinking"] = transformers.FilterDroidIdentity(thinking)
+						}
+					}
+				}
+			}
+			// Re-serialize
+			if filteredBody, err := json.Marshal(anthropicResp); err == nil {
+				body = filteredBody
+			}
+		}
+	}
+
+	// Pass through response (with filtered content)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	w.Write(body)
+
+	if debugMode {
+		log.Printf("✅ Response returned: %d bytes", len(body))
+	}
+}
+
+// Handle streaming response from Factory AI (Anthropic SSE format)
+func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string) {
+	log.Printf("📥 Stream response status: %d", resp.StatusCode)
+	
+	// If not 200, log response body for debugging
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ Stream error response: %s", string(body))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		w.Write(body)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Streaming not supported"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Process SSE events and filter Droid identity
+	scanner := bufio.NewScanner(resp.Body)
+	// Increase scanner buffer for large streaming responses
+	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024) // 10MB max
+	var totalInputTokens, totalOutputTokens int64
+	eventCount := 0
+	startTime := time.Now()
+	var firstEventTime time.Time
+	log.Printf("📡 Stream started")
+	
+	for scanner.Scan() {
+		eventCount++
+		if eventCount == 1 {
+			firstEventTime = time.Now()
+			log.Printf("📡 First event received after %v", firstEventTime.Sub(startTime))
+		}
+		line := scanner.Text()
+		
+		// Filter content_block_delta events (both text and thinking)
+		if strings.HasPrefix(line, "data: ") {
+			dataStr := strings.TrimPrefix(line, "data: ")
+			var eventData map[string]interface{}
+			if err := json.Unmarshal([]byte(dataStr), &eventData); err == nil {
+				modified := false
+				eventType, _ := eventData["type"].(string)
+				
+				// Check if this is a content_block_delta
+				if eventType == "content_block_delta" {
+					if delta, ok := eventData["delta"].(map[string]interface{}); ok {
+						// DISABLED: Filter may cause issues with Claude Code CLI
+						// if text, ok := delta["text"].(string); ok {
+						// 	delta["text"] = transformers.FilterDroidIdentity(text)
+						// 	modified = true
+						// }
+						// if thinking, ok := delta["thinking"].(string); ok {
+						// 	delta["thinking"] = transformers.FilterDroidIdentity(thinking)
+						// 	modified = true
+						// }
+						_ = delta // avoid unused variable
+					}
+				}
+				
+				// Capture usage from message_delta event
+				if eventType == "message_delta" {
+					if usageData, ok := eventData["usage"].(map[string]interface{}); ok {
+						if ot, ok := usageData["output_tokens"].(float64); ok {
+							totalOutputTokens = int64(ot)
+						}
+					}
+				}
+				
+				// Capture usage from message_start event
+				if eventType == "message_start" {
+					if message, ok := eventData["message"].(map[string]interface{}); ok {
+						if usageData, ok := message["usage"].(map[string]interface{}); ok {
+							if it, ok := usageData["input_tokens"].(float64); ok {
+								totalInputTokens = int64(it)
+							}
+						}
+					}
+				}
+				
+				// Re-serialize if modified
+				if modified {
+					if filtered, err := json.Marshal(eventData); err == nil {
+						line = "data: " + string(filtered)
+					}
+				}
+			}
+		}
+		
+		fmt.Fprintf(w, "%s\n", line)
+		flusher.Flush()
+	}
+
+	// Update usage after stream completes
+	if totalInputTokens > 0 || totalOutputTokens > 0 {
+		totalTokens := totalInputTokens + totalOutputTokens
+		billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+		if userApiKey != "" {
+			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
+				log.Printf("⚠️ Failed to update usage: %v", err)
+			} else if debugMode {
+				log.Printf("📊 Updated usage (stream): raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+			}
+			// Log request for analytics
+			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, 200)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("❌ Error reading stream after %d events (duration: %v): %v", eventCount, time.Since(startTime), err)
+	} else if eventCount == 0 {
+		log.Printf("⚠️ Stream ended with 0 events (duration: %v)", time.Since(startTime))
+	} else {
+		log.Printf("✅ Stream completed: %d events in %v", eventCount, time.Since(startTime))
+	}
+}
+
+func main() {
+	// Load .env file (if exists)
+	if err := godotenv.Load("../.env"); err != nil {
+		log.Printf("⚠️ No .env file found, using system environment variables")
+	}
+
+	// Initialize HTTP client
+	initHTTPClient()
+
+	// Check if debug mode is enabled
+	if getEnv("DEBUG", "") == "true" {
+		debugMode = true
+		log.Printf("🐛 Debug mode enabled")
+	}
+
+	// Initialize MongoDB connection
+	_ = db.GetClient() // This initializes the connection
+	log.Printf("✅ MongoDB initialized")
+
+	// Initialize rate limiter
+	rateLimiter = ratelimit.NewRateLimiter()
+	log.Printf("✅ Rate limiter initialized (Dev: 600 RPM, Pro: 1000 RPM)")
+
+	// Initialize proxy pool and factory key pool
+	proxyPool = proxy.GetPool()
+	factoryKeyPool = keypool.GetPool()
+	
+	// Start health checker
+	healthChecker = proxy.NewHealthChecker(proxyPool)
+	healthChecker.Start()
+	
+	
+	log.Printf("✅ Proxy pool loaded: %d proxies", proxyPool.GetProxyCount())
+	log.Printf("✅ Factory key pool loaded: %d keys", factoryKeyPool.GetKeyCount())
+
+	// Validate environment variables (FACTORY_API_KEY is optional if using key pool from DB)
+	factoryAPIKey := getEnv("FACTORY_API_KEY", "")
+	
+	proxyAPIKey := getEnv("PROXY_API_KEY", "")
+	if proxyAPIKey != "" {
+		log.Printf("🔐 Proxy mode: Enabled (external key required)")
+	}
+	
+	if proxyPool.HasProxies() {
+		log.Printf("🔐 Using proxy pool with %d proxies", proxyPool.GetProxyCount())
+	} else if factoryAPIKey != "" {
+		log.Printf("🔐 Direct mode: Using FACTORY_API_KEY (no proxies configured)")
+	} else {
+		log.Printf("⚠️ Warning: No proxies and no FACTORY_API_KEY configured!")
+	}
+
+	// Load configuration
+	configPath := getEnv("CONFIG_PATH", "config.json")
+	log.Printf("📖 Loading configuration file: %s", configPath)
+
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
+	}
+
+	log.Printf("✅ Configuration loaded successfully")
+	log.Printf("📍 Supported models (%d):", len(cfg.Models))
+	for _, model := range cfg.Models {
+		log.Printf("   • %s [%s]", model.ID, model.Type)
+	}
+
+	// Setup routes
+	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/v1/models", modelsHandler)
+	http.HandleFunc("/v1/chat/completions", chatCompletionsHandler)
+	http.HandleFunc("/v1/messages", handleAnthropicMessagesEndpoint)
+	http.HandleFunc("/docs", docsHandler)
+
+	// Root path
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.Error(w, `{"error": {"message": "Not found", "type": "invalid_request_error"}}`, http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"service": "trolLLM - We Troll So You Don't Have To",
+			"version": "999.999.999",
+			"endpoints": []string{
+				"/health",
+				"/v1/models",
+				"/v1/chat/completions",
+				"/v1/messages",
+			},
+		}); err != nil {
+			log.Printf("Error: failed to encode response: %v", err)
+		}
+	})
+
+	// Start server
+	port := fmt.Sprintf(":%d", cfg.Port)
+	server := &http.Server{
+		Addr:         port,
+		ReadTimeout:  120 * time.Second,
+		WriteTimeout: 300 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	log.Printf("🚀 Service started at http://localhost%s", port)
+	log.Printf("📖 Documentation: http://localhost%s/docs", port)
+
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("❌ Server failed to start: %v", err)
+	}
+}

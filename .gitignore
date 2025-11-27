@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+*.exe
+!goproxy/goproxy.exe
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Next.js
+.next/
+out/
+
+# Go
+*.test
+*.out
+
+# Database
+*.db
+db/data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
