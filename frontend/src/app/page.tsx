@@ -292,7 +292,7 @@ export default function LandingPage() {
             <Link href="/login" className="text-slate-500 hover:text-white transition-colors text-sm">
               Sign In
             </Link>
-            <Link href="/register" className="px-4 py-2 rounded-lg bg-indigo-500 text-white font-medium text-sm hover:bg-indigo-600 transition-colors">
+            <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
               Get API Key
             </Link>
           </div>
@@ -339,7 +339,7 @@ export default function LandingPage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 opacity-0 animate-fade-in-up animation-delay-300">
-                <Link href="/register" className="px-6 py-3 rounded-lg bg-indigo-500 text-white font-medium hover:bg-indigo-600 transition-colors text-center">
+                <Link href="/register" className="px-6 py-3 rounded-lg bg-white text-black font-medium hover:bg-slate-200 transition-colors text-center">
                   Get Started Free
                 </Link>
                 <Link href="/models" className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium hover:bg-white/5 transition-colors text-center">
@@ -438,8 +438,8 @@ export default function LandingPage() {
             </div>
 
             {/* Pro Tier */}
-            <div className="p-6 rounded-xl border border-indigo-500/30 bg-indigo-500/5 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-indigo-500 text-white text-xs font-medium">
+            <div className="p-6 rounded-xl border border-white/20 bg-white/[0.04] relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-white text-black text-xs font-medium">
                 Popular
               </div>
               <h3 className="text-lg font-semibold text-white mb-1">Pro</h3>
@@ -457,7 +457,7 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/register" className="block w-full py-2.5 rounded-lg bg-indigo-500 text-white font-medium text-sm text-center hover:bg-indigo-600 transition-colors">
+              <Link href="/register" className="block w-full py-2.5 rounded-lg bg-white text-black font-medium text-sm text-center hover:bg-slate-200 transition-colors">
                 Start Free Trial
               </Link>
             </div>
@@ -535,11 +535,11 @@ export default function LandingPage() {
             Ready to start?
           </h2>
           <p className="text-lg text-slate-500 mb-8">
-            Get instant access to Claude models with a single API key.
+            Check out our documentation to get started with the API.
           </p>
 
-          <Link href="/register" className="inline-block px-8 py-4 rounded-xl bg-indigo-500 text-white font-semibold text-lg hover:bg-indigo-600 transition-colors">
-            Get API Key
+          <Link href="/docs" className="inline-block px-8 py-4 rounded-xl bg-white text-black font-semibold text-lg hover:bg-slate-200 transition-colors">
+            View Documentation
           </Link>
         </div>
       </section>

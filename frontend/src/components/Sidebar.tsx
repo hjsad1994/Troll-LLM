@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthProvider'
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: '📊' },
+  { href: '/admin', label: 'Dashboard', icon: '📊' },
   { href: '/keys', label: 'User Keys', icon: '🔑' },
   { href: '/factory-keys', label: 'Factory Keys', icon: '🏭' },
   { href: '/proxies', label: 'Proxies', icon: '🌐' },

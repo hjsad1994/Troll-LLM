@@ -21,7 +21,7 @@ export default function LoginPage() {
 
     try {
       await login(username, password)
-      router.push('/')
+      router.push('/keys')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
@@ -51,7 +51,7 @@ export default function LoginPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/register" className="px-4 py-2 rounded-lg bg-indigo-500 text-white font-medium text-sm hover:bg-indigo-600 transition-colors">
+            <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
               Get API Key
             </Link>
           </div>
@@ -135,7 +135,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-lg bg-indigo-500 text-white font-medium hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-lg bg-white text-black font-medium hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">

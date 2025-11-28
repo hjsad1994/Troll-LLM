@@ -108,7 +108,7 @@ function maskApiKey(key: string): string {
   return key.slice(0, 8) + '...' + key.slice(-4)
 }
 
-export default function Dashboard() {
+export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
     totalKeys: 0,
     totalFactoryKeys: 0,
@@ -190,8 +190,6 @@ export default function Dashboard() {
   const activeKeys = userKeys.filter(k => k.isActive).length
   const healthyFactoryKeys = factoryKeys.filter(k => k.status === 'healthy').length
   const healthyProxies = proxies.filter(p => p.status === 'healthy').length
-  const totalKeyTokensUsed = userKeys.reduce((sum, k) => sum + (k.tokensUsed || 0), 0)
-  const totalKeyTokensLimit = userKeys.reduce((sum, k) => sum + (k.totalTokens || 0), 0)
 
   return (
     <div className="space-y-8">
