@@ -1,16 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
-import { User, verifyPassword } from '../db/mongodb.js';
+import jwt from 'jsonwebtoken';
+import { User, verifyPassword, hashPassword } from '../db/mongodb.js';
+
+const JWT_SECRET = process.env.ADMIN_SECRET_KEY || 'change-this-to-random-secret';
+const JWT_EXPIRES_IN = '24h';
+
+interface JwtPayload {
+  username: string;
+  role: string;
+}
 
 // Simple in-memory rate limiting for failed auth attempts
 const failedAttempts: Map<string, { count: number; blockedUntil: number }> = new Map();
 
-// Simple session store (in production, use Redis or JWT)
-const sessions: Map<string, { username: string; role: string; expiresAt: number }> = new Map();
-
 export async function adminAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
   
-  // Check if IP is blocked (only for repeated bad credentials, not missing auth)
+  // Check if IP is blocked
   const attempt = failedAttempts.get(clientIP);
   if (attempt && attempt.blockedUntil > Date.now()) {
     const retryAfter = Math.ceil((attempt.blockedUntil - Date.now()) / 1000);
@@ -21,29 +27,33 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
     return;
   }
   
-  // If no auth headers at all, just return 401 without counting as failed attempt
-  const sessionToken = req.headers['x-session-token'] as string;
+  // Check for auth headers
   const authHeader = req.headers.authorization;
-  if (!sessionToken && !authHeader) {
+  if (!authHeader) {
     res.status(401).json({ 
       error: 'Authentication required',
-      hint: 'Use Basic Auth with username:password or X-Session-Token header'
+      hint: 'Use Bearer token from login response'
     });
     return;
   }
 
-  // Check session token first
-  if (sessionToken) {
-    const session = sessions.get(sessionToken);
-    if (session && session.expiresAt > Date.now()) {
+  // Check Bearer Token (JWT)
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+      // Attach user info to request
+      (req as any).user = decoded;
       failedAttempts.delete(clientIP);
       next();
       return;
+    } catch (error) {
+      // Token invalid or expired
     }
   }
 
-  // Check Basic Auth (username:password)
-  if (authHeader && authHeader.startsWith('Basic ')) {
+  // Check Basic Auth (username:password) - backward compatible
+  if (authHeader.startsWith('Basic ')) {
     const base64Credentials = authHeader.substring(6);
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
     const [username, password] = credentials.split(':');
@@ -52,8 +62,8 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
       try {
         const user = await User.findById(username);
         if (user && user.isActive && verifyPassword(password, user.passwordHash, user.passwordSalt)) {
-          // Update last login
           await User.updateOne({ _id: username }, { lastLoginAt: new Date() });
+          (req as any).user = { username, role: user.role };
           failedAttempts.delete(clientIP);
           next();
           return;
@@ -66,8 +76,8 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
 
   recordFailedAttempt(clientIP);
   res.status(401).json({ 
-    error: 'Authentication required',
-    hint: 'Use Basic Auth with username:password or X-Session-Token header'
+    error: 'Invalid or expired token',
+    hint: 'Please login again to get a new token'
   });
 }
 
@@ -87,10 +97,9 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Create session token
-    const token = generateToken();
-    const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    sessions.set(token, { username, role: user.role, expiresAt });
+    // Create JWT token
+    const payload: JwtPayload = { username, role: user.role };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     // Update last login
     await User.updateOne({ _id: username }, { lastLoginAt: new Date() });
@@ -99,7 +108,7 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
       token,
       username,
       role: user.role,
-      expires_at: new Date(expiresAt).toISOString(),
+      expires_in: JWT_EXPIRES_IN,
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -107,13 +116,60 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
   }
 }
 
-function generateToken(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let token = '';
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
+// Register endpoint handler
+export async function registerHandler(req: Request, res: Response): Promise<void> {
+  const { username, password, role } = req.body;
+
+  if (!username || !password) {
+    res.status(400).json({ error: 'Username and password required' });
+    return;
   }
-  return token;
+
+  if (username.length < 3 || username.length > 50) {
+    res.status(400).json({ error: 'Username must be 3-50 characters' });
+    return;
+  }
+
+  if (password.length < 6) {
+    res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return;
+  }
+
+  try {
+    // Check if user already exists
+    const existingUser = await User.findById(username);
+    if (existingUser) {
+      res.status(409).json({ error: 'Username already exists' });
+      return;
+    }
+
+    // Hash password
+    const { hash, salt } = hashPassword(password);
+
+    // Create user
+    await User.create({
+      _id: username,
+      passwordHash: hash,
+      passwordSalt: salt,
+      role: role === 'admin' ? 'admin' : 'viewer',
+      isActive: true,
+    });
+
+    // Generate token for immediate login
+    const payload: JwtPayload = { username, role: role === 'admin' ? 'admin' : 'viewer' };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      token,
+      username,
+      role: payload.role,
+      expires_in: JWT_EXPIRES_IN,
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
 }
 
 function recordFailedAttempt(ip: string): void {
@@ -132,16 +188,9 @@ function recordFailedAttempt(ip: string): void {
 // Cleanup old entries periodically
 setInterval(() => {
   const now = Date.now();
-  // Clean failed attempts
   for (const [ip, attempt] of failedAttempts.entries()) {
     if (attempt.blockedUntil < now && attempt.count === 0) {
       failedAttempts.delete(ip);
-    }
-  }
-  // Clean expired sessions
-  for (const [token, session] of sessions.entries()) {
-    if (session.expiresAt < now) {
-      sessions.delete(token);
     }
   }
 }, 60000);

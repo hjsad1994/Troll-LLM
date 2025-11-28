@@ -1,106 +1,40 @@
-import { customAlphabet } from 'nanoid';
-import { UserKey } from '../db/mongodb.js';
+import { userKeyRepository } from '../repositories/user-key.repository.js';
+import { CreateUserKeyInput, UpdateUserKeyInput } from '../dtos/user-key.dto.js';
+import { IUserKey } from '../models/user-key.model.js';
 
-const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 32);
-
-export interface CreateKeyInput {
-  name: string;
-  tier: 'dev' | 'pro';
-  totalTokens?: number;
-  notes?: string;
+export async function listUserKeys(): Promise<IUserKey[]> {
+  return userKeyRepository.findAll();
 }
 
-export interface UpdateKeyInput {
-  totalTokens?: number;
-  notes?: string;
-  isActive?: boolean;
+export async function getUserKey(id: string): Promise<IUserKey | null> {
+  return userKeyRepository.findById(id);
 }
 
-export async function createUserKey(input: CreateKeyInput) {
-  const keyId = `sk-${input.tier}-${nanoid()}`;
-  const defaultTokens = 30000000; // 30M
-
-  const userKey = new UserKey({
-    _id: keyId,
-    name: input.name,
-    tier: input.tier,
-    totalTokens: input.totalTokens || defaultTokens,
-    notes: input.notes,
-  });
-
-  await userKey.save();
-  return userKey.toJSON();
+export async function createUserKey(input: CreateUserKeyInput): Promise<IUserKey> {
+  return userKeyRepository.create(input);
 }
 
-export async function listUserKeys() {
-  const keys = await UserKey.find().sort({ createdAt: -1 });
-  return keys.map(k => k.toJSON());
+export async function updateUserKey(id: string, input: UpdateUserKeyInput): Promise<IUserKey | null> {
+  return userKeyRepository.update(id, input);
 }
 
-export async function getUserKey(keyId: string) {
-  const key = await UserKey.findById(keyId);
-  return key ? key.toJSON() : null;
+export async function deleteUserKey(id: string): Promise<IUserKey | null> {
+  return userKeyRepository.delete(id);
 }
 
-export async function updateUserKey(keyId: string, input: UpdateKeyInput) {
-  const updateData: Record<string, unknown> = {};
-  
-  if (input.totalTokens !== undefined) {
-    updateData.totalTokens = input.totalTokens;
-  }
-  if (input.notes !== undefined) {
-    updateData.notes = input.notes;
-  }
-  if (input.isActive !== undefined) {
-    updateData.isActive = input.isActive;
-  }
-
-  const key = await UserKey.findByIdAndUpdate(
-    keyId,
-    { $set: updateData },
-    { new: true }
-  );
-
-  return key ? key.toJSON() : null;
+export async function revokeUserKey(id: string): Promise<IUserKey | null> {
+  return userKeyRepository.setActive(id, false);
 }
 
-export async function revokeUserKey(keyId: string) {
-  const key = await UserKey.findByIdAndUpdate(
-    keyId,
-    { $set: { isActive: false } },
-    { new: true }
-  );
-
-  return key ? key.toJSON() : null;
+export async function resetUserKeyUsage(id: string): Promise<IUserKey | null> {
+  return userKeyRepository.resetUsage(id);
 }
 
-export async function deleteUserKey(keyId: string) {
-  const key = await UserKey.findByIdAndDelete(keyId);
-  return key ? key.toJSON() : null;
-}
-
-export async function resetUserKeyUsage(keyId: string) {
-  const key = await UserKey.findByIdAndUpdate(
-    keyId,
-    { $set: { tokensUsed: 0, requestsCount: 0 } },
-    { new: true }
-  );
-
-  return key ? key.toJSON() : null;
-}
-
-export async function getKeyStats() {
-  const total = await UserKey.countDocuments();
-  const active = await UserKey.countDocuments({ isActive: true });
-  const exhausted = await UserKey.countDocuments({
-    isActive: true,
-    $expr: { $gte: ['$tokensUsed', '$totalTokens'] }
-  });
-
-  return { total, active, exhausted };
+export async function getKeyStats(): Promise<{ total: number; active: number; exhausted: number }> {
+  return userKeyRepository.getStats();
 }
 
 export function maskKey(key: string): string {
-  if (key.length < 10) return '***';
+  if (!key || key.length < 10) return '***';
   return key.substring(0, 7) + '***' + key.substring(key.length - 3);
 }

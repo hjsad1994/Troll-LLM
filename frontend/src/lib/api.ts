@@ -2,10 +2,8 @@ export function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
   
   const token = localStorage.getItem('adminToken')
-  const credentials = localStorage.getItem('adminCredentials')
   
-  if (token) return { 'X-Session-Token': token }
-  if (credentials) return { 'Authorization': `Basic ${credentials}` }
+  if (token) return { 'Authorization': `Bearer ${token}` }
   return {}
 }
 
@@ -32,18 +30,33 @@ export async function login(username: string, password: string) {
   
   const data = await resp.json()
   localStorage.setItem('adminToken', data.token)
-  localStorage.setItem('adminCredentials', btoa(`${username}:${password}`))
   return data
 }
 
 export function logout() {
   localStorage.removeItem('adminToken')
-  localStorage.removeItem('adminCredentials')
+}
+
+export async function register(username: string, password: string, role: string = 'user') {
+  const resp = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, role })
+  })
+  
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Registration failed')
+  }
+  
+  const data = await resp.json()
+  localStorage.setItem('adminToken', data.token)
+  return data
 }
 
 export function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false
-  return !!(localStorage.getItem('adminToken') || localStorage.getItem('adminCredentials'))
+  return !!localStorage.getItem('adminToken')
 }
 
 export function formatNumber(n: number): string {

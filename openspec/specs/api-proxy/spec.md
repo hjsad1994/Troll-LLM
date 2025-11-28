@@ -87,7 +87,10 @@ The system SHALL allow users to check their token usage via API and Web UI.
 - **WHEN** user calls `GET /api/usage` with invalid or revoked key
 - **THEN** response SHALL return error "Invalid API key"
 
----
+#### Scenario: Dashboard shows system metrics
+- **WHEN** admin views Dashboard at root `/`
+- **THEN** Dashboard SHALL display system-wide metrics (Total Requests, Total Tokens, Avg Latency, Success Rate)
+- **AND** Dashboard SHALL display existing stats (User Keys, Factory Keys, Proxies, System Health)
 
 ### Requirement: Factory Key Pool Management
 The system SHALL support multiple Factory API keys with round-robin rotation and health monitoring.
@@ -359,4 +362,197 @@ The system SHALL provide UI for managing proxies and key bindings.
 - **AND** confirms action
 - **THEN** system removes binding
 - **AND** updates proxy display
+
+### Requirement: Rate Limit Enforcement
+The system SHALL enforce rate limits based on user tier before processing API requests.
+
+#### Scenario: Dev tier rate limit
+- **WHEN** a Dev tier user makes requests exceeding 20 RPM
+- **THEN** return HTTP 429 with Retry-After header
+
+#### Scenario: Pro tier rate limit
+- **WHEN** a Pro tier user makes requests exceeding 60 RPM
+- **THEN** return HTTP 429 with Retry-After header
+
+#### Scenario: Unknown user default limit
+- **WHEN** a user without UserKey record makes requests exceeding 20 RPM
+- **THEN** return HTTP 429 with default rate limit applied
+
+### Requirement: Rate Limit Headers
+The system SHALL include rate limit information in API response headers.
+
+#### Scenario: Rate limit headers in response
+- **WHEN** any API request is processed
+- **THEN** response includes X-RateLimit-Limit, X-RateLimit-Remaining headers
+
+#### Scenario: Retry-After on rate limit exceeded
+- **WHEN** rate limit is exceeded
+- **THEN** response includes Retry-After header with seconds to wait
+
+### Requirement: System-wide Metrics API
+The system SHALL provide an API endpoint to retrieve aggregated metrics for the entire proxy system.
+
+#### Scenario: Admin retrieves system metrics
+- **WHEN** admin calls `GET /admin/metrics`
+- **THEN** response SHALL include total_requests count
+- **AND** response SHALL include total_tokens sum
+- **AND** response SHALL include avg_latency_ms (average request latency)
+- **AND** response SHALL include success_rate (percentage of successful requests)
+
+#### Scenario: Admin retrieves metrics with time period
+- **WHEN** admin calls `GET /admin/metrics?period=24h`
+- **THEN** response SHALL include metrics for specified period only
+- **AND** valid periods are: `1h`, `24h`, `7d`, `all`
+- **AND** default period is `all` if not specified
+
+#### Scenario: No requests logged
+- **WHEN** admin calls `GET /admin/metrics` with no request logs
+- **THEN** response SHALL return zero values for all metrics
+- **AND** success_rate SHALL be 0
+
+---
+
+### Requirement: Request Latency Tracking
+The system SHALL track latency for each API request.
+
+#### Scenario: Latency measured for request
+- **WHEN** a request is processed through the proxy
+- **THEN** latency SHALL be measured from request start to response complete
+- **AND** latency SHALL be stored in `request_logs.latencyMs` field
+
+#### Scenario: Latency included in request log
+- **WHEN** request completes (success or failure)
+- **THEN** request log SHALL include `latencyMs` in milliseconds
+- **AND** request log SHALL include `isSuccess` boolean (true for 2xx status)
+
+---
+
+### Requirement: System Metrics Dashboard
+The system SHALL display system-wide metrics on the admin Dashboard.
+
+#### Scenario: Dashboard shows metrics cards
+- **WHEN** admin views Dashboard page
+- **THEN** page SHALL display Total Requests card
+- **AND** page SHALL display Total Tokens card
+- **AND** page SHALL display Avg Latency card (in ms)
+- **AND** page SHALL display Success Rate card (as percentage)
+
+#### Scenario: Dashboard auto-refreshes metrics
+- **WHEN** admin is viewing Dashboard page
+- **THEN** metrics SHALL auto-refresh every 30 seconds
+- **AND** page SHALL not require manual reload
+
+#### Scenario: Large numbers formatted
+- **WHEN** metrics contain large values (>1000)
+- **THEN** numbers SHALL be formatted with K/M suffixes
+- **AND** latency SHALL show "ms" suffix
+- **AND** success rate SHALL show "%" suffix
+
+---
+
+### Requirement: Token Analytics API
+The system SHALL provide an API endpoint to retrieve token usage analytics for factory keys.
+
+#### Scenario: Get token analytics
+- **WHEN** admin requests `GET /admin/factory-keys/analytics`
+- **THEN** the system SHALL return token usage statistics including:
+  - `tokens_1h`: Total tokens used in the last 1 hour
+  - `tokens_24h`: Total tokens used in the last 24 hours  
+  - `tokens_7d`: Total tokens used in the last 7 days
+  - `requests_1h`: Total requests in the last 1 hour
+  - `requests_24h`: Total requests in the last 24 hours
+  - `requests_7d`: Total requests in the last 7 days
+
+#### Scenario: Analytics by factory key
+- **WHEN** admin requests `GET /admin/factory-keys/:id/analytics`
+- **THEN** the system SHALL return token usage statistics for that specific factory key
+
+### Requirement: Request Logging for Analytics
+The system SHALL log each API request with timestamp and token usage for analytics aggregation.
+
+#### Scenario: Log request with factory key
+- **WHEN** a request is processed through the proxy
+- **THEN** the system SHALL log:
+  - `factoryKeyId`: The factory key used
+  - `userKeyId`: The user key that made the request
+  - `tokensUsed`: Number of tokens consumed
+  - `createdAt`: Timestamp of the request
+
+### Requirement: Token Analytics Dashboard UI
+The admin page SHALL display token usage analytics for factory keys.
+
+#### Scenario: Display analytics cards
+- **WHEN** admin visits `/admin/factory-keys.html`
+- **THEN** the page SHALL display analytics cards showing:
+  - Tokens used in last 1 hour
+  - Tokens used in last 24 hours
+  - Tokens used in last 7 days
+
+#### Scenario: Auto-refresh analytics
+- **WHEN** the analytics page is open
+- **THEN** the data SHALL refresh automatically every 60 seconds
+
+### Requirement: Token Usage Database Update
+The system SHALL update user token usage in the database after each API response.
+
+#### Scenario: Update tokens after successful response
+- **WHEN** an API request completes successfully
+- **AND** the response contains usage information
+- **THEN** the system SHALL call `usage.UpdateUsage(userApiKey, billingTokens)`
+- **AND** the user's `tokensUsed` field in MongoDB SHALL be incremented
+
+#### Scenario: Track tokens for streaming response
+- **WHEN** a streaming API request completes
+- **THEN** the system SHALL extract final token count from the stream
+- **AND** update the database with the total tokens used
+
+### Requirement: Token Billing Calculation
+The system SHALL calculate billing tokens by applying model-specific multipliers to raw token usage.
+
+#### Scenario: Opus model billing
+- **WHEN** a request uses model `claude-opus-4-5-20251101`
+- **AND** the response contains `input_tokens: 100` and `output_tokens: 200`
+- **THEN** billing tokens SHALL be calculated as:
+  - `billing_input_tokens: 120` (100 * 1.2)
+  - `billing_output_tokens: 240` (200 * 1.2)
+
+#### Scenario: Sonnet model billing
+- **WHEN** a request uses model `claude-sonnet-4-5-20250929`
+- **AND** the response contains `input_tokens: 100` and `output_tokens: 200`
+- **THEN** billing tokens SHALL be calculated as:
+  - `billing_input_tokens: 120` (100 * 1.2)
+  - `billing_output_tokens: 240` (200 * 1.2)
+
+#### Scenario: Haiku model billing
+- **WHEN** a request uses model `claude-haiku-4-5-20251001`
+- **AND** the response contains `input_tokens: 100` and `output_tokens: 200`
+- **THEN** billing tokens SHALL be calculated as:
+  - `billing_input_tokens: 40` (100 * 0.4)
+  - `billing_output_tokens: 80` (200 * 0.4)
+
+### Requirement: Billing Token Response
+The system SHALL include billing token information in API responses.
+
+#### Scenario: Non-streaming response with billing
+- **WHEN** a non-streaming request completes successfully
+- **THEN** the response usage object SHALL contain:
+  - `prompt_tokens` (raw input tokens)
+  - `completion_tokens` (raw output tokens)
+  - `billing_prompt_tokens` (multiplied input tokens)
+  - `billing_completion_tokens` (multiplied output tokens)
+
+#### Scenario: Streaming response with billing
+- **WHEN** a streaming request completes
+- **THEN** the final usage information SHALL include billing tokens
+
+### Requirement: Model Multiplier Configuration
+The system SHALL support configurable token multipliers per model.
+
+#### Scenario: Multiplier from config
+- **WHEN** a model is configured with `"token_multiplier": 1.2`
+- **THEN** all token calculations for that model SHALL use 1.2 as multiplier
+
+#### Scenario: Default multiplier
+- **WHEN** a model has no configured multiplier
+- **THEN** the system SHALL use 1.0 as default multiplier
 

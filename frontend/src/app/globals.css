@@ -2,74 +2,414 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @layer base {
-  body {
-    @apply bg-dark-bg text-slate-200 min-h-screen;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  :root {
+    --background: #0a0a0f;
+    --foreground: #e2e8f0;
   }
+
+  html {
+    color-scheme: dark;
+  }
+
+  html, body {
+    background-color: #0a0a0f;
+    color: #e2e8f0;
+    min-height: 100%;
+  }
+
+  body {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Grid background effect */
+.grid-bg {
+  background-image: url('/grid.svg');
+  background-size: 100px 100px;
+  background-position: center;
+}
+
+.grid-fade {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(56, 189, 248, 0.15), transparent),
+    url('/grid.svg');
+  background-size: cover, 100px 100px;
+}
+
+/* ===== MODERN ANIMATIONS ===== */
+
+/* Fade in up animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.animation-delay-100 { animation-delay: 0.1s; }
+.animation-delay-200 { animation-delay: 0.2s; }
+.animation-delay-300 { animation-delay: 0.3s; }
+.animation-delay-400 { animation-delay: 0.4s; }
+.animation-delay-500 { animation-delay: 0.5s; }
+.animation-delay-600 { animation-delay: 0.6s; }
+.animation-delay-700 { animation-delay: 0.7s; }
+.animation-delay-800 { animation-delay: 0.8s; }
+
+/* Glow pulse animation */
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+/* Gradient text animation */
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* Typing cursor blink */
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.6s ease-out forwards;
+}
+
+/* Slide in from right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.6s ease-out forwards;
+}
+
+/* Scale in animation */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.5s ease-out forwards;
+}
+
+/* Rotate animation */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+/* Shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Border glow animation */
+@keyframes borderGlow {
+  0%, 100% {
+    border-color: rgba(56, 189, 248, 0.3);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.1);
+  }
+  50% {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+  }
+}
+
+.animate-border-glow {
+  animation: borderGlow 3s ease-in-out infinite;
+}
+
+/* Particle float */
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(20px);
+    opacity: 0;
+  }
+}
+
+/* Code editor styles */
+.code-editor {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.code-line {
+  display: flex;
+  padding: 2px 0;
+}
+
+.code-line-number {
+  color: #4a5568;
+  width: 40px;
+  text-align: right;
+  padding-right: 16px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.code-line-content {
+  flex: 1;
+}
+
+/* Syntax highlighting */
+.token-keyword { color: #c678dd; }
+.token-string { color: #98c379; }
+.token-function { color: #61afef; }
+.token-comment { color: #5c6370; font-style: italic; }
+.token-variable { color: #e06c75; }
+.token-number { color: #d19a66; }
+.token-operator { color: #56b6c2; }
+.token-punctuation { color: #abb2bf; }
+.token-property { color: #e5c07b; }
+.token-class { color: #e5c07b; }
+
+/* Hover effects */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.hover-glow {
+  transition: box-shadow 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Neon text */
+.neon-text {
+  text-shadow:
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 40px currentColor;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
 
 @layer components {
   .btn {
     @apply inline-block px-5 py-2.5 rounded-lg font-medium cursor-pointer border-none text-sm transition-all;
   }
-  
+
   .btn-primary {
     @apply bg-gradient-to-br from-sky-400 to-indigo-400 text-slate-900 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sky-400/30;
   }
-  
+
   .btn-secondary {
     @apply bg-slate-700 text-slate-200 hover:bg-slate-600;
   }
-  
+
   .btn-danger {
     @apply bg-red-500 text-white hover:bg-red-600;
   }
-  
+
   .btn-sm {
     @apply px-3 py-1.5 text-xs;
   }
-  
+
   .card {
     @apply bg-dark-card rounded-xl border border-dark-border;
   }
-  
+
   .badge {
     @apply inline-block px-2.5 py-1 rounded-full text-xs font-semibold;
   }
-  
+
   .badge-dev {
-    @apply bg-blue-100 text-blue-800;
+    @apply bg-blue-500/20 text-blue-400;
   }
-  
+
   .badge-pro {
-    @apply bg-purple-100 text-purple-700;
+    @apply bg-purple-500/20 text-purple-400;
   }
-  
+
   .badge-healthy, .badge-active {
-    @apply bg-green-100 text-green-800;
+    @apply bg-green-500/20 text-green-400;
   }
-  
+
   .badge-unhealthy, .badge-revoked {
-    @apply bg-red-100 text-red-800;
+    @apply bg-red-500/20 text-red-400;
   }
-  
+
   .input {
     @apply w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-slate-200 focus:outline-none focus:border-sky-400;
   }
-  
+
   .progress-bar {
     @apply h-2 bg-slate-700 rounded overflow-hidden;
   }
-  
+
   .progress-fill {
     @apply h-full bg-gradient-to-r from-sky-400 to-indigo-400 rounded transition-all;
   }
-  
+
   .progress-fill.warning {
     @apply from-amber-400 to-orange-500;
   }
-  
+
   .progress-fill.danger {
     @apply from-red-400 to-red-500;
   }

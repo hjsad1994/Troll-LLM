@@ -5,8 +5,8 @@ import { AuthProvider } from '@/components/AuthProvider'
 import AppShell from '@/components/AppShell'
 
 export const metadata: Metadata = {
-  title: 'F-Proxy Admin',
-  description: 'Admin panel for F-Proxy API Gateway',
+  title: 'TrollLLM - Unified AI Gateway',
+  description: 'Access 70+ LLMs with One API Key. The unified AI gateway for developers.',
 }
 
 export default function RootLayout({
@@ -15,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className="dark">
+      <body className="bg-[#0a0a0f] text-slate-200 antialiased">
         <AuthProvider>
           <ToastProvider>
             <AppShell>{children}</AppShell>

@@ -3,8 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { connectDB } from './db/mongodb.js';
-import { adminAuth, loginHandler } from './middleware/admin-auth.js';
-import adminRoutes from './routes/admin.js';
+import { authMiddleware } from './middleware/auth.middleware.js';
+import authRoutes from './routes/auth.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 import usageRoutes from './routes/usage.js';
 import proxyRoutes from './routes/proxy.js';
 import statusRoutes from './routes/status.js';
@@ -18,8 +19,6 @@ app.use(express.json());
 
 // Static files
 app.use('/static', express.static(path.join(process.cwd(), 'static')));
-
-// NOTE: Admin static files moved AFTER API routes to avoid conflicts
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -44,21 +43,21 @@ app.get('/status', (_req, res) => {
 app.use('/api', usageRoutes);
 app.use('/api/status', statusRoutes);
 
-// Login endpoint (public)
-app.post('/api/login', loginHandler);
+// Auth routes (public)
+app.use('/api', authRoutes);
 
-// Admin routes (protected)
-app.use('/admin', adminAuth, adminRoutes);
-app.use('/admin/proxies', adminAuth, proxyRoutes);
+// Admin routes (protected with JWT)
+app.use('/admin', authMiddleware, adminRoutes);
+app.use('/admin/proxies', authMiddleware, proxyRoutes);
 
-// Admin static files (AFTER API routes to avoid conflicts)
+// Admin static files (AFTER API routes)
 app.use('/admin', express.static(path.join(process.cwd(), 'static/admin')));
 
 // Root
 app.get('/', (_req, res) => {
   res.json({
     service: 'F-Proxy Backend',
-    version: '1.0.0',
+    version: '2.0.0',
     endpoints: {
       public: [
         'GET /health',
@@ -67,6 +66,7 @@ app.get('/', (_req, res) => {
         'GET /api/usage?key=xxx',
         'GET /api/status',
         'POST /api/login',
+        'POST /api/register',
       ],
       admin: [
         'GET /admin/keys',
@@ -76,21 +76,25 @@ app.get('/', (_req, res) => {
         'DELETE /admin/keys/:id',
         'POST /admin/keys/:id/reset',
         'GET /admin/factory-keys',
+        'POST /admin/factory-keys',
+        'DELETE /admin/factory-keys/:id',
         'POST /admin/factory-keys/:id/reset',
+        'GET /admin/factory-keys/analytics',
+        'GET /admin/metrics',
         'GET /admin/proxies',
         'POST /admin/proxies',
-        'GET /admin/proxies/:id',
         'PATCH /admin/proxies/:id',
         'DELETE /admin/proxies/:id',
-        'GET /admin/proxies/:id/keys',
-        'POST /admin/proxies/:id/keys',
-        'DELETE /admin/proxies/:id/keys/:keyId',
-        'GET /admin/proxies/:id/health',
       ],
     },
     auth: {
-      login: 'POST /api/login with { "username": "admin", "password": "admin" }',
-      usage: 'Use Basic Auth header or X-Session-Token from login response',
+      login: 'POST /api/login { "username": "...", "password": "..." }',
+      register: 'POST /api/register { "username": "...", "password": "...", "role": "user|admin" }',
+      usage: 'Authorization: Bearer <token>',
+    },
+    roles: {
+      admin: 'Full access to all endpoints',
+      user: 'Read-only access to admin endpoints',
     },
   });
 });
@@ -109,17 +113,15 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // Start server
 async function main() {
   try {
-    // Connect to MongoDB
     await connectDB();
 
-    // Start listening
     app.listen(PORT, () => {
-      console.log(`🚀 F-Proxy Backend started at http://localhost:${PORT}`);
-      console.log(`📖 Usage check: http://localhost:${PORT}/usage`);
-      console.log(`🔧 Admin API: http://localhost:${PORT}/admin/keys`);
+      console.log(`F-Proxy Backend started at http://localhost:${PORT}`);
+      console.log(`Usage check: http://localhost:${PORT}/usage`);
+      console.log(`Admin API: http://localhost:${PORT}/admin/keys`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }
