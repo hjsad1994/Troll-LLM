@@ -100,3 +100,20 @@ setInterval(() => {
     }
   }
 }, 60000);
+
+export async function jwtAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  const token = authHeader.substring(7);
+  try {
+    const payload = authService.verifyToken(token);
+    req.user = payload;
+    next();
+  } catch (error: any) {
+    res.status(401).json({ error: error.message });
+  }
+}

@@ -4,67 +4,171 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthProvider'
 
-const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: '📊' },
-  { href: '/keys', label: 'User Keys', icon: '🔑' },
-  { href: '/factory-keys', label: 'Factory Keys', icon: '🏭' },
-  { href: '/proxies', label: 'Proxies', icon: '🌐' },
-  { href: '/status', label: 'Status Page', icon: '📡', external: true },
+const adminNavItems = [
+  {
+    href: '/admin',
+    label: 'Dashboard',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+      </svg>
+    )
+  },
+  {
+    href: '/users',
+    label: 'Users',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    )
+  },
+  {
+    href: '/keys',
+    label: 'User Keys',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+      </svg>
+    )
+  },
+  {
+    href: '/factory-keys',
+    label: 'Factory Keys',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+      </svg>
+    )
+  },
+  {
+    href: '/proxies',
+    label: 'Proxies',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+      </svg>
+    )
+  },
+  {
+    href: '/status',
+    label: 'Status',
+    external: true,
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    )
+  },
+]
+
+const userNavItems = [
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+      </svg>
+    )
+  },
+  {
+    href: '/status',
+    label: 'Status',
+    external: true,
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    )
+  },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const { logout } = useAuth()
-  
+  const { logout, user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
+  const navItems = isAdmin ? adminNavItems : userNavItems
+
   return (
-    <nav className="w-64 bg-dark-card p-5 flex flex-col border-r border-dark-border min-h-screen">
-      <div className="text-xl font-bold text-sky-400 mb-8 py-2">
-        🔧 F-Proxy Admin
-      </div>
-      
-      <ul className="flex-1 space-y-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href
-          
-          if (item.external) {
+    <nav className="w-64 bg-black p-6 flex flex-col border-r border-white/5 min-h-screen">
+      {/* Logo */}
+      <Link href="/" className="flex items-center gap-3 mb-8">
+        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <span className="text-lg font-semibold text-white">TrollLLM</span>
+      </Link>
+
+      {/* Navigation */}
+      <div className="flex-1">
+        <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-3 px-3">Menu</p>
+        <ul className="space-y-1">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href
+
+            if (item.external) {
+              return (
+                <li key={item.href}>
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors text-sm"
+                  >
+                    {item.icon}
+                    {item.label}
+                    <svg className="w-3 h-3 ml-auto opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </li>
+              )
+            }
+
             return (
               <li key={item.href}>
-                <a
+                <Link
                   href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-4 py-3 text-slate-400 rounded-lg hover:bg-slate-700 hover:text-white transition-all"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+                    isActive
+                      ? 'bg-white/10 text-white'
+                      : 'text-slate-500 hover:text-white hover:bg-white/5'
+                  }`}
                 >
-                  {item.icon} {item.label}
-                </a>
+                  {item.icon}
+                  {item.label}
+                </Link>
               </li>
             )
-          }
-          
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={`block px-4 py-3 rounded-lg transition-all ${
-                  isActive 
-                    ? 'bg-slate-700 text-white' 
-                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
-                }`}
-              >
-                {item.icon} {item.label}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-      
-      <div className="pt-5 border-t border-dark-border flex justify-between items-center">
-        <span className="text-slate-400">admin</span>
+          })}
+        </ul>
+      </div>
+
+      {/* User Section */}
+      <div className="pt-6 border-t border-white/5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-medium truncate">{user?.username || 'User'}</p>
+            <p className="text-slate-600 text-xs">{isAdmin ? 'Admin' : 'User'}</p>
+          </div>
+        </div>
         <button
           onClick={logout}
-          className="px-3 py-1.5 border border-slate-600 text-slate-500 rounded-md hover:border-red-400 hover:text-red-400 transition-all"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-slate-500 hover:text-red-400 hover:border-red-500/50 hover:bg-red-500/5 transition-colors text-sm"
         >
-          Logout
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Sign Out
         </button>
       </div>
     </nav>

@@ -59,7 +59,8 @@ export function isAuthenticated(): boolean {
   return !!localStorage.getItem('adminToken')
 }
 
-export function formatNumber(n: number): string {
+export function formatNumber(n: number | undefined | null): string {
+  if (n === undefined || n === null) return '0'
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
   return n.toLocaleString()
@@ -74,4 +75,120 @@ export function formatDate(dateStr: string): string {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+}
+
+export interface UserProfile {
+  username: string
+  apiKey: string
+  apiKeyCreatedAt: string
+  plan: string
+  totalTokens: number
+  tokensUsed: number
+  monthlyTokensUsed: number
+  monthlyResetDate: string
+  role: string
+}
+
+export interface BillingInfo {
+  plan: string
+  planLimits: { monthlyTokens: number; totalTokens: number }
+  totalTokensRemaining: number
+  tokensUsed: number
+  monthlyTokensUsed: number
+  monthlyTokensLimit: number
+  monthlyResetDate: string
+  usagePercentage: number
+}
+
+export async function getUserProfile(): Promise<UserProfile> {
+  const resp = await fetchWithAuth('/api/user/me')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get profile')
+  }
+  return resp.json()
+}
+
+export async function getFullApiKey(): Promise<string> {
+  const resp = await fetchWithAuth('/api/user/api-key')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get API key')
+  }
+  const data = await resp.json()
+  return data.apiKey
+}
+
+export async function rotateApiKey(): Promise<{ newApiKey: string; createdAt: string }> {
+  const resp = await fetchWithAuth('/api/user/api-key/rotate', { method: 'POST' })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to rotate API key')
+  }
+  return resp.json()
+}
+
+export async function getBillingInfo(): Promise<BillingInfo> {
+  const resp = await fetchWithAuth('/api/user/billing')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get billing info')
+  }
+  return resp.json()
+}
+
+// Admin User Management
+export type UserPlan = 'free' | 'dev' | 'pro'
+
+export interface AdminUser {
+  _id: string
+  role: 'admin' | 'user'
+  isActive: boolean
+  createdAt: string
+  lastLoginAt?: string
+  apiKey?: string
+  apiKeyCreatedAt?: string
+  plan: UserPlan
+  totalTokens: number
+  tokensUsed: number
+  monthlyTokensUsed: number
+  monthlyResetDate?: string
+}
+
+export interface PlanLimits {
+  monthlyTokens: number
+  totalTokens: number
+  rpm: number
+}
+
+export interface UsersResponse {
+  users: AdminUser[]
+  stats: {
+    total: number
+    byPlan: Record<string, number>
+  }
+  planLimits: Record<UserPlan, PlanLimits>
+}
+
+export async function getAdminUsers(search?: string): Promise<UsersResponse> {
+  const url = search ? `/admin/users?search=${encodeURIComponent(search)}` : '/admin/users'
+  const resp = await fetchWithAuth(url)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get users')
+  }
+  return resp.json()
+}
+
+export async function updateUserPlan(username: string, plan: UserPlan): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/plan`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update user plan')
+  }
+  return resp.json()
 }

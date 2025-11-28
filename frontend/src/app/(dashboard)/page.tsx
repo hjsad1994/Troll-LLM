@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { fetchWithAuth } from '@/lib/api'
+import { fetchWithAuth, getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, UserProfile, BillingInfo } from '@/lib/api'
+import { useAuth } from '@/components/AuthProvider'
 
 interface Stats {
   totalKeys: number
@@ -129,6 +130,72 @@ export default function Dashboard() {
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  
+  // User profile and billing state
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
+  const [showFullApiKey, setShowFullApiKey] = useState(false)
+  const [fullApiKey, setFullApiKey] = useState<string | null>(null)
+  const [rotating, setRotating] = useState(false)
+  const [newApiKey, setNewApiKey] = useState<string | null>(null)
+  const [showRotateConfirm, setShowRotateConfirm] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const { user } = useAuth()
+
+  const loadUserData = useCallback(async () => {
+    try {
+      const [profile, billing] = await Promise.all([
+        getUserProfile().catch(() => null),
+        getBillingInfo().catch(() => null),
+      ])
+      if (profile) setUserProfile(profile)
+      if (billing) setBillingInfo(billing)
+    } catch (err) {
+      console.error('Failed to load user data:', err)
+    }
+  }, [])
+
+  const handleShowApiKey = async () => {
+    if (showFullApiKey) {
+      setShowFullApiKey(false)
+      return
+    }
+    try {
+      const key = await getFullApiKey()
+      setFullApiKey(key)
+      setShowFullApiKey(true)
+      setTimeout(() => setShowFullApiKey(false), 30000)
+    } catch (err) {
+      console.error('Failed to get API key:', err)
+    }
+  }
+
+  const handleCopyApiKey = async () => {
+    try {
+      const key = fullApiKey || await getFullApiKey()
+      await navigator.clipboard.writeText(key)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const handleRotateApiKey = async () => {
+    setRotating(true)
+    try {
+      const result = await rotateApiKey()
+      setNewApiKey(result.newApiKey)
+      setFullApiKey(result.newApiKey)
+      setShowFullApiKey(true)
+      setShowRotateConfirm(false)
+      await loadUserData()
+    } catch (err) {
+      console.error('Failed to rotate API key:', err)
+    } finally {
+      setRotating(false)
+    }
+  }
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -182,9 +249,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboard()
+    loadUserData()
     const interval = setInterval(loadDashboard, 30000)
     return () => clearInterval(interval)
-  }, [loadDashboard])
+  }, [loadDashboard, loadUserData])
 
   // Calculate some derived metrics
   const activeKeys = userKeys.filter(k => k.isActive).length
@@ -216,6 +284,184 @@ export default function Dashboard() {
           <div className={`w-2 h-2 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
         </div>
       </header>
+
+      {/* User API Key & Billing Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* API Key Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 p-6">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full blur-2xl" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Your API Key</h3>
+                  <p className="text-xs text-slate-400">Use this key to access TrollLLM API</p>
+                </div>
+              </div>
+            </div>
+            
+            {userProfile ? (
+              <div className="space-y-4">
+                <div className="bg-slate-900/50 rounded-lg p-3 font-mono text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-300 break-all">
+                      {showFullApiKey && fullApiKey ? fullApiKey : userProfile.apiKey}
+                    </span>
+                  </div>
+                </div>
+                
+                {newApiKey && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                    <p className="text-emerald-400 text-sm font-medium mb-1">New API Key Generated!</p>
+                    <p className="text-slate-400 text-xs">Make sure to copy it now. You won't be able to see it again.</p>
+                  </div>
+                )}
+                
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleShowApiKey}
+                    className="px-3 py-1.5 rounded-lg bg-slate-700/50 text-slate-300 text-sm hover:bg-slate-700 transition-all border border-slate-600/50"
+                  >
+                    {showFullApiKey ? 'Hide' : 'Show'}
+                  </button>
+                  <button
+                    onClick={handleCopyApiKey}
+                    className="px-3 py-1.5 rounded-lg bg-slate-700/50 text-slate-300 text-sm hover:bg-slate-700 transition-all border border-slate-600/50"
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button
+                    onClick={() => setShowRotateConfirm(true)}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 text-sm hover:bg-amber-500/30 transition-all border border-amber-500/30"
+                  >
+                    Rotate Key
+                  </button>
+                </div>
+                
+                <p className="text-xs text-slate-500">
+                  Created: {new Date(userProfile.apiKeyCreatedAt).toLocaleDateString()}
+                </p>
+              </div>
+            ) : (
+              <div className="animate-pulse space-y-3">
+                <div className="h-10 bg-slate-700/50 rounded-lg"></div>
+                <div className="h-8 bg-slate-700/50 rounded-lg w-1/2"></div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Billing Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 p-6">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-full blur-2xl" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Billing</h3>
+                  <p className="text-xs text-slate-400">Your token usage and plan</p>
+                </div>
+              </div>
+              {billingInfo && (
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  billingInfo.plan === 'enterprise' ? 'bg-purple-500/20 text-purple-400' :
+                  billingInfo.plan === 'pro' ? 'bg-blue-500/20 text-blue-400' :
+                  'bg-slate-500/20 text-slate-400'
+                }`}>
+                  {billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)} Plan
+                </span>
+              )}
+            </div>
+            
+            {billingInfo ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Tokens Remaining</p>
+                    <p className="text-2xl font-bold text-white">
+                      {billingInfo.totalTokensRemaining === -1 ? 'Unlimited' : formatLargeNumber(billingInfo.totalTokensRemaining)}
+                    </p>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Used This Month</p>
+                    <p className="text-2xl font-bold text-cyan-400">{formatLargeNumber(billingInfo.monthlyTokensUsed)}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Monthly Usage</span>
+                    <span>{billingInfo.usagePercentage.toFixed(1)}% of {formatLargeNumber(billingInfo.monthlyTokensLimit)}</span>
+                  </div>
+                  <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        billingInfo.usagePercentage > 90 ? 'bg-red-500' : 
+                        billingInfo.usagePercentage > 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(billingInfo.usagePercentage, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <p className="text-xs text-slate-500">
+                  Resets: {new Date(billingInfo.monthlyResetDate).toLocaleDateString()} (1st of next month)
+                </p>
+              </div>
+            ) : (
+              <div className="animate-pulse space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-16 bg-slate-700/50 rounded-lg"></div>
+                  <div className="h-16 bg-slate-700/50 rounded-lg"></div>
+                </div>
+                <div className="h-4 bg-slate-700/50 rounded-lg"></div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Rotate API Key Confirmation Modal */}
+      {showRotateConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-2xl p-6 max-w-md mx-4 border border-slate-700">
+            <h3 className="text-xl font-semibold text-white mb-2">Rotate API Key?</h3>
+            <div className="text-slate-400 text-sm space-y-2 mb-6">
+              <p>Are you sure you want to rotate your API key?</p>
+              <ul className="list-disc list-inside text-amber-400">
+                <li>Your current key will be immediately invalidated</li>
+                <li>All applications using the current key will stop working</li>
+                <li>You'll need to update your API key in all integrations</li>
+              </ul>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowRotateConfirm(false)}
+                className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRotateApiKey}
+                disabled={rotating}
+                className="px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-all disabled:opacity-50"
+              >
+                {rotating ? 'Rotating...' : 'Rotate Key'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Overview Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

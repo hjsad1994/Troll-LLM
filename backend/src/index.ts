@@ -9,6 +9,7 @@ import adminRoutes from './routes/admin.routes.js';
 import usageRoutes from './routes/usage.js';
 import proxyRoutes from './routes/proxy.js';
 import statusRoutes from './routes/status.js';
+import userRoutes from './routes/user.routes.js';
 
 const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
@@ -46,6 +47,9 @@ app.use('/api/status', statusRoutes);
 // Auth routes (public)
 app.use('/api', authRoutes);
 
+// User routes (protected with JWT)
+app.use('/api/user', userRoutes);
+
 // Admin routes (protected with JWT)
 app.use('/admin', authMiddleware, adminRoutes);
 app.use('/admin/proxies', authMiddleware, proxyRoutes);
@@ -67,6 +71,12 @@ app.get('/', (_req, res) => {
         'GET /api/status',
         'POST /api/login',
         'POST /api/register',
+      ],
+      user: [
+        'GET /api/user/me',
+        'GET /api/user/api-key',
+        'POST /api/user/api-key/rotate',
+        'GET /api/user/billing',
       ],
       admin: [
         'GET /admin/keys',

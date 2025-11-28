@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
+export type UserPlan = 'free' | 'dev' | 'pro';
+
 export interface IUser {
   _id: string;
   passwordHash: string;
@@ -9,7 +11,20 @@ export interface IUser {
   isActive: boolean;
   createdAt: Date;
   lastLoginAt?: Date;
+  apiKey: string;
+  apiKeyCreatedAt: Date;
+  plan: UserPlan;
+  totalTokens: number;
+  tokensUsed: number;
+  monthlyTokensUsed: number;
+  monthlyResetDate: Date;
 }
+
+export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; totalTokens: number; rpm: number }> = {
+  free: { monthlyTokens: 0, totalTokens: 0, rpm: 0 },
+  dev: { monthlyTokens: 15_000_000, totalTokens: 15_000_000, rpm: 300 },
+  pro: { monthlyTokens: 40_000_000, totalTokens: 40_000_000, rpm: 600 },
+};
 
 const userSchema = new mongoose.Schema({
   _id: { type: String, required: true },
@@ -19,7 +34,19 @@ const userSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   lastLoginAt: { type: Date },
+  apiKey: { type: String, unique: true, sparse: true },
+  apiKeyCreatedAt: { type: Date },
+  plan: { type: String, enum: ['free', 'dev', 'pro'], default: 'free' },
+  totalTokens: { type: Number, default: 0 },
+  tokensUsed: { type: Number, default: 0 },
+  monthlyTokensUsed: { type: Number, default: 0 },
+  monthlyResetDate: { type: Date, default: () => getFirstDayOfMonth() },
 });
+
+function getFirstDayOfMonth(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
 
 export const User = mongoose.model<IUser>('User', userSchema, 'users');
 
@@ -32,4 +59,15 @@ export function hashPassword(password: string, salt?: string): { hash: string; s
 export function verifyPassword(password: string, hash: string, salt: string): boolean {
   const result = hashPassword(password, salt);
   return result.hash === hash;
+}
+
+export function generateApiKey(): string {
+  const randomBytes = crypto.randomBytes(32);
+  const hexString = randomBytes.toString('hex');
+  return `sk-trollllm-${hexString}`;
+}
+
+export function maskApiKey(key: string): string {
+  if (!key || key.length < 20) return '****';
+  return key.slice(0, 15) + '****' + key.slice(-4);
 }

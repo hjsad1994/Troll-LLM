@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/components/AuthProvider'
 
 // ===== CODE TEMPLATES WITH DIFFERENT MODELS PER LANGUAGE =====
 const codeConfigs = {
@@ -263,12 +264,24 @@ const faqs = [
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [scrollY, setScrollY] = useState(0)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const { isLoggedIn, user, logout } = useAuth()
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showUserMenu && !(e.target as Element).closest('.user-menu-container')) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [showUserMenu])
 
   return (
     <div className="min-h-screen bg-black overflow-x-hidden">
@@ -289,12 +302,66 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/login" className="text-slate-500 hover:text-white transition-colors text-sm">
-              Sign In
-            </Link>
-            <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
-              Get API Key
-            </Link>
+            {isLoggedIn ? (
+              <div className="relative user-menu-container">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <span className="text-white text-sm hidden sm:block">{user?.username}</span>
+                  <svg className={`w-4 h-4 text-slate-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl bg-slate-900 border border-white/10 shadow-xl overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-white/10">
+                      <p className="text-white text-sm font-medium">{user?.username}</p>
+                      <p className="text-slate-500 text-xs">{user?.role}</p>
+                    </div>
+                    <div className="py-1">
+                      <Link
+                        href={user?.role === 'admin' ? '/admin' : '/dashboard'}
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-slate-300 hover:bg-white/5 transition-colors text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                        Dashboard
+                      </Link>
+                      <button
+                        onClick={() => {
+                          logout()
+                          setShowUserMenu(false)
+                        }}
+                        className="flex items-center gap-2 w-full px-4 py-2 text-red-400 hover:bg-white/5 transition-colors text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link href="/login" className="text-slate-500 hover:text-white transition-colors text-sm">
+                  Sign In
+                </Link>
+                <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
+                  Get API Key
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -410,20 +477,20 @@ export default function LandingPage() {
               Simple pricing
             </h2>
             <p className="text-lg text-slate-500">
-              Pay only for what you use.
+              Choose the plan that fits your needs.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {/* Free Tier */}
-            <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02]">
-              <h3 className="text-lg font-semibold text-white mb-1">Free</h3>
-              <p className="text-slate-600 text-sm mb-4">For trying out</p>
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Dev Tier */}
+            <div className="p-6 rounded-xl border border-white/10 bg-white/[0.02]">
+              <h3 className="text-lg font-semibold text-white mb-1">Dev</h3>
+              <p className="text-slate-500 text-sm mb-4">For developers</p>
               <div className="text-4xl font-bold text-white mb-6">
-                $0<span className="text-base text-slate-600 font-normal">/mo</span>
+                35K<span className="text-base text-slate-500 font-normal ml-1">VND/mo</span>
               </div>
               <ul className="space-y-3 mb-6">
-                {['10K tokens/month', 'All models', 'Community support'].map((item) => (
+                {['300 RPM', '15M tokens/month', 'All models', 'Community support'].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-slate-400 text-sm">
                     <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -443,12 +510,12 @@ export default function LandingPage() {
                 Popular
               </div>
               <h3 className="text-lg font-semibold text-white mb-1">Pro</h3>
-              <p className="text-slate-600 text-sm mb-4">For teams</p>
+              <p className="text-slate-500 text-sm mb-4">For teams</p>
               <div className="text-4xl font-bold text-white mb-6">
-                $49<span className="text-base text-slate-600 font-normal">/mo</span>
+                79K<span className="text-base text-slate-500 font-normal ml-1">VND/mo</span>
               </div>
               <ul className="space-y-3 mb-6">
-                {['1M tokens/month', 'Priority access', 'Email support', 'Analytics'].map((item) => (
+                {['600 RPM', '40M tokens/month', 'All models', 'Priority support'].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-slate-400 text-sm">
                     <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -458,30 +525,8 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link href="/register" className="block w-full py-2.5 rounded-lg bg-white text-black font-medium text-sm text-center hover:bg-slate-200 transition-colors">
-                Start Free Trial
+                Get Started
               </Link>
-            </div>
-
-            {/* Enterprise Tier */}
-            <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02]">
-              <h3 className="text-lg font-semibold text-white mb-1">Enterprise</h3>
-              <p className="text-slate-600 text-sm mb-4">For organizations</p>
-              <div className="text-4xl font-bold text-white mb-6">
-                Custom
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['Unlimited tokens', 'Dedicated support', 'SLA guarantee', 'On-premise'].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-slate-400 text-sm">
-                    <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <a href="mailto:sales@trollllm.com" className="block w-full py-2.5 rounded-lg border border-white/10 text-white font-medium text-sm text-center hover:bg-white/5 transition-colors">
-                Contact Sales
-              </a>
             </div>
           </div>
         </div>
