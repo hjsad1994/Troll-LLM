@@ -94,4 +94,31 @@ router.patch('/users/:username/plan', requireAdmin, async (req: Request, res: Re
   }
 });
 
+router.patch('/users/:username/credits', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { credits } = req.body;
+    
+    if (typeof credits !== 'number' || credits < 0) {
+      return res.status(400).json({ error: 'Credits must be a non-negative number' });
+    }
+    
+    const user = await userRepository.updateCredits(req.params.username, credits);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Updated ${req.params.username} credits to $${credits}`,
+      user: {
+        username: user._id,
+        credits: user.credits,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to update user credits:', error);
+    res.status(500).json({ error: 'Failed to update user credits' });
+  }
+});
+
 export default router;

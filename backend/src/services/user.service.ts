@@ -11,6 +11,7 @@ export interface UserProfile {
   monthlyTokensUsed: number;
   monthlyResetDate: Date;
   role: string;
+  credits: number;
 }
 
 export interface BillingInfo {
@@ -39,6 +40,7 @@ export class UserService {
       monthlyTokensUsed: user.monthlyTokensUsed,
       monthlyResetDate: user.monthlyResetDate,
       role: user.role,
+      credits: user.credits || 0,
     };
   }
 

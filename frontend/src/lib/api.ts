@@ -87,6 +87,7 @@ export interface UserProfile {
   monthlyTokensUsed: number
   monthlyResetDate: string
   role: string
+  credits: number
 }
 
 export interface BillingInfo {
@@ -153,6 +154,7 @@ export interface AdminUser {
   tokensUsed: number
   monthlyTokensUsed: number
   monthlyResetDate?: string
+  credits: number
 }
 
 export interface PlanLimits {
@@ -189,6 +191,19 @@ export async function updateUserPlan(username: string, plan: UserPlan): Promise<
   if (!resp.ok) {
     const data = await resp.json()
     throw new Error(data.error || 'Failed to update user plan')
+  }
+  return resp.json()
+}
+
+export async function updateUserCredits(username: string, credits: number): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/credits`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credits })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update user credits')
   }
   return resp.json()
 }

@@ -1482,7 +1482,7 @@ func main() {
 
 	// Initialize rate limiter
 	rateLimiter = ratelimit.NewRateLimiter()
-	log.Printf("✅ Rate limiter initialized (Dev: 600 RPM, Pro: 1000 RPM)")
+	log.Printf("✅ Rate limiter initialized (Dev: 300 RPM, Pro: 1000 RPM)")
 
 	// Initialize proxy pool and factory key pool
 	proxyPool = proxy.GetPool()

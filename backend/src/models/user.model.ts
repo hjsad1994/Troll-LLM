@@ -18,6 +18,7 @@ export interface IUser {
   tokensUsed: number;
   monthlyTokensUsed: number;
   monthlyResetDate: Date;
+  credits: number;
 }
 
 export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; totalTokens: number; rpm: number; valueUsd: number }> = {
@@ -41,6 +42,7 @@ const userSchema = new mongoose.Schema({
   tokensUsed: { type: Number, default: 0 },
   monthlyTokensUsed: { type: Number, default: 0 },
   monthlyResetDate: { type: Date, default: () => getFirstDayOfMonth() },
+  credits: { type: Number, default: 0 },
 });
 
 function getFirstDayOfMonth(): Date {

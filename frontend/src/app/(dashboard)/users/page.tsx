@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { getAdminUsers, updateUserPlan, AdminUser, UserPlan, PlanLimits, formatNumber } from '@/lib/api'
+import { getAdminUsers, updateUserPlan, updateUserCredits, AdminUser, UserPlan, PlanLimits, formatNumber } from '@/lib/api'
 
 const PLAN_ORDER: UserPlan[] = ['free', 'dev', 'pro']
 
@@ -27,6 +27,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
+  const [editCredits, setEditCredits] = useState<number>(0)
 
   const loadUsers = useCallback(async (searchTerm?: string) => {
     try {
@@ -69,6 +70,24 @@ export default function UsersPage() {
     } finally {
       setUpdating(null)
     }
+  }
+
+  const handleUpdateCredits = async (username: string) => {
+    setUpdating(username)
+    try {
+      await updateUserCredits(username, editCredits)
+      await loadUsers(search || undefined)
+    } catch (err) {
+      console.error('Failed to update credits:', err)
+      alert('Failed to update credits')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const openEditModal = (u: AdminUser) => {
+    setSelectedUser(u)
+    setEditCredits(u.credits || 0)
   }
 
   if (user?.role !== 'admin') {
@@ -143,6 +162,7 @@ export default function UsersPage() {
               <tr className="border-b border-white/5 bg-white/[0.02]">
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">User</th>
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Plan</th>
+                <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Credits</th>
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Tokens</th>
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Monthly</th>
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Created</th>
@@ -152,7 +172,7 @@ export default function UsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center">
+                  <td colSpan={7} className="px-5 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                       <span className="text-slate-500 text-sm">Loading...</span>
@@ -161,7 +181,7 @@ export default function UsersPage() {
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-slate-500 text-sm">
+                  <td colSpan={7} className="px-5 py-12 text-center text-slate-500 text-sm">
                     {search ? 'No users found' : 'No users'}
                   </td>
                 </tr>
@@ -190,6 +210,9 @@ export default function UsersPage() {
                         <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getPlanStyle(plan)}`}>
                           {plan.charAt(0).toUpperCase() + plan.slice(1)}
                         </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-emerald-400 font-medium text-sm">${(u.credits || 0).toFixed(2)}</span>
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
@@ -232,7 +255,7 @@ export default function UsersPage() {
                       </td>
                       <td className="px-5 py-3 text-right">
                         <button
-                          onClick={() => setSelectedUser(u)}
+                          onClick={() => openEditModal(u)}
                           className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 text-xs hover:bg-white/5 hover:text-white transition-colors"
                         >
                           Edit
@@ -278,13 +301,13 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* Edit Plan Modal */}
+      {/* Edit User Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="max-w-sm w-full rounded-xl border border-white/10 bg-[#0a0a0a] p-5">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-white font-medium">Change Plan</h3>
+                <h3 className="text-white font-medium">Edit User</h3>
                 <p className="text-slate-500 text-sm">{selectedUser._id}</p>
               </div>
               <button
@@ -297,6 +320,32 @@ export default function UsersPage() {
               </button>
             </div>
 
+            {/* Credits Section */}
+            <div className="mb-5 p-3 rounded-lg border border-white/5 bg-white/[0.02]">
+              <label className="block text-slate-500 text-xs uppercase tracking-wider mb-2">Credits ($)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editCredits}
+                  onChange={(e) => setEditCredits(parseFloat(e.target.value) || 0)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-white text-sm focus:outline-none focus:border-white/20"
+                />
+                <button
+                  onClick={() => handleUpdateCredits(selectedUser._id)}
+                  disabled={updating === selectedUser._id}
+                  className="px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+
+            {/* Plan Section */}
+            <div className="mb-3">
+              <label className="block text-slate-500 text-xs uppercase tracking-wider mb-2">Plan</label>
+            </div>
             <div className="space-y-2 mb-5">
               {PLAN_ORDER.map((plan) => {
                 const isCurrentPlan = (selectedUser.plan || 'free') === plan

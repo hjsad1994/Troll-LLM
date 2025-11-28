@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import Header from '@/components/Header'
 
 // ===== ANTHROPIC ICON =====
 function AnthropicIcon({ className }: { className?: string }) {
@@ -187,13 +188,6 @@ function ModelRow({ model, isExpanded, onToggle }: { model: Model; isExpanded: b
 export default function ModelsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [scrollY, setScrollY] = useState(0)
-
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
 
   const filteredModels = useMemo(() => {
     if (!searchQuery) return models
@@ -208,47 +202,7 @@ export default function ModelsPage() {
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Navigation - Same as Homepage */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrollY > 50 ? 'bg-black/80 backdrop-blur-xl border-b border-white/5' : ''
-      }`}>
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              {/* Logo Icon */}
-              <div className="relative w-8 h-8">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg rotate-6 group-hover:rotate-12 transition-transform duration-300" />
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 3C7 3 3 7 3 12s4 9 9 9 9-4 9-9" />
-                    <path d="M12 3c2.5 0 5 4 5 9" />
-                    <circle cx="19" cy="5" r="2" fill="currentColor" stroke="none" />
-                  </svg>
-                </div>
-              </div>
-              {/* Logo Text */}
-              <span className="text-xl font-bold text-white tracking-tight">
-                Troll<span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">LLM</span>
-              </span>
-            </Link>
-            <div className="hidden md:flex items-center gap-6">
-              <Link href="/models" className="text-white text-sm font-medium">Models</Link>
-              <a href="/#features" className="text-slate-500 hover:text-white transition-colors text-sm">Features</a>
-              <a href="/#pricing" className="text-slate-500 hover:text-white transition-colors text-sm">Pricing</a>
-              <a href="/#faq" className="text-slate-500 hover:text-white transition-colors text-sm">FAQ</a>
-              <Link href="/docs" className="text-slate-500 hover:text-white transition-colors text-sm">Docs</Link>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-slate-500 hover:text-white transition-colors text-sm">
-              Sign In
-            </Link>
-            <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
-              Get API Key
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Header activeLink="models" />
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-12 overflow-hidden">

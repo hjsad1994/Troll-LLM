@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
 import { connectDB } from './db/mongodb.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import authRoutes from './routes/auth.routes.js';
@@ -18,9 +17,6 @@ const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
 app.use(cors());
 app.use(express.json());
 
-// Static files
-app.use('/static', express.static(path.join(process.cwd(), 'static')));
-
 // Health check
 app.get('/health', (_req, res) => {
   res.json({
@@ -28,16 +24,6 @@ app.get('/health', (_req, res) => {
     service: 'fproxy-backend',
     timestamp: new Date().toISOString(),
   });
-});
-
-// Usage check page (public)
-app.get('/usage', (_req, res) => {
-  res.sendFile(path.join(process.cwd(), 'static/usage.html'));
-});
-
-// Status page (public)
-app.get('/status', (_req, res) => {
-  res.sendFile(path.join(process.cwd(), 'static/status.html'));
 });
 
 // Public API routes
@@ -54,9 +40,6 @@ app.use('/api/user', userRoutes);
 app.use('/admin', authMiddleware, adminRoutes);
 app.use('/admin/proxies', authMiddleware, proxyRoutes);
 
-// Admin static files (AFTER API routes)
-app.use('/admin', express.static(path.join(process.cwd(), 'static/admin')));
-
 // Root
 app.get('/', (_req, res) => {
   res.json({
@@ -65,8 +48,6 @@ app.get('/', (_req, res) => {
     endpoints: {
       public: [
         'GET /health',
-        'GET /usage',
-        'GET /status',
         'GET /api/usage?key=xxx',
         'GET /api/status',
         'POST /api/login',
@@ -127,8 +108,8 @@ async function main() {
 
     app.listen(PORT, () => {
       console.log(`F-Proxy Backend started at http://localhost:${PORT}`);
-      console.log(`Usage check: http://localhost:${PORT}/usage`);
-      console.log(`Admin API: http://localhost:${PORT}/admin/keys`);
+      console.log(`API Usage: GET /api/usage?key=xxx`);
+      console.log(`Admin API: /admin/*`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

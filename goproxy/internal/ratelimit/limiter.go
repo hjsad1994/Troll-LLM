@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// DefaultRPM is the rate limit for all API keys (600 requests per minute)
-const DefaultRPM = 600
+// DefaultRPM is the rate limit for all API keys (300 requests per minute - Dev tier default)
+const DefaultRPM = 300
 
 type RateLimiter struct {
 	mu       sync.Mutex

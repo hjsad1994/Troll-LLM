@@ -162,26 +162,12 @@ export default function UserDashboard() {
 
         {/* Stats */}
         <section className="py-8 border-y border-white/5 opacity-0 animate-fade-in-up animation-delay-100">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-1">
-                {billingInfo ? (
-                  <AnimatedCounter value={formatLargeNumber(billingInfo.monthlyTokensUsed)} />
-                ) : '0'}
+              <div className="text-3xl md:text-4xl font-bold text-emerald-400 mb-1">
+                ${(userProfile?.credits || 0).toFixed(2)}
               </div>
-              <div className="text-slate-600 text-xs uppercase tracking-wider">Tokens Used</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-1">
-                {billingInfo ? (
-                  billingInfo.totalTokensRemaining === -1 ? (
-                    <span className="text-emerald-400">Unlimited</span>
-                  ) : (
-                    <AnimatedCounter value={formatLargeNumber(billingInfo.totalTokensRemaining)} />
-                  )
-                ) : '0'}
-              </div>
-              <div className="text-slate-600 text-xs uppercase tracking-wider">Remaining</div>
+              <div className="text-slate-600 text-xs uppercase tracking-wider">Credits</div>
             </div>
             <div className="text-center">
               <div className={`text-3xl md:text-4xl font-bold mb-1 ${
@@ -296,18 +282,18 @@ export default function UserDashboard() {
             )}
           </div>
 
-          {/* Billing Card */}
+          {/* Credits Card */}
           <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors opacity-0 animate-fade-in-up animation-delay-300">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                   <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Usage & Billing</h3>
-                  <p className="text-slate-600 text-sm">Monthly consumption</p>
+                  <h3 className="text-lg font-semibold text-white">Credits</h3>
+                  <p className="text-slate-600 text-sm">Your balance</p>
                 </div>
               </div>
               {billingInfo && (
@@ -321,59 +307,35 @@ export default function UserDashboard() {
               )}
             </div>
 
-            {billingInfo ? (
+            {userProfile ? (
               <div className="space-y-6">
-                {/* Token Stats */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-[#0a0a0a] rounded-lg border border-white/5 p-4">
-                    <p className="text-slate-600 text-xs uppercase tracking-wider mb-1">Remaining</p>
-                    <p className="text-2xl font-bold text-white">
-                      {billingInfo.totalTokensRemaining === -1 ? (
-                        <span className="text-emerald-400">Unlimited</span>
-                      ) : formatLargeNumber(billingInfo.totalTokensRemaining)}
-                    </p>
-                  </div>
-                  <div className="bg-[#0a0a0a] rounded-lg border border-white/5 p-4">
-                    <p className="text-slate-600 text-xs uppercase tracking-wider mb-1">Used</p>
-                    <p className="text-2xl font-bold text-white">
-                      {formatLargeNumber(billingInfo.monthlyTokensUsed)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Monthly limit</span>
-                    <span className="text-white">{billingInfo.usagePercentage.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ${
-                        billingInfo.usagePercentage > 90 ? 'bg-red-500' :
-                        billingInfo.usagePercentage > 70 ? 'bg-amber-500' :
-                        'bg-emerald-500'
-                      }`}
-                      style={{ width: `${Math.min(billingInfo.usagePercentage, 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-slate-600">
-                    <span>0</span>
-                    <span>{formatLargeNumber(billingInfo.monthlyTokensLimit)}</span>
+                {/* Credits Display */}
+                <div className="bg-[#0a0a0a] rounded-lg border border-white/5 p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-slate-600 text-xs uppercase tracking-wider mb-1">Available Balance</p>
+                      <p className="text-4xl font-bold text-emerald-400">
+                        ${(userProfile.credits || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                      <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
 
-                <p className="text-slate-600 text-xs">
-                  Resets {new Date(billingInfo.monthlyResetDate).toLocaleDateString()}
-                </p>
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>Plan: {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)}</span>
+                  <a href="/#pricing" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Upgrade Plan
+                  </a>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="h-20 bg-white/5 rounded-lg animate-pulse" />
-                  <div className="h-20 bg-white/5 rounded-lg animate-pulse" />
-                </div>
-                <div className="h-2 bg-white/5 rounded-full animate-pulse" />
+                <div className="h-32 bg-white/5 rounded-lg animate-pulse" />
               </div>
             )}
           </div>

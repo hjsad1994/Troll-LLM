@@ -40,7 +40,7 @@ router.get('/usage', async (req: Request, res: Response) => {
     res.json({
       key: userKeyService.maskKey(apiKey),
       tier: key.tier,
-      rpm_limit: key.tier === 'pro' ? 300 : 150, // Dev: 150 RPM, Pro: 300 RPM
+      rpm_limit: key.tier === 'pro' ? 1000 : 300, // Dev: 300 RPM, Pro: 1000 RPM
       total_tokens: key.totalTokens,
       tokens_used: key.tokensUsed,
       tokens_remaining: calcTokensRemaining(key),
