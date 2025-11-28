@@ -145,12 +145,57 @@ export default function UserDashboard() {
       <div className="relative max-w-5xl mx-auto space-y-12">
         {/* Header */}
         <header className="pt-8 opacity-0 animate-fade-in-up">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-            </span>
-            <span className="text-slate-500 text-sm">{getTimeGreeting()}</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+              </span>
+              <span className="text-slate-500 text-sm">{getTimeGreeting()}</span>
+            </div>
+            {/* Plan Badge */}
+            {userProfile && (
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-sm ${
+                userProfile.plan === 'enterprise'
+                  ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30'
+                  : userProfile.plan === 'pro'
+                    ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30'
+                    : 'bg-white/5 border-white/10'
+              }`}>
+                {userProfile.plan === 'enterprise' ? (
+                  <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                  </svg>
+                ) : userProfile.plan === 'pro' ? (
+                  <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                )}
+                <span className={`text-sm font-semibold ${
+                  userProfile.plan === 'enterprise'
+                    ? 'text-purple-400'
+                    : userProfile.plan === 'pro'
+                      ? 'text-indigo-400'
+                      : 'text-slate-400'
+                }`}>
+                  {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)} Plan
+                </span>
+                {userProfile.plan !== 'free' && userProfile.plan !== 'dev' && (
+                  <span className="relative flex h-2 w-2">
+                    <span className={`animate-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
+                    }`}></span>
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                      userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
+                    }`}></span>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
             {user?.username || 'User'}
@@ -159,34 +204,6 @@ export default function UserDashboard() {
             Welcome to your dashboard
           </p>
         </header>
-
-        {/* Stats */}
-        <section className="py-8 border-y border-white/5 opacity-0 animate-fade-in-up animation-delay-100">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-emerald-400 mb-1">
-                ${(userProfile?.credits || 0).toFixed(2)}
-              </div>
-              <div className="text-slate-600 text-xs uppercase tracking-wider">Credits</div>
-            </div>
-            <div className="text-center">
-              <div className={`text-3xl md:text-4xl font-bold mb-1 ${
-                usagePercentage > 90 ? 'text-red-400' : usagePercentage > 70 ? 'text-amber-400' : 'text-white'
-              }`}>
-                {billingInfo ? (
-                  <AnimatedCounter value={usagePercentage.toFixed(1)} suffix="%" />
-                ) : '0%'}
-              </div>
-              <div className="text-slate-600 text-xs uppercase tracking-wider">Usage</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-1">
-                {billingInfo?.plan ? billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1) : 'Free'}
-              </div>
-              <div className="text-slate-600 text-xs uppercase tracking-wider">Plan</div>
-            </div>
-          </div>
-        </section>
 
         {/* Main Grid */}
         <div className="grid md:grid-cols-2 gap-6">
@@ -311,7 +328,7 @@ export default function UserDashboard() {
               <div className="space-y-6">
                 {/* Credits Display */}
                 <div className="bg-[#0a0a0a] rounded-lg border border-white/5 p-5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-slate-600 text-xs uppercase tracking-wider mb-1">Available Balance</p>
                       <p className="text-4xl font-bold text-emerald-400">
@@ -322,6 +339,19 @@ export default function UserDashboard() {
                       <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 pt-4 border-t border-white/5">
+                    <div>
+                      <p className="text-slate-600 text-xs">Used</p>
+                      <p className="text-white font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
+                    </div>
+                    <div className="h-8 w-px bg-white/10" />
+                    <div>
+                      <p className="text-slate-600 text-xs">Total</p>
+                      <p className="text-white font-medium">
+                        {userProfile.totalTokens === -1 ? '∞' : formatLargeNumber(userProfile.totalTokens)}
+                      </p>
                     </div>
                   </div>
                 </div>
