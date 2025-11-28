@@ -39,8 +39,14 @@ func (u *UserKey) GetRPMLimit() int {
 	case "pro":
 		return 1000
 	case "dev":
-		return 600
+		return 300
+	case "free":
+		return 0
 	default:
-		return 600
+		return 300
 	}
+}
+
+func (u *UserKey) IsFreeUser() bool {
+	return u.Tier == "free" || u.Tier == ""
 }

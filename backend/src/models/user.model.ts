@@ -20,10 +20,10 @@ export interface IUser {
   monthlyResetDate: Date;
 }
 
-export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; totalTokens: number; rpm: number }> = {
-  free: { monthlyTokens: 0, totalTokens: 0, rpm: 0 },
-  dev: { monthlyTokens: 15_000_000, totalTokens: 15_000_000, rpm: 300 },
-  pro: { monthlyTokens: 40_000_000, totalTokens: 40_000_000, rpm: 600 },
+export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; totalTokens: number; rpm: number; valueUsd: number }> = {
+  free: { monthlyTokens: 0, totalTokens: 0, rpm: 0, valueUsd: 0 },
+  dev: { monthlyTokens: 15_000_000, totalTokens: 15_000_000, rpm: 300, valueUsd: 225 },
+  pro: { monthlyTokens: 40_000_000, totalTokens: 40_000_000, rpm: 1000, valueUsd: 600 },
 };
 
 const userSchema = new mongoose.Schema({

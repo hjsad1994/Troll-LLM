@@ -292,6 +292,15 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
+
+		// Check if Free Tier user - block access
+		if userKey.IsFreeUser() {
+			log.Printf("🚫 Free Tier user blocked: %s", clientKeyMask)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error": {"message": "Free Tier users cannot access this API. Please upgrade your plan.", "type": "free_tier_restricted"}}`))
+			return
+		}
 	}
 
 	// Check rate limit
@@ -614,15 +623,15 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 		if ot, ok := usageData["output_tokens"].(float64); ok {
 			outputTokens = int64(ot)
 		}
-		totalTokens := inputTokens + outputTokens
-		billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
 		
 		// Update user usage in database
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
 				log.Printf("⚠️ Failed to update usage: %v", err)
 			} else if debugMode {
-				log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+				inputPrice, outputPrice := config.GetModelPricing(modelID)
+				log.Printf("📊 Updated usage: in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", inputTokens, outputTokens, billingTokens, inputPrice, outputPrice)
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -754,15 +763,15 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 		} else if ot, ok := usageData["completion_tokens"].(float64); ok {
 			outputTokens = int64(ot)
 		}
-		totalTokens := inputTokens + outputTokens
-		billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
 		
 		// Update user usage in database
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
 				log.Printf("⚠️ Failed to update usage: %v", err)
 			} else if debugMode {
-				log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+				inputPrice, outputPrice := config.GetModelPricing(modelID)
+				log.Printf("📊 Updated usage: in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", inputTokens, outputTokens, billingTokens, inputPrice, outputPrice)
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1256,15 +1265,15 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 				if ot, ok := usageData["output_tokens"].(float64); ok {
 					outputTokens = int64(ot)
 				}
-				totalTokens := inputTokens + outputTokens
-				billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+				billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
 				
 				// Update user usage in database
 				if userApiKey != "" {
 					if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
 						log.Printf("⚠️ Failed to update usage: %v", err)
 					} else if debugMode {
-						log.Printf("📊 Updated usage: raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+						inputPrice, outputPrice := config.GetModelPricing(modelID)
+						log.Printf("📊 Updated usage: in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", inputTokens, outputTokens, billingTokens, inputPrice, outputPrice)
 					}
 					// Log request for analytics (include latency)
 					latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1423,13 +1432,13 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 
 	// Update usage after stream completes
 	if totalInputTokens > 0 || totalOutputTokens > 0 {
-		totalTokens := totalInputTokens + totalOutputTokens
-		billingTokens := config.CalculateBillingTokens(modelID, totalTokens)
+		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
 				log.Printf("⚠️ Failed to update usage: %v", err)
 			} else if debugMode {
-				log.Printf("📊 Updated usage (stream): raw=%d, billing=%d (multiplier=%.1f)", totalTokens, billingTokens, config.GetTokenMultiplier(modelID))
+				inputPrice, outputPrice := config.GetModelPricing(modelID)
+				log.Printf("📊 Updated usage (stream): in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", totalInputTokens, totalOutputTokens, billingTokens, inputPrice, outputPrice)
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()

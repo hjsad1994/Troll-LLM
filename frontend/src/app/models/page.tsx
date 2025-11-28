@@ -32,8 +32,8 @@ const models: Model[] = [
     tier: 'opus',
     description: 'Most powerful. Exceptional for highly complex tasks and deep analysis.',
     contextLength: 200000,
-    inputPrice: 15,
-    outputPrice: 75,
+    inputPrice: 5,
+    outputPrice: 25,
     capabilities: ['vision', 'function-calling', 'reasoning', 'code'],
     speed: 'powerful',
   },
@@ -54,8 +54,8 @@ const models: Model[] = [
     tier: 'haiku',
     description: 'Fastest and most affordable. Perfect for quick, high-volume tasks.',
     contextLength: 200000,
-    inputPrice: 0.25,
-    outputPrice: 1.25,
+    inputPrice: 1,
+    outputPrice: 5,
     capabilities: ['vision', 'function-calling', 'code'],
     speed: 'fast',
   },
@@ -386,7 +386,7 @@ export default function ModelsPage() {
                         <div className="w-1.5 h-3 rounded-full bg-white/10" />
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$0.25</td>
+                    <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$1</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Quick tasks, high volume</td>
                   </tr>
                   <tr className="hover:bg-white/[0.02] transition-colors">
@@ -434,7 +434,7 @@ export default function ModelsPage() {
                         <div className="w-1.5 h-3 rounded-full bg-amber-500" />
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-amber-400 font-medium text-sm">$15</td>
+                    <td className="px-4 py-3 text-right text-amber-400 font-medium text-sm">$5</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Complex analysis, research</td>
                   </tr>
                 </tbody>

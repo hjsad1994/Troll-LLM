@@ -470,64 +470,187 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24 border-t border-white/5">
-        <div className="max-w-6xl mx-auto px-6">
+      <section id="pricing" className="py-24 border-t border-white/5 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
+
+        <div className="relative max-w-5xl mx-auto px-6">
+          {/* Header */}
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Simple pricing
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Choose Your Plan
             </h2>
-            <p className="text-lg text-slate-500">
-              Choose the plan that fits your needs.
+            <p className="text-lg text-slate-400 max-w-xl mx-auto">
+              Simple, transparent pricing. No hidden fees. Cancel anytime.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          {/* Pricing Cards */}
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {/* Dev Tier */}
-            <div className="p-6 rounded-xl border border-white/10 bg-white/[0.02]">
-              <h3 className="text-lg font-semibold text-white mb-1">Dev</h3>
-              <p className="text-slate-500 text-sm mb-4">For developers</p>
-              <div className="text-4xl font-bold text-white mb-6">
-                35K<span className="text-base text-slate-500 font-normal ml-1">VND/mo</span>
+            <div className="group relative">
+              {/* Card glow on hover */}
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-600/50 to-slate-700/50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl" />
+
+              <div className="relative p-8 rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-sm hover:border-white/20 transition-all duration-300 h-full flex flex-col">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 mb-3">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                      </svg>
+                      <span className="text-slate-400 text-xs font-medium">DEVELOPER</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-white">Dev</h3>
+                    <p className="text-slate-500 text-sm mt-1">Perfect for side projects</p>
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-lg text-slate-600 line-through">49K</span>
+                    <span className="px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 text-xs font-bold">-29%</span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-5xl font-bold text-white">35K</span>
+                    <span className="text-slate-500 text-lg">VND</span>
+                    <span className="text-slate-600 text-sm">/month</span>
+                  </div>
+                  <p className="text-emerald-400 text-sm font-medium mt-2">Save 14,000 VND</p>
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent mb-6" />
+
+                {/* Features */}
+                <ul className="space-y-4 mb-8 flex-grow">
+                  {[
+                    { text: '300 requests/minute', highlight: false },
+                    { text: '15M tokens/month', highlight: false },
+                    { text: 'All Claude models', highlight: true },
+                    { text: 'Community support', highlight: false },
+                  ].map((item, idx) => (
+                    <li key={idx} className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-400'}`}>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className={`text-sm ${item.highlight ? 'text-white font-medium' : 'text-slate-400'}`}>{item.text}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* CTA */}
+                <Link href="/register" className="block w-full py-3.5 rounded-xl border border-white/10 text-white font-medium text-center hover:bg-white/5 hover:border-white/20 transition-all duration-300">
+                  Get Started
+                </Link>
               </div>
-              <ul className="space-y-3 mb-6">
-                {['300 RPM', '15M tokens/month', 'All models', 'Community support'].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-slate-400 text-sm">
-                    <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/register" className="block w-full py-2.5 rounded-lg border border-white/10 text-white font-medium text-sm text-center hover:bg-white/5 transition-colors">
-                Get Started
-              </Link>
             </div>
 
             {/* Pro Tier */}
-            <div className="p-6 rounded-xl border border-white/20 bg-white/[0.04] relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-white text-black text-xs font-medium">
-                Popular
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-1">Pro</h3>
-              <p className="text-slate-500 text-sm mb-4">For teams</p>
-              <div className="text-4xl font-bold text-white mb-6">
-                79K<span className="text-base text-slate-500 font-normal ml-1">VND/mo</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['600 RPM', '40M tokens/month', 'All models', 'Priority support'].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-slate-400 text-sm">
-                    <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <div className="group relative">
+              {/* Card glow */}
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-3xl opacity-30 group-hover:opacity-50 transition-opacity duration-500 blur-xl" />
+
+              <div className="relative p-8 rounded-2xl border border-indigo-500/30 bg-slate-900/80 backdrop-blur-sm h-full flex flex-col">
+                {/* Popular badge */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
                     </svg>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/register" className="block w-full py-2.5 rounded-lg bg-white text-black font-medium text-sm text-center hover:bg-slate-200 transition-colors">
-                Get Started
-              </Link>
+                    MOST POPULAR
+                  </div>
+                </div>
+
+                {/* Header */}
+                <div className="flex items-start justify-between mb-6 mt-2">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 mb-3">
+                      <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span className="text-indigo-400 text-xs font-medium">PROFESSIONAL</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-white">Pro</h3>
+                    <p className="text-slate-500 text-sm mt-1">Best for teams & production</p>
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-lg text-slate-600 line-through">115K</span>
+                    <span className="px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 text-xs font-bold">-31%</span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-5xl font-bold text-white">79K</span>
+                    <span className="text-slate-500 text-lg">VND</span>
+                    <span className="text-slate-600 text-sm">/month</span>
+                  </div>
+                  <p className="text-emerald-400 text-sm font-medium mt-2">Save 36,000 VND</p>
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent mb-6" />
+
+                {/* Features */}
+                <ul className="space-y-4 mb-8 flex-grow">
+                  {[
+                    { text: '600 requests/minute', highlight: true, badge: '2x' },
+                    { text: '40M tokens/month', highlight: true, badge: '2.7x' },
+                    { text: 'All Claude models', highlight: false },
+                    { text: 'Priority support', highlight: true },
+                  ].map((item, idx) => (
+                    <li key={idx} className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-400'}`}>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className={`text-sm ${item.highlight ? 'text-white font-medium' : 'text-slate-400'}`}>{item.text}</span>
+                      {item.badge && (
+                        <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] font-bold">{item.badge}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* CTA */}
+                <Link href="/register" className="block w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-center hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 shadow-md shadow-indigo-500/20">
+                  Get Started Now
+                </Link>
+              </div>
             </div>
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex flex-wrap items-center justify-center gap-8 mt-16">
+            {[
+              { icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', text: 'Secure Payment' },
+              { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', text: 'Cancel Anytime' },
+              { icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', text: 'Money Back Guarantee' },
+            ].map((item, idx) => (
+              <div key={idx} className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/5 border border-white/10">
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                </svg>
+                <span className="text-slate-400 text-sm">{item.text}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Compare link */}
+          <div className="text-center mt-8">
+            <Link href="/models" className="inline-flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm">
+              <span>Compare all features</span>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
           </div>
         </div>
       </section>

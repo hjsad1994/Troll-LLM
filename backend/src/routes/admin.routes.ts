@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { userKeyController } from '../controllers/user-key.controller.js';
 import { factoryKeyController } from '../controllers/factory-key.controller.js';
 import { metricsController } from '../controllers/metrics.controller.js';
+import { pricingController } from '../controllers/pricing.controller.js';
 import { allowReadOnly, requireAdmin } from '../middleware/role.middleware.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { PLAN_LIMITS, UserPlan } from '../models/user.model.js';
@@ -26,6 +27,16 @@ router.post('/factory-keys/:id/reset', requireAdmin, (req, res) => factoryKeyCon
 
 // Metrics - all authenticated users can read
 router.get('/metrics', (req, res) => metricsController.getSystemMetrics(req, res));
+
+// Model Pricing - users can read, only admin can write
+router.get('/pricing', (req, res) => pricingController.list(req, res));
+router.get('/pricing/model/:modelId', (req, res) => pricingController.getByModelId(req, res));
+router.get('/pricing/:id', (req, res) => pricingController.get(req, res));
+router.post('/pricing', requireAdmin, (req, res) => pricingController.create(req, res));
+router.put('/pricing/model/:modelId', requireAdmin, (req, res) => pricingController.updateByModelId(req, res));
+router.put('/pricing/:id', requireAdmin, (req, res) => pricingController.update(req, res));
+router.delete('/pricing/:id', requireAdmin, (req, res) => pricingController.delete(req, res));
+router.post('/pricing/seed', requireAdmin, (req, res) => pricingController.seed(req, res));
 
 // User Management - admin only
 router.get('/users', requireAdmin, async (req: Request, res: Response) => {

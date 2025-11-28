@@ -15,11 +15,12 @@ type Endpoint struct {
 
 // Model configuration
 type Model struct {
-	Name            string  `json:"name"`
-	ID              string  `json:"id"`
-	Type            string  `json:"type"`
-	Reasoning       string  `json:"reasoning"`
-	TokenMultiplier float64 `json:"token_multiplier"`
+	Name              string  `json:"name"`
+	ID                string  `json:"id"`
+	Type              string  `json:"type"`
+	Reasoning         string  `json:"reasoning"`
+	InputPricePerMTok  float64 `json:"input_price_per_mtok"`
+	OutputPricePerMTok float64 `json:"output_price_per_mtok"`
 }
 
 // Config global configuration
@@ -147,17 +148,51 @@ func GetAllModels() []Model {
 	return cfg.Models
 }
 
-// GetTokenMultiplier gets token multiplier for a model (default 1.0)
-func GetTokenMultiplier(modelID string) float64 {
+// Default pricing (Sonnet as reference)
+const (
+	DefaultInputPricePerMTok  = 3.0
+	DefaultOutputPricePerMTok = 15.0
+)
+
+// GetModelPricing gets input/output pricing for a model
+func GetModelPricing(modelID string) (inputPrice, outputPrice float64) {
 	model := GetModelByID(modelID)
-	if model == nil || model.TokenMultiplier <= 0 {
-		return 1.0
+	if model == nil {
+		return DefaultInputPricePerMTok, DefaultOutputPricePerMTok
 	}
-	return model.TokenMultiplier
+	inputPrice = model.InputPricePerMTok
+	outputPrice = model.OutputPricePerMTok
+	if inputPrice <= 0 {
+		inputPrice = DefaultInputPricePerMTok
+	}
+	if outputPrice <= 0 {
+		outputPrice = DefaultOutputPricePerMTok
+	}
+	return inputPrice, outputPrice
 }
 
-// CalculateBillingTokens calculates billing tokens with multiplier
-func CalculateBillingTokens(modelID string, rawTokens int64) int64 {
-	multiplier := GetTokenMultiplier(modelID)
-	return int64(float64(rawTokens) * multiplier)
+// CalculateBillingCost calculates the cost in USD for input/output tokens
+func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float64 {
+	inputPrice, outputPrice := GetModelPricing(modelID)
+	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
+	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
+	return inputCost + outputCost
+}
+
+// CalculateBillingTokens converts cost to equivalent "billing tokens" for quota tracking
+// Uses Sonnet pricing as the base reference ($3 input, $15 output -> avg $9/MTok)
+func CalculateBillingTokens(modelID string, inputTokens, outputTokens int64) int64 {
+	cost := CalculateBillingCost(modelID, inputTokens, outputTokens)
+	// Convert cost to billing tokens using average reference price ($9/MTok)
+	// This normalizes all models to a common billing unit
+	const referenceAvgPricePerMTok = 9.0
+	billingTokens := (cost / referenceAvgPricePerMTok) * 1_000_000
+	return int64(billingTokens)
+}
+
+// GetTokenMultiplier - deprecated, kept for backward compatibility
+func GetTokenMultiplier(modelID string) float64 {
+	inputPrice, outputPrice := GetModelPricing(modelID)
+	avgPrice := (inputPrice + outputPrice) / 2
+	return avgPrice / ((DefaultInputPricePerMTok + DefaultOutputPricePerMTok) / 2)
 }

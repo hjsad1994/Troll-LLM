@@ -47,6 +47,7 @@ TrollLLM is a full-stack API proxy and management platform for AI services (Fact
 - **Framework**: Express 4.x
 - **Database**: MongoDB (via Mongoose 8.x)
 - **Validation**: Zod
+- **Authentication**: jsonwebtoken (JWT)
 - **ID Generation**: nanoid
 - **Dev Tools**: tsx, eslint
 
@@ -98,18 +99,26 @@ TrollLLM is a full-stack API proxy and management platform for AI services (Fact
 - **Structure**:
   - `src/index.ts` - Express app entry point
   - `src/routes/` - API route handlers
+  - `src/controllers/` - Request/response handling
   - `src/services/` - Business logic
+  - `src/repositories/` - Data access layer
+  - `src/models/` - Mongoose schema definitions
+  - `src/dtos/` - Data transfer objects and validation
   - `src/middleware/` - Auth and validation middleware
-  - `src/db/` - MongoDB connection and models
+  - `src/db/` - MongoDB connection setup
+  - `src/scripts/` - Utility scripts
 - **API Pattern**: RESTful with admin-prefixed protected routes
-- **Auth**: Basic auth or session token via X-Session-Token header
+- **Auth**: JWT-based authentication via jsonwebtoken, X-Session-Token header
 
 #### Frontend
 - **Structure**:
   - `src/app/` - Next.js App Router pages
+  - `src/app/(dashboard)/` - Protected dashboard routes (route group)
   - `src/components/` - Reusable React components
   - `src/lib/` - Utilities and API clients
-- **Pages**: keys, factory-keys, proxies, usage
+- **Pages**: 
+  - Public: login, register, docs, models, usage
+  - Dashboard: dashboard, keys, factory-keys, proxies, users, admin
 
 ### Testing Strategy
 - **GoProxy**: Go standard testing with `go test -race`
