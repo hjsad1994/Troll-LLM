@@ -284,3 +284,258 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// HandleStreamResponseOpenAI handles streaming response and transforms Anthropic -> OpenAI format
+func HandleStreamResponseOpenAI(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ [MainTarget] Error %d: %s", resp.StatusCode, string(body))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		w.Write(body)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, `{"error":"streaming not supported"}`, http.StatusInternalServerError)
+		return
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
+
+	var totalInput, totalOutput, totalCacheWrite, totalCacheHit int64
+	eventCount := 0
+	messageID := fmt.Sprintf("chatcmpl-%d", time.Now().UnixNano())
+	created := time.Now().Unix()
+	sentRole := false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+
+		dataStr := strings.TrimPrefix(line, "data: ")
+		if dataStr == "[DONE]" {
+			fmt.Fprintf(w, "data: [DONE]\n\n")
+			flusher.Flush()
+			continue
+		}
+
+		var event map[string]interface{}
+		if err := json.Unmarshal([]byte(dataStr), &event); err != nil {
+			continue
+		}
+
+		eventType, _ := event["type"].(string)
+		eventCount++
+
+		switch eventType {
+		case "message_start":
+			// Send role delta first
+			if !sentRole {
+				openaiChunk := map[string]interface{}{
+					"id":      messageID,
+					"object":  "chat.completion.chunk",
+					"created": created,
+					"model":   modelID,
+					"choices": []map[string]interface{}{
+						{
+							"index":         0,
+							"delta":         map[string]interface{}{"role": "assistant"},
+							"finish_reason": nil,
+						},
+					},
+				}
+				chunkJSON, _ := json.Marshal(openaiChunk)
+				fmt.Fprintf(w, "data: %s\n\n", chunkJSON)
+				flusher.Flush()
+				sentRole = true
+			}
+			// Extract usage
+			if msg, ok := event["message"].(map[string]interface{}); ok {
+				if usage, ok := msg["usage"].(map[string]interface{}); ok {
+					if v, ok := usage["input_tokens"].(float64); ok {
+						totalInput = int64(v)
+					}
+				}
+			}
+
+		case "content_block_delta":
+			if delta, ok := event["delta"].(map[string]interface{}); ok {
+				if text, ok := delta["text"].(string); ok && text != "" {
+					openaiChunk := map[string]interface{}{
+						"id":      messageID,
+						"object":  "chat.completion.chunk",
+						"created": created,
+						"model":   modelID,
+						"choices": []map[string]interface{}{
+							{
+								"index":         0,
+								"delta":         map[string]interface{}{"content": text},
+								"finish_reason": nil,
+							},
+						},
+					}
+					chunkJSON, _ := json.Marshal(openaiChunk)
+					fmt.Fprintf(w, "data: %s\n\n", chunkJSON)
+					flusher.Flush()
+				}
+			}
+
+		case "message_delta":
+			// Extract final usage
+			if usage, ok := event["usage"].(map[string]interface{}); ok {
+				if v, ok := usage["input_tokens"].(float64); ok {
+					totalInput = int64(v)
+				}
+				if v, ok := usage["output_tokens"].(float64); ok {
+					totalOutput = int64(v)
+				}
+				if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
+					totalCacheWrite = int64(v)
+				}
+				if v, ok := usage["cache_read_input_tokens"].(float64); ok {
+					totalCacheHit = int64(v)
+				}
+			}
+			// Send finish chunk
+			finishReason := "stop"
+			if delta, ok := event["delta"].(map[string]interface{}); ok {
+				if sr, ok := delta["stop_reason"].(string); ok && sr != "" {
+					finishReason = "stop"
+					if sr == "max_tokens" {
+						finishReason = "length"
+					}
+				}
+			}
+			openaiChunk := map[string]interface{}{
+				"id":      messageID,
+				"object":  "chat.completion.chunk",
+				"created": created,
+				"model":   modelID,
+				"choices": []map[string]interface{}{
+					{
+						"index":         0,
+						"delta":         map[string]interface{}{},
+						"finish_reason": finishReason,
+					},
+				},
+			}
+			chunkJSON, _ := json.Marshal(openaiChunk)
+			fmt.Fprintf(w, "data: %s\n\n", chunkJSON)
+			flusher.Flush()
+
+		case "message_stop":
+			fmt.Fprintf(w, "data: [DONE]\n\n")
+			flusher.Flush()
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("❌ [MainTarget] Stream error: %v", err)
+	} else {
+		log.Printf("✅ [MainTarget] OpenAI Stream completed: %d events", eventCount)
+	}
+
+	log.Printf("📊 [MainTarget] Final usage: input=%d, output=%d, cacheWrite=%d, cacheHit=%d",
+		totalInput, totalOutput, totalCacheWrite, totalCacheHit)
+	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
+		onUsage(totalInput, totalOutput, totalCacheWrite, totalCacheHit)
+	}
+}
+
+// HandleNonStreamResponseOpenAI handles non-streaming response and transforms Anthropic -> OpenAI format
+func HandleNonStreamResponseOpenAI(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+	body, err := readResponseBody(resp)
+	if err != nil {
+		log.Printf("❌ [MainTarget] Read error: %v", err)
+		http.Error(w, `{"error":"failed to read response"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("❌ [MainTarget] Error %d: %s", resp.StatusCode, string(body))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		w.Write(body)
+		return
+	}
+
+	// Parse Anthropic response
+	var anthropicResp map[string]interface{}
+	if err := json.Unmarshal(body, &anthropicResp); err != nil {
+		log.Printf("❌ [MainTarget] Parse error: %v", err)
+		http.Error(w, `{"error":"failed to parse response"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Extract content
+	var content string
+	if contentBlocks, ok := anthropicResp["content"].([]interface{}); ok {
+		for _, block := range contentBlocks {
+			if b, ok := block.(map[string]interface{}); ok {
+				if text, ok := b["text"].(string); ok {
+					content += text
+				}
+			}
+		}
+	}
+
+	// Extract usage
+	var input, output, cacheWrite, cacheHit int64
+	if usage, ok := anthropicResp["usage"].(map[string]interface{}); ok {
+		if v, ok := usage["input_tokens"].(float64); ok {
+			input = int64(v)
+		}
+		if v, ok := usage["output_tokens"].(float64); ok {
+			output = int64(v)
+		}
+		if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
+			cacheWrite = int64(v)
+		}
+		if v, ok := usage["cache_read_input_tokens"].(float64); ok {
+			cacheHit = int64(v)
+		}
+	}
+
+	// Build OpenAI response
+	openaiResp := map[string]interface{}{
+		"id":      fmt.Sprintf("chatcmpl-%d", time.Now().UnixNano()),
+		"object":  "chat.completion",
+		"created": time.Now().Unix(),
+		"model":   modelID,
+		"choices": []map[string]interface{}{
+			{
+				"index": 0,
+				"message": map[string]interface{}{
+					"role":    "assistant",
+					"content": content,
+				},
+				"finish_reason": "stop",
+			},
+		},
+		"usage": map[string]interface{}{
+			"prompt_tokens":     input,
+			"completion_tokens": output,
+			"total_tokens":      input + output,
+		},
+	}
+
+	respJSON, _ := json.Marshal(openaiResp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(respJSON)
+
+	log.Printf("✅ [MainTarget] OpenAI Response: %d bytes", len(respJSON))
+	if onUsage != nil {
+		onUsage(input, output, cacheWrite, cacheHit)
+	}
+}

@@ -563,9 +563,9 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	case "anthropic":
 		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, upstreamConfig, bodyBytes)
 	case "openai":
-		// For "main" upstream: route to Main Target Server
+		// For "main" upstream: route to Main Target Server with OpenAI response format
 		if upstreamConfig.KeyID == "main" {
-			handleMainTargetRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+			handleMainTargetRequestOpenAI(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else {
 			handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
 		}
@@ -700,11 +700,75 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
 	}
 
-	// Handle response
+	// Handle response (Anthropic format)
 	if isStreaming {
 		maintarget.HandleStreamResponse(w, resp, onUsage)
 	} else {
 		maintarget.HandleNonStreamResponse(w, resp, onUsage)
+	}
+}
+
+// handleMainTargetRequestOpenAI handles requests routed to main target with OpenAI format response
+func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
+	if !maintarget.IsConfigured() {
+		http.Error(w, `{"error": {"message": "Main target not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Transform OpenAI -> Anthropic
+	anthropicBody, isStreaming, err := maintarget.TransformOpenAIToAnthropic(bodyBytes)
+	if err != nil {
+		log.Printf("❌ [MainTarget-OpenAI] Transform error: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to transform request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("📤 [MainTarget-OpenAI] Forwarding to %s (stream=%v)", maintarget.GetServerURL(), isStreaming)
+
+	// Forward to main target
+	requestStartTime := time.Now()
+	resp, err := maintarget.ForwardRequest(anthropicBody, isStreaming)
+	if err != nil {
+		log.Printf("❌ [MainTarget-OpenAI] Request failed: %v", err)
+		http.Error(w, `{"error": {"message": "Request to main target failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCredits(username, billingCost, billingTokens)
+			}
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "main",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+		log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+	}
+
+	// Handle response (transform to OpenAI format)
+	if isStreaming {
+		maintarget.HandleStreamResponseOpenAI(w, resp, modelID, onUsage)
+	} else {
+		maintarget.HandleNonStreamResponseOpenAI(w, resp, modelID, onUsage)
 	}
 }
 
