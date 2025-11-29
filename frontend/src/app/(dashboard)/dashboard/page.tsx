@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, UserProfile, BillingInfo } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 
-function formatLargeNumber(num: number): string {
+function formatLargeNumber(num: number | undefined | null): string {
+  if (num == null) return '0'
   if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + 'B'
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'

@@ -64,7 +64,8 @@ interface RecentLog {
   tokensUsed?: number
 }
 
-function formatLargeNumber(num: number): string {
+function formatLargeNumber(num: number | undefined | null): string {
+  if (num == null) return '0'
   if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + 'B'
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
@@ -567,7 +568,7 @@ export default function Dashboard() {
               <div className="bg-slate-800/50 rounded-lg p-3">
                 <p className="text-slate-500 text-xs uppercase tracking-wider">Avg Latency</p>
                 <p className={`text-xl font-semibold ${getLatencyColor(metrics.avgLatencyMs)}`}>
-                  {metrics.avgLatencyMs.toLocaleString()}ms
+                  {(metrics.avgLatencyMs ?? 0).toLocaleString()}ms
                 </p>
               </div>
               <div className="bg-slate-800/50 rounded-lg p-3">
@@ -713,7 +714,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-4 text-xs text-slate-400">
                         <span>{formatLargeNumber(key.tokensUsed)} tokens used</span>
-                        <span>{key.requestsCount.toLocaleString()} requests</span>
+                        <span>{(key.requestsCount ?? 0).toLocaleString()} requests</span>
                       </div>
                     </div>
                   ))}

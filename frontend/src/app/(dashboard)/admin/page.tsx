@@ -65,7 +65,8 @@ interface RecentLog {
   tokensUsed?: number
 }
 
-function formatLargeNumber(num: number): string {
+function formatLargeNumber(num: number | undefined | null): string {
+  if (num == null) return '0'
   if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + 'B'
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
@@ -316,7 +317,7 @@ export default function AdminDashboard() {
               <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
                 <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Avg Latency</p>
                 <p className={`text-xl font-semibold ${getLatencyColor(metrics.avgLatencyMs)}`}>
-                  {metrics.avgLatencyMs.toLocaleString()}ms
+                  {(metrics.avgLatencyMs ?? 0).toLocaleString()}ms
                 </p>
               </div>
               <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
@@ -453,7 +454,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex items-center gap-4 text-xs text-neutral-500">
                         <span>{formatLargeNumber(key.tokensUsed)} tokens</span>
-                        <span>{key.requestsCount.toLocaleString()} requests</span>
+                        <span>{(key.requestsCount ?? 0).toLocaleString()} requests</span>
                       </div>
                     </div>
                   ))}
