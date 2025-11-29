@@ -20,6 +20,7 @@ import (
 	"goproxy/config"
 	"goproxy/db"
 	"goproxy/internal/keypool"
+	"goproxy/internal/maintarget"
 	"goproxy/internal/proxy"
 	"goproxy/internal/ratelimit"
 	"goproxy/internal/usage"
@@ -41,6 +42,12 @@ var (
 	rateLimiter    *ratelimit.RateLimiter
 	// Pre-compiled regex for sanitizeBlockedContent (performance optimization)
 	blockedPatternRegexes []*regexp.Regexp
+	
+	// NEW MODEL-BASED ROUTING - BEGIN
+	// Main Target Server configuration (for Sonnet 4.5 and Haiku 4.5)
+	mainTargetServer string
+	mainUpstreamKey  string
+	// NEW MODEL-BASED ROUTING - END
 )
 
 func init() {
@@ -118,6 +125,73 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
+
+// NEW MODEL-BASED ROUTING - BEGIN
+// UpstreamConfig holds the configuration for routing to upstream provider
+type UpstreamConfig struct {
+	EndpointURL string
+	APIKey      string
+	UseProxy    bool   // true = use proxy pool, false = direct connection
+	KeyID       string // for logging purposes
+}
+
+// selectUpstreamConfig returns the upstream configuration based on model
+// Returns endpoint URL, API key, whether to use proxy, and key ID for logging
+func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig, *proxy.Proxy, error) {
+	upstream := config.GetModelUpstream(modelID)
+	
+	if upstream == "main" {
+		// Use Main Target Server (for Sonnet 4.5 and Haiku 4.5)
+		if mainTargetServer == "" || mainUpstreamKey == "" {
+			return nil, nil, fmt.Errorf("main target server not configured")
+		}
+		log.Printf("🔀 [Model Routing] %s -> Main Target Server", modelID)
+		return &UpstreamConfig{
+			EndpointURL: mainTargetServer + "/v1/messages",
+			APIKey:      mainUpstreamKey,
+			UseProxy:    false,
+			KeyID:       "main",
+		}, nil, nil
+	}
+	
+	// Default: Use Troll Key (Factory AI) with proxy pool
+	var selectedProxy *proxy.Proxy
+	var trollAPIKey string
+	var trollKeyID string
+	
+	if proxyPool != nil && proxyPool.HasProxies() {
+		var err error
+		selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to select proxy: %v", err)
+		}
+		trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
+		if trollAPIKey == "" {
+			return nil, nil, fmt.Errorf("troll key %s not found in pool", trollKeyID)
+		}
+		log.Printf("🔀 [Model Routing] %s -> Troll Key (proxy: %s, key: %s)", modelID, selectedProxy.Name, trollKeyID)
+	} else {
+		trollAPIKey = getEnv("TROLL_API_KEY", "")
+		trollKeyID = "env"
+		if trollAPIKey == "" {
+			return nil, nil, fmt.Errorf("no proxies configured and TROLL_API_KEY not set")
+		}
+		log.Printf("🔀 [Model Routing] %s -> Troll Key (direct, env key)", modelID)
+	}
+	
+	endpoint := config.GetEndpointByType("anthropic")
+	if endpoint == nil {
+		return nil, nil, fmt.Errorf("anthropic endpoint not configured")
+	}
+	
+	return &UpstreamConfig{
+		EndpointURL: endpoint.BaseURL,
+		APIKey:      trollAPIKey,
+		UseProxy:    true,
+		KeyID:       trollKeyID,
+	}, selectedProxy, nil
+}
+// NEW MODEL-BASED ROUTING - END
 
 // Read response body and automatically handle compression
 func readResponseBody(resp *http.Response) ([]byte, error) {
@@ -340,37 +414,39 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get factory key from proxy pool or environment
-	var selectedProxy *proxy.Proxy
-	var trollAPIKey string
-	
-	if proxyPool != nil && proxyPool.HasProxies() {
-		// Use proxy pool - sticky routing based on client API key
-		var trollKeyID string
-		var err error
-		selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
-		if err != nil {
-			log.Printf("❌ Failed to select proxy: %v", err)
-			http.Error(w, `{"error": {"message": "No available proxies", "type": "server_error"}}`, http.StatusServiceUnavailable)
-			return
-		}
-		trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
-		if trollAPIKey == "" {
-			log.Printf("❌ Troll key %s not found in pool", trollKeyID)
-			http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
-			return
-		}
-		log.Printf("🔄 [OpenAI] Using proxy %s with key %s", selectedProxy.Name, trollKeyID)
-	} else {
-		// Fallback to environment variable
-		trollAPIKey = getEnv("TROLL_API_KEY", "")
-		if trollAPIKey == "" {
-			log.Printf("❌ No proxies configured and TROLL_API_KEY not set")
-			http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
-			return
-		}
-	}
-	authHeader = "Bearer " + trollAPIKey
+	// OLD CODE - BEGIN (proxy/key selection moved after model parsing for model-based routing)
+	// // Get factory key from proxy pool or environment
+	// var selectedProxy *proxy.Proxy
+	// var trollAPIKey string
+	// 
+	// if proxyPool != nil && proxyPool.HasProxies() {
+	// 	// Use proxy pool - sticky routing based on client API key
+	// 	var trollKeyID string
+	// 	var err error
+	// 	selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+	// 	if err != nil {
+	// 		log.Printf("❌ Failed to select proxy: %v", err)
+	// 		http.Error(w, `{"error": {"message": "No available proxies", "type": "server_error"}}`, http.StatusServiceUnavailable)
+	// 		return
+	// 	}
+	// 	trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
+	// 	if trollAPIKey == "" {
+	// 		log.Printf("❌ Troll key %s not found in pool", trollKeyID)
+	// 		http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	log.Printf("🔄 [OpenAI] Using proxy %s with key %s", selectedProxy.Name, trollKeyID)
+	// } else {
+	// 	// Fallback to environment variable
+	// 	trollAPIKey = getEnv("TROLL_API_KEY", "")
+	// 	if trollAPIKey == "" {
+	// 		log.Printf("❌ No proxies configured and TROLL_API_KEY not set")
+	// 		http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// }
+	// authHeader = "Bearer " + trollAPIKey
+	// OLD CODE - END
 
 	// Read request body
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -421,38 +497,62 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("✅ %s [%s] stream=%v", openaiReq.Model, model.Type, openaiReq.Stream)
 	}
 
-	// Get trollKeyID for logging (use "env" if from environment variable)
-	var trollKeyID string
-	if proxyPool != nil && proxyPool.HasProxies() {
-		_, trollKeyID, _ = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
-	} else {
-		trollKeyID = "env"
+	// OLD CODE - BEGIN
+	// // Get trollKeyID for logging (use "env" if from environment variable)
+	// var trollKeyID string
+	// if proxyPool != nil && proxyPool.HasProxies() {
+	// 	_, trollKeyID, _ = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+	// } else {
+	// 	trollKeyID = "env"
+	// }
+	//
+	// // Route request based on model type
+	// switch model.Type {
+	// case "anthropic":
+	// 	handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username)
+	// case "openai":
+	// 	handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username)
+	// default:
+	// 	http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
+	// }
+	// OLD CODE - END
+
+	// NEW MODEL-BASED ROUTING - BEGIN
+	// Select upstream based on model configuration
+	upstreamConfig, selectedProxy, err := selectUpstreamConfig(model.ID, clientAPIKey)
+	if err != nil {
+		log.Printf("❌ Failed to select upstream: %v", err)
+		http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
 	}
+	authHeader = "Bearer " + upstreamConfig.APIKey
+	trollKeyID := upstreamConfig.KeyID
 
 	// Route request based on model type
 	switch model.Type {
 	case "anthropic":
-		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username)
+		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, upstreamConfig)
 	case "openai":
 		handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username)
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
 	}
+	// NEW MODEL-BASED ROUTING - END
 }
 
 // Handle Anthropic type request
-func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string) {
-	// Transform request
-	anthropicReq := transformers.TransformToAnthropic(openaiReq)
-
-	// Get endpoint
-	endpoint := config.GetEndpointByType("anthropic")
-	if endpoint == nil {
-		http.Error(w, `{"error": {"message": "Anthropic endpoint not configured", "type": "configuration_error"}}`, http.StatusInternalServerError)
+func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string, upstreamConfig *UpstreamConfig) {
+	// For "main" upstream: use maintarget package (passthrough to external proxy)
+	if upstreamConfig.KeyID == "main" {
+		handleMainTargetRequest(w, r, openaiReq, model.ID, userApiKey, username)
 		return
 	}
 
-	// Serialize request
+	// For "troll" upstream: use Factory AI with full transformation
+	anthropicReq := transformers.TransformToAnthropic(openaiReq)
+	
+	endpointURL := upstreamConfig.EndpointURL
+
 	reqBody, err := json.Marshal(anthropicReq)
 	if err != nil {
 		log.Printf("Error: failed to serialize request: %v", err)
@@ -465,22 +565,19 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 		log.Printf("📤 %s", string(reqBody))
 	}
 
-	// Create HTTP request
-	proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
+	proxyReq, err := http.NewRequest(http.MethodPost, endpointURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		log.Printf("Error: failed to create request: %v", err)
 		http.Error(w, `{"error": {"message": "Failed to create request", "type": "server_error"}}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Set request headers
 	clientHeaders := extractClientHeaders(r)
 	headers := transformers.GetAnthropicHeaders(authHeader, clientHeaders, openaiReq.Stream, model.ID)
 	for key, value := range headers {
 		proxyReq.Header.Set(key, value)
 	}
 
-	// Send request (using proxy client if selected, otherwise global client)
 	client := httpClient
 	if selectedProxy != nil {
 		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
@@ -491,7 +588,6 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 		}
 	}
 	
-	// Track request start time for latency measurement
 	requestStartTime := time.Now()
 	
 	resp, err := client.Do(proxyReq)
@@ -500,23 +596,144 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 		http.Error(w, `{"error": {"message": "Request to upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("Warning: failed to close response body: %v", err)
-		}
-	}()
+	defer resp.Body.Close()
 
 	if debugMode {
 		log.Printf("📥 Anthropic response: %d", resp.StatusCode)
 	}
 
-	// Handle response
 	if openaiReq.Stream {
-		// Streaming response
 		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, trollKeyID, requestStartTime, username)
 	} else {
-		// Non-streaming response
 		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, trollKeyID, requestStartTime, username)
+	}
+}
+
+// handleMainTargetRequest handles requests routed to main target (external proxy)
+func handleMainTargetRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, modelID string, userApiKey string, username string) {
+	if !maintarget.IsConfigured() {
+		http.Error(w, `{"error": {"message": "Main target not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Read original request body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, `{"error": {"message": "Failed to read request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Transform OpenAI -> Anthropic (minimal, no thinking/system prompt)
+	anthropicBody, isStreaming, err := maintarget.TransformOpenAIToAnthropic(bodyBytes)
+	if err != nil {
+		log.Printf("❌ [MainTarget] Transform error: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to transform request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("📤 [MainTarget] Forwarding to %s (stream=%v)", maintarget.GetServerURL(), isStreaming)
+
+	// Forward to main target
+	requestStartTime := time.Now()
+	resp, err := maintarget.ForwardRequest(anthropicBody, isStreaming)
+	if err != nil {
+		log.Printf("❌ [MainTarget] Request failed: %v", err)
+		http.Error(w, `{"error": {"message": "Request to main target failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCredits(username, billingCost, billingTokens)
+			}
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "main",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+	}
+
+	// Handle response
+	if isStreaming {
+		maintarget.HandleStreamResponse(w, resp, onUsage)
+	} else {
+		maintarget.HandleNonStreamResponse(w, resp, onUsage)
+	}
+}
+
+// handleMainTargetMessagesRequest handles /v1/messages requests routed to main target
+// Forwards the original Anthropic request as-is (no transformation)
+func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
+	if !maintarget.IsConfigured() {
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Main target not configured"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("📤 [MainTarget] Forwarding /v1/messages to %s (stream=%v)", maintarget.GetServerURL(), isStreaming)
+
+	// Forward original request body as-is
+	requestStartTime := time.Now()
+	resp, err := maintarget.ForwardRequest(originalBody, isStreaming)
+	if err != nil {
+		log.Printf("❌ [MainTarget] Request failed: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to main target failed"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCredits(username, billingCost, billingTokens)
+			}
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "main",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+	}
+
+	// Handle response
+	if isStreaming {
+		maintarget.HandleStreamResponse(w, resp, onUsage)
+	} else {
+		maintarget.HandleNonStreamResponse(w, resp, onUsage)
 	}
 }
 
@@ -725,7 +942,21 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 
 // Handle Anthropic streaming response
 func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
-	_ = requestStartTime // Streaming latency tracked at end
+	// Log error responses from upstream
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ [%s] Upstream error %d: %s", trollKeyID, resp.StatusCode, string(body))
+		// Log failed request for analytics
+		if userApiKey != "" {
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		w.Write(body)
+		return
+	}
+	
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -1082,38 +1313,40 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get factory key from proxy pool or environment
-	var selectedProxy *proxy.Proxy
-	var trollAPIKey string
-	var trollKeyID string
-	
-	if proxyPool != nil && proxyPool.HasProxies() {
-		// Use proxy pool - sticky routing based on client API key
-		var err error
-		selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
-		if err != nil {
-			log.Printf("❌ Failed to select proxy: %v", err)
-			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"No available proxies"}}`, http.StatusServiceUnavailable)
-			return
-		}
-		trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
-		if trollAPIKey == "" {
-			log.Printf("❌ Troll key %s not found in pool", trollKeyID)
-			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
-			return
-		}
-		log.Printf("🔄 [Anthropic] Using proxy %s with key %s", selectedProxy.Name, trollKeyID)
-	} else {
-		// Fallback to environment variable
-		trollAPIKey = getEnv("TROLL_API_KEY", "")
-		trollKeyID = "env"
-		if trollAPIKey == "" {
-			log.Printf("❌ No proxies configured and TROLL_API_KEY not set")
-			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
-			return
-		}
-	}
-	authHeader = "Bearer " + trollAPIKey
+	// OLD CODE - BEGIN (proxy/key selection moved after model parsing for model-based routing)
+	// // Get factory key from proxy pool or environment
+	// var selectedProxy *proxy.Proxy
+	// var trollAPIKey string
+	// var trollKeyID string
+	// 
+	// if proxyPool != nil && proxyPool.HasProxies() {
+	// 	// Use proxy pool - sticky routing based on client API key
+	// 	var err error
+	// 	selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+	// 	if err != nil {
+	// 		log.Printf("❌ Failed to select proxy: %v", err)
+	// 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"No available proxies"}}`, http.StatusServiceUnavailable)
+	// 		return
+	// 	}
+	// 	trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
+	// 	if trollAPIKey == "" {
+	// 		log.Printf("❌ Troll key %s not found in pool", trollKeyID)
+	// 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	log.Printf("🔄 [Anthropic] Using proxy %s with key %s", selectedProxy.Name, trollKeyID)
+	// } else {
+	// 	// Fallback to environment variable
+	// 	trollAPIKey = getEnv("TROLL_API_KEY", "")
+	// 	trollKeyID = "env"
+	// 	if trollAPIKey == "" {
+	// 		log.Printf("❌ No proxies configured and TROLL_API_KEY not set")
+	// 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// }
+	// authHeader = "Bearer " + trollAPIKey
+	// OLD CODE - END
 
 	// Read request body (no parsing - direct pass-through)
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -1136,6 +1369,9 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Invalid JSON"}}`, http.StatusBadRequest)
 		return
 	}
+	
+	// Always log the model being requested for debugging
+	log.Printf("📥 /v1/messages - Model requested: %s, Stream: %v", anthropicReq.Model, anthropicReq.Stream)
 
 	stream := anthropicReq.Stream
 
@@ -1146,6 +1382,24 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Model not found"}}`, http.StatusNotFound)
 		return
 	}
+
+	// NEW MODEL-BASED ROUTING - BEGIN
+	// Select upstream based on model configuration
+	upstreamConfig, selectedProxy, err := selectUpstreamConfig(model.ID, clientAPIKey)
+	if err != nil {
+		log.Printf("❌ Failed to select upstream: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
+		return
+	}
+	authHeader = "Bearer " + upstreamConfig.APIKey
+	trollKeyID := upstreamConfig.KeyID
+
+	// For "main" upstream: forward original request as-is (no transformation)
+	if upstreamConfig.KeyID == "main" {
+		handleMainTargetMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
+		return
+	}
+	// NEW MODEL-BASED ROUTING - END
 
 	// Normalize message content format (convert string to array if needed)
 	for i := range anthropicReq.Messages {
@@ -1169,12 +1423,17 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("🧹 Sanitized messages to remove blocked content")
 	}
 
-	// Get Anthropic endpoint from config (same as existing handler)
-	endpoint := config.GetEndpointByType("anthropic")
-	if endpoint == nil {
-		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Anthropic endpoint not configured"}}`, http.StatusInternalServerError)
-		return
-	}
+	// OLD CODE - BEGIN
+	// // Get Anthropic endpoint from config (same as existing handler)
+	// endpoint := config.GetEndpointByType("anthropic")
+	// if endpoint == nil {
+	// 	http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Anthropic endpoint not configured"}}`, http.StatusInternalServerError)
+	// 	return
+	// }
+	// OLD CODE - END
+	
+	// NEW MODEL-BASED ROUTING - Use endpoint from upstreamConfig
+	endpointURL := upstreamConfig.EndpointURL
 
 	// Add system prompt if not present (Factory AI requires this)
 	if debugMode {
@@ -1273,19 +1532,33 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("📤 %s", string(reqBody))
 	}
 
-	// Create request to Factory AI
-	proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
+	// Create request to upstream (Factory AI or Main Target Server)
+	// OLD CODE: proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
+	proxyReq, err := http.NewRequest(http.MethodPost, endpointURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		log.Printf("Error creating request: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to create request"}}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Set headers using the same helper as existing Anthropic handler
+	// Set headers based on upstream type
 	clientHeaders := extractClientHeaders(r)
-	headers := transformers.GetAnthropicHeaders(authHeader, clientHeaders, stream, model.ID)
+	var headers map[string]string
+	if upstreamConfig.KeyID == "main" {
+		// Use Main Target headers (standard Anthropic API with x-api-key)
+		headers = transformers.GetMainTargetHeaders(upstreamConfig.APIKey, clientHeaders, stream)
+	} else {
+		// Use Factory AI headers (Authorization Bearer + x-factory-client)
+		headers = transformers.GetAnthropicHeaders(authHeader, clientHeaders, stream, model.ID)
+	}
 	for key, value := range headers {
 		proxyReq.Header.Set(key, value)
+	}
+	
+	// Debug: log request details
+	if debugMode {
+		log.Printf("📤 [%s] Endpoint: %s", upstreamConfig.KeyID, endpointURL)
+		log.Printf("📤 [%s] Headers: content-type=%s, anthropic-version=%s", upstreamConfig.KeyID, headers["content-type"], headers["anthropic-version"])
 	}
 
 	// Send request (using proxy client if selected, otherwise global client)
@@ -1299,7 +1572,22 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	log.Printf("📤 Sending request to Factory API...")
+	// Log upstream destination
+	if upstreamConfig.KeyID == "main" {
+		log.Printf("📤 Sending request to Main Target Server (%s)...", mainTargetServer)
+		log.Printf("📤 [main] URL: %s", endpointURL)
+		log.Printf("📤 [main] Headers: x-api-key=%s, anthropic-version=%s", 
+			headers["x-api-key"][:min(8, len(headers["x-api-key"]))]+"...", 
+			headers["anthropic-version"])
+		// Log request body (truncated)
+		if len(reqBody) < 500 {
+			log.Printf("📤 [main] Body: %s", string(reqBody))
+		} else {
+			log.Printf("📤 [main] Body (truncated): %s...", string(reqBody[:500]))
+		}
+	} else {
+		log.Printf("📤 Sending request to Factory API...")
+	}
 	reqStart := time.Now()
 	resp, err := client.Do(proxyReq)
 	if err != nil {
@@ -1307,7 +1595,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to upstream failed"}}`, http.StatusBadGateway)
 		return
 	}
-	log.Printf("📥 Response received after %v", time.Since(reqStart))
+	log.Printf("📥 Response received from %s after %v", upstreamConfig.KeyID, time.Since(reqStart))
 	defer resp.Body.Close()
 
 	if debugMode {
@@ -1329,6 +1617,16 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 		log.Printf("Error reading response: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to read response"}}`, http.StatusInternalServerError)
 		return
+	}
+
+	// Debug: log response details
+	if debugMode {
+		log.Printf("📥 [%s] Response status: %d, body length: %d bytes", trollKeyID, resp.StatusCode, len(body))
+		if len(body) < 2000 {
+			log.Printf("📥 [%s] Response body: %s", trollKeyID, string(body))
+		} else {
+			log.Printf("📥 [%s] Response body (truncated): %s...", trollKeyID, string(body[:2000]))
+		}
 	}
 
 	// Log failed request for analytics
@@ -1645,6 +1943,18 @@ func main() {
 	
 	log.Printf("✅ Proxy pool loaded: %d proxies", proxyPool.GetProxyCount())
 	log.Printf("✅ Troll key pool loaded: %d keys", trollKeyPool.GetKeyCount())
+
+	// NEW MODEL-BASED ROUTING - BEGIN
+	// Load Main Target Server configuration (for Sonnet 4.5 and Haiku 4.5)
+	mainTargetServer = getEnv("MAIN_TARGET_SERVER", "")
+	mainUpstreamKey = getEnv("MAIN_UPSTREAM_KEY", "")
+	if mainTargetServer != "" && mainUpstreamKey != "" {
+		maintarget.Configure(mainTargetServer, mainUpstreamKey)
+		log.Printf("✅ Main Target Server configured: %s", mainTargetServer)
+	} else {
+		log.Printf("⚠️ Main Target Server not configured (Sonnet/Haiku will use Troll Key)")
+	}
+	// NEW MODEL-BASED ROUTING - END
 
 	// Validate environment variables (TROLL_API_KEY is optional if using key pool from DB)
 	trollAPIKey := getEnv("TROLL_API_KEY", "")

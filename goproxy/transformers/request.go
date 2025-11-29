@@ -388,6 +388,25 @@ func GetAnthropicHeaders(authHeader string, clientHeaders map[string]string, isS
 	return headers
 }
 
+// GetMainTargetHeaders returns headers for Main Target Server
+// Sends both x-api-key and Authorization Bearer for compatibility
+func GetMainTargetHeaders(apiKey string, clientHeaders map[string]string, isStreaming bool) map[string]string {
+	headers := map[string]string{
+		"content-type":         "application/json",
+		"x-api-key":            apiKey,
+		"authorization":        "Bearer " + apiKey,
+		"anthropic-version":    "2023-06-01",
+	}
+
+	if isStreaming {
+		headers["accept"] = "text/event-stream"
+	} else {
+		headers["accept"] = "application/json"
+	}
+
+	return headers
+}
+
 // GetTrollOpenAIHeaders returns TrollLLM OpenAI request headers
 func GetTrollOpenAIHeaders(authHeader string, clientHeaders map[string]string) map[string]string {
 	// Generate unique ID

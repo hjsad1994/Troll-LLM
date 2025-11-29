@@ -77,30 +77,34 @@ router.get('/billing', jwtAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get('/request-history', jwtAuth, async (req: Request, res: Response) => {
-  try {
-    const username = (req as any).user?.username;
-    if (!username) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const from = req.query.from ? new Date(req.query.from as string) : undefined;
-    const to = req.query.to ? new Date(req.query.to as string) : undefined;
-
-    const result = await requestLogRepository.findByUserId({
-      userId: username,
-      page,
-      limit,
-      from,
-      to,
-    });
-
-    res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+// TEMPORARILY DISABLED - request history
+// router.get('/request-history', jwtAuth, async (req: Request, res: Response) => {
+//   try {
+//     const username = (req as any).user?.username;
+//     if (!username) {
+//       return res.status(401).json({ error: 'Unauthorized' });
+//     }
+//
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = parseInt(req.query.limit as string) || 20;
+//     const from = req.query.from ? new Date(req.query.from as string) : undefined;
+//     const to = req.query.to ? new Date(req.query.to as string) : undefined;
+//
+//     const result = await requestLogRepository.findByUserId({
+//       userId: username,
+//       page,
+//       limit,
+//       from,
+//       to,
+//     });
+//
+//     res.json(result);
+//   } catch (error: any) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+router.get('/request-history', jwtAuth, (req: Request, res: Response) => {
+  res.status(503).json({ error: 'Request history is temporarily disabled' });
 });
 
 export default router;

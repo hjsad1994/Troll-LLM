@@ -76,8 +76,15 @@ func LogRequest(userKeyID, trollKeyID string, tokensUsed int64, statusCode int, 
 }
 
 func LogRequestDetailed(params RequestLogParams) {
+	// TEMPORARILY DISABLED - request history logging
+	return
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Debug: log what we're saving
+	log.Printf("📝 [RequestLog] Saving: userId=%s, model=%s, input=%d, output=%d", 
+		params.UserID, params.Model, params.InputTokens, params.OutputTokens)
 
 	// Determine if request was successful (2xx status code)
 	isSuccess := params.StatusCode >= 200 && params.StatusCode < 300
@@ -99,9 +106,11 @@ func LogRequestDetailed(params RequestLogParams) {
 		CreatedAt:        time.Now(),
 	}
 
-	_, err := db.RequestLogsCollection().InsertOne(ctx, logEntry)
+	result, err := db.RequestLogsCollection().InsertOne(ctx, logEntry)
 	if err != nil {
 		log.Printf("⚠️ Failed to log request: %v", err)
+	} else {
+		log.Printf("✅ [RequestLog] Created new entry: _id=%v, userId=%s", result.InsertedID, params.UserID)
 	}
 
 	// Update troll key usage

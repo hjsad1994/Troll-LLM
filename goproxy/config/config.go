@@ -24,6 +24,7 @@ type Model struct {
 	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
 	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
 	BillingMultiplier      float64 `json:"billing_multiplier"`
+	Upstream              string  `json:"upstream"` // "troll" or "main" - determines which upstream provider to use
 }
 
 // Config global configuration
@@ -135,6 +136,19 @@ func GetModelReasoning(modelID string) string {
 		return reasoning
 	}
 	return ""
+}
+
+// GetModelUpstream gets upstream provider for a model
+// Returns "main" or "troll" (default is "troll" if not specified)
+func GetModelUpstream(modelID string) string {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return "troll"
+	}
+	if model.Upstream == "main" {
+		return "main"
+	}
+	return "troll" // default to troll-key
 }
 
 // IsModelSupported checks if model is supported
