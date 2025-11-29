@@ -80,10 +80,13 @@ nano backend/.env
 MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/?appName=TrollLLM
 MONGODB_DB_NAME=trollllm
 
-# JWT Secret (change to strong random string!)
-JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters
+# Admin authentication (change to strong random string!)
+ADMIN_SECRET_KEY=change-this-to-random-secret
 
-# Port
+# Go Proxy configuration
+PROXY_PORT=8003
+
+# Node.js Backend configuration
 BACKEND_PORT=3005
 DEBUG=false
 ```
