@@ -34,6 +34,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
     environment:
       - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
     restart: unless-stopped
@@ -45,10 +47,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
     environment:
-      - MONGODB_URI=${MONGODB_URI}
-      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-trollllm}
-      - JWT_SECRET=${JWT_SECRET}
       - BACKEND_PORT=3005
     restart: unless-stopped
     networks:
@@ -61,12 +62,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./goproxy/config.prod.json:/app/config.json:ro
-    environment:
-      - MONGODB_URI=${MONGODB_URI}
-      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-trollllm}
-      - DEBUG=${DEBUG:-false}
-      - MAIN_TARGET_SERVER=${MAIN_TARGET_SERVER}
-      - MAIN_UPSTREAM_KEY=${MAIN_UPSTREAM_KEY}
+    env_file:
+      - ./.env
     restart: unless-stopped
     networks:
       - trollllm-network

@@ -12,8 +12,12 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build Next.js
+# Build args for Next.js (needed at build time)
+ARG NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build Next.js
 RUN npm run build
 
 # Runtime stage

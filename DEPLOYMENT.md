@@ -50,26 +50,50 @@ Tại nhà cung cấp domain (Cloudflare, Namecheap, etc.), tạo các record:
 git clone <repo-url> /opt/trollllm
 cd /opt/trollllm
 
-# Tạo file .env từ example
+# Tạo các file .env từ example
 cp env.production.example .env
-
-# Chỉnh sửa .env
-nano .env
+cp backend/env.example backend/.env
+cp frontend/env.example frontend/.env.local
 ```
 
-**Nội dung .env:**
+### 3.1 Chỉnh sửa `.env` (root - cho GoProxy)
+```bash
+nano .env
+```
 ```env
 # MongoDB
 MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/?appName=TrollLLM
 MONGODB_DB_NAME=trollllm
 
-# Backend
-JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters
-
 # GoProxy
 DEBUG=false
 MAIN_TARGET_SERVER=http://your-upstream:4141
 MAIN_UPSTREAM_KEY=your-key
+```
+
+### 3.2 Chỉnh sửa `backend/.env`
+```bash
+nano backend/.env
+```
+```env
+# MongoDB
+MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/?appName=TrollLLM
+MONGODB_DB_NAME=trollllm
+
+# JWT Secret (change to strong random string!)
+JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters
+
+# Port
+BACKEND_PORT=3005
+DEBUG=false
+```
+
+### 3.3 Frontend `.env.local` (optional - đã set trong docker-compose)
+```bash
+nano frontend/.env.local
+```
+```env
+NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
 ```
 
 ## Bước 4: Lấy SSL Certificate
