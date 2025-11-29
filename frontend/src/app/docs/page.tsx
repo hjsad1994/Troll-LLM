@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import Header from '@/components/Header'
 
 // ===== SIDEBAR NAVIGATION =====
 const sidebarNav = [
@@ -45,14 +46,14 @@ const sidebarNav = [
 // ===== TIP COMPONENT =====
 function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-6">
+    <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/10 mb-6">
       <div className="flex items-start gap-3">
-        <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <svg className="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+        <div className="w-5 h-5 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
         </div>
-        <div className="text-slate-300 text-sm leading-relaxed">{children}</div>
+        <div className="text-slate-300 text-sm leading-relaxed flex-1">{children}</div>
       </div>
     </div>
   )
@@ -61,15 +62,8 @@ function Tip({ children }: { children: React.ReactNode }) {
 // ===== NOTE COMPONENT =====
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 mb-6">
-      <div className="flex items-start gap-3">
-        <div className="w-5 h-5 rounded-full bg-sky-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <svg className="w-3 h-3 text-sky-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <div className="text-slate-300 text-sm leading-relaxed">{children}</div>
-      </div>
+    <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50 mb-6">
+      <div className="text-slate-300 text-sm leading-relaxed">{children}</div>
     </div>
   )
 }
@@ -89,12 +83,12 @@ function Card({
   return (
     <Link
       href={href}
-      className="group p-5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all"
+      className="group p-5 rounded-lg border border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] transition-all"
     >
-      <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:border-white/20 transition-all mb-4">
+      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-white transition-colors mb-3">
         {icon}
       </div>
-      <h3 className="text-white font-medium mb-1 group-hover:text-white/90">{title}</h3>
+      <h3 className="text-base font-semibold text-white mb-2">{title}</h3>
       <p className="text-slate-500 text-sm leading-relaxed">{description}</p>
     </Link>
   )
@@ -118,21 +112,52 @@ function CodeBlock({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const highlightCode = (code: string, lang: string) => {
+    let escaped = code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+
+    if (lang === 'python') {
+      escaped = escaped
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|client|response|chat|completions|create|base_url|api_key|model|messages|role|content|print|choices|message)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(#.*$)/gm, '<span class="text-slate-500">$1</span>')
+    } else if (lang === 'javascript' || lang === 'typescript') {
+      escaped = escaped
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/(".*?"|'.*?'|`.*?`)/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|client|response|chat|completions|create|baseURL|apiKey|model|messages|role|content|console|log)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+    } else if (lang === 'bash' || lang === 'shell') {
+      escaped = escaped
+        .replace(/\b(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/g, '<span class="text-yellow-400">$1</span>')
+        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/(-[a-zA-Z]|--[a-zA-Z-]+)/g, '<span class="text-cyan-400">$1</span>')
+    }
+
+    return escaped
+  }
+
   return (
-    <div className="rounded-xl border border-white/5 overflow-hidden mb-6">
+    <div className="rounded-lg border border-white/10 overflow-hidden mb-6">
       {title && (
-        <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
-          <span className="text-slate-500 text-xs font-medium">{title}</span>
-          <span className="text-slate-600 text-xs">{language}</span>
+        <div className="px-4 py-2.5 bg-white/[0.02] border-b border-white/10 flex items-center justify-between">
+          <span className="text-slate-400 text-sm font-medium">{title}</span>
+          <span className="text-slate-600 text-xs font-mono uppercase">{language}</span>
         </div>
       )}
       <div className="relative">
         <pre className="p-4 bg-[#0a0a0a] overflow-x-auto">
-          <code className="text-sm text-slate-300 font-mono">{code}</code>
+          <code
+            className="text-sm text-slate-300 font-mono leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: highlightCode(code, language) }}
+          />
         </pre>
         <button
           onClick={copyToClipboard}
-          className="absolute top-3 right-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all"
+          className="absolute top-2 right-2 p-2 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-slate-500 hover:text-white transition-all"
         >
           {copied ? (
             <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -152,10 +177,9 @@ function CodeBlock({
 // ===== MODEL BADGE =====
 function ModelBadge({ name, isNew }: { name: string; isNew?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-      <span className="text-white text-sm font-medium">{name}</span>
-      {isNew && <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-xs">New</span>}
+    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm">
+      <span className="text-white font-medium">{name}</span>
+      {isNew && <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-medium">New</span>}
     </span>
   )
 }
@@ -166,71 +190,81 @@ export default function DocsPage() {
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-xl font-semibold text-white">
-              TrollLLM
-            </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-slate-400 text-sm">Documentation</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-slate-500 hover:text-white transition-colors text-sm">
-              Sign In
-            </Link>
-            <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
-              Get API Key
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Header activeLink="docs" />
 
       <div className="flex pt-[65px]">
         {/* Mobile sidebar toggle */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="fixed bottom-6 right-6 z-50 lg:hidden w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-lg"
+          className="fixed bottom-6 right-6 z-50 lg:hidden w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 transition-all"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
         {/* Sidebar */}
-        <aside className={`fixed lg:sticky top-[65px] left-0 z-40 w-72 h-[calc(100vh-65px)] bg-black lg:bg-transparent border-r border-white/5 overflow-y-auto transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <aside className={`fixed lg:sticky top-[65px] left-0 z-40 w-72 h-[calc(100vh-65px)] bg-black/95 backdrop-blur-xl lg:bg-transparent border-r border-white/5 overflow-y-auto transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="p-6">
             {/* Search */}
-            <div className="relative mb-6">
+            <div className="relative mb-8">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 type="text"
                 placeholder="Search docs..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/10 transition-colors"
+                className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all"
               />
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 text-slate-600 text-xs font-mono">⌘K</kbd>
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-600 text-xs font-mono">⌘K</kbd>
             </div>
 
             {/* Navigation */}
             <nav className="space-y-6">
               {sidebarNav.map((section) => (
                 <div key={section.title}>
-                  <h3 className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-3">{section.title}</h3>
+                  <h3 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
+                    {section.title === 'Getting Started' && (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    )}
+                    {section.title === 'API Reference' && (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                      </svg>
+                    )}
+                    {section.title === 'Integrations' && (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                    )}
+                    {section.title === 'Resources' && (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    )}
+                    {section.title}
+                  </h3>
                   <ul className="space-y-1">
                     {section.items.map((item) => (
                       <li key={item.href}>
                         <Link
                           href={item.href}
-                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                          className={`group block px-3 py-2 rounded-lg text-sm transition-all ${
                             item.active
-                              ? 'bg-white/10 text-white'
-                              : 'text-slate-400 hover:text-white hover:bg-white/5'
+                              ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                              : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
                           }`}
                         >
-                          {item.title}
+                          <span className="flex items-center justify-between">
+                            {item.title}
+                            {item.active && (
+                              <svg className="w-3 h-3 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </span>
                         </Link>
                       </li>
                     ))}
@@ -243,34 +277,46 @@ export default function DocsPage() {
 
         {/* Main content */}
         <main className="flex-1 min-w-0 px-6 lg:px-12 py-12">
-          <div className="max-w-3xl">
+          <div className="max-w-4xl mx-auto">
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-sm text-slate-500 mb-8">
-              <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
-              <span>/</span>
+              <Link href="/" className="hover:text-indigo-400 transition-colors">Home</Link>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <Link href="/docs" className="hover:text-indigo-400 transition-colors">Docs</Link>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
               <span className="text-slate-400">Introduction</span>
             </div>
 
-            {/* Title */}
-            <h1 className="text-4xl font-bold text-white mb-4">Introduction to TrollLLM</h1>
-            <p className="text-lg text-slate-400 mb-8">
-              TrollLLM is a unified API gateway that provides access to Claude AI models through an OpenAI-compatible interface.
-              Use your favorite AI coding tools with the power of Claude.
-            </p>
+            {/* Title with gradient */}
+            <div className="mb-12">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                Introduction to TrollLLM
+              </h1>
+              <p className="text-xl text-slate-400 leading-relaxed">
+                A unified API gateway that provides access to Claude AI models through an OpenAI-compatible interface.
+                Use your favorite AI coding tools with the power of Claude.
+              </p>
+            </div>
 
             {/* Model highlight */}
             <Tip>
-              <strong className="text-emerald-400">New!</strong> We now support the latest Claude 4.5 models including
-              <span className="text-white mx-1">Opus 4.5</span>,
-              <span className="text-white mx-1">Sonnet 4.5</span>, and
-              <span className="text-white mx-1">Haiku 4.5</span> with 200K context window.
+              <strong className="text-emerald-400">New!</strong> We now support the latest AI models including
+              <span className="text-white mx-1">Claude 4.5 series</span>,
+              <span className="text-white mx-1">GPT-5.1</span>, and
+              <span className="text-white mx-1">Gemini 3 Pro</span> with up to 1M context window.
             </Tip>
 
             {/* Available Models */}
-            <div className="flex flex-wrap gap-3 mb-8">
-              <ModelBadge name="claude-opus-4-5" isNew />
-              <ModelBadge name="claude-sonnet-4-5" isNew />
-              <ModelBadge name="claude-haiku-4-5" isNew />
+            <div className="flex flex-wrap gap-2 mb-6">
+              <ModelBadge name="claude-opus-4-5" />
+              <ModelBadge name="claude-sonnet-4-5" />
+              <ModelBadge name="claude-haiku-4-5" />
+              <ModelBadge name="gpt-5.1" isNew />
+              <ModelBadge name="gemini-3-pro-preview" isNew />
             </div>
 
             <Note>
@@ -278,11 +324,17 @@ export default function DocsPage() {
             </Note>
 
             {/* Divider */}
-            <hr className="border-white/5 my-10" />
+            <div className="h-px bg-white/10 my-12" />
 
             {/* Get Started */}
-            <h2 className="text-2xl font-semibold text-white mb-6">Get Started</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+            <div id="quickstart" className="scroll-mt-20">
+              <h2 className="text-2xl font-bold text-white mb-2">Get Started</h2>
+              <p className="text-slate-500 mb-6">
+                Choose your path to integrate TrollLLM into your workflow.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
               <Card
                 title="Quickstart"
                 description="Get up and running with TrollLLM in under 5 minutes."
@@ -316,17 +368,21 @@ export default function DocsPage() {
             </div>
 
             {/* Quick Example */}
-            <h2 className="text-2xl font-semibold text-white mb-6">Quick Example</h2>
-            <p className="text-slate-400 mb-4">
-              Connect to TrollLLM using the OpenAI SDK with just a few lines of code:
-            </p>
+            <div className="h-px bg-white/10 my-12" />
+
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Quick Example</h2>
+              <p className="text-slate-500 mb-6">
+                Connect to TrollLLM using the OpenAI SDK with just a few lines of code.
+              </p>
+            </div>
             <CodeBlock
               title="example.py"
               language="python"
               code={`from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://api.trollllm.io/v1",
+    base_url="https://chat.trollllm.xyz/v1",
     api_key="your-api-key"
 )
 
@@ -339,14 +395,17 @@ print(response.choices[0].message.content)`}
             />
 
             {/* Divider */}
-            <hr className="border-white/5 my-10" />
+            <div className="h-px bg-white/10 my-12" />
 
             {/* Integrations */}
-            <h2 className="text-2xl font-semibold text-white mb-4">Integrations</h2>
-            <p className="text-slate-400 mb-6">
-              TrollLLM works with your favorite AI coding tools. Configure them to use Claude models through our API.
-            </p>
-            <div className="grid sm:grid-cols-2 gap-4 mb-10">
+            <div id="integrations" className="scroll-mt-20">
+              <h2 className="text-2xl font-bold text-white mb-2">Integrations</h2>
+              <p className="text-slate-500 mb-6">
+                TrollLLM works seamlessly with your favorite AI coding tools.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-5 mb-12">
               <Card
                 title="Kilo Code"
                 description="Configure Kilo Code to use Claude models for AI-assisted coding."
@@ -411,11 +470,17 @@ print(response.choices[0].message.content)`}
             </div>
 
             {/* Divider */}
-            <hr className="border-white/5 my-10" />
+            <div className="h-px bg-white/10 my-12" />
 
             {/* Support */}
-            <h2 className="text-2xl font-semibold text-white mb-6">Support</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Support & Resources</h2>
+              <p className="text-slate-500 mb-6">
+                Get help when you need it and stay up to date with our platform status.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-5">
               <Card
                 title="API Status"
                 description="Check the current status of TrollLLM services."
@@ -439,11 +504,13 @@ print(response.choices[0].message.content)`}
             </div>
 
             {/* Footer navigation */}
-            <div className="flex items-center justify-between mt-16 pt-8 border-t border-white/5">
-              <div></div>
-              <Link href="/docs/quickstart" className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
-                <span>Quickstart</span>
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex items-center justify-between mt-12 pt-6 border-t border-white/10">
+              <div className="text-slate-600 text-sm">
+                Last updated: November 2024
+              </div>
+              <Link href="/docs/quickstart" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
+                <span className="font-medium">Next: Quickstart</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
@@ -452,15 +519,54 @@ print(response.choices[0].message.content)`}
         </main>
 
         {/* Table of contents (right sidebar) */}
-        <aside className="hidden xl:block w-56 flex-shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto border-l border-white/5 p-6">
-          <h3 className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-4">On this page</h3>
-          <nav className="space-y-2">
-            <a href="#" className="block text-sm text-white">Introduction</a>
-            <a href="#" className="block text-sm text-slate-500 hover:text-white transition-colors">Get Started</a>
-            <a href="#" className="block text-sm text-slate-500 hover:text-white transition-colors">Quick Example</a>
-            <a href="#" className="block text-sm text-slate-500 hover:text-white transition-colors">Integrations</a>
-            <a href="#" className="block text-sm text-slate-500 hover:text-white transition-colors">Support</a>
+        <aside className="hidden xl:block w-64 flex-shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto border-l border-white/5 p-6">
+          <h3 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+            On this page
+          </h3>
+          <nav className="space-y-3">
+            <a href="#" className="group flex items-center gap-2 text-sm text-indigo-400 font-medium">
+              <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+              Introduction
+            </a>
+            <a href="#quickstart" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+              Get Started
+            </a>
+            <a href="#" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+              Quick Example
+            </a>
+            <a href="#integrations" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+              Integrations
+            </a>
+            <a href="#" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+              Support
+            </a>
           </nav>
+
+          {/* Help Card */}
+          <div className="mt-8 p-4 rounded-lg bg-white/[0.02] border border-white/10">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="text-white font-medium text-sm mb-1">Need Help?</h4>
+                <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                  Join our Discord community for support and updates.
+                </p>
+                <a href="https://discord.gg/qp6HMPvj" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-medium transition-colors">
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                  </svg>
+                  Join Discord
+                </a>
+              </div>
+            </div>
+          </div>
         </aside>
       </div>
     </div>

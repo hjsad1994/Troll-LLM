@@ -380,7 +380,7 @@ export default function UserDashboard() {
               <pre className="font-mono text-sm text-slate-300">
                 <span className="text-purple-400">from</span> openai <span className="text-purple-400">import</span> OpenAI{'\n\n'}
                 <span className="text-blue-400">client</span> = <span className="text-blue-400">OpenAI</span>({'\n'}
-                {'    '}base_url=<span className="text-emerald-400">"https://api.trollllm.io/v1"</span>,{'\n'}
+                {'    '}base_url=<span className="text-emerald-400">"https://chat.trollllm.xyz/v1"</span>,{'\n'}
                 {'    '}api_key=<span className="text-emerald-400">"<span className="text-amber-400">YOUR_API_KEY</span>"</span>{'\n'}
                 ){'\n\n'}
                 <span className="text-blue-400">response</span> = <span className="text-blue-400">client</span>.chat.completions.create({'\n'}

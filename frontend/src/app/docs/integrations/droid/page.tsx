@@ -268,7 +268,7 @@ export default function DroidPage() {
                   title="Environment Variables"
                   language="bash"
                   code={`# Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
-export ANTHROPIC_BASE_URL="https://api.trollllm.io"
+export ANTHROPIC_BASE_URL="https://chat.trollllm.xyz"
 export ANTHROPIC_API_KEY="your-trollllm-api-key"`}
                 />
               </Step>
@@ -283,7 +283,7 @@ export ANTHROPIC_API_KEY="your-trollllm-api-key"`}
                   code={`{
   "provider": "anthropic",
   "model": "claude-sonnet-4-5",
-  "apiBaseUrl": "https://api.trollllm.io",
+  "apiBaseUrl": "https://chat.trollllm.xyz",
   "maxTokens": 8192,
   "temperature": 0.7
 }`}
@@ -361,7 +361,7 @@ droid "What's 2+2?"`}
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
                 <h3 className="text-white font-medium mb-2">Connection errors</h3>
-                <p className="text-slate-400 text-sm">Ensure <code className="px-1 py-0.5 rounded bg-white/10 text-slate-300">ANTHROPIC_BASE_URL</code> is set to <code className="px-1 py-0.5 rounded bg-white/10 text-slate-300">https://api.trollllm.io</code> (without /v1 suffix for Droid).</p>
+                <p className="text-slate-400 text-sm">Ensure <code className="px-1 py-0.5 rounded bg-white/10 text-slate-300">ANTHROPIC_BASE_URL</code> is set to <code className="px-1 py-0.5 rounded bg-white/10 text-slate-300">https://chat.trollllm.xyz</code> (without /v1 suffix for Droid).</p>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
                 <h3 className="text-white font-medium mb-2">Model not responding</h3>

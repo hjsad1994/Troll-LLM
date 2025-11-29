@@ -259,7 +259,7 @@ export default function RooCodePage() {
                   language="json"
                   code={`{
   "rooCode.apiProvider": "openai-compatible",
-  "rooCode.openaiCompatible.baseUrl": "https://api.trollllm.io/v1",
+  "rooCode.openaiCompatible.baseUrl": "https://chat.trollllm.xyz/v1",
   "rooCode.openaiCompatible.apiKey": "your-trollllm-api-key",
   "rooCode.openaiCompatible.model": "claude-sonnet-4-5"
 }`}

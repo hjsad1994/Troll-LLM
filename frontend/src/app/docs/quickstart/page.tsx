@@ -60,6 +60,45 @@ function CodeBlock({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const highlightCode = (code: string, lang: string) => {
+    let escaped = code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+
+    if (lang === 'python') {
+      escaped = escaped
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/("([^"]*)"|'([^']*)')/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(#.*$)/gm, '<span class="text-slate-500">$1</span>')
+    } else if (lang === 'javascript' || lang === 'typescript') {
+      escaped = escaped
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/("([^"]*)"|'([^']*)'|`([^`]*)`)/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+    } else if (lang === 'bash' || lang === 'shell') {
+      escaped = escaped
+        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-400">$1</span>')
+        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-400">$1</span>')
+    } else if (lang === 'json') {
+      escaped = escaped
+        .replace(/("([^"]*)")(\\s*:)/g, '<span class="text-cyan-400">$1</span>$2')
+        .replace(/:\\s*("([^"]*)")/g, ': <span class="text-emerald-400">$1</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-400">$1</span>')
+    } else if (lang === 'go') {
+      escaped = escaped
+        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/("([^"]*)")/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+    }
+
+    return escaped
+  }
+
   return (
     <div className="rounded-xl border border-white/5 overflow-hidden mb-6">
       {title && (
@@ -70,7 +109,10 @@ function CodeBlock({
       )}
       <div className="relative">
         <pre className="p-4 bg-[#0a0a0a] overflow-x-auto">
-          <code className="text-sm text-slate-300 font-mono">{code}</code>
+          <code
+            className="text-sm text-slate-300 font-mono"
+            dangerouslySetInnerHTML={{ __html: highlightCode(code, language) }}
+          />
         </pre>
         <button
           onClick={copyToClipboard}
@@ -106,6 +148,45 @@ function TabbedCodeBlock({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const highlightCode = (code: string, lang: string) => {
+    let escaped = code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+
+    if (lang === 'python') {
+      escaped = escaped
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/(\"[^\"]*\"|'[^']*')/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(#.*$)/gm, '<span class="text-slate-500">$1</span>')
+    } else if (lang === 'javascript' || lang === 'typescript') {
+      escaped = escaped
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/(\"[^\"]*\"|'[^']*'|`[^`]*`)/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+    } else if (lang === 'bash' || lang === 'shell') {
+      escaped = escaped
+        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-400">$1</span>')
+        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-400">$1</span>')
+    } else if (lang === 'json') {
+      escaped = escaped
+        .replace(/(\"[^\"]*\")(\\s*:)/g, '<span class="text-cyan-400">$1</span>$2')
+        .replace(/:\\s*(\"[^\"]*\")/g, ': <span class="text-emerald-400">$1</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-400">$1</span>')
+    } else if (lang === 'go') {
+      escaped = escaped
+        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/(\"[^\"]*\")/g, '<span class="text-emerald-400">$1</span>')
+        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+    }
+
+    return escaped
+  }
+
   return (
     <div className="rounded-xl border border-white/5 overflow-hidden mb-6">
       <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
@@ -128,7 +209,10 @@ function TabbedCodeBlock({
       </div>
       <div className="relative">
         <pre className="p-4 bg-[#0a0a0a] overflow-x-auto">
-          <code className="text-sm text-slate-300 font-mono">{tabs[activeTab].code}</code>
+          <code
+            className="text-sm text-slate-300 font-mono"
+            dangerouslySetInnerHTML={{ __html: highlightCode(tabs[activeTab].code, tabs[activeTab].language) }}
+          />
         </pre>
         <button
           onClick={copyToClipboard}
@@ -230,14 +314,14 @@ function APIFormatSelector() {
 
   const configs = {
     openai: {
-      baseUrl: 'https://api.trollllm.io/v1',
-      envVars: `OPENAI_BASE_URL=https://api.trollllm.io/v1
+      baseUrl: 'https://chat.trollllm.xyz/v1',
+      envVars: `OPENAI_BASE_URL=https://chat.trollllm.xyz/v1
 OPENAI_API_KEY=your-api-key`,
       description: 'Compatible with OpenAI SDK and tools that support custom base URLs.'
     },
     anthropic: {
-      baseUrl: 'https://api.trollllm.io',
-      envVars: `ANTHROPIC_BASE_URL=https://api.trollllm.io
+      baseUrl: 'https://chat.trollllm.xyz',
+      envVars: `ANTHROPIC_BASE_URL=https://chat.trollllm.xyz
 ANTHROPIC_API_KEY=your-api-key`,
       description: 'Native Anthropic format for Claude-specific features and tools.'
     }
@@ -320,7 +404,7 @@ export default function QuickstartPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const openaiExamples = {
-    curl: `curl https://api.trollllm.io/v1/chat/completions \\
+    curl: `curl https://chat.trollllm.xyz/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer $OPENAI_API_KEY" \\
   -d '{
@@ -332,7 +416,7 @@ export default function QuickstartPage() {
     python: `from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://api.trollllm.io/v1",
+    base_url="https://chat.trollllm.xyz/v1",
     api_key="your-api-key"
 )
 
@@ -347,7 +431,7 @@ print(response.choices[0].message.content)`,
     javascript: `import OpenAI from 'openai';
 
 const client = new OpenAI({
-  baseURL: 'https://api.trollllm.io/v1',
+  baseURL: 'https://chat.trollllm.xyz/v1',
   apiKey: 'your-api-key'
 });
 
@@ -370,7 +454,7 @@ import (
 )
 
 func main() {
-    url := "https://api.trollllm.io/v1/chat/completions"
+    url := "https://chat.trollllm.xyz/v1/chat/completions"
 
     payload := map[string]interface{}{
         "model": "gpt-4",
@@ -395,7 +479,7 @@ func main() {
   }
 
   const anthropicExamples = {
-    curl: `curl https://api.trollllm.io/v1/messages \\
+    curl: `curl https://chat.trollllm.xyz/v1/messages \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: $ANTHROPIC_API_KEY" \\
   -H "anthropic-version: 2023-06-01" \\
@@ -409,7 +493,7 @@ func main() {
     python: `import anthropic
 
 client = anthropic.Anthropic(
-    base_url="https://api.trollllm.io",
+    base_url="https://chat.trollllm.xyz",
     api_key="your-api-key"
 )
 
@@ -425,7 +509,7 @@ print(message.content[0].text)`,
     javascript: `import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
-  baseURL: 'https://api.trollllm.io',
+  baseURL: 'https://chat.trollllm.xyz',
   apiKey: 'your-api-key'
 });
 
@@ -449,7 +533,7 @@ import (
 )
 
 func main() {
-    url := "https://api.trollllm.io/v1/messages"
+    url := "https://chat.trollllm.xyz/v1/messages"
 
     payload := map[string]interface{}{
         "model": "claude-sonnet-4-5-20250514",
@@ -675,9 +759,9 @@ func main() {
 
                 <CodeBlock
                   code={apiFormat === 'openai'
-                    ? `OPENAI_BASE_URL=https://api.trollllm.io/v1
+                    ? `OPENAI_BASE_URL=https://chat.trollllm.xyz/v1
 OPENAI_API_KEY=your-api-key`
-                    : `ANTHROPIC_BASE_URL=https://api.trollllm.io
+                    : `ANTHROPIC_BASE_URL=https://chat.trollllm.xyz
 ANTHROPIC_API_KEY=your-api-key`}
                   language="bash"
                   title=".env"

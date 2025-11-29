@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-const API_BASE_URL = 'https://api.trollllm.io'
+const API_BASE_URL = 'https://chat.trollllm.xyz'
 
 // ===== SIDEBAR NAVIGATION =====
 const sidebarNav = [

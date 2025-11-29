@@ -275,7 +275,7 @@ export default function KiloCodePage() {
                   language="json"
                   code={`{
   "kilocode.apiProvider": "openai-compatible",
-  "kilocode.apiBaseUrl": "https://api.trollllm.io/v1",
+  "kilocode.apiBaseUrl": "https://chat.trollllm.xyz/v1",
   "kilocode.apiKey": "your-trollllm-api-key",
   "kilocode.model": "claude-sonnet-4-5"
 }`}
@@ -318,7 +318,7 @@ export default function KiloCodePage() {
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
                 <h3 className="text-white font-medium mb-2">Connection refused error</h3>
-                <p className="text-slate-400 text-sm">Make sure the base URL is exactly <code className="px-1 py-0.5 rounded bg-white/10 text-slate-300">https://api.trollllm.io/v1</code> with no trailing slash.</p>
+                <p className="text-slate-400 text-sm">Make sure the base URL is exactly <code className="px-1 py-0.5 rounded bg-white/10 text-slate-300">https://chat.trollllm.xyz/v1</code> with no trailing slash.</p>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
                 <h3 className="text-white font-medium mb-2">Invalid API key</h3>

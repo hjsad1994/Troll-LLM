@@ -5,8 +5,8 @@ import { AuthProvider } from '@/components/AuthProvider'
 import AppShell from '@/components/AppShell'
 
 export const metadata: Metadata = {
-  title: 'TrollLLM - Unified AI Gateway',
-  description: 'Access 70+ LLMs with One API Key. The unified AI gateway for developers.',
+  title: 'TrollLLM - Premium Claude API',
+  description: 'Premium access to Claude models. Access Opus, Sonnet, and Haiku through a single API.',
 }
 
 export default function RootLayout({
