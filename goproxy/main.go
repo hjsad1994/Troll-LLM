@@ -561,9 +561,9 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Route request based on model type
 	switch model.Type {
 	case "anthropic":
-		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, upstreamConfig)
+		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, upstreamConfig, bodyBytes)
 	case "openai":
-		handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username)
+		handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
 	}
@@ -571,10 +571,10 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handle Anthropic type request
-func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string, upstreamConfig *UpstreamConfig) {
+func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string, upstreamConfig *UpstreamConfig, bodyBytes []byte) {
 	// For "main" upstream: use maintarget package (passthrough to external proxy)
 	if upstreamConfig.KeyID == "main" {
-		handleMainTargetRequest(w, r, openaiReq, model.ID, userApiKey, username)
+		handleMainTargetRequest(w, openaiReq, bodyBytes, model.ID, userApiKey, username)
 		return
 	}
 
@@ -640,16 +640,9 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 }
 
 // handleMainTargetRequest handles requests routed to main target (external proxy)
-func handleMainTargetRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, modelID string, userApiKey string, username string) {
+func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
 	if !maintarget.IsConfigured() {
 		http.Error(w, `{"error": {"message": "Main target not configured", "type": "server_error"}}`, http.StatusInternalServerError)
-		return
-	}
-
-	// Read original request body
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, `{"error": {"message": "Failed to read request", "type": "server_error"}}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -768,7 +761,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 }
 
 // Handle TrollOpenAI type request
-func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string) {
+func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string, bodyBytes []byte) {
 	// Transform request
 	trollReq := transformers.TransformToTrollOpenAI(openaiReq)
 

@@ -84,18 +84,6 @@
       "upstream": "main"
     },
     {
-      "name": "GPT-5.1 Codex",
-      "id": "gpt-5.1-codex",
-      "type": "openai",
-      "reasoning": "high",
-      "input_price_per_mtok": 1.25,
-      "output_price_per_mtok": 10.0,
-      "cache_write_price_per_mtok": 1.5625,
-      "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.2,
-      "upstream": "main"
-    },
-    {
       "name": "Gemini 3 Pro Preview",
       "id": "gemini-3-pro-preview",
       "type": "openai",
