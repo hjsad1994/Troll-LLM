@@ -5,14 +5,23 @@ import { useState, useEffect } from 'react'
 
 export default function NotFound() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
   const [isHovering, setIsHovering] = useState(false)
 
   useEffect(() => {
+    setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY })
     }
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight })
+    }
     window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('resize', handleResize)
+    }
   }, [])
 
   return (
@@ -23,7 +32,7 @@ export default function NotFound() {
         <div
           className="absolute inset-0 bg-[radial-gradient(circle_600px,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent transition-all duration-300 ease-out"
           style={{
-            transform: `translate(${(mousePosition.x - window.innerWidth / 2) / 20}px, ${(mousePosition.y - window.innerHeight / 2) / 20}px)`,
+            transform: `translate(${(mousePosition.x - windowSize.width / 2) / 20}px, ${(mousePosition.y - windowSize.height / 2) / 20}px)`,
           }}
         />
       </div>
