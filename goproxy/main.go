@@ -558,12 +558,17 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	authHeader = "Bearer " + upstreamConfig.APIKey
 	trollKeyID := upstreamConfig.KeyID
 
-	// Route request based on model type
+	// Route request based on model type and upstream
 	switch model.Type {
 	case "anthropic":
 		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, upstreamConfig, bodyBytes)
 	case "openai":
-		handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
+		// For "main" upstream: route to Main Target Server
+		if upstreamConfig.KeyID == "main" {
+			handleMainTargetRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+		} else {
+			handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
+		}
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
 	}
