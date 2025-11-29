@@ -18,10 +18,12 @@ var (
 )
 
 type ProxyPool struct {
-	mu       sync.RWMutex
-	proxies  []*Proxy
-	bindings map[string][]*ProxyKeyBinding // proxyId -> bindings
-	current  int
+	mu          sync.RWMutex
+	proxies     []*Proxy
+	bindings    map[string][]*ProxyKeyBinding // proxyId -> bindings
+	current     int
+	clientCache map[string]*http.Client // proxyId -> cached HTTP client
+	clientMu    sync.RWMutex            // separate mutex for client cache
 }
 
 var (
@@ -32,9 +34,10 @@ var (
 func GetPool() *ProxyPool {
 	poolOnce.Do(func() {
 		pool = &ProxyPool{
-			proxies:  make([]*Proxy, 0),
-			bindings: make(map[string][]*ProxyKeyBinding),
-			current:  0,
+			proxies:     make([]*Proxy, 0),
+			bindings:    make(map[string][]*ProxyKeyBinding),
+			current:     0,
+			clientCache: make(map[string]*http.Client),
 		}
 		pool.LoadFromDB()
 	})
@@ -290,8 +293,27 @@ func (p *ProxyPool) updateProxyStatusHealthy(proxyID string, latencyMs int) {
 	}
 }
 
-// CreateHTTPClientWithProxy creates an HTTP client configured with the proxy
+// CreateHTTPClientWithProxy creates or returns a cached HTTP client configured with the proxy
 func (p *ProxyPool) CreateHTTPClientWithProxy(proxy *Proxy) (*http.Client, error) {
+	proxyID := proxy.ID
+
+	// Check cache first (read lock)
+	p.clientMu.RLock()
+	if client, exists := p.clientCache[proxyID]; exists {
+		p.clientMu.RUnlock()
+		return client, nil
+	}
+	p.clientMu.RUnlock()
+
+	// Create new client (write lock)
+	p.clientMu.Lock()
+	defer p.clientMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if client, exists := p.clientCache[proxyID]; exists {
+		return client, nil
+	}
+
 	transport, err := proxy.CreateHTTPTransport()
 	if err != nil {
 		return nil, err
@@ -302,7 +324,15 @@ func (p *ProxyPool) CreateHTTPClientWithProxy(proxy *Proxy) (*http.Client, error
 		Timeout:   0, // No timeout for streaming responses (Claude thinking can take >30s)
 	}
 
+	p.clientCache[proxyID] = client
 	return client, nil
+}
+
+// InvalidateClientCache removes a proxy's cached client (call when proxy fails)
+func (p *ProxyPool) InvalidateClientCache(proxyID string) {
+	p.clientMu.Lock()
+	defer p.clientMu.Unlock()
+	delete(p.clientCache, proxyID)
 }
 
 // GetProxyCount returns the number of active proxies

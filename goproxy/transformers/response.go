@@ -10,15 +10,24 @@ import (
 	"time"
 )
 
-// FilterDroidIdentity removes identity confusion statements from Claude's responses
-func FilterDroidIdentity(content string) string {
-	if content == "" {
-		return content
-	}
-	
-	// Patterns to remove completely (Claude's identity confusion statements)
+// Pre-compiled regex patterns for performance (compiled once at init)
+var (
+	// Patterns to remove completely
+	removePatternRegexes []*regexp.Regexp
+	// Identity replacement patterns
+	identityReplacementRegexes []*identityReplacement
+	// Whitespace cleanup
+	whitespaceRegex *regexp.Regexp
+)
+
+type identityReplacement struct {
+	pattern     *regexp.Regexp
+	replacement string
+}
+
+func init() {
+	// Pre-compile remove patterns
 	removePatterns := []string{
-		// Remove "I notice conflicting information" statements
 		`(?i)I notice there'?s some conflicting information[^.]*\.?\s*`,
 		`(?i)The system prompt mentions[^.]*\.?\s*`,
 		`(?i)but I'?m actually[^.]*\.?\s*`,
@@ -28,21 +37,16 @@ func FilterDroidIdentity(content string) string {
 		`(?i)there'?s some conflicting[^.]*\.?\s*`,
 		`(?i)conflicting instructions[^.]*\.?\s*`,
 		`(?i)identity confusion[^.]*\.?\s*`,
-		// Remove questions about identity clarification
 		`(?i)Is there a specific task or question I can help you with\??\s*`,
-		// Remove Factory/Droid specific statements
 		`(?i)built by Factory[^.]*\.?\s*`,
 		`(?i)made by Factory[^.]*\.?\s*`,
 		`(?i)created by Factory[^.]*\.?\s*`,
 	}
-	
-	result := content
 	for _, pattern := range removePatterns {
-		re := regexp.MustCompile(pattern)
-		result = re.ReplaceAllString(result, "")
+		removePatternRegexes = append(removePatternRegexes, regexp.MustCompile(pattern))
 	}
-	
-	// Replace Droid/Factory identity with Claude identity
+
+	// Pre-compile identity replacements
 	identityReplacements := map[string]string{
 		"I am Droid":           "I am Claude",
 		"I'm Droid":            "I'm Claude",
@@ -55,17 +59,39 @@ func FilterDroidIdentity(content string) string {
 		"I am an AI software engineering agent": "I am an AI assistant",
 		"AI software engineering agent":         "AI assistant",
 	}
-	
-	for old, new := range identityReplacements {
-		// Case insensitive replacement
-		re := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(old))
-		result = re.ReplaceAllString(result, new)
+	for old, newStr := range identityReplacements {
+		identityReplacementRegexes = append(identityReplacementRegexes, &identityReplacement{
+			pattern:     regexp.MustCompile(`(?i)` + regexp.QuoteMeta(old)),
+			replacement: newStr,
+		})
 	}
-	
+
+	// Pre-compile whitespace cleanup
+	whitespaceRegex = regexp.MustCompile(`\n{3,}`)
+}
+
+// FilterDroidIdentity removes identity confusion statements from Claude's responses
+func FilterDroidIdentity(content string) string {
+	if content == "" {
+		return content
+	}
+
+	result := content
+
+	// Apply pre-compiled remove patterns
+	for _, re := range removePatternRegexes {
+		result = re.ReplaceAllString(result, "")
+	}
+
+	// Apply pre-compiled identity replacements
+	for _, ir := range identityReplacementRegexes {
+		result = ir.pattern.ReplaceAllString(result, ir.replacement)
+	}
+
 	// Clean up extra whitespace/newlines
-	result = regexp.MustCompile(`\n{3,}`).ReplaceAllString(result, "\n\n")
+	result = whitespaceRegex.ReplaceAllString(result, "\n\n")
 	result = strings.TrimSpace(result)
-	
+
 	return result
 }
 

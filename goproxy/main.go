@@ -39,7 +39,35 @@ var (
 	factoryKeyPool *keypool.KeyPool
 	healthChecker  *proxy.HealthChecker
 	rateLimiter    *ratelimit.RateLimiter
+	// Pre-compiled regex for sanitizeBlockedContent (performance optimization)
+	blockedPatternRegexes []*regexp.Regexp
 )
+
+func init() {
+	// Pre-compile blocked patterns once at startup
+	blockedPatterns := []string{
+		`(?i)You are Claude Code`,
+		`(?i)You are Claude`,
+		`(?i)You'?re Claude`,
+		`(?i)Claude Code`,
+		`(?i)I am Claude Code`,
+		`(?i)I'?m Claude Code`,
+		`(?i)As Claude Code`,
+		`(?i)Claude, an AI assistant`,
+		`(?i)Claude, made by Anthropic`,
+		`(?i)Claude, created by Anthropic`,
+		`(?i)an AI assistant named Claude`,
+		`(?i)an AI called Claude`,
+		`(?i)assistant Claude`,
+		`(?i)Kilo Code`,
+		`(?i)Cline`,
+		`(?i)Roo Code`,
+		`(?i)Cursor`,
+	}
+	for _, pattern := range blockedPatterns {
+		blockedPatternRegexes = append(blockedPatternRegexes, regexp.MustCompile(pattern))
+	}
+}
 
 // Initialize HTTP client with HTTP/2 support and browser-like characteristics
 func initHTTPClient() {
@@ -875,31 +903,10 @@ func getMapKeys(m map[string]interface{}) []string {
 
 // sanitizeBlockedContent removes or replaces content that Factory AI blocks
 // This includes phrases like "You are Claude Code" which trigger 403 errors
+// Uses pre-compiled regex patterns for performance
 func sanitizeBlockedContent(text string) string {
-	// List of blocked phrases that Factory AI rejects (case-insensitive patterns)
-	blockedPatterns := []string{
-		`(?i)You are Claude Code`,
-		`(?i)You are Claude`,
-		`(?i)You'?re Claude`,
-		`(?i)Claude Code`,
-		`(?i)I am Claude Code`,
-		`(?i)I'?m Claude Code`,
-		`(?i)As Claude Code`,
-		`(?i)Claude, an AI assistant`,
-		`(?i)Claude, made by Anthropic`,
-		`(?i)Claude, created by Anthropic`,
-		`(?i)an AI assistant named Claude`,
-		`(?i)an AI called Claude`,
-		`(?i)assistant Claude`,
-		`(?i)Kilo Code`,
-		`(?i)Cline`,
-		`(?i)Roo Code`,
-		`(?i)Cursor`,
-	}
-	
 	result := text
-	for _, pattern := range blockedPatterns {
-		re := regexp.MustCompile(pattern)
+	for _, re := range blockedPatternRegexes {
 		result = re.ReplaceAllString(result, "an AI assistant")
 	}
 	return result
