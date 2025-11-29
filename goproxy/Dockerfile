@@ -30,7 +30,7 @@ COPY --from=builder /app/config.json .
 COPY --from=builder /app/docs.html .
 
 # Expose port
-EXPOSE 8003
+EXPOSE 8080
 
 # Run
 CMD ["./goproxy"]

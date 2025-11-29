@@ -14,7 +14,19 @@ const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://trollllm.xyz',
+    'https://www.trollllm.xyz',
+    'https://api.trollllm.xyz',
+    'https://chat.trollllm.xyz',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+}));
 app.use(express.json());
 
 // Health check

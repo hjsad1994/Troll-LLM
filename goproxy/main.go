@@ -250,6 +250,36 @@ func min(a, b int) int {
 	return b
 }
 
+// CORS allowed origins for trollllm.xyz
+var corsAllowedOrigins = map[string]bool{
+	"http://localhost:3000":      true,
+	"http://localhost:3001":      true,
+	"https://trollllm.xyz":       true,
+	"https://www.trollllm.xyz":   true,
+	"https://api.trollllm.xyz":   true,
+	"https://chat.trollllm.xyz":  true,
+}
+
+// corsMiddleware wraps handlers with CORS support
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if corsAllowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key, x-session-id, x-assistant-message-id")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next(w, r)
+	}
+}
+
 // Response recorder
 type responseRecorder struct {
 	http.ResponseWriter
@@ -1987,15 +2017,15 @@ func main() {
 		log.Printf("   • %s [%s]", model.ID, model.Type)
 	}
 
-	// Setup routes
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/v1/models", modelsHandler)
-	http.HandleFunc("/v1/chat/completions", chatCompletionsHandler)
-	http.HandleFunc("/v1/messages", handleAnthropicMessagesEndpoint)
-	http.HandleFunc("/docs", docsHandler)
+	// Setup routes with CORS middleware
+	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	http.HandleFunc("/v1/models", corsMiddleware(modelsHandler))
+	http.HandleFunc("/v1/chat/completions", corsMiddleware(chatCompletionsHandler))
+	http.HandleFunc("/v1/messages", corsMiddleware(handleAnthropicMessagesEndpoint))
+	http.HandleFunc("/docs", corsMiddleware(docsHandler))
 
 	// Root path
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.Error(w, `{"error": {"message": "Not found", "type": "invalid_request_error"}}`, http.StatusNotFound)
 			return
@@ -2014,7 +2044,7 @@ func main() {
 		}); err != nil {
 			log.Printf("Error: failed to encode response: %v", err)
 		}
-	})
+	}))
 
 	// Start server
 	port := fmt.Sprintf(":%d", cfg.Port)
