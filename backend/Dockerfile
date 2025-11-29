@@ -24,9 +24,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy built files and static assets
+# Copy built files
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/static ./static
 
 # Expose port
 EXPOSE 3000
