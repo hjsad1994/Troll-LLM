@@ -333,8 +333,19 @@ export default function ModelsPage() {
               <div>
                 <p className="text-slate-400 text-sm">
                   <strong className="text-white">Pricing</strong> is per 1 million tokens.
-                  Prices shown will be multiplied by <span className="text-amber-400 font-medium">1.25x</span> for final billing.
+                  Prices shown will be multiplied for final billing:
                 </p>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  <span className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
+                    Opus ×1.35
+                  </span>
+                  <span className="px-2 py-1 rounded-md bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-medium">
+                    Sonnet ×1.25
+                  </span>
+                  <span className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                    Haiku ×1.25
+                  </span>
+                </div>
               </div>
             </div>
           </div>

@@ -30,12 +30,36 @@ func FilterDroidIdentity(content string) string {
 		`(?i)identity confusion[^.]*\.?\s*`,
 		// Remove questions about identity clarification
 		`(?i)Is there a specific task or question I can help you with\??\s*`,
+		// Remove Factory/Droid specific statements
+		`(?i)built by Factory[^.]*\.?\s*`,
+		`(?i)made by Factory[^.]*\.?\s*`,
+		`(?i)created by Factory[^.]*\.?\s*`,
 	}
 	
 	result := content
 	for _, pattern := range removePatterns {
 		re := regexp.MustCompile(pattern)
 		result = re.ReplaceAllString(result, "")
+	}
+	
+	// Replace Droid/Factory identity with Claude identity
+	identityReplacements := map[string]string{
+		"I am Droid":           "I am Claude",
+		"I'm Droid":            "I'm Claude",
+		"my name is Droid":     "my name is Claude",
+		"called Droid":         "called Claude",
+		"as Droid":             "as Claude",
+		"Droid here":           "Claude here",
+		"This is Droid":        "This is Claude",
+		"Droid, an AI":         "Claude, an AI",
+		"I am an AI software engineering agent": "I am an AI assistant",
+		"AI software engineering agent":         "AI assistant",
+	}
+	
+	for old, new := range identityReplacements {
+		// Case insensitive replacement
+		re := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(old))
+		result = re.ReplaceAllString(result, new)
 	}
 	
 	// Clean up extra whitespace/newlines

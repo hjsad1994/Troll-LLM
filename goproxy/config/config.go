@@ -23,6 +23,7 @@ type Model struct {
 	OutputPricePerMTok    float64 `json:"output_price_per_mtok"`
 	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
 	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
+	BillingMultiplier      float64 `json:"billing_multiplier"`
 }
 
 // Config global configuration
@@ -156,7 +157,7 @@ const (
 	DefaultOutputPricePerMTok     = 15.0
 	DefaultCacheWritePricePerMTok = 3.75
 	DefaultCacheHitPricePerMTok   = 0.30
-	BillingMultiplier             = 1.3 // 30% markup
+	DefaultBillingMultiplier      = 1.4 // Default 40% markup
 )
 
 // GetModelPricing gets input/output pricing for a model
@@ -193,27 +194,38 @@ func GetModelCachePricing(modelID string) (cacheWritePrice, cacheHitPrice float6
 	return cacheWritePrice, cacheHitPrice
 }
 
+// GetModelMultiplier gets billing multiplier for a model
+func GetModelMultiplier(modelID string) float64 {
+	model := GetModelByID(modelID)
+	if model == nil || model.BillingMultiplier <= 0 {
+		return DefaultBillingMultiplier
+	}
+	return model.BillingMultiplier
+}
+
 // CalculateBillingCost calculates the cost in USD for input/output tokens (without cache)
-// Applies BillingMultiplier (1.2x) to the final cost
+// Applies per-model BillingMultiplier to the final cost
 func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
+	multiplier := GetModelMultiplier(modelID)
 	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
-	return (inputCost + outputCost) * BillingMultiplier
+	return (inputCost + outputCost) * multiplier
 }
 
 // CalculateBillingCostWithCache calculates the cost in USD including cache tokens
-// Applies BillingMultiplier (1.2x) to the final cost
+// Applies per-model BillingMultiplier to the final cost
 func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
+	multiplier := GetModelMultiplier(modelID)
 	
 	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
 	cacheWriteCost := (float64(cacheWriteTokens) / 1_000_000) * cacheWritePrice
 	cacheHitCost := (float64(cacheHitTokens) / 1_000_000) * cacheHitPrice
 	
-	return (inputCost + outputCost + cacheWriteCost + cacheHitCost) * BillingMultiplier
+	return (inputCost + outputCost + cacheWriteCost + cacheHitCost) * multiplier
 }
 
 // CalculateBillingTokens converts cost to equivalent "billing tokens" for quota tracking

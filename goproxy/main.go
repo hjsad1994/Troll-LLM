@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -875,21 +876,31 @@ func getMapKeys(m map[string]interface{}) []string {
 // sanitizeBlockedContent removes or replaces content that Factory AI blocks
 // This includes phrases like "You are Claude Code" which trigger 403 errors
 func sanitizeBlockedContent(text string) string {
-	// List of blocked phrases that Factory AI rejects
-	blockedPhrases := []string{
-		"You are Claude Code",
-		"You are Claude",
-		"Claude Code",
-		"I am Claude Code",
-		"I'm Claude Code",
-		"As Claude Code",
+	// List of blocked phrases that Factory AI rejects (case-insensitive patterns)
+	blockedPatterns := []string{
+		`(?i)You are Claude Code`,
+		`(?i)You are Claude`,
+		`(?i)You'?re Claude`,
+		`(?i)Claude Code`,
+		`(?i)I am Claude Code`,
+		`(?i)I'?m Claude Code`,
+		`(?i)As Claude Code`,
+		`(?i)Claude, an AI assistant`,
+		`(?i)Claude, made by Anthropic`,
+		`(?i)Claude, created by Anthropic`,
+		`(?i)an AI assistant named Claude`,
+		`(?i)an AI called Claude`,
+		`(?i)assistant Claude`,
+		`(?i)Kilo Code`,
+		`(?i)Cline`,
+		`(?i)Roo Code`,
+		`(?i)Cursor`,
 	}
 	
 	result := text
-	for _, phrase := range blockedPhrases {
-		// Case-insensitive replacement
-		result = strings.ReplaceAll(result, phrase, "You are an AI assistant")
-		result = strings.ReplaceAll(result, strings.ToLower(phrase), "you are an AI assistant")
+	for _, pattern := range blockedPatterns {
+		re := regexp.MustCompile(pattern)
+		result = re.ReplaceAllString(result, "an AI assistant")
 	}
 	return result
 }
