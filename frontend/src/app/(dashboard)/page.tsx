@@ -479,22 +479,7 @@ export default function Dashboard() {
       )}
 
       {/* Overview Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl bg-gradient-to-br from-sky-500/10 to-sky-600/5 border border-sky-500/20 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-sky-500/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs uppercase tracking-wider">User Keys</p>
-              <p className="text-2xl font-bold text-white">{loading ? '-' : stats.totalKeys}</p>
-              <p className="text-xs text-sky-400">{activeKeys} active</p>
-            </div>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-xl bg-gradient-to-br from-violet-500/10 to-violet-600/5 border border-violet-500/20 p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
@@ -619,67 +604,7 @@ export default function Dashboard() {
       </div>
 
       {/* Detailed Tables Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* User Keys Table */}
-        <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-white">User API Keys</h3>
-            </div>
-            <Link href="/keys" className="text-sm text-sky-400 hover:text-sky-300 transition-colors">
-              View all
-            </Link>
-          </div>
-          <div className="p-4">
-            {userKeys.length > 0 ? (
-              <div className="space-y-3">
-                {userKeys.map((key) => {
-                  const usagePercent = key.totalTokens > 0 ? (key.tokensUsed / key.totalTokens) * 100 : 0
-                  return (
-                    <div key={key._id || key.id} className="bg-slate-800/50 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">{key.name}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            key.tier === 'pro' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
-                          }`}>
-                            {key.tier}
-                          </span>
-                        </div>
-                        {getStatusBadge(key.isActive ? 'active' : 'unhealthy')}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                        <span>{formatLargeNumber(key.tokensUsed)} / {formatLargeNumber(key.totalTokens)} tokens</span>
-                        <span>{usagePercent.toFixed(1)}%</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-sky-500'
-                          }`}
-                          style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">
-                <p>No user keys configured</p>
-                <Link href="/keys" className="text-sky-400 text-sm hover:underline mt-2 inline-block">
-                  Create your first key
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-6">
         {/* Troll-Keys Table - Admin only */}
         {isAdmin && (
           <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
