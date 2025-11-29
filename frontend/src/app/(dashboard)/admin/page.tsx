@@ -252,16 +252,9 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Stats Grid - 4 columns like homepage stats */}
+        {/* Stats Grid - 3 columns */}
         <section className="py-8 border-y border-white/5">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-white mb-2">
-                {loading ? '-' : stats.totalKeys}
-              </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">User Keys</div>
-              <div className="text-neutral-400 text-xs mt-1">{activeKeys} active</div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-white mb-2">
                 {loading ? '-' : stats.totalFactoryKeys}
@@ -373,61 +366,6 @@ export default function AdminDashboard() {
 
         {/* Data Tables Grid */}
         <section className="grid md:grid-cols-2 gap-6">
-          {/* User Keys */}
-          <div className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">User API Keys</h3>
-              <Link href="/keys" className="text-sm text-neutral-400 hover:text-white transition-colors">
-                View all
-              </Link>
-            </div>
-            <div className="p-4">
-              {userKeys.length > 0 ? (
-                <div className="space-y-3">
-                  {userKeys.map((key) => {
-                    const usagePercent = key.totalTokens > 0 ? (key.tokensUsed / key.totalTokens) * 100 : 0
-                    return (
-                      <div key={key._id || key.id} className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-medium">{key.name}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-                              key.tier === 'pro'
-                                ? 'bg-white/10 text-white border-white/20'
-                                : 'bg-white/5 text-neutral-400 border-white/10'
-                            }`}>
-                              {key.tier}
-                            </span>
-                          </div>
-                          {getStatusBadge(key.isActive ? 'active' : 'unhealthy')}
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-neutral-500 mb-1">
-                          <span>{formatLargeNumber(key.tokensUsed)} / {formatLargeNumber(key.totalTokens)}</span>
-                          <span>{usagePercent.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-1.5 bg-neutral-700 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-white'
-                            }`}
-                            style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-neutral-500">
-                  <p>No user keys configured</p>
-                  <Link href="/keys" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
-                    Create your first key
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Troll-Keys */}
           <div className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
