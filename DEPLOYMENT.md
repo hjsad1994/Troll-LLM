@@ -51,7 +51,7 @@ git clone <repo-url> /opt/trollllm
 cd /opt/trollllm
 
 # Tạo file .env từ example
-cp .env.production.example .env
+cp env.production.example .env
 
 # Chỉnh sửa .env
 nano .env
