@@ -15,12 +15,14 @@ type Endpoint struct {
 
 // Model configuration
 type Model struct {
-	Name              string  `json:"name"`
-	ID                string  `json:"id"`
-	Type              string  `json:"type"`
-	Reasoning         string  `json:"reasoning"`
-	InputPricePerMTok  float64 `json:"input_price_per_mtok"`
-	OutputPricePerMTok float64 `json:"output_price_per_mtok"`
+	Name                  string  `json:"name"`
+	ID                    string  `json:"id"`
+	Type                  string  `json:"type"`
+	Reasoning             string  `json:"reasoning"`
+	InputPricePerMTok     float64 `json:"input_price_per_mtok"`
+	OutputPricePerMTok    float64 `json:"output_price_per_mtok"`
+	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
+	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
 }
 
 // Config global configuration
@@ -150,8 +152,11 @@ func GetAllModels() []Model {
 
 // Default pricing (Sonnet as reference)
 const (
-	DefaultInputPricePerMTok  = 3.0
-	DefaultOutputPricePerMTok = 15.0
+	DefaultInputPricePerMTok      = 3.0
+	DefaultOutputPricePerMTok     = 15.0
+	DefaultCacheWritePricePerMTok = 3.75
+	DefaultCacheHitPricePerMTok   = 0.30
+	BillingMultiplier             = 1.3 // 30% markup
 )
 
 // GetModelPricing gets input/output pricing for a model
@@ -171,12 +176,44 @@ func GetModelPricing(modelID string) (inputPrice, outputPrice float64) {
 	return inputPrice, outputPrice
 }
 
-// CalculateBillingCost calculates the cost in USD for input/output tokens
+// GetModelCachePricing gets cache write/hit pricing for a model
+func GetModelCachePricing(modelID string) (cacheWritePrice, cacheHitPrice float64) {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return DefaultCacheWritePricePerMTok, DefaultCacheHitPricePerMTok
+	}
+	cacheWritePrice = model.CacheWritePricePerMTok
+	cacheHitPrice = model.CacheHitPricePerMTok
+	if cacheWritePrice <= 0 {
+		cacheWritePrice = DefaultCacheWritePricePerMTok
+	}
+	if cacheHitPrice <= 0 {
+		cacheHitPrice = DefaultCacheHitPricePerMTok
+	}
+	return cacheWritePrice, cacheHitPrice
+}
+
+// CalculateBillingCost calculates the cost in USD for input/output tokens (without cache)
+// Applies BillingMultiplier (1.2x) to the final cost
 func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
 	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
-	return inputCost + outputCost
+	return (inputCost + outputCost) * BillingMultiplier
+}
+
+// CalculateBillingCostWithCache calculates the cost in USD including cache tokens
+// Applies BillingMultiplier (1.2x) to the final cost
+func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
+	inputPrice, outputPrice := GetModelPricing(modelID)
+	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
+	
+	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
+	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
+	cacheWriteCost := (float64(cacheWriteTokens) / 1_000_000) * cacheWritePrice
+	cacheHitCost := (float64(cacheHitTokens) / 1_000_000) * cacheHitPrice
+	
+	return (inputCost + outputCost + cacheWriteCost + cacheHitCost) * BillingMultiplier
 }
 
 // CalculateBillingTokens converts cost to equivalent "billing tokens" for quota tracking

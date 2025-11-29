@@ -88,6 +88,31 @@ func UpdateFactoryKeyUsage(factoryKeyID string, tokensUsed int64) {
 	}
 }
 
+// DeductCredits deducts credits (USD) from user's balance and updates tokensUsed
+func DeductCredits(username string, cost float64, tokensUsed int64) error {
+	if username == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{
+		"$inc": bson.M{
+			"credits":    -cost,
+			"tokensUsed": tokensUsed,
+		},
+	}
+
+	_, err := db.UsersCollection().UpdateByID(ctx, username, update)
+	if err != nil {
+		log.Printf("❌ Failed to update user %s: %v", username, err)
+		return err
+	}
+
+	return nil
+}
+
 func maskKey(key string) string {
 	if len(key) < 10 {
 		return "***"

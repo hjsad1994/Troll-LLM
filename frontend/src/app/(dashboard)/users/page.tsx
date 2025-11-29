@@ -163,8 +163,6 @@ export default function UsersPage() {
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">User</th>
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Plan</th>
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Credits</th>
-                <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Tokens</th>
-                <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Monthly</th>
                 <th className="text-left px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Created</th>
                 <th className="text-right px-5 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Action</th>
               </tr>
@@ -172,7 +170,7 @@ export default function UsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center">
+                  <td colSpan={5} className="px-5 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                       <span className="text-slate-500 text-sm">Loading...</span>
@@ -181,7 +179,7 @@ export default function UsersPage() {
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-slate-500 text-sm">
+                  <td colSpan={5} className="px-5 py-12 text-center text-slate-500 text-sm">
                     {search ? 'No users found' : 'No users'}
                   </td>
                 </tr>
@@ -213,42 +211,6 @@ export default function UsersPage() {
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-emerald-400 font-medium text-sm">${(u.credits || 0).toFixed(2)}</span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-1.5 mb-1">
-                              <span className="text-white text-sm font-medium">{formatNumber(tokensUsed)}</span>
-                              <span className="text-slate-600 text-xs">/</span>
-                              <span className="text-slate-400 text-sm">{totalTokens === -1 ? '∞' : formatNumber(totalTokens)}</span>
-                            </div>
-                            {totalTokens > 0 && (
-                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all ${
-                                    (tokensUsed / totalTokens) > 0.9 ? 'bg-red-500' :
-                                    (tokensUsed / totalTokens) > 0.7 ? 'bg-amber-500' :
-                                    'bg-emerald-500'
-                                  }`}
-                                  style={{ width: `${Math.min(100, (tokensUsed / totalTokens) * 100)}%` }}
-                                />
-                              </div>
-                            )}
-                            {totalTokens === 0 && <span className="text-slate-600 text-xs">No quota</span>}
-                          </div>
-                          {totalTokens > 0 && (
-                            <span className={`text-xs font-medium ${
-                              (tokensUsed / totalTokens) > 0.9 ? 'text-red-400' :
-                              (tokensUsed / totalTokens) > 0.7 ? 'text-amber-400' :
-                              'text-slate-500'
-                            }`}>
-                              {((tokensUsed / totalTokens) * 100).toFixed(0)}%
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-slate-400 text-sm">
-                        {formatNumber(monthlyTokensUsed)}
                       </td>
                       <td className="px-5 py-3 text-slate-500 text-sm">
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}

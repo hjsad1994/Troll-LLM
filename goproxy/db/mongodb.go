@@ -68,6 +68,10 @@ func UserKeysCollection() *mongo.Collection {
 	return GetCollection("user_keys")
 }
 
+func UsersCollection() *mongo.Collection {
+	return GetCollection("users")
+}
+
 func FactoryKeysCollection() *mongo.Collection {
 	return GetCollection("factory_keys")
 }

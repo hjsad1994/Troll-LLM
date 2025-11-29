@@ -119,12 +119,23 @@ export class UserRepository {
     const user = await User.findById(username).lean();
     if (!user) return null;
 
-    const oldPlan = user.plan;
+    const oldPlan = user.plan || 'free';
     const planLimits = PLAN_LIMITS[plan];
+    const oldPlanLimits = PLAN_LIMITS[oldPlan] || PLAN_LIMITS.free;
+    
+    // Calculate credits to add (only for upgrades)
+    let creditsToAdd = 0;
+    if (planLimits.valueUsd > oldPlanLimits.valueUsd) {
+      creditsToAdd = planLimits.valueUsd - oldPlanLimits.valueUsd;
+    }
     
     const updatedUser = await User.findByIdAndUpdate(
       username,
-      { plan, totalTokens: planLimits.totalTokens },
+      { 
+        plan, 
+        totalTokens: planLimits.totalTokens,
+        $inc: { credits: creditsToAdd }
+      },
       { new: true }
     ).lean();
 

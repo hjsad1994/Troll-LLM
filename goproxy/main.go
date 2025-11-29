@@ -269,6 +269,8 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		clientKeyMask = clientKeyMask[:4] + "..." + clientKeyMask[len(clientKeyMask)-4:]
 	}
 	
+	var username string // Username for credit deduction
+	
 	if proxyAPIKey != "" {
 		// Validate with fixed PROXY_API_KEY from env
 		if clientAPIKey != proxyAPIKey {
@@ -292,6 +294,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
+		username = userKey.Name // Store username for credit deduction
 
 		// Check if Free Tier user - block access
 		if userKey.IsFreeUser() {
@@ -400,16 +403,16 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Route request based on model type
 	switch model.Type {
 	case "anthropic":
-		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID)
+		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID, username)
 	case "openai":
-		handleFactoryOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID)
+		handleFactoryOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID, username)
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
 	}
 }
 
 // Handle Anthropic type request
-func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string) {
+func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string, username string) {
 	// Transform request
 	anthropicReq := transformers.TransformToAnthropic(openaiReq)
 
@@ -481,15 +484,15 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	// Handle response
 	if openaiReq.Stream {
 		// Streaming response
-		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
+		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
 	} else {
 		// Non-streaming response
-		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
+		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
 	}
 }
 
 // Handle Factory OpenAI type request
-func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string) {
+func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string, username string) {
 	// Transform request
 	factoryReq := transformers.TransformToFactoryOpenAI(openaiReq)
 
@@ -567,15 +570,15 @@ func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiRe
 	// Handle response
 	if openaiReq.Stream {
 		// Streaming response
-		handleFactoryOpenAIStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
+		handleFactoryOpenAIStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
 	} else {
 		// Non-streaming response
-		handleFactoryOpenAINonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime)
+		handleFactoryOpenAINonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
 	}
 }
 
 // Handle Anthropic non-streaming response
-func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
+func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
 	// Read response body (automatically handle gzip)
 	body, err := readResponseBody(resp)
 	if err != nil {
@@ -617,13 +620,22 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 	if usageData, ok := anthropicResp["usage"].(map[string]interface{}); ok {
 		inputTokens := int64(0)
 		outputTokens := int64(0)
+		cacheWriteTokens := int64(0)
+		cacheHitTokens := int64(0)
 		if it, ok := usageData["input_tokens"].(float64); ok {
 			inputTokens = int64(it)
 		}
 		if ot, ok := usageData["output_tokens"].(float64); ok {
 			outputTokens = int64(ot)
 		}
+		if cwt, ok := usageData["cache_creation_input_tokens"].(float64); ok {
+			cacheWriteTokens = int64(cwt)
+		}
+		if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
+			cacheHitTokens = int64(cht)
+		}
 		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
+		billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 		
 		// Update user usage in database
 		if userApiKey != "" {
@@ -631,7 +643,17 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 				log.Printf("⚠️ Failed to update usage: %v", err)
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
-				log.Printf("📊 Updated usage: in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", inputTokens, outputTokens, billingTokens, inputPrice, outputPrice)
+				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
+				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+			}
+			// Deduct credits and update tokensUsed for user
+			if username != "" {
+				if err := usage.DeductCredits(username, billingCost, billingTokens); err != nil {
+					log.Printf("⚠️ Failed to update user: %v", err)
+				} else if debugMode {
+					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
+				}
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -660,7 +682,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 }
 
 // Handle Anthropic streaming response
-func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
+func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
 	_ = requestStartTime // Streaming latency tracked at end
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -688,7 +710,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 }
 
 // Handle Factory OpenAI non-streaming response
-func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
+func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
 	// Debug mode: log response headers
 	if debugMode {
 		log.Printf("📋 Response headers:")
@@ -753,6 +775,8 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 	if usageData, ok := factoryResp["usage"].(map[string]interface{}); ok {
 		inputTokens := int64(0)
 		outputTokens := int64(0)
+		cacheWriteTokens := int64(0)
+		cacheHitTokens := int64(0)
 		if it, ok := usageData["input_tokens"].(float64); ok {
 			inputTokens = int64(it)
 		} else if it, ok := usageData["prompt_tokens"].(float64); ok {
@@ -763,7 +787,14 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 		} else if ot, ok := usageData["completion_tokens"].(float64); ok {
 			outputTokens = int64(ot)
 		}
+		if cwt, ok := usageData["cache_creation_input_tokens"].(float64); ok {
+			cacheWriteTokens = int64(cwt)
+		}
+		if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
+			cacheHitTokens = int64(cht)
+		}
 		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
+		billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 		
 		// Update user usage in database
 		if userApiKey != "" {
@@ -771,7 +802,17 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 				log.Printf("⚠️ Failed to update usage: %v", err)
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
-				log.Printf("📊 Updated usage: in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", inputTokens, outputTokens, billingTokens, inputPrice, outputPrice)
+				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
+				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+			}
+			// Deduct credits and update tokensUsed for user
+			if username != "" {
+				if err := usage.DeductCredits(username, billingCost, billingTokens); err != nil {
+					log.Printf("⚠️ Failed to update user: %v", err)
+				} else if debugMode {
+					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
+				}
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -796,7 +837,7 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 }
 
 // Handle Factory OpenAI streaming response
-func handleFactoryOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
+func handleFactoryOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -964,6 +1005,8 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		clientKeyMask = clientKeyMask[:4] + "..." + clientKeyMask[len(clientKeyMask)-4:]
 	}
 	
+	var username string // Username for credit deduction
+	
 	if proxyAPIKey != "" {
 		// Validate with fixed PROXY_API_KEY from env
 		if clientAPIKey != proxyAPIKey {
@@ -987,6 +1030,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
+		username = userKey.Name // Store username for credit deduction
 	}
 
 	// Check rate limit
@@ -1228,14 +1272,14 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	// Handle response based on streaming
 	if stream {
-		handleAnthropicMessagesStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart)
+		handleAnthropicMessagesStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart, username)
 	} else {
-		handleAnthropicMessagesNonStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart)
+		handleAnthropicMessagesNonStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart, username)
 	}
 }
 
 // Handle non-streaming response from Factory AI (Anthropic format)
-func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
+func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
 	body, err := readResponseBody(resp)
 	if err != nil {
 		log.Printf("Error reading response: %v", err)
@@ -1259,13 +1303,22 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 			if usageData, ok := anthropicResp["usage"].(map[string]interface{}); ok {
 				inputTokens := int64(0)
 				outputTokens := int64(0)
+				cacheWriteTokens := int64(0)
+				cacheHitTokens := int64(0)
 				if it, ok := usageData["input_tokens"].(float64); ok {
 					inputTokens = int64(it)
 				}
 				if ot, ok := usageData["output_tokens"].(float64); ok {
 					outputTokens = int64(ot)
 				}
+				if cwt, ok := usageData["cache_creation_input_tokens"].(float64); ok {
+					cacheWriteTokens = int64(cwt)
+				}
+				if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
+					cacheHitTokens = int64(cht)
+				}
 				billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
+				billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 				
 				// Update user usage in database
 				if userApiKey != "" {
@@ -1273,7 +1326,17 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 						log.Printf("⚠️ Failed to update usage: %v", err)
 					} else if debugMode {
 						inputPrice, outputPrice := config.GetModelPricing(modelID)
-						log.Printf("📊 Updated usage: in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", inputTokens, outputTokens, billingTokens, inputPrice, outputPrice)
+						cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
+						log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+							inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+					}
+					// Deduct credits and update tokensUsed for user
+					if username != "" {
+						if err := usage.DeductCredits(username, billingCost, billingTokens); err != nil {
+							log.Printf("⚠️ Failed to update user: %v", err)
+						} else if debugMode {
+							log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
+						}
 					}
 					// Log request for analytics (include latency)
 					latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1314,7 +1377,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 }
 
 // Handle streaming response from Factory AI (Anthropic SSE format)
-func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time) {
+func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
 	log.Printf("📥 Stream response status: %d", resp.StatusCode)
 	
 	// If not 200, log response body for debugging
@@ -1346,7 +1409,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 	scanner := bufio.NewScanner(resp.Body)
 	// Increase scanner buffer for large streaming responses
 	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024) // 10MB max
-	var totalInputTokens, totalOutputTokens int64
+	var totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens int64
 	eventCount := 0
 	startTime := time.Now()
 	var firstEventTime time.Time
@@ -1413,6 +1476,12 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 							if it, ok := usageData["input_tokens"].(float64); ok {
 								totalInputTokens = int64(it)
 							}
+							if cwt, ok := usageData["cache_creation_input_tokens"].(float64); ok {
+								totalCacheWriteTokens = int64(cwt)
+							}
+							if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
+								totalCacheHitTokens = int64(cht)
+							}
 						}
 					}
 				}
@@ -1433,12 +1502,23 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 	// Update usage after stream completes
 	if totalInputTokens > 0 || totalOutputTokens > 0 {
 		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
+		billingCost := config.CalculateBillingCostWithCache(modelID, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens)
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
 				log.Printf("⚠️ Failed to update usage: %v", err)
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
-				log.Printf("📊 Updated usage (stream): in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", totalInputTokens, totalOutputTokens, billingTokens, inputPrice, outputPrice)
+				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
+				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+			}
+			// Deduct credits and update tokensUsed for user
+			if username != "" {
+				if err := usage.DeductCredits(username, billingCost, billingTokens); err != nil {
+					log.Printf("⚠️ Failed to update user: %v", err)
+				} else if debugMode {
+					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
+				}
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()

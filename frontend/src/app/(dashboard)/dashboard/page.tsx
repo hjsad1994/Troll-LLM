@@ -341,18 +341,9 @@ export default function UserDashboard() {
                       </svg>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 pt-4 border-t border-white/5">
-                    <div>
-                      <p className="text-slate-600 text-xs">Used</p>
-                      <p className="text-white font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
-                    </div>
-                    <div className="h-8 w-px bg-white/10" />
-                    <div>
-                      <p className="text-slate-600 text-xs">Total</p>
-                      <p className="text-white font-medium">
-                        {userProfile.totalTokens === -1 ? '∞' : formatLargeNumber(userProfile.totalTokens)}
-                      </p>
-                    </div>
+                  <div className="pt-4 border-t border-white/5">
+                    <p className="text-slate-600 text-xs">Used</p>
+                    <p className="text-white font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
                   </div>
                 </div>
 
