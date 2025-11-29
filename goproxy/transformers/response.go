@@ -222,7 +222,7 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 		openaiResp.Choices[0].FinishReason = &finishReason
 	}
 
-	// 添加 usage 信息
+	// Add usage information
 	if usage, ok := anthropicResp["usage"].(map[string]interface{}); ok {
 		inputTokens := 0
 		outputTokens := 0
@@ -242,7 +242,7 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 	return openaiResp, nil
 }
 
-// TransformStreamChunk 转换流式响应块
+// TransformStreamChunk transforms a streaming response chunk
 func (t *AnthropicResponseTransformer) TransformStreamChunk(eventType string, eventData map[string]interface{}) (string, error) {
 	switch eventType {
 	case "message_start":
@@ -317,14 +317,14 @@ func (t *AnthropicResponseTransformer) TransformStreamChunk(eventType string, ev
 		return t.createOpenAIChunk("", "", true, finishReason, nil), nil
 
 	case "message_stop":
-		return "", nil // 已经在 message_delta 中处理
+		return "", nil // Already handled in message_delta
 
 	default:
-		return "", nil // 忽略其他事件
+		return "", nil // Ignore other events
 	}
 }
 
-// createOpenAIChunk 创建 OpenAI 格式的流式块
+// createOpenAIChunk creates an OpenAI format streaming chunk
 func (t *AnthropicResponseTransformer) createOpenAIChunk(content, role string, finish bool, finishReason string, toolCall map[string]interface{}) string {
 	chunk := OpenAIResponse{
 		ID:      t.RequestID,
@@ -356,7 +356,7 @@ func (t *AnthropicResponseTransformer) createOpenAIChunk(content, role string, f
 	return fmt.Sprintf("data: %s\n\n", string(jsonData))
 }
 
-// TransformStream 转换流式响应
+// TransformStream transforms a streaming response
 func (t *AnthropicResponseTransformer) TransformStream(reader io.Reader) chan string {
 	output := make(chan string, 100)
 
@@ -385,53 +385,53 @@ func (t *AnthropicResponseTransformer) TransformStream(reader io.Reader) chan st
 			}
 		}
 
-		// 发送结束标记
+		// Send end marker
 		output <- "data: [DONE]\n\n"
 	}()
 
 	return output
 }
 
-// FactoryOpenAIResponseTransformer Factory OpenAI 响应转换器
-type FactoryOpenAIResponseTransformer struct {
+// TrollOpenAIResponseTransformer is the TrollLLM OpenAI response transformer
+type TrollOpenAIResponseTransformer struct {
 	Model     string
 	RequestID string
 	Created   int64
 }
 
-// NewFactoryOpenAIResponseTransformer 创建 Factory OpenAI 响应转换器
-func NewFactoryOpenAIResponseTransformer(model, requestID string) *FactoryOpenAIResponseTransformer {
+// NewTrollOpenAIResponseTransformer creates a TrollLLM OpenAI response transformer
+func NewTrollOpenAIResponseTransformer(model, requestID string) *TrollOpenAIResponseTransformer {
 	if requestID == "" {
 		requestID = fmt.Sprintf("chatcmpl-%d", time.Now().UnixNano())
 	}
-	return &FactoryOpenAIResponseTransformer{
+	return &TrollOpenAIResponseTransformer{
 		Model:     model,
 		RequestID: requestID,
 		Created:   time.Now().Unix(),
 	}
 }
 
-// TransformNonStreamResponse 转换非流式响应
-func (t *FactoryOpenAIResponseTransformer) TransformNonStreamResponse(factoryResp map[string]interface{}) (*OpenAIResponse, error) {
-	// 检查是否已经是标准 OpenAI 格式（Factory 可能直接返回 OpenAI 格式）
-	if choices, ok := factoryResp["choices"].([]interface{}); ok && len(choices) > 0 {
-		// 已经是标准 OpenAI 格式，直接返回（只更新 model）
+// TransformNonStreamResponse transforms a non-streaming response
+func (t *TrollOpenAIResponseTransformer) TransformNonStreamResponse(trollResp map[string]interface{}) (*OpenAIResponse, error) {
+	// Check if already in standard OpenAI format (TrollLLM may return OpenAI format directly)
+	if choices, ok := trollResp["choices"].([]interface{}); ok && len(choices) > 0 {
+		// Already in standard OpenAI format, return directly (only update model)
 		openaiResp := &OpenAIResponse{
-			ID:      fmt.Sprintf("%v", factoryResp["id"]),
-			Object:  fmt.Sprintf("%v", factoryResp["object"]),
+			ID:      fmt.Sprintf("%v", trollResp["id"]),
+			Object:  fmt.Sprintf("%v", trollResp["object"]),
 			Created: t.Created,
-			Model:   t.Model, // 使用我们的 model ID
+			Model:   t.Model, // Use our model ID
 			Choices: []OpenAIChoice{},
 		}
 
-		// 转换 choices
+		// Transform choices
 		for i, choice := range choices {
 			if choiceMap, ok := choice.(map[string]interface{}); ok {
 				openaiChoice := OpenAIChoice{
 					Index: i,
 				}
 
-				// 提取 message
+				// Extract message
 				if message, ok := choiceMap["message"].(map[string]interface{}); ok {
 					openaiChoice.Message = &OpenAIMessageResponse{
 						Role:    fmt.Sprintf("%v", message["role"]),
@@ -439,7 +439,7 @@ func (t *FactoryOpenAIResponseTransformer) TransformNonStreamResponse(factoryRes
 					}
 				}
 
-				// 提取 finish_reason
+				// Extract finish_reason
 				if fr, ok := choiceMap["finish_reason"].(string); ok {
 					openaiChoice.FinishReason = &fr
 				}
@@ -448,17 +448,17 @@ func (t *FactoryOpenAIResponseTransformer) TransformNonStreamResponse(factoryRes
 			}
 		}
 
-		// 提取 usage
-		if usage, ok := factoryResp["usage"].(map[string]interface{}); ok {
+		// Extract usage
+		if usage, ok := trollResp["usage"].(map[string]interface{}); ok {
 			openaiResp.Usage = usage
 		}
 
 		return openaiResp, nil
 	}
 
-	// Factory 自定义格式：output 数组
+	// TrollLLM custom format: output array
 	openaiResp := &OpenAIResponse{
-		ID:      fmt.Sprintf("%v", factoryResp["id"]),
+		ID:      fmt.Sprintf("%v", trollResp["id"]),
 		Object:  "chat.completion",
 		Created: t.Created,
 		Model:   t.Model,
@@ -474,36 +474,36 @@ func (t *FactoryOpenAIResponseTransformer) TransformNonStreamResponse(factoryRes
 		},
 	}
 
-	// 提取响应内容
-	// Factory OpenAI 响应格式：
+	// Extract response content
+	// TrollLLM OpenAI response format:
 	// output: [
-	//   {type: "reasoning", ...},  // 推理过程
-	//   {type: "message", content: [{text: "...", type: "output_text"}], ...}  // 实际回复
+	//   {type: "reasoning", ...},  // Reasoning process
+	//   {type: "message", content: [{text: "...", type: "output_text"}], ...}  // Actual reply
 	// ]
-	if output, ok := factoryResp["output"].([]interface{}); ok && len(output) > 0 {
+	if output, ok := trollResp["output"].([]interface{}); ok && len(output) > 0 {
 		for _, item := range output {
 			if outputItem, ok := item.(map[string]interface{}); ok {
-				// 查找 type=message 的项
+				// Find item with type=message
 				if itemType, ok := outputItem["type"].(string); ok && itemType == "message" {
-					// 提取 content 数组
+					// Extract content array
 					if contentArray, ok := outputItem["content"].([]interface{}); ok {
 						for _, contentItem := range contentArray {
 							if contentMap, ok := contentItem.(map[string]interface{}); ok {
-								// 提取 text 字段
+								// Extract text field
 								if text, ok := contentMap["text"].(string); ok {
 									openaiResp.Choices[0].Message.Content += FilterDroidIdentity(text)
 								}
 							}
 						}
 					}
-					break // 找到 message 后就退出
+					break // Exit after finding message
 				}
 			}
 		}
 	}
 
-	// 提取 finish_reason
-	if status, ok := factoryResp["status"].(string); ok {
+	// Extract finish_reason
+	if status, ok := trollResp["status"].(string); ok {
 		finishReason := "stop"
 		if status == "incomplete" {
 			finishReason = "length"
@@ -511,8 +511,8 @@ func (t *FactoryOpenAIResponseTransformer) TransformNonStreamResponse(factoryRes
 		openaiResp.Choices[0].FinishReason = &finishReason
 	}
 
-	// 添加 usage 信息
-	if usage, ok := factoryResp["usage"].(map[string]interface{}); ok {
+	// Add usage information
+	if usage, ok := trollResp["usage"].(map[string]interface{}); ok {
 		inputTokens := 0
 		outputTokens := 0
 		if it, ok := usage["input_tokens"].(float64); ok {
@@ -531,8 +531,8 @@ func (t *FactoryOpenAIResponseTransformer) TransformNonStreamResponse(factoryRes
 	return openaiResp, nil
 }
 
-// TransformStreamChunk 转换流式响应块
-func (t *FactoryOpenAIResponseTransformer) TransformStreamChunk(eventType string, eventData map[string]interface{}) (string, error) {
+// TransformStreamChunk transforms a streaming response chunk
+func (t *TrollOpenAIResponseTransformer) TransformStreamChunk(eventType string, eventData map[string]interface{}) (string, error) {
 	switch eventType {
 	case "response.created":
 		return t.createOpenAIChunk("", "assistant", false, ""), nil
@@ -540,7 +540,7 @@ func (t *FactoryOpenAIResponseTransformer) TransformStreamChunk(eventType string
 	case "response.in_progress":
 		return "", nil
 
-	// GPT Extended Thinking: 推理过程（不转发）
+	// GPT Extended Thinking: reasoning process (not forwarded)
 	case "response.reasoning_summary_text.delta":
 		return "", nil
 
@@ -550,7 +550,7 @@ func (t *FactoryOpenAIResponseTransformer) TransformStreamChunk(eventType string
 	case "response.reasoning_summary_part.done":
 		return "", nil
 
-	// GPT 实际输出文本
+	// GPT actual output text
 	case "response.output_text.delta":
 		text := ""
 		if delta, ok := eventData["delta"].(string); ok {
@@ -584,7 +584,7 @@ func (t *FactoryOpenAIResponseTransformer) TransformStreamChunk(eventType string
 		return t.createOpenAIChunk("", "", true, finishReason), nil
 
 	case "response.incomplete":
-		// GPT 因 max_output_tokens 等原因未完成
+		// GPT incomplete due to max_output_tokens or other reasons
 		finishReason := "length"
 		if response, ok := eventData["response"].(map[string]interface{}); ok {
 			if incompleteDetails, ok := response["incomplete_details"].(map[string]interface{}); ok {
@@ -602,8 +602,8 @@ func (t *FactoryOpenAIResponseTransformer) TransformStreamChunk(eventType string
 	}
 }
 
-// createOpenAIChunk 创建 OpenAI 格式的流式块
-func (t *FactoryOpenAIResponseTransformer) createOpenAIChunk(content, role string, finish bool, finishReason string) string {
+// createOpenAIChunk creates an OpenAI format streaming chunk
+func (t *TrollOpenAIResponseTransformer) createOpenAIChunk(content, role string, finish bool, finishReason string) string {
 	chunk := OpenAIResponse{
 		ID:      t.RequestID,
 		Object:  "chat.completion.chunk",
@@ -631,8 +631,8 @@ func (t *FactoryOpenAIResponseTransformer) createOpenAIChunk(content, role strin
 	return fmt.Sprintf("data: %s\n\n", string(jsonData))
 }
 
-// TransformStream 转换流式响应
-func (t *FactoryOpenAIResponseTransformer) TransformStream(reader io.Reader) chan string {
+// TransformStream transforms a streaming response
+func (t *TrollOpenAIResponseTransformer) TransformStream(reader io.Reader) chan string {
 	output := make(chan string, 100)
 
 	go func() {
@@ -648,22 +648,22 @@ func (t *FactoryOpenAIResponseTransformer) TransformStream(reader io.Reader) cha
 				continue
 			}
 
-			// 处理标准 OpenAI SSE 格式（Factory 可能直接返回）
+			// Handle standard OpenAI SSE format (TrollLLM may return directly)
 			if strings.HasPrefix(line, "data: ") {
 				dataStr := strings.TrimPrefix(line, "data: ")
 
-				// 检查是否是 [DONE] 标记
+				// Check if it's [DONE] marker
 				if strings.TrimSpace(dataStr) == "[DONE]" {
 					output <- "data: [DONE]\n\n"
 					continue
 				}
 
-				// 尝试解析为标准 OpenAI chunk
+				// Try to parse as standard OpenAI chunk
 				var openaiChunk map[string]interface{}
 				if err := json.Unmarshal([]byte(dataStr), &openaiChunk); err == nil {
-					// 检查是否已经是标准 OpenAI 格式
+					// Check if already in standard OpenAI format
 					if _, hasChoices := openaiChunk["choices"]; hasChoices {
-						// 直接转发（只更新 model，并过滤 Droid）
+						// Forward directly (only update model and filter Droid)
 						openaiChunk["model"] = t.Model
 						// Filter Droid from choices content
 						if choices, ok := openaiChunk["choices"].([]interface{}); ok {
@@ -688,7 +688,7 @@ func (t *FactoryOpenAIResponseTransformer) TransformStream(reader io.Reader) cha
 						continue
 					}
 
-					// Factory 自定义事件格式
+					// TrollLLM custom event format
 					if chunk, err := t.TransformStreamChunk(currentEvent, openaiChunk); err == nil && chunk != "" {
 						output <- chunk
 					}
@@ -698,14 +698,14 @@ func (t *FactoryOpenAIResponseTransformer) TransformStream(reader io.Reader) cha
 			}
 		}
 
-		// 发送结束标记（如果还没发送）
+		// Send end marker (if not already sent)
 		output <- "data: [DONE]\n\n"
 	}()
 
 	return output
 }
 
-// stringPtr 返回字符串指针
+// stringPtr returns a string pointer
 func stringPtr(s string) *string {
 	return &s
 }

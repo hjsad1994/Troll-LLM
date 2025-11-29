@@ -10,13 +10,35 @@ import (
 )
 
 type RequestLog struct {
-	UserKeyID    string    `bson:"userKeyId"`
-	FactoryKeyID string    `bson:"factoryKeyId"`
-	TokensUsed   int64     `bson:"tokensUsed"`
-	StatusCode   int       `bson:"statusCode"`
-	LatencyMs    int64     `bson:"latencyMs"`
-	IsSuccess    bool      `bson:"isSuccess"`
-	CreatedAt    time.Time `bson:"createdAt"`
+	UserID           string    `bson:"userId,omitempty"`
+	UserKeyID        string    `bson:"userKeyId"`
+	TrollKeyID       string    `bson:"trollKeyId"`
+	Model            string    `bson:"model,omitempty"`
+	InputTokens      int64     `bson:"inputTokens"`
+	OutputTokens     int64     `bson:"outputTokens"`
+	CacheWriteTokens int64     `bson:"cacheWriteTokens"`
+	CacheHitTokens   int64     `bson:"cacheHitTokens"`
+	CreditsCost      float64   `bson:"creditsCost"`
+	TokensUsed       int64     `bson:"tokensUsed"`
+	StatusCode       int       `bson:"statusCode"`
+	LatencyMs        int64     `bson:"latencyMs"`
+	IsSuccess        bool      `bson:"isSuccess"`
+	CreatedAt        time.Time `bson:"createdAt"`
+}
+
+type RequestLogParams struct {
+	UserID           string
+	UserKeyID        string
+	TrollKeyID       string
+	Model            string
+	InputTokens      int64
+	OutputTokens     int64
+	CacheWriteTokens int64
+	CacheHitTokens   int64
+	CreditsCost      float64
+	TokensUsed       int64
+	StatusCode       int
+	LatencyMs        int64
 }
 
 func UpdateUsage(apiKey string, tokensUsed int64) error {
@@ -43,21 +65,38 @@ func UpdateUsage(apiKey string, tokensUsed int64) error {
 	return nil
 }
 
-func LogRequest(userKeyID, factoryKeyID string, tokensUsed int64, statusCode int, latencyMs int64) {
+func LogRequest(userKeyID, trollKeyID string, tokensUsed int64, statusCode int, latencyMs int64) {
+	LogRequestDetailed(RequestLogParams{
+		UserKeyID:  userKeyID,
+		TrollKeyID: trollKeyID,
+		TokensUsed: tokensUsed,
+		StatusCode: statusCode,
+		LatencyMs:  latencyMs,
+	})
+}
+
+func LogRequestDetailed(params RequestLogParams) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Determine if request was successful (2xx status code)
-	isSuccess := statusCode >= 200 && statusCode < 300
+	isSuccess := params.StatusCode >= 200 && params.StatusCode < 300
 
 	logEntry := RequestLog{
-		UserKeyID:    userKeyID,
-		FactoryKeyID: factoryKeyID,
-		TokensUsed:   tokensUsed,
-		StatusCode:   statusCode,
-		LatencyMs:    latencyMs,
-		IsSuccess:    isSuccess,
-		CreatedAt:    time.Now(),
+		UserID:           params.UserID,
+		UserKeyID:        params.UserKeyID,
+		TrollKeyID:       params.TrollKeyID,
+		Model:            params.Model,
+		InputTokens:      params.InputTokens,
+		OutputTokens:     params.OutputTokens,
+		CacheWriteTokens: params.CacheWriteTokens,
+		CacheHitTokens:   params.CacheHitTokens,
+		CreditsCost:      params.CreditsCost,
+		TokensUsed:       params.TokensUsed,
+		StatusCode:       params.StatusCode,
+		LatencyMs:        params.LatencyMs,
+		IsSuccess:        isSuccess,
+		CreatedAt:        time.Now(),
 	}
 
 	_, err := db.RequestLogsCollection().InsertOne(ctx, logEntry)
@@ -65,13 +104,13 @@ func LogRequest(userKeyID, factoryKeyID string, tokensUsed int64, statusCode int
 		log.Printf("⚠️ Failed to log request: %v", err)
 	}
 
-	// Update factory key usage
-	if factoryKeyID != "" {
-		UpdateFactoryKeyUsage(factoryKeyID, tokensUsed)
+	// Update troll key usage
+	if params.TrollKeyID != "" {
+		UpdateTrollKeyUsage(params.TrollKeyID, params.TokensUsed)
 	}
 }
 
-func UpdateFactoryKeyUsage(factoryKeyID string, tokensUsed int64) {
+func UpdateTrollKeyUsage(trollKeyID string, tokensUsed int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -82,9 +121,9 @@ func UpdateFactoryKeyUsage(factoryKeyID string, tokensUsed int64) {
 		},
 	}
 
-	_, err := db.FactoryKeysCollection().UpdateByID(ctx, factoryKeyID, update)
+	_, err := db.TrollKeysCollection().UpdateByID(ctx, trollKeyID, update)
 	if err != nil {
-		log.Printf("⚠️ Failed to update factory key usage for %s: %v", factoryKeyID, err)
+		log.Printf("⚠️ Failed to update troll key usage for %s: %v", trollKeyID, err)
 	}
 }
 

@@ -26,7 +26,11 @@ export class FactoryKeyController {
       }
 
       const key = await factoryKeyService.createFactoryKey(id, apiKey);
-      res.status(201).json(key);
+      // Return full apiKey only during creation - it will not be shown again
+      res.status(201).json({
+        ...key,
+        _warning: 'Save this API key now - it will not be shown again',
+      });
     } catch (error) {
       console.error('Error creating factory key:', error);
       res.status(500).json({ error: 'Failed to create factory key' });

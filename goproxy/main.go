@@ -33,11 +33,11 @@ import (
 
 var (
 	startTime      = time.Now()
-	httpClient     *http.Client
-	debugMode      = false // Debug mode, disabled by default
-	proxyPool      *proxy.ProxyPool
-	factoryKeyPool *keypool.KeyPool
-	healthChecker  *proxy.HealthChecker
+	httpClient    *http.Client
+	debugMode     = false // Debug mode, disabled by default
+	proxyPool     *proxy.ProxyPool
+	trollKeyPool  *keypool.KeyPool
+	healthChecker *proxy.HealthChecker
 	rateLimiter    *ratelimit.RateLimiter
 	// Pre-compiled regex for sanitizeBlockedContent (performance optimization)
 	blockedPatternRegexes []*regexp.Regexp
@@ -342,35 +342,35 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get factory key from proxy pool or environment
 	var selectedProxy *proxy.Proxy
-	var factoryAPIKey string
+	var trollAPIKey string
 	
 	if proxyPool != nil && proxyPool.HasProxies() {
 		// Use proxy pool - sticky routing based on client API key
-		var factoryKeyID string
+		var trollKeyID string
 		var err error
-		selectedProxy, factoryKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+		selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
 		if err != nil {
 			log.Printf("❌ Failed to select proxy: %v", err)
 			http.Error(w, `{"error": {"message": "No available proxies", "type": "server_error"}}`, http.StatusServiceUnavailable)
 			return
 		}
-		factoryAPIKey = factoryKeyPool.GetAPIKey(factoryKeyID)
-		if factoryAPIKey == "" {
-			log.Printf("❌ Factory key %s not found in pool", factoryKeyID)
+		trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
+		if trollAPIKey == "" {
+			log.Printf("❌ Troll key %s not found in pool", trollKeyID)
 			http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
 			return
 		}
-		log.Printf("🔄 [OpenAI] Using proxy %s with key %s", selectedProxy.Name, factoryKeyID)
+		log.Printf("🔄 [OpenAI] Using proxy %s with key %s", selectedProxy.Name, trollKeyID)
 	} else {
 		// Fallback to environment variable
-		factoryAPIKey = getEnv("FACTORY_API_KEY", "")
-		if factoryAPIKey == "" {
-			log.Printf("❌ No proxies configured and FACTORY_API_KEY not set")
+		trollAPIKey = getEnv("TROLL_API_KEY", "")
+		if trollAPIKey == "" {
+			log.Printf("❌ No proxies configured and TROLL_API_KEY not set")
 			http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
 			return
 		}
 	}
-	authHeader = "Bearer " + factoryAPIKey
+	authHeader = "Bearer " + trollAPIKey
 
 	// Read request body
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -421,27 +421,27 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("✅ %s [%s] stream=%v", openaiReq.Model, model.Type, openaiReq.Stream)
 	}
 
-	// Get factoryKeyID for logging (use "env" if from environment variable)
-	var factoryKeyID string
+	// Get trollKeyID for logging (use "env" if from environment variable)
+	var trollKeyID string
 	if proxyPool != nil && proxyPool.HasProxies() {
-		_, factoryKeyID, _ = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+		_, trollKeyID, _ = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
 	} else {
-		factoryKeyID = "env"
+		trollKeyID = "env"
 	}
 
 	// Route request based on model type
 	switch model.Type {
 	case "anthropic":
-		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID, username)
+		handleAnthropicRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username)
 	case "openai":
-		handleFactoryOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, factoryKeyID, username)
+		handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username)
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
 	}
 }
 
 // Handle Anthropic type request
-func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string, username string) {
+func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string) {
 	// Transform request
 	anthropicReq := transformers.TransformToAnthropic(openaiReq)
 
@@ -513,17 +513,17 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	// Handle response
 	if openaiReq.Stream {
 		// Streaming response
-		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
+		handleAnthropicStreamResponse(w, resp, model.ID, userApiKey, trollKeyID, requestStartTime, username)
 	} else {
 		// Non-streaming response
-		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
+		handleAnthropicNonStreamResponse(w, resp, model.ID, userApiKey, trollKeyID, requestStartTime, username)
 	}
 }
 
-// Handle Factory OpenAI type request
-func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, factoryKeyID string, username string) {
+// Handle TrollOpenAI type request
+func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string) {
 	// Transform request
-	factoryReq := transformers.TransformToFactoryOpenAI(openaiReq)
+	trollReq := transformers.TransformToTrollOpenAI(openaiReq)
 
 	// Get endpoint
 	endpoint := config.GetEndpointByType("openai")
@@ -533,7 +533,7 @@ func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiRe
 	}
 
 	// Serialize request
-	reqBody, err := json.Marshal(factoryReq)
+	reqBody, err := json.Marshal(trollReq)
 	if err != nil {
 		log.Printf("Error: failed to serialize request: %v", err)
 		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
@@ -550,7 +550,7 @@ func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiRe
 
 	// Set request headers
 	clientHeaders := extractClientHeaders(r)
-	headers := transformers.GetFactoryOpenAIHeaders(authHeader, clientHeaders)
+	headers := transformers.GetTrollOpenAIHeaders(authHeader, clientHeaders)
 	for key, value := range headers {
 		proxyReq.Header.Set(key, value)
 	}
@@ -593,21 +593,21 @@ func handleFactoryOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiRe
 	}()
 
 	if debugMode {
-		log.Printf("📥 Factory OpenAI response: %d", resp.StatusCode)
+		log.Printf("📥 TrollOpenAI response: %d", resp.StatusCode)
 	}
 
 	// Handle response
 	if openaiReq.Stream {
 		// Streaming response
-		handleFactoryOpenAIStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
+		handleTrollOpenAIStreamResponse(w, resp, model.ID, userApiKey, trollKeyID, requestStartTime, username)
 	} else {
 		// Non-streaming response
-		handleFactoryOpenAINonStreamResponse(w, resp, model.ID, userApiKey, factoryKeyID, requestStartTime, username)
+		handleTrollOpenAINonStreamResponse(w, resp, model.ID, userApiKey, trollKeyID, requestStartTime, username)
 	}
 }
 
 // Handle Anthropic non-streaming response
-func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
+func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	// Read response body (automatically handle gzip)
 	body, err := readResponseBody(resp)
 	if err != nil {
@@ -620,7 +620,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 		// Log failed request for analytics
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
 		// Forward error response directly
 		w.Header().Set("Content-Type", "application/json")
@@ -686,7 +686,20 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode, latencyMs)
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:     trollKeyID,
+				Model:            modelID,
+				InputTokens:      inputTokens,
+				OutputTokens:     outputTokens,
+				CacheWriteTokens: cacheWriteTokens,
+				CacheHitTokens:   cacheHitTokens,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
 		}
 	}
 
@@ -711,7 +724,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 }
 
 // Handle Anthropic streaming response
-func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
+func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	_ = requestStartTime // Streaming latency tracked at end
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -738,8 +751,8 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 	}
 }
 
-// Handle Factory OpenAI non-streaming response
-func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
+// Handle TrollOpenAI non-streaming response
+func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	// Debug mode: log response headers
 	if debugMode {
 		log.Printf("📋 Response headers:")
@@ -773,7 +786,7 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 		// Log failed request for analytics
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
 		// Forward error response directly
 		w.Header().Set("Content-Type", "application/json")
@@ -784,9 +797,9 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 		return
 	}
 
-	// Parse Factory OpenAI response
-	var factoryResp map[string]interface{}
-	if err := json.Unmarshal(body, &factoryResp); err != nil {
+	// Parse TrollOpenAI response
+	var trollResp map[string]interface{}
+	if err := json.Unmarshal(body, &trollResp); err != nil {
 		log.Printf("Error: failed to parse response: %v", err)
 		if debugMode {
 			log.Printf("Raw response content (first 200 bytes): %s", string(body[:min(200, len(body))]))
@@ -795,13 +808,13 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 		// Return error
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		errorMsg := `{"error": {"message": "Failed to parse Factory API response", "type": "server_error"}}`
+		errorMsg := `{"error": {"message": "Failed to parse TrollLLM API response", "type": "server_error"}}`
 		w.Write([]byte(errorMsg))
 		return
 	}
 
 	// Extract and track token usage
-	if usageData, ok := factoryResp["usage"].(map[string]interface{}); ok {
+	if usageData, ok := trollResp["usage"].(map[string]interface{}); ok {
 		inputTokens := int64(0)
 		outputTokens := int64(0)
 		cacheWriteTokens := int64(0)
@@ -845,13 +858,26 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode, latencyMs)
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:     trollKeyID,
+				Model:            modelID,
+				InputTokens:      inputTokens,
+				OutputTokens:     outputTokens,
+				CacheWriteTokens: cacheWriteTokens,
+				CacheHitTokens:   cacheHitTokens,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
 		}
 	}
 
 	// Transform to OpenAI format
-	transformer := transformers.NewFactoryOpenAIResponseTransformer(modelID, "")
-	openaiResp, err := transformer.TransformNonStreamResponse(factoryResp)
+	transformer := transformers.NewTrollOpenAIResponseTransformer(modelID, "")
+	openaiResp, err := transformer.TransformNonStreamResponse(trollResp)
 	if err != nil {
 		log.Printf("Error: failed to transform response: %v", err)
 		http.Error(w, `{"error": {"message": "Failed to transform response", "type": "server_error"}}`, http.StatusInternalServerError)
@@ -865,8 +891,8 @@ func handleFactoryOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Resp
 	}
 }
 
-// Handle Factory OpenAI streaming response
-func handleFactoryOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
+// Handle TrollOpenAI streaming response
+func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -878,7 +904,7 @@ func handleFactoryOpenAIStreamResponse(w http.ResponseWriter, resp *http.Respons
 	}
 
 	// Create transformer
-	transformer := transformers.NewFactoryOpenAIResponseTransformer(modelID, "")
+	transformer := transformers.NewTrollOpenAIResponseTransformer(modelID, "")
 
 	// Transform streaming response
 	outputChan := transformer.TransformStream(resp.Body)
@@ -1058,36 +1084,36 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	// Get factory key from proxy pool or environment
 	var selectedProxy *proxy.Proxy
-	var factoryAPIKey string
-	var factoryKeyID string
+	var trollAPIKey string
+	var trollKeyID string
 	
 	if proxyPool != nil && proxyPool.HasProxies() {
 		// Use proxy pool - sticky routing based on client API key
 		var err error
-		selectedProxy, factoryKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
+		selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
 		if err != nil {
 			log.Printf("❌ Failed to select proxy: %v", err)
 			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"No available proxies"}}`, http.StatusServiceUnavailable)
 			return
 		}
-		factoryAPIKey = factoryKeyPool.GetAPIKey(factoryKeyID)
-		if factoryAPIKey == "" {
-			log.Printf("❌ Factory key %s not found in pool", factoryKeyID)
+		trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
+		if trollAPIKey == "" {
+			log.Printf("❌ Troll key %s not found in pool", trollKeyID)
 			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
 			return
 		}
-		log.Printf("🔄 [Anthropic] Using proxy %s with key %s", selectedProxy.Name, factoryKeyID)
+		log.Printf("🔄 [Anthropic] Using proxy %s with key %s", selectedProxy.Name, trollKeyID)
 	} else {
 		// Fallback to environment variable
-		factoryAPIKey = getEnv("FACTORY_API_KEY", "")
-		factoryKeyID = "env"
-		if factoryAPIKey == "" {
-			log.Printf("❌ No proxies configured and FACTORY_API_KEY not set")
+		trollAPIKey = getEnv("TROLL_API_KEY", "")
+		trollKeyID = "env"
+		if trollAPIKey == "" {
+			log.Printf("❌ No proxies configured and TROLL_API_KEY not set")
 			http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
 			return
 		}
 	}
-	authHeader = "Bearer " + factoryAPIKey
+	authHeader = "Bearer " + trollAPIKey
 
 	// Read request body (no parsing - direct pass-through)
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -1290,14 +1316,14 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	// Handle response based on streaming
 	if stream {
-		handleAnthropicMessagesStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart, username)
+		handleAnthropicMessagesStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, trollKeyID, reqStart, username)
 	} else {
-		handleAnthropicMessagesNonStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, factoryKeyID, reqStart, username)
+		handleAnthropicMessagesNonStreamResponse(w, resp, anthropicReq.Model, clientAPIKey, trollKeyID, reqStart, username)
 	}
 }
 
 // Handle non-streaming response from Factory AI (Anthropic format)
-func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
+func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	body, err := readResponseBody(resp)
 	if err != nil {
 		log.Printf("Error reading response: %v", err)
@@ -1309,7 +1335,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 	if resp.StatusCode != http.StatusOK {
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
 	}
 
@@ -1358,7 +1384,20 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 					}
 					// Log request for analytics (include latency)
 					latencyMs := time.Since(requestStartTime).Milliseconds()
-					usage.LogRequest(userApiKey, factoryKeyID, billingTokens, resp.StatusCode, latencyMs)
+					usage.LogRequestDetailed(usage.RequestLogParams{
+						UserID:           username,
+						UserKeyID:        userApiKey,
+						TrollKeyID:     trollKeyID,
+						Model:            modelID,
+						InputTokens:      inputTokens,
+						OutputTokens:     outputTokens,
+						CacheWriteTokens: cacheWriteTokens,
+						CacheHitTokens:   cacheHitTokens,
+						CreditsCost:      billingCost,
+						TokensUsed:       billingTokens,
+						StatusCode:       resp.StatusCode,
+						LatencyMs:        latencyMs,
+					})
 				}
 			}
 
@@ -1395,7 +1434,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 }
 
 // Handle streaming response from Factory AI (Anthropic SSE format)
-func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, factoryKeyID string, requestStartTime time.Time, username string) {
+func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	log.Printf("📥 Stream response status: %d", resp.StatusCode)
 	
 	// If not 200, log response body for debugging
@@ -1405,7 +1444,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 		// Log failed request for analytics
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequest(userApiKey, factoryKeyID, 0, resp.StatusCode, latencyMs)
+			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
@@ -1540,7 +1579,20 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequest(userApiKey, factoryKeyID, billingTokens, 200, latencyMs)
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:     trollKeyID,
+				Model:            modelID,
+				InputTokens:      totalInputTokens,
+				OutputTokens:     totalOutputTokens,
+				CacheWriteTokens: totalCacheWriteTokens,
+				CacheHitTokens:   totalCacheHitTokens,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       200,
+				LatencyMs:        latencyMs,
+			})
 		}
 	}
 
@@ -1584,7 +1636,7 @@ func main() {
 
 	// Initialize proxy pool and factory key pool
 	proxyPool = proxy.GetPool()
-	factoryKeyPool = keypool.GetPool()
+	trollKeyPool = keypool.GetPool()
 	
 	// Start health checker
 	healthChecker = proxy.NewHealthChecker(proxyPool)
@@ -1592,10 +1644,10 @@ func main() {
 	
 	
 	log.Printf("✅ Proxy pool loaded: %d proxies", proxyPool.GetProxyCount())
-	log.Printf("✅ Factory key pool loaded: %d keys", factoryKeyPool.GetKeyCount())
+	log.Printf("✅ Troll key pool loaded: %d keys", trollKeyPool.GetKeyCount())
 
-	// Validate environment variables (FACTORY_API_KEY is optional if using key pool from DB)
-	factoryAPIKey := getEnv("FACTORY_API_KEY", "")
+	// Validate environment variables (TROLL_API_KEY is optional if using key pool from DB)
+	trollAPIKey := getEnv("TROLL_API_KEY", "")
 	
 	proxyAPIKey := getEnv("PROXY_API_KEY", "")
 	if proxyAPIKey != "" {
@@ -1604,10 +1656,10 @@ func main() {
 	
 	if proxyPool.HasProxies() {
 		log.Printf("🔐 Using proxy pool with %d proxies", proxyPool.GetProxyCount())
-	} else if factoryAPIKey != "" {
-		log.Printf("🔐 Direct mode: Using FACTORY_API_KEY (no proxies configured)")
+	} else if trollAPIKey != "" {
+		log.Printf("🔐 Direct mode: Using TROLL_API_KEY (no proxies configured)")
 	} else {
-		log.Printf("⚠️ Warning: No proxies and no FACTORY_API_KEY configured!")
+		log.Printf("⚠️ Warning: No proxies and no TROLL_API_KEY configured!")
 	}
 
 	// Load configuration

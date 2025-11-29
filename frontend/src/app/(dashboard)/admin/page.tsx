@@ -147,7 +147,7 @@ export default function AdminDashboard() {
     try {
       const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
-        fetchWithAuth('/admin/factory-keys').catch(() => null),
+        fetchWithAuth('/admin/troll-keys').catch(() => null),
         fetchWithAuth('/admin/proxies').catch(() => null),
         fetch('/api/status').catch(() => null),
         fetchWithAuth('/admin/metrics').catch(() => null),
@@ -265,7 +265,7 @@ export default function AdminDashboard() {
               <div className="text-4xl md:text-5xl font-bold text-white mb-2">
                 {loading ? '-' : stats.totalFactoryKeys}
               </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">Factory Keys</div>
+              <div className="text-neutral-600 text-sm uppercase tracking-wider">Troll-Keys</div>
               <div className="text-neutral-400 text-xs mt-1">{healthyFactoryKeys} healthy</div>
             </div>
             <div className="text-center">
@@ -427,11 +427,11 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Factory Keys */}
+          {/* Troll-Keys */}
           <div className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Factory Keys</h3>
-              <Link href="/factory-keys" className="text-sm text-neutral-400 hover:text-white transition-colors">
+              <h3 className="text-lg font-semibold text-white">Troll-Keys</h3>
+              <Link href="/troll-keys" className="text-sm text-neutral-400 hover:text-white transition-colors">
                 View all
               </Link>
             </div>
@@ -460,8 +460,8 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-neutral-500">
-                  <p>No factory keys configured</p>
-                  <Link href="/factory-keys" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
+                  <p>No Troll-Keys configured</p>
+                  <Link href="/troll-keys" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
                     Add your first key
                   </Link>
                 </div>
@@ -592,10 +592,10 @@ export default function AdminDashboard() {
               Create User Key
             </Link>
             <Link
-              href="/factory-keys"
+              href="/troll-keys"
               className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
             >
-              Add Factory Key
+              Add Troll-Key
             </Link>
             <Link
               href="/proxies"

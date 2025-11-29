@@ -1,14 +1,56 @@
 import { FactoryKey, IFactoryKey } from '../models/factory-key.model.js';
 
+// Safe factory key type that never exposes the full apiKey
+export interface SafeFactoryKey {
+  _id: string;
+  maskedApiKey: string;
+  status: 'healthy' | 'rate_limited' | 'exhausted' | 'error';
+  tokensUsed: number;
+  requestsCount: number;
+  lastError?: string;
+  cooldownUntil?: Date;
+  createdAt: Date;
+}
+
 export class FactoryKeyRepository {
-  async findAll(): Promise<IFactoryKey[]> {
-    return FactoryKey.find().sort({ createdAt: -1 }).lean();
+  // Mask API key to show only first 7 and last 3 characters
+  private maskApiKey(key: string): string {
+    if (!key || key.length < 10) return '***';
+    return key.substring(0, 7) + '***' + key.substring(key.length - 3);
   }
 
-  async findById(id: string): Promise<IFactoryKey | null> {
-    return FactoryKey.findById(id).lean();
+  // Returns factory keys with masked apiKey - safe for API responses
+  async findAll(): Promise<SafeFactoryKey[]> {
+    const keys = await FactoryKey.find().sort({ createdAt: -1 }).lean();
+    return keys.map(key => ({
+      _id: key._id,
+      maskedApiKey: this.maskApiKey(key.apiKey),
+      status: key.status,
+      tokensUsed: key.tokensUsed,
+      requestsCount: key.requestsCount,
+      lastError: key.lastError,
+      cooldownUntil: key.cooldownUntil,
+      createdAt: key.createdAt,
+    }));
   }
 
+  // Returns single factory key with masked apiKey - safe for API responses
+  async findById(id: string): Promise<SafeFactoryKey | null> {
+    const key = await FactoryKey.findById(id).lean();
+    if (!key) return null;
+    return {
+      _id: key._id,
+      maskedApiKey: this.maskApiKey(key.apiKey),
+      status: key.status,
+      tokensUsed: key.tokensUsed,
+      requestsCount: key.requestsCount,
+      lastError: key.lastError,
+      cooldownUntil: key.cooldownUntil,
+      createdAt: key.createdAt,
+    };
+  }
+
+  // Internal use only - returns full apiKey for GoProxy
   async findHealthy(): Promise<IFactoryKey[]> {
     return FactoryKey.find({ status: 'healthy' }).lean();
   }

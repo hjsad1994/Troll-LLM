@@ -1,12 +1,35 @@
 import { RequestLog, IRequestLog } from '../models/request-log.model.js';
 
 export interface CreateRequestLogData {
+  userId?: string;
   userKeyId: string;
   factoryKeyId: string;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheWriteTokens?: number;
+  cacheHitTokens?: number;
+  creditsCost?: number;
   tokensUsed: number;
   statusCode: number;
   latencyMs?: number;
   isSuccess?: boolean;
+}
+
+export interface RequestHistoryQuery {
+  userId: string;
+  page?: number;
+  limit?: number;
+  from?: Date;
+  to?: Date;
+}
+
+export interface RequestHistoryResult {
+  requests: IRequestLog[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export class RequestLogRepository {
@@ -30,6 +53,37 @@ export class RequestLogRepository {
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
+  }
+
+  async findByUserId(query: RequestHistoryQuery): Promise<RequestHistoryResult> {
+    const { userId, page = 1, limit = 20, from, to } = query;
+    const safeLimit = Math.min(Math.max(1, limit), 100);
+    const safePage = Math.max(1, page);
+    const skip = (safePage - 1) * safeLimit;
+
+    const filter: any = { userId };
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) filter.createdAt.$gte = from;
+      if (to) filter.createdAt.$lte = to;
+    }
+
+    const [requests, total] = await Promise.all([
+      RequestLog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean(),
+      RequestLog.countDocuments(filter),
+    ]);
+
+    return {
+      requests,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   async getMetrics(since?: Date): Promise<{

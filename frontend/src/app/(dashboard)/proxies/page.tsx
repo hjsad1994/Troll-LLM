@@ -67,7 +67,7 @@ export default function ProxiesPage() {
   
   async function loadFactoryKeys() {
     try {
-      const resp = await fetchWithAuth('/admin/factory-keys')
+      const resp = await fetchWithAuth('/admin/troll-keys')
       if (!resp.ok) return
       const data = await resp.json()
       setFactoryKeys(data.keys || [])

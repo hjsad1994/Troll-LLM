@@ -72,8 +72,8 @@ func UsersCollection() *mongo.Collection {
 	return GetCollection("users")
 }
 
-func FactoryKeysCollection() *mongo.Collection {
-	return GetCollection("factory_keys")
+func TrollKeysCollection() *mongo.Collection {
+	return GetCollection("troll_keys")
 }
 
 func RequestLogsCollection() *mongo.Collection {

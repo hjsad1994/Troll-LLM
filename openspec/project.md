@@ -1,7 +1,7 @@
 # Project Context
 
 ## Purpose
-TrollLLM is a full-stack API proxy and management platform for AI services (Factory AI). It provides:
+TrollLLM is a full-stack API proxy and management platform for AI services. It provides:
 - Multi-model API proxy with OpenAI and Anthropic endpoint compatibility
 - Admin dashboard for API key management, usage tracking, and proxy configuration
 - User-facing usage dashboard
@@ -25,7 +25,7 @@ TrollLLM is a full-stack API proxy and management platform for AI services (Fact
 
 3. **Frontend** (`/frontend`) - Next.js admin dashboard
    - Keys management UI
-   - Factory keys management
+   - Troll-Keys management
    - Proxy configuration
    - Usage dashboard
 
@@ -118,7 +118,7 @@ TrollLLM is a full-stack API proxy and management platform for AI services (Fact
   - `src/lib/` - Utilities and API clients
 - **Pages**: 
   - Public: login, register, docs, models, usage
-  - Dashboard: dashboard, keys, factory-keys, proxies, users, admin
+  - Dashboard: dashboard, keys, troll-keys, proxies, users, admin
 
 ### Testing Strategy
 - **GoProxy**: Go standard testing with `go test -race`
@@ -131,17 +131,17 @@ TrollLLM is a full-stack API proxy and management platform for AI services (Fact
 - Keep commits focused and descriptive
 
 ## Domain Context
-- **Factory AI**: Upstream AI provider that hosts Claude and GPT models
+- **Upstream AI Providers**: AI services that host Claude and GPT models
 - **OpenAI Format**: Standard chat completion format with `messages` array
 - **Anthropic Format**: Native format with `system` array and `messages` array
 - **Streaming**: Both formats use SSE but with different event structures
-- **API Keys**: User-facing keys for proxy access, Factory keys for upstream auth
+- **API Keys**: User-facing keys for proxy access, Troll-Keys for upstream auth
 - **Proxy Pool**: Multiple proxy endpoints for load balancing and failover
 
 ## Important Constraints
 
 ### GoProxy
-- `FACTORY_API_KEY` environment variable is required
+- `TROLL_API_KEY` environment variable is required (upstream API key)
 - `PROXY_API_KEY` is optional for client authentication
 - Max token limits vary by model (Claude Opus 4.1: 32K, others: 64K-128K)
 - HTTP client timeout: 120 seconds
@@ -160,11 +160,11 @@ TrollLLM is a full-stack API proxy and management platform for AI services (Fact
 
 ### Services
 - **MongoDB**: Shared database for keys, usage, and proxy configuration
-- **Factory AI API**: Upstream AI provider
+- **Upstream AI APIs**: AI provider APIs (Anthropic, OpenAI, etc.)
 
 ### Environment Variables
 - `MONGODB_URI` - MongoDB connection string (all components)
-- `FACTORY_API_KEY` - Upstream API authentication (goproxy)
+- `TROLL_API_KEY` - Upstream API authentication (goproxy)
 - `PROXY_API_KEY` - Client authentication (goproxy, optional)
 - `ADMIN_SECRET_KEY` - Admin auth (backend)
 - `DEBUG` - Enable debug logging (goproxy)

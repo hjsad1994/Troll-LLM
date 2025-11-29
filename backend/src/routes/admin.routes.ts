@@ -17,13 +17,13 @@ router.patch('/keys/:id', requireAdmin, (req, res) => userKeyController.update(r
 router.delete('/keys/:id', requireAdmin, (req, res) => userKeyController.delete(req, res));
 router.post('/keys/:id/reset', requireAdmin, (req, res) => userKeyController.reset(req, res));
 
-// Factory Keys - users can read, only admin can write
-router.get('/factory-keys', (req, res) => factoryKeyController.list(req, res));
-router.get('/factory-keys/analytics', (req, res) => factoryKeyController.getAllAnalytics(req, res));
-router.get('/factory-keys/:id/analytics', (req, res) => factoryKeyController.getAnalytics(req, res));
-router.post('/factory-keys', requireAdmin, (req, res) => factoryKeyController.create(req, res));
-router.delete('/factory-keys/:id', requireAdmin, (req, res) => factoryKeyController.delete(req, res));
-router.post('/factory-keys/:id/reset', requireAdmin, (req, res) => factoryKeyController.reset(req, res));
+// Troll-Keys - admin only (contains sensitive upstream API keys)
+router.get('/troll-keys', requireAdmin, (req, res) => factoryKeyController.list(req, res));
+router.get('/troll-keys/analytics', requireAdmin, (req, res) => factoryKeyController.getAllAnalytics(req, res));
+router.get('/troll-keys/:id/analytics', requireAdmin, (req, res) => factoryKeyController.getAnalytics(req, res));
+router.post('/troll-keys', requireAdmin, (req, res) => factoryKeyController.create(req, res));
+router.delete('/troll-keys/:id', requireAdmin, (req, res) => factoryKeyController.delete(req, res));
+router.post('/troll-keys/:id/reset', requireAdmin, (req, res) => factoryKeyController.reset(req, res));
 
 // Metrics - all authenticated users can read
 router.get('/metrics', (req, res) => metricsController.getSystemMetrics(req, res));

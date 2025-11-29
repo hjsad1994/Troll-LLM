@@ -1,12 +1,14 @@
-import { factoryKeyRepository } from '../repositories/factory-key.repository.js';
+import { factoryKeyRepository, SafeFactoryKey } from '../repositories/factory-key.repository.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
 import { IFactoryKey } from '../models/factory-key.model.js';
 
-export async function listFactoryKeys(): Promise<IFactoryKey[]> {
+// Returns factory keys with masked apiKey - safe for API responses
+export async function listFactoryKeys(): Promise<SafeFactoryKey[]> {
   return factoryKeyRepository.findAll();
 }
 
-export async function getFactoryKey(id: string): Promise<IFactoryKey | null> {
+// Returns single factory key with masked apiKey - safe for API responses
+export async function getFactoryKey(id: string): Promise<SafeFactoryKey | null> {
   return factoryKeyRepository.findById(id);
 }
 

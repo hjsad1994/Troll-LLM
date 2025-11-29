@@ -58,27 +58,27 @@ type ThinkingConfig struct {
 	BudgetTokens int    `json:"budget_tokens"`
 }
 
-// FactoryOpenAIMessage represents Factory OpenAI format message
-type FactoryOpenAIMessage struct {
+// TrollOpenAIMessage represents TrollLLM OpenAI format message
+type TrollOpenAIMessage struct {
 	Role    string                   `json:"role"`
 	Content []map[string]interface{} `json:"content"`
 }
 
-// FactoryOpenAIRequest represents Factory OpenAI request format (for /v1/responses endpoint)
-type FactoryOpenAIRequest struct {
-	Model             string                 `json:"model"`
-	Input             []FactoryOpenAIMessage `json:"input"`
-	Instructions      string                 `json:"instructions,omitempty"`
-	MaxOutputTokens   int                    `json:"max_output_tokens,omitempty"`
-	Temperature       float64                `json:"temperature,omitempty"`
-	TopP              float64                `json:"top_p,omitempty"`
-	Stream            bool                   `json:"stream,omitempty"`
-	Store             bool                   `json:"store"`
-	Tools             []interface{}          `json:"tools,omitempty"`
-	Reasoning         *ReasoningConfig       `json:"reasoning,omitempty"`
-	PresencePenalty   float64                `json:"presence_penalty,omitempty"`
-	FrequencyPenalty  float64                `json:"frequency_penalty,omitempty"`
-	ParallelToolCalls bool                   `json:"parallel_tool_calls,omitempty"`
+// TrollOpenAIRequest represents TrollLLM OpenAI request format (for /v1/responses endpoint)
+type TrollOpenAIRequest struct {
+	Model             string               `json:"model"`
+	Input             []TrollOpenAIMessage `json:"input"`
+	Instructions      string               `json:"instructions,omitempty"`
+	MaxOutputTokens   int                  `json:"max_output_tokens,omitempty"`
+	Temperature       float64              `json:"temperature,omitempty"`
+	TopP              float64              `json:"top_p,omitempty"`
+	Stream            bool                 `json:"stream,omitempty"`
+	Store             bool                 `json:"store"`
+	Tools             []interface{}        `json:"tools,omitempty"`
+	Reasoning         *ReasoningConfig     `json:"reasoning,omitempty"`
+	PresencePenalty   float64              `json:"presence_penalty,omitempty"`
+	FrequencyPenalty  float64              `json:"frequency_penalty,omitempty"`
+	ParallelToolCalls bool                 `json:"parallel_tool_calls,omitempty"`
 }
 
 // ReasoningConfig represents OpenAI reasoning configuration
@@ -213,11 +213,11 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 	return anthropicReq
 }
 
-// TransformToFactoryOpenAI converts OpenAI format to Factory OpenAI format
-func TransformToFactoryOpenAI(req *OpenAIRequest) *FactoryOpenAIRequest {
-	factoryReq := &FactoryOpenAIRequest{
+// TransformToTrollOpenAI converts OpenAI format to TrollLLM OpenAI format
+func TransformToTrollOpenAI(req *OpenAIRequest) *TrollOpenAIRequest {
+	trollReq := &TrollOpenAIRequest{
 		Model:  req.Model,
-		Input:  []FactoryOpenAIMessage{},
+		Input:  []TrollOpenAIMessage{},
 		Stream: req.Stream,
 		Store:  false,
 	}
@@ -230,35 +230,35 @@ func TransformToFactoryOpenAI(req *OpenAIRequest) *FactoryOpenAIRequest {
 	if req.MaxTokens > 0 {
 		// User specified max_tokens, limit to model maximum
 		if req.MaxTokens > maxLimit {
-			factoryReq.MaxOutputTokens = maxLimit
+			trollReq.MaxOutputTokens = maxLimit
 		} else {
-			factoryReq.MaxOutputTokens = req.MaxTokens
+			trollReq.MaxOutputTokens = req.MaxTokens
 		}
 	} else {
 		// Use model maximum as default when not specified
-		factoryReq.MaxOutputTokens = maxLimit
+		trollReq.MaxOutputTokens = maxLimit
 	}
 
 	// Convert other parameters
 	if req.Temperature > 0 {
-		factoryReq.Temperature = req.Temperature
+		trollReq.Temperature = req.Temperature
 	}
 	if req.TopP > 0 {
-		factoryReq.TopP = req.TopP
+		trollReq.TopP = req.TopP
 	}
 	if req.PresencePenalty != 0 {
-		factoryReq.PresencePenalty = req.PresencePenalty
+		trollReq.PresencePenalty = req.PresencePenalty
 	}
 	if req.FrequencyPenalty != 0 {
-		factoryReq.FrequencyPenalty = req.FrequencyPenalty
+		trollReq.FrequencyPenalty = req.FrequencyPenalty
 	}
 
-	// 转换工具
+	// Convert tools
 	if len(req.Tools) > 0 {
-		factoryReq.Tools = req.Tools
+		trollReq.Tools = req.Tools
 	}
 
-	// 提取 system 消息作为 instructions
+	// Extract system message as instructions
 	systemPrompt := config.GetSystemPrompt()
 	var userSystemMessages []string
 
@@ -308,24 +308,24 @@ func TransformToFactoryOpenAI(req *OpenAIRequest) *FactoryOpenAIRequest {
 			}
 		}
 
-		factoryMsg := FactoryOpenAIMessage{
+		trollMsg := TrollOpenAIMessage{
 			Role:    msg.Role,
 			Content: contentArray,
 		}
 
-		factoryReq.Input = append(factoryReq.Input, factoryMsg)
+		trollReq.Input = append(trollReq.Input, trollMsg)
 	}
 
-	// 设置 instructions
+	// Set instructions
 	if systemPrompt != "" || len(userSystemMessages) > 0 {
 		instructions := systemPrompt
 		for _, msg := range userSystemMessages {
 			instructions += msg
 		}
-		factoryReq.Instructions = instructions
+		trollReq.Instructions = instructions
 	}
 
-	// 处理 reasoning 字段
+	// Handle reasoning field
 	// Fix: GPT-5 and GPT-5.1 require reasoning parameter with valid value
 	reasoning := config.GetModelReasoning(req.Model)
 
@@ -334,37 +334,37 @@ func TransformToFactoryOpenAI(req *OpenAIRequest) *FactoryOpenAIRequest {
 		// Use config value, default to "medium" if off
 		effort := reasoning
 		if effort == "" || effort == "off" {
-			effort = "medium" // Factory default
+			effort = "medium" // TrollLLM default
 		}
-		factoryReq.Reasoning = &ReasoningConfig{
+		trollReq.Reasoning = &ReasoningConfig{
 			Effort:  effort,
 			Summary: "auto",
 		}
 	} else if reasoning != "" {
 		// Cho các models khác
-		factoryReq.Reasoning = &ReasoningConfig{
+		trollReq.Reasoning = &ReasoningConfig{
 			Effort:  reasoning,
 			Summary: "auto",
 		}
 
-		// 如果需要推理，增加 max_output_tokens 以确保有足够空间输出答案
-		if factoryReq.MaxOutputTokens == 0 {
-			factoryReq.MaxOutputTokens = 4000
-		} else if factoryReq.MaxOutputTokens < 1000 {
-			// 确保至少有足够的 token 用于实际输出
-			factoryReq.MaxOutputTokens = factoryReq.MaxOutputTokens + 2000
+		// If reasoning is needed, increase max_output_tokens to ensure enough space for output
+		if trollReq.MaxOutputTokens == 0 {
+			trollReq.MaxOutputTokens = 4000
+		} else if trollReq.MaxOutputTokens < 1000 {
+			// Ensure there are enough tokens for actual output
+			trollReq.MaxOutputTokens = trollReq.MaxOutputTokens + 2000
 		}
 	}
 
-	return factoryReq
+	return trollReq
 }
 
-// GetAnthropicHeaders 获取 Anthropic 请求头
+// GetAnthropicHeaders returns Anthropic request headers
 func GetAnthropicHeaders(authHeader string, clientHeaders map[string]string, isStreaming bool, modelID string) map[string]string {
 	headers := map[string]string{
 		"content-type":      "application/json",
 		"authorization":     authHeader,
-		"anthropic-version": "2023-06-01", // Anthropic API 版本标识符（推荐稳定版本）
+		"anthropic-version": "2023-06-01", // Anthropic API version identifier (recommended stable version)
 		"user-agent":        config.GetUserAgent(),
 	}
 
@@ -388,9 +388,9 @@ func GetAnthropicHeaders(authHeader string, clientHeaders map[string]string, isS
 	return headers
 }
 
-// GetFactoryOpenAIHeaders 获取 Factory OpenAI 请求头
-func GetFactoryOpenAIHeaders(authHeader string, clientHeaders map[string]string) map[string]string {
-	// 生成唯一 ID
+// GetTrollOpenAIHeaders returns TrollLLM OpenAI request headers
+func GetTrollOpenAIHeaders(authHeader string, clientHeaders map[string]string) map[string]string {
+	// Generate unique ID
 	sessionID := clientHeaders["x-session-id"]
 	if sessionID == "" {
 		sessionID = uuid.New().String()
@@ -427,7 +427,7 @@ func GetFactoryOpenAIHeaders(authHeader string, clientHeaders map[string]string)
 		"x-stainless-runtime-version": "v24.3.0",
 	}
 
-	// 从客户端头中覆盖允许的字段
+	// Override allowed fields from client headers
 	for key, value := range clientHeaders {
 		if key == "x-session-id" || key == "x-assistant-message-id" {
 			headers[key] = value

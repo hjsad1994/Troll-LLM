@@ -207,3 +207,51 @@ export async function updateUserCredits(username: string, credits: number): Prom
   }
   return resp.json()
 }
+
+// Request History
+export interface RequestLogEntry {
+  _id: string
+  userId?: string
+  userKeyId: string
+  factoryKeyId: string
+  model?: string
+  inputTokens?: number
+  outputTokens?: number
+  cacheWriteTokens?: number
+  cacheHitTokens?: number
+  creditsCost?: number
+  tokensUsed: number
+  statusCode: number
+  latencyMs?: number
+  isSuccess: boolean
+  createdAt: string
+}
+
+export interface RequestHistoryResponse {
+  requests: RequestLogEntry[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export async function getRequestHistory(params?: {
+  page?: number
+  limit?: number
+  from?: string
+  to?: string
+}): Promise<RequestHistoryResponse> {
+  const searchParams = new URLSearchParams()
+  if (params?.page) searchParams.set('page', params.page.toString())
+  if (params?.limit) searchParams.set('limit', params.limit.toString())
+  if (params?.from) searchParams.set('from', params.from)
+  if (params?.to) searchParams.set('to', params.to)
+
+  const url = `/api/user/request-history${searchParams.toString() ? '?' + searchParams.toString() : ''}`
+  const resp = await fetchWithAuth(url)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get request history')
+  }
+  return resp.json()
+}

@@ -12,12 +12,12 @@ import (
 )
 
 var (
-	ErrNoHealthyKeys = errors.New("no healthy factory keys available")
+	ErrNoHealthyKeys = errors.New("no healthy troll keys available")
 )
 
 type KeyPool struct {
 	mu      sync.Mutex
-	keys    []*FactoryKey
+	keys    []*TrollKey
 	current int
 }
 
@@ -29,7 +29,7 @@ var (
 func GetPool() *KeyPool {
 	poolOnce.Do(func() {
 		pool = &KeyPool{
-			keys:    make([]*FactoryKey, 0),
+			keys:    make([]*TrollKey, 0),
 			current: 0,
 		}
 		pool.LoadKeys()
@@ -41,7 +41,7 @@ func (p *KeyPool) LoadKeys() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := db.FactoryKeysCollection().Find(ctx, bson.M{})
+	cursor, err := db.TrollKeysCollection().Find(ctx, bson.M{})
 	if err != nil {
 		return err
 	}
@@ -50,21 +50,21 @@ func (p *KeyPool) LoadKeys() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.keys = make([]*FactoryKey, 0)
+	p.keys = make([]*TrollKey, 0)
 	for cursor.Next(ctx) {
-		var key FactoryKey
+		var key TrollKey
 		if err := cursor.Decode(&key); err != nil {
-			log.Printf("⚠️ Failed to decode factory key: %v", err)
+			log.Printf("⚠️ Failed to decode troll key: %v", err)
 			continue
 		}
 		p.keys = append(p.keys, &key)
 	}
 
-	log.Printf("✅ Loaded %d factory keys", len(p.keys))
+	log.Printf("✅ Loaded %d troll keys", len(p.keys))
 	return nil
 }
 
-func (p *KeyPool) SelectKey() (*FactoryKey, error) {
+func (p *KeyPool) SelectKey() (*TrollKey, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -87,7 +87,7 @@ func (p *KeyPool) SelectKey() (*FactoryKey, error) {
 	return nil, ErrNoHealthyKeys
 }
 
-func (p *KeyPool) MarkStatus(keyID string, status FactoryKeyStatus, cooldown time.Duration, lastError string) {
+func (p *KeyPool) MarkStatus(keyID string, status TrollKeyStatus, cooldown time.Duration, lastError string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -109,7 +109,7 @@ func (p *KeyPool) MarkStatus(keyID string, status FactoryKeyStatus, cooldown tim
 	}
 }
 
-func (p *KeyPool) updateKeyStatus(keyID string, status FactoryKeyStatus, cooldownUntil *time.Time, lastError string) {
+func (p *KeyPool) updateKeyStatus(keyID string, status TrollKeyStatus, cooldownUntil *time.Time, lastError string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -121,9 +121,9 @@ func (p *KeyPool) updateKeyStatus(keyID string, status FactoryKeyStatus, cooldow
 		},
 	}
 
-	_, err := db.FactoryKeysCollection().UpdateByID(ctx, keyID, update)
+	_, err := db.TrollKeysCollection().UpdateByID(ctx, keyID, update)
 	if err != nil {
-		log.Printf("⚠️ Failed to update factory key status: %v", err)
+		log.Printf("⚠️ Failed to update troll key status: %v", err)
 	}
 }
 
@@ -177,7 +177,7 @@ func (p *KeyPool) GetKeyCount() int {
 	return len(p.keys)
 }
 
-func (p *KeyPool) GetKeyByID(keyID string) *FactoryKey {
+func (p *KeyPool) GetKeyByID(keyID string) *TrollKey {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

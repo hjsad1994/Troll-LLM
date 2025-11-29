@@ -38,7 +38,7 @@ interface UserKey {
 interface FactoryKey {
   _id?: string
   id?: string
-  apiKey?: string
+  maskedApiKey?: string // Backend returns masked key only
   status: string
   tokensUsed: number
   requestsCount: number
@@ -197,19 +197,31 @@ export default function Dashboard() {
     }
   }
 
+  const isAdmin = user?.role === 'admin'
+
   const loadDashboard = useCallback(async () => {
     try {
-      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp] = await Promise.all([
+      // User keys and status are accessible to all authenticated users
+      const [keysResp, statusResp, metricsResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
-        fetchWithAuth('/admin/factory-keys').catch(() => null),
-        fetchWithAuth('/admin/proxies').catch(() => null),
         fetch('/api/status').catch(() => null),
         fetchWithAuth('/admin/metrics').catch(() => null),
       ])
 
+      // Factory keys and proxies are admin-only - skip for non-admins
+      let factoryData = { total: 0, keys: [] }
+      let proxiesData = { total: 0, proxies: [] }
+      
+      if (isAdmin) {
+        const [factoryResp, proxiesResp] = await Promise.all([
+          fetchWithAuth('/admin/troll-keys').catch(() => null),
+          fetchWithAuth('/admin/proxies').catch(() => null),
+        ])
+        factoryData = factoryResp?.ok ? await factoryResp.json() : { total: 0, keys: [] }
+        proxiesData = proxiesResp?.ok ? await proxiesResp.json() : { total: 0, proxies: [] }
+      }
+
       const keysData = keysResp?.ok ? await keysResp.json() : { total: 0, keys: [] }
-      const factoryData = factoryResp?.ok ? await factoryResp.json() : { total: 0, keys: [] }
-      const proxiesData = proxiesResp?.ok ? await proxiesResp.json() : { total: 0, proxies: [] }
       const statusData = statusResp?.ok ? await statusResp.json() : { status: 'unknown', summary: { healthy: 0, total: 0 } }
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
 
@@ -235,8 +247,10 @@ export default function Dashboard() {
 
       // Set detailed data for tables
       setUserKeys((keysData.keys || []).slice(0, 5))
-      setFactoryKeys((factoryData.keys || []).slice(0, 5))
-      setProxies((proxiesData.proxies || []).slice(0, 5))
+      if (isAdmin) {
+        setFactoryKeys((factoryData.keys || []).slice(0, 5))
+        setProxies((proxiesData.proxies || []).slice(0, 5))
+      }
       setRecentLogs(metricsData.recent_logs || [])
 
       setLastUpdate(new Date())
@@ -245,7 +259,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isAdmin])
 
   useEffect(() => {
     loadDashboard()
@@ -488,7 +502,7 @@ export default function Dashboard() {
               </svg>
             </div>
             <div>
-              <p className="text-slate-400 text-xs uppercase tracking-wider">Factory Keys</p>
+              <p className="text-slate-400 text-xs uppercase tracking-wider">Troll-Keys</p>
               <p className="text-2xl font-bold text-white">{loading ? '-' : stats.totalFactoryKeys}</p>
               <p className="text-xs text-violet-400">{healthyFactoryKeys} healthy</p>
             </div>
@@ -665,54 +679,56 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Factory Keys Table */}
-        <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
+        {/* Troll-Keys Table - Admin only */}
+        {isAdmin && (
+          <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white">Troll-Keys (Upstream)</h3>
               </div>
-              <h3 className="text-lg font-semibold text-white">Factory Keys (Upstream)</h3>
+              <Link href="/troll-keys" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
+                View all
+              </Link>
             </div>
-            <Link href="/factory-keys" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
-              View all
-            </Link>
-          </div>
-          <div className="p-4">
-            {factoryKeys.length > 0 ? (
-              <div className="space-y-3">
-                {factoryKeys.map((key) => (
-                  <div key={key._id || key.id} className="bg-slate-800/50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm text-slate-300">{maskApiKey(key.apiKey || '')}</span>
-                        {key.provider && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-600/50 text-slate-300">
-                            {key.provider}
-                          </span>
-                        )}
+            <div className="p-4">
+              {factoryKeys.length > 0 ? (
+                <div className="space-y-3">
+                  {factoryKeys.map((key) => (
+                    <div key={key._id || key.id} className="bg-slate-800/50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm text-slate-300">{(key as any).maskedApiKey || '***'}</span>
+                          {key.provider && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-600/50 text-slate-300">
+                              {key.provider}
+                            </span>
+                          )}
+                        </div>
+                        {getStatusBadge(key.status)}
                       </div>
-                      {getStatusBadge(key.status)}
+                      <div className="flex items-center gap-4 text-xs text-slate-400">
+                        <span>{formatLargeNumber(key.tokensUsed)} tokens used</span>
+                        <span>{key.requestsCount.toLocaleString()} requests</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-400">
-                      <span>{formatLargeNumber(key.tokensUsed)} tokens used</span>
-                      <span>{key.requestsCount.toLocaleString()} requests</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">
-                <p>No factory keys configured</p>
-                <Link href="/factory-keys" className="text-violet-400 text-sm hover:underline mt-2 inline-block">
-                  Add your first key
-                </Link>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <p>No Troll-Keys configured</p>
+                  <Link href="/troll-keys" className="text-violet-400 text-sm hover:underline mt-2 inline-block">
+                    Add your first key
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Proxies Section */}
@@ -850,12 +866,14 @@ export default function Dashboard() {
           >
             Create User Key
           </Link>
-          <Link
-            href="/factory-keys"
-            className="px-5 py-2.5 rounded-xl bg-slate-700/50 text-slate-300 font-medium text-sm hover:bg-slate-700 transition-all border border-slate-600/50"
-          >
-            Add Factory Key
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/troll-keys"
+              className="px-5 py-2.5 rounded-xl bg-slate-700/50 text-slate-300 font-medium text-sm hover:bg-slate-700 transition-all border border-slate-600/50"
+            >
+              Add Troll-Key
+            </Link>
+          )}
           <Link
             href="/proxies"
             className="px-5 py-2.5 rounded-xl bg-slate-700/50 text-slate-300 font-medium text-sm hover:bg-slate-700 transition-all border border-slate-600/50"

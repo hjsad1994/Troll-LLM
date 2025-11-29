@@ -106,37 +106,37 @@ The system SHALL allow users to check their token usage via API and Web UI.
 #### Scenario: Dashboard shows system metrics
 - **WHEN** admin views Dashboard at root `/`
 - **THEN** Dashboard SHALL display system-wide metrics (Total Requests, Total Tokens, Avg Latency, Success Rate)
-- **AND** Dashboard SHALL display existing stats (User Keys, Factory Keys, Proxies, System Health)
+- **AND** Dashboard SHALL display existing stats (User Keys, Troll-Keys, Proxies, System Health)
 
-### Requirement: Factory Key Pool Management
-The system SHALL support multiple Factory API keys with round-robin rotation and health monitoring.
+### Requirement: Troll-Key Pool Management
+The system SHALL support multiple Troll-Keys (upstream API keys) with round-robin rotation and health monitoring.
 
-#### Scenario: Load Factory keys from configuration
-- **WHEN** the server starts with `factory_keys.items` configured
+#### Scenario: Load Troll-Keys from configuration
+- **WHEN** the server starts with `troll_keys.items` configured
 - **THEN** all keys SHALL be loaded into the pool with status "healthy"
 
 #### Scenario: Round-robin selection
-- **WHEN** a request needs a Factory key
+- **WHEN** a request needs a Troll-Key
 - **THEN** the system SHALL select the next healthy key in rotation order
 - **AND** skip keys with status "rate_limited" or "exhausted"
 
-#### Scenario: No healthy Factory keys available
-- **WHEN** all Factory keys are unhealthy
+#### Scenario: No healthy Troll-Keys available
+- **WHEN** all Troll-Keys are unhealthy
 - **THEN** the system SHALL return HTTP 503 Service Unavailable
 - **AND** response SHALL include error "No healthy upstream keys available"
 
 ---
 
-### Requirement: Factory Key Health Monitoring
-The system SHALL monitor Factory key health and automatically handle failures.
+### Requirement: Troll-Key Health Monitoring
+The system SHALL monitor Troll-Key health and automatically handle failures.
 
 #### Scenario: Mark key rate_limited on 429
-- **WHEN** a Factory key receives HTTP 429 (not quota exhausted)
+- **WHEN** a Troll-Key receives HTTP 429 (not quota exhausted)
 - **THEN** the key SHALL be marked as "rate_limited"
 - **AND** cooldown SHALL be set to 60 seconds
 
 #### Scenario: Mark key exhausted on quota error
-- **WHEN** a Factory key receives HTTP 429 with quota exhausted message
+- **WHEN** a Troll-Key receives HTTP 429 with quota exhausted message
 - **OR** HTTP 402 Payment Required
 - **THEN** the key SHALL be marked as "exhausted"
 - **AND** cooldown SHALL be set to 24 hours
@@ -148,7 +148,7 @@ The system SHALL monitor Factory key health and automatically handle failures.
 
 #### Scenario: Health status in health endpoint
 - **WHEN** client calls `GET /health`
-- **THEN** response SHALL include factory key pool statistics
+- **THEN** response SHALL include Troll-Key pool statistics
 - **AND** count of healthy, rate_limited, exhausted keys
 
 ---
@@ -173,14 +173,14 @@ The system SHALL accurately count tokens for streaming requests.
 
 #### Scenario: Streaming request token tracking
 - **WHEN** a streaming request is made (`stream: true`)
-- **THEN** the same Factory key SHALL be used for entire stream
+- **THEN** the same Troll-Key SHALL be used for entire stream
 - **AND** tokens SHALL be accumulated from streaming deltas
 - **AND** usage SHALL be updated after stream completes
 
 #### Scenario: Stream interruption handling
 - **WHEN** a streaming request is interrupted
 - **THEN** tokens counted up to interruption SHALL be recorded
-- **AND** Factory key SHALL be released
+- **AND** Troll-Key SHALL be released
 
 ### Requirement: Proxy Management
 The system SHALL support multiple proxy servers (HTTP and SOCKS5) for routing API requests to upstream providers.
@@ -225,7 +225,7 @@ The system SHALL support binding 1-2 Factory API keys to each proxy server.
 #### Scenario: Admin unbinds key from proxy
 - **WHEN** admin sends DELETE /admin/proxies/:id/keys/:keyId
 - **THEN** system removes binding
-- **AND** key remains in factory_keys collection
+- **AND** key remains in troll_keys collection
 
 ### Requirement: Proxy-Based Request Routing
 The system SHALL route API requests through configured proxies using round-robin selection.
@@ -298,7 +298,7 @@ The system SHALL provide a web-based admin dashboard for managing keys and proxi
 - **WHEN** admin navigates to /admin
 - **AND** is authenticated
 - **THEN** system displays dashboard with overview stats
-- **AND** shows navigation to keys, factory-keys, proxies pages
+- **AND** shows navigation to keys, troll-keys, proxies pages
 
 #### Scenario: Unauthenticated access redirects to login
 - **WHEN** unauthenticated user navigates to /admin/*
@@ -330,22 +330,30 @@ The system SHALL provide UI for managing user API keys.
 - **THEN** system revokes key
 - **AND** updates list to show revoked status
 
-### Requirement: Factory Keys CRUD UI
-The system SHALL provide UI for managing factory API keys.
+### Requirement: Troll-Key CRUD UI
+The system SHALL provide UI for managing Troll-Keys (upstream API keys), restricted to admin users only.
 
-#### Scenario: Admin views factory keys
-- **WHEN** admin navigates to /admin/factory-keys
-- **THEN** system displays all factory keys with status
+#### Scenario: Admin views Troll-Keys
+- **WHEN** admin navigates to `/admin/troll-keys`
+- **THEN** system displays all Troll-Keys with status
 - **AND** shows tokens used, requests count, health status
+- **AND** shows masked API key (format: `xxx***xxx`)
+- **AND** does NOT show full API key value
 
-#### Scenario: Admin adds factory key via UI
-- **WHEN** admin fills add factory key form with ID and API key
+#### Scenario: Non-admin attempts Troll-Key access
+- **WHEN** non-admin user navigates to `/admin/troll-keys` or `/troll-keys`
+- **THEN** system redirects to `/dashboard`
+- **AND** returns HTTP 403 if API endpoint is accessed directly
+
+#### Scenario: Admin adds Troll-Key via UI
+- **WHEN** admin fills add Troll-Key form with ID and API key
 - **AND** submits form
-- **THEN** system creates factory key
-- **AND** refreshes list
+- **THEN** system creates Troll-Key
+- **AND** displays full API key ONCE in response
+- **AND** refreshes list showing masked key only
 
-#### Scenario: Admin deletes factory key via UI
-- **WHEN** admin clicks delete on a factory key
+#### Scenario: Admin deletes Troll-Key via UI
+- **WHEN** admin clicks delete on a Troll-Key
 - **AND** confirms action
 - **THEN** system deletes key and all bindings
 - **AND** refreshes list
@@ -366,7 +374,7 @@ The system SHALL provide UI for managing proxies and key bindings.
 
 #### Scenario: Admin binds key to proxy via UI
 - **WHEN** admin selects proxy and clicks "Bind Key"
-- **AND** selects factory key and priority
+- **AND** selects Troll-Key and priority
 - **THEN** system creates binding
 - **AND** shows updated bound keys count
 
@@ -464,10 +472,10 @@ The system SHALL display system-wide metrics on the admin Dashboard.
 ---
 
 ### Requirement: Token Analytics API
-The system SHALL provide an API endpoint to retrieve token usage analytics for factory keys.
+The system SHALL provide an API endpoint to retrieve token usage analytics for Troll-Keys.
 
 #### Scenario: Get token analytics
-- **WHEN** admin requests `GET /admin/factory-keys/analytics`
+- **WHEN** admin requests `GET /admin/troll-keys/analytics`
 - **THEN** the system SHALL return token usage statistics including:
   - `tokens_1h`: Total tokens used in the last 1 hour
   - `tokens_24h`: Total tokens used in the last 24 hours  
@@ -476,26 +484,26 @@ The system SHALL provide an API endpoint to retrieve token usage analytics for f
   - `requests_24h`: Total requests in the last 24 hours
   - `requests_7d`: Total requests in the last 7 days
 
-#### Scenario: Analytics by factory key
-- **WHEN** admin requests `GET /admin/factory-keys/:id/analytics`
-- **THEN** the system SHALL return token usage statistics for that specific factory key
+#### Scenario: Analytics by Troll-Key
+- **WHEN** admin requests `GET /admin/troll-keys/:id/analytics`
+- **THEN** the system SHALL return token usage statistics for that specific Troll-Key
 
 ### Requirement: Request Logging for Analytics
 The system SHALL log each API request with timestamp and token usage for analytics aggregation.
 
-#### Scenario: Log request with factory key
+#### Scenario: Log request with Troll-Key
 - **WHEN** a request is processed through the proxy
 - **THEN** the system SHALL log:
-  - `factoryKeyId`: The factory key used
+  - `trollKeyId`: The Troll-Key used
   - `userKeyId`: The user key that made the request
   - `tokensUsed`: Number of tokens consumed
   - `createdAt`: Timestamp of the request
 
 ### Requirement: Token Analytics Dashboard UI
-The admin page SHALL display token usage analytics for factory keys.
+The admin page SHALL display token usage analytics for Troll-Keys.
 
 #### Scenario: Display analytics cards
-- **WHEN** admin visits `/admin/factory-keys.html`
+- **WHEN** admin visits `/admin/troll-keys.html`
 - **THEN** the page SHALL display analytics cards showing:
   - Tokens used in last 1 hour
   - Tokens used in last 24 hours
@@ -768,6 +776,59 @@ The system SHALL provide API endpoints for administrators to manage model pricin
 #### Scenario: Non-admin access denied
 - **WHEN** a non-admin user attempts to modify pricing
 - **THEN** return HTTP 403 Forbidden
+
+---
+
+### Requirement: Troll-Key Backend Isolation
+The system SHALL ensure Troll-Keys (upstream API keys) remain completely hidden from non-admin users and are never exposed in API responses.
+
+#### Scenario: Non-admin user attempts to access Troll-Keys endpoint
+- **WHEN** a user with role "user" calls `GET /admin/troll-keys`
+- **THEN** the system SHALL return HTTP 403 Forbidden
+- **AND** response SHALL include error message "Insufficient permissions"
+
+#### Scenario: Admin user lists Troll-Keys
+- **WHEN** a user with role "admin" calls `GET /admin/troll-keys`
+- **THEN** the system SHALL return Troll-Key metadata
+- **AND** the `apiKey` field SHALL be excluded from the response
+- **AND** a `maskedApiKey` field SHALL be included showing format `xxx***xxx`
+
+#### Scenario: Troll-Key creation returns full key once
+- **WHEN** admin calls `POST /admin/troll-keys` with valid data
+- **THEN** the full `apiKey` value SHALL be returned in the response
+- **AND** subsequent GET requests SHALL NOT include the full `apiKey`
+- **AND** response SHALL include warning "Save this key - it will not be shown again"
+
+#### Scenario: API response never contains full Troll-Key
+- **WHEN** any API endpoint returns Troll-Key data
+- **AND** the request is not a POST (creation)
+- **THEN** the response SHALL NOT include the full `apiKey` field
+- **AND** MongoDB projection SHALL exclude `apiKey` at query time
+
+---
+
+### Requirement: Troll-Key UI Admin-Only Access
+The system SHALL restrict Troll-Key management UI to admin users only.
+
+#### Scenario: Non-admin navigates to troll-keys page
+- **WHEN** a user with role "user" navigates to `/troll-keys`
+- **THEN** the system SHALL redirect to `/dashboard`
+- **AND** Troll-Key management UI SHALL NOT be rendered
+
+#### Scenario: Admin accesses troll-keys page
+- **WHEN** a user with role "admin" navigates to `/troll-keys`
+- **THEN** the system SHALL display the Troll-Key management UI
+- **AND** keys SHALL be displayed with masked API key values
+
+#### Scenario: User dashboard excludes Troll-Keys
+- **WHEN** a user with role "user" views their dashboard
+- **THEN** the dashboard SHALL NOT display Troll-Key information
+- **AND** the dashboard SHALL NOT fetch Troll-Key endpoints
+
+#### Scenario: Admin dashboard shows Troll-Keys
+- **WHEN** a user with role "admin" views the admin dashboard
+- **THEN** the dashboard MAY display Troll-Key summary (count, health)
+- **AND** Troll-Key API values SHALL be masked
 
 ---
 
