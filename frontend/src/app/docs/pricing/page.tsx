@@ -85,7 +85,7 @@ export default function PricingDocsPage() {
       context: '200K',
       inputPrice: '$5.00',
       outputPrice: '$25.00',
-      multiplier: '1.35x',
+      multiplier: '1.1x',
     },
     {
       name: 'Claude Sonnet 4.5',
@@ -93,7 +93,7 @@ export default function PricingDocsPage() {
       context: '200K',
       inputPrice: '$3.00',
       outputPrice: '$15.00',
-      multiplier: '1.25x',
+      multiplier: '1x',
     },
     {
       name: 'Claude Haiku 4.5',
@@ -101,7 +101,7 @@ export default function PricingDocsPage() {
       context: '200K',
       inputPrice: '$1.00',
       outputPrice: '$5.00',
-      multiplier: '1.25x',
+      multiplier: '1x',
     },
     {
       name: 'GPT-5.1',
@@ -109,7 +109,7 @@ export default function PricingDocsPage() {
       context: '128K',
       inputPrice: '$1.25',
       outputPrice: '$10.00',
-      multiplier: '1.3x',
+      multiplier: '1x',
     },
     {
       name: 'Gemini 3 Pro Preview',
@@ -117,7 +117,7 @@ export default function PricingDocsPage() {
       context: '1M',
       inputPrice: '$2.00',
       outputPrice: '$12.00',
-      multiplier: '1.3x',
+      multiplier: '1x',
     },
   ]
 
@@ -333,7 +333,6 @@ export default function PricingDocsPage() {
                 <thead>
                   <tr className="bg-white/[0.02] border-b border-white/5">
                     <th className="px-6 py-4 text-left text-sm font-medium text-slate-400">Model</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-400">Context</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-slate-400">Input/MTok</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-slate-400">Output/MTok</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-slate-400">Multiplier</th>
@@ -348,9 +347,6 @@ export default function PricingDocsPage() {
                           <div className="text-slate-500 text-xs font-mono mt-0.5">{model.id}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 rounded bg-white/5 text-slate-300 text-sm font-mono">{model.context}</span>
-                      </td>
                       <td className="px-6 py-4 text-emerald-400 font-mono">{model.inputPrice}</td>
                       <td className="px-6 py-4 text-amber-400 font-mono">{model.outputPrice}</td>
                       <td className="px-6 py-4">
@@ -363,7 +359,7 @@ export default function PricingDocsPage() {
             </div>
 
             <Tip>
-              <strong>Cost Optimization Tip:</strong> Use Claude Haiku or GPT-5.1 for simple tasks, Claude Sonnet for most use cases, and reserve Opus for complex reasoning. Gemini 3 Pro offers 1M context for large document processing.
+              <strong>Cost Optimization Tip:</strong> Use Claude Haiku or GPT-5.1 for simple tasks, Claude Sonnet for most use cases, and reserve Opus for complex reasoning.
             </Tip>
 
             {/* Credits Explanation */}
@@ -378,35 +374,35 @@ export default function PricingDocsPage() {
                   <div className="text-white font-medium">Claude Opus 4.5</div>
                   <div className="text-slate-500 text-sm">Most capable, highest reasoning</div>
                 </div>
-                <span className="px-3 py-1 rounded-lg bg-purple-500/20 text-purple-400 font-mono text-sm">1.35x</span>
+                <span className="px-3 py-1 rounded-lg bg-purple-500/20 text-purple-400 font-mono text-sm">1.1x</span>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
                 <div>
                   <div className="text-white font-medium">Claude Sonnet 4.5</div>
                   <div className="text-slate-500 text-sm">Balanced performance and cost</div>
                 </div>
-                <span className="px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 font-mono text-sm">1.25x</span>
+                <span className="px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 font-mono text-sm">1x</span>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
                 <div>
                   <div className="text-white font-medium">Claude Haiku 4.5</div>
                   <div className="text-slate-500 text-sm">Fast and affordable</div>
                 </div>
-                <span className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono text-sm">1.25x</span>
+                <span className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono text-sm">1x</span>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
                 <div>
                   <div className="text-white font-medium">GPT-5.1</div>
                   <div className="text-slate-500 text-sm">OpenAI&apos;s latest model</div>
                 </div>
-                <span className="px-3 py-1 rounded-lg bg-sky-500/20 text-sky-400 font-mono text-sm">1.3x</span>
+                <span className="px-3 py-1 rounded-lg bg-sky-500/20 text-sky-400 font-mono text-sm">1x</span>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
                 <div>
                   <div className="text-white font-medium">Gemini 3 Pro Preview</div>
                   <div className="text-slate-500 text-sm">Google&apos;s latest model</div>
                 </div>
-                <span className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-400 font-mono text-sm">1.3x</span>
+                <span className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-400 font-mono text-sm">1x</span>
               </div>
             </div>
 

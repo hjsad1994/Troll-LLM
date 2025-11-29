@@ -191,10 +191,6 @@ function ModelRow({ model, isExpanded, onToggle }: { model: Model; isExpanded: b
         {/* Quick Stats */}
         <div className="hidden md:flex items-center gap-6">
           <div className="text-center">
-            <div className="text-white font-medium">{model.contextLength >= 1000000 ? `${model.contextLength / 1000000}M` : `${model.contextLength / 1000}K`}</div>
-            <div className="text-slate-600 text-xs">Context</div>
-          </div>
-          <div className="text-center">
             <div className={`font-medium ${colors.text}`}>{formatPrice(model.inputPrice)}</div>
             <div className="text-slate-600 text-xs">Input/1M</div>
           </div>
@@ -217,10 +213,6 @@ function ModelRow({ model, isExpanded, onToggle }: { model: Model; isExpanded: b
         <div className="px-5 pb-4 pt-0 border-t border-white/5">
           {/* Mobile Stats */}
           <div className="flex md:hidden flex-wrap items-center gap-4 py-3 mb-3 border-b border-white/5">
-            <div>
-              <span className="text-slate-500 text-xs">Context:</span>
-              <span className="text-white font-medium ml-1">{model.contextLength >= 1000000 ? `${model.contextLength / 1000000}M` : `${model.contextLength / 1000}K`}</span>
-            </div>
             <div>
               <span className="text-slate-500 text-xs">Input:</span>
               <span className={`font-medium ml-1 ${colors.text}`}>{formatPrice(model.inputPrice)}/1M</span>
@@ -417,8 +409,27 @@ export default function ModelsPage() {
             </div>
           )}
 
+          {/* Launch Promotion Banner */}
+          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm2.5 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6.207.293a1 1 0 00-1.414 0l-6 6a1 1 0 101.414 1.414l6-6a1 1 0 000-1.414zM12.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-emerald-400 font-medium text-sm mb-1">
+                  Launch Promotion
+                </p>
+                <p className="text-slate-400 text-sm">
+                  To celebrate our launch, billing multipliers are significantly reduced! Most models are at <strong className="text-white">1x</strong> (original price), Opus at only <strong className="text-white">1.1x</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Pricing Note */}
-          <div className="mt-8 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+          <div className="mt-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
                 <svg className="w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
@@ -427,24 +438,23 @@ export default function ModelsPage() {
               </div>
               <div>
                 <p className="text-slate-400 text-sm">
-                  <strong className="text-white">Pricing</strong> is per 1 million tokens.
-                  Prices shown will be multiplied for final billing:
+                  <strong className="text-white">Pricing</strong> is per 1 million tokens. Current billing multipliers:
                 </p>
                 <div className="flex flex-wrap gap-3 mt-2">
                   <span className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
-                    Opus ×1.35
+                    Opus ×1.1
                   </span>
                   <span className="px-2 py-1 rounded-md bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-medium">
-                    Sonnet ×1.25
+                    Sonnet ×1
                   </span>
                   <span className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-                    Haiku ×1.25
+                    Haiku ×1
                   </span>
                   <span className="px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium">
-                    GPT-5.1 ×1.3
+                    GPT-5.1 ×1
                   </span>
                   <span className="px-2 py-1 rounded-md bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-medium">
-                    Gemini 3 Pro ×1.3
+                    Gemini 3 Pro ×1
                   </span>
                 </div>
               </div>
@@ -464,7 +474,6 @@ export default function ModelsPage() {
                 <thead>
                   <tr className="bg-white/[0.02]">
                     <th className="text-left px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Model</th>
-                    <th className="text-center px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Context</th>
                     <th className="text-center px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Speed</th>
                     <th className="text-right px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Input</th>
                     <th className="text-right px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Output</th>
@@ -481,7 +490,6 @@ export default function ModelsPage() {
                         <span className="text-white font-medium text-sm">Haiku 4.5</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">200K</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-0.5">
                         <div className="w-1.5 h-3 rounded-full bg-emerald-500" />
@@ -491,7 +499,7 @@ export default function ModelsPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$1</td>
                     <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$5</td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1.25</td>
+                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Quick tasks, high volume</td>
                   </tr>
                   {/* GPT-5.1 */}
@@ -503,7 +511,6 @@ export default function ModelsPage() {
                         <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-medium">New</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">128K</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-0.5">
                         <div className="w-1.5 h-3 rounded-full bg-cyan-500" />
@@ -513,7 +520,7 @@ export default function ModelsPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-cyan-400 font-medium text-sm">$1.25</td>
                     <td className="px-4 py-3 text-right text-cyan-400 font-medium text-sm">$10</td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1.3</td>
+                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Complex reasoning, analysis</td>
                   </tr>
                   {/* Gemini 3 Pro */}
@@ -525,7 +532,6 @@ export default function ModelsPage() {
                         <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-medium">New</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">1M</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-0.5">
                         <div className="w-1.5 h-3 rounded-full bg-pink-500" />
@@ -535,8 +541,8 @@ export default function ModelsPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-pink-400 font-medium text-sm">$2</td>
                     <td className="px-4 py-3 text-right text-pink-400 font-medium text-sm">$12</td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1.3</td>
-                    <td className="px-4 py-3 text-center text-slate-500 text-sm">Multimodal, long context</td>
+                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1</td>
+                    <td className="px-4 py-3 text-center text-slate-500 text-sm">Multimodal tasks</td>
                   </tr>
                   {/* Sonnet */}
                   <tr className="hover:bg-white/[0.02] transition-colors">
@@ -546,7 +552,6 @@ export default function ModelsPage() {
                         <span className="text-white font-medium text-sm">Sonnet 4.5</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">200K</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-0.5">
                         <div className="w-1.5 h-3 rounded-full bg-violet-500" />
@@ -556,7 +561,7 @@ export default function ModelsPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-violet-400 font-medium text-sm">$3</td>
                     <td className="px-4 py-3 text-right text-violet-400 font-medium text-sm">$15</td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1.25</td>
+                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Coding, enterprise</td>
                   </tr>
                   {/* Opus */}
@@ -567,7 +572,6 @@ export default function ModelsPage() {
                         <span className="text-white font-medium text-sm">Opus 4.5</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">200K</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-0.5">
                         <div className="w-1.5 h-3 rounded-full bg-amber-500" />
@@ -577,7 +581,7 @@ export default function ModelsPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-amber-400 font-medium text-sm">$5</td>
                     <td className="px-4 py-3 text-right text-amber-400 font-medium text-sm">$25</td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1.35</td>
+                    <td className="px-4 py-3 text-center text-slate-400 text-sm">×1.1</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Complex analysis, research</td>
                   </tr>
                 </tbody>
