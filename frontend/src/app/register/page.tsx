@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { register } from '@/lib/api'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('')
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
+  const { checkAuth } = useAuth()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -33,6 +35,7 @@ export default function RegisterPage() {
 
     try {
       await register(username, password)
+      checkAuth()
       router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')

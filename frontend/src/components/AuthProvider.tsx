@@ -15,6 +15,7 @@ interface AuthContextType {
   user: User | null
   login: (username: string, password: string) => Promise<void>
   logout: () => void
+  checkAuth: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -28,12 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   
-  useEffect(() => {
+  function checkAuth() {
     const authenticated = isAuthenticated()
     setIsLoggedIn(authenticated)
     
     if (authenticated) {
-      // Decode JWT to get user info
       const token = localStorage.getItem('adminToken')
       if (token) {
         try {
@@ -46,7 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setUser(null)
     }
-    
+  }
+
+  useEffect(() => {
+    checkAuth()
     setLoading(false)
   }, [])
 
@@ -70,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
   
   return (
-    <AuthContext.Provider value={{ isLoggedIn, loading, user, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, loading, user, login, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   )
