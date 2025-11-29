@@ -22,6 +22,8 @@ interface Model {
   contextLength: number
   inputPrice: number
   outputPrice: number
+  cacheWritePrice: number
+  cacheHitPrice: number
   capabilities: string[]
   speed: 'fast' | 'balanced' | 'powerful'
 }
@@ -35,6 +37,8 @@ const models: Model[] = [
     contextLength: 200000,
     inputPrice: 5,
     outputPrice: 25,
+    cacheWritePrice: 6.25,
+    cacheHitPrice: 0.50,
     capabilities: ['vision', 'function-calling', 'reasoning', 'code'],
     speed: 'powerful',
   },
@@ -46,6 +50,8 @@ const models: Model[] = [
     contextLength: 200000,
     inputPrice: 3,
     outputPrice: 15,
+    cacheWritePrice: 3.75,
+    cacheHitPrice: 0.30,
     capabilities: ['vision', 'function-calling', 'code'],
     speed: 'balanced',
   },
@@ -57,6 +63,8 @@ const models: Model[] = [
     contextLength: 200000,
     inputPrice: 1,
     outputPrice: 5,
+    cacheWritePrice: 1.25,
+    cacheHitPrice: 0.10,
     capabilities: ['vision', 'function-calling', 'code'],
     speed: 'fast',
   },
@@ -123,10 +131,10 @@ function ModelRow({ model, isExpanded, onToggle }: { model: Model; isExpanded: b
       </button>
 
       {/* Expanded Details */}
-      <div className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-48' : 'max-h-0'}`}>
+      <div className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-64' : 'max-h-0'}`}>
         <div className="px-5 pb-4 pt-0 border-t border-white/5">
           {/* Mobile Stats */}
-          <div className="flex md:hidden items-center gap-4 py-3 mb-3 border-b border-white/5">
+          <div className="flex md:hidden flex-wrap items-center gap-4 py-3 mb-3 border-b border-white/5">
             <div>
               <span className="text-slate-500 text-xs">Context:</span>
               <span className="text-white font-medium ml-1">200K</span>
@@ -138,6 +146,24 @@ function ModelRow({ model, isExpanded, onToggle }: { model: Model; isExpanded: b
             <div>
               <span className="text-slate-500 text-xs">Output:</span>
               <span className={`font-medium ml-1 ${colors.text}`}>{formatPrice(model.outputPrice)}/1M</span>
+            </div>
+          </div>
+
+          {/* Cache Pricing */}
+          <div className="flex items-center gap-4 py-3 border-b border-white/5">
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+              </svg>
+              <span className="text-slate-500 text-xs">Cache Write:</span>
+              <span className={`font-medium ${colors.text}`}>{formatPrice(model.cacheWritePrice)}/1M</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span className="text-slate-500 text-xs">Cache Hit:</span>
+              <span className="font-medium text-emerald-400">{formatPrice(model.cacheHitPrice)}/1M</span>
             </div>
           </div>
 
@@ -307,7 +333,7 @@ export default function ModelsPage() {
               <div>
                 <p className="text-slate-400 text-sm">
                   <strong className="text-white">Pricing</strong> is per 1 million tokens.
-                  New users get <span className="text-emerald-400 font-medium">100K free tokens</span> to get started.
+                  Prices shown will be multiplied by <span className="text-amber-400 font-medium">1.25x</span> for final billing.
                 </p>
               </div>
             </div>
@@ -317,7 +343,7 @@ export default function ModelsPage() {
 
       {/* Comparison Table */}
       <section className="py-12 border-t border-white/5">
-        <div className="max-w-4xl mx-auto px-6">
+        <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-xl font-semibold text-white mb-6">Quick Comparison</h2>
 
           <div className="rounded-xl border border-white/5 overflow-hidden">
@@ -327,8 +353,10 @@ export default function ModelsPage() {
                   <tr className="bg-white/[0.02]">
                     <th className="text-left px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Model</th>
                     <th className="text-center px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Speed</th>
-                    <th className="text-center px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Intelligence</th>
-                    <th className="text-right px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Price</th>
+                    <th className="text-right px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Input</th>
+                    <th className="text-right px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Output</th>
+                    <th className="text-right px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Cache Write</th>
+                    <th className="text-right px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Cache Hit</th>
                     <th className="text-center px-4 py-3 text-slate-500 text-xs uppercase tracking-wider font-medium">Best For</th>
                   </tr>
                 </thead>
@@ -347,14 +375,10 @@ export default function ModelsPage() {
                         <div className="w-1.5 h-3 rounded-full bg-emerald-500" />
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-0.5">
-                        <div className="w-1.5 h-3 rounded-full bg-emerald-500" />
-                        <div className="w-1.5 h-3 rounded-full bg-white/10" />
-                        <div className="w-1.5 h-3 rounded-full bg-white/10" />
-                      </div>
-                    </td>
                     <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$1</td>
+                    <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$5</td>
+                    <td className="px-4 py-3 text-right text-slate-400 font-medium text-sm">$1.25</td>
+                    <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$0.10</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Quick tasks, high volume</td>
                   </tr>
                   <tr className="hover:bg-white/[0.02] transition-colors">
@@ -371,14 +395,10 @@ export default function ModelsPage() {
                         <div className="w-1.5 h-3 rounded-full bg-white/10" />
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-0.5">
-                        <div className="w-1.5 h-3 rounded-full bg-violet-500" />
-                        <div className="w-1.5 h-3 rounded-full bg-violet-500" />
-                        <div className="w-1.5 h-3 rounded-full bg-white/10" />
-                      </div>
-                    </td>
                     <td className="px-4 py-3 text-right text-violet-400 font-medium text-sm">$3</td>
+                    <td className="px-4 py-3 text-right text-violet-400 font-medium text-sm">$15</td>
+                    <td className="px-4 py-3 text-right text-slate-400 font-medium text-sm">$3.75</td>
+                    <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$0.30</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Coding, enterprise</td>
                   </tr>
                   <tr className="hover:bg-white/[0.02] transition-colors">
@@ -395,14 +415,10 @@ export default function ModelsPage() {
                         <div className="w-1.5 h-3 rounded-full bg-white/10" />
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-0.5">
-                        <div className="w-1.5 h-3 rounded-full bg-amber-500" />
-                        <div className="w-1.5 h-3 rounded-full bg-amber-500" />
-                        <div className="w-1.5 h-3 rounded-full bg-amber-500" />
-                      </div>
-                    </td>
                     <td className="px-4 py-3 text-right text-amber-400 font-medium text-sm">$5</td>
+                    <td className="px-4 py-3 text-right text-amber-400 font-medium text-sm">$25</td>
+                    <td className="px-4 py-3 text-right text-slate-400 font-medium text-sm">$6.25</td>
+                    <td className="px-4 py-3 text-right text-emerald-400 font-medium text-sm">$0.50</td>
                     <td className="px-4 py-3 text-center text-slate-500 text-sm">Complex analysis, research</td>
                   </tr>
                 </tbody>
