@@ -19,6 +19,7 @@ type Model struct {
 	ID                    string  `json:"id"`
 	Type                  string  `json:"type"`
 	Reasoning             string  `json:"reasoning"`
+	ThinkingBudget        int     `json:"thinking_budget,omitempty"` // Budget tokens for thinking mode
 	InputPricePerMTok     float64 `json:"input_price_per_mtok"`
 	OutputPricePerMTok    float64 `json:"output_price_per_mtok"`
 	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
@@ -138,15 +139,41 @@ func GetModelReasoning(modelID string) string {
 	return ""
 }
 
+// GetModelThinkingBudget gets thinking budget for a model
+// Returns the configured budget or a default based on reasoning level
+func GetModelThinkingBudget(modelID string) int {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return 10000 // default
+	}
+
+	// Use configured budget if set
+	if model.ThinkingBudget > 0 {
+		return model.ThinkingBudget
+	}
+
+	// Default budgets based on reasoning level
+	switch model.Reasoning {
+	case "high":
+		return 10000
+	case "medium":
+		return 5000
+	case "low":
+		return 2000
+	default:
+		return 10000
+	}
+}
+
 // GetModelUpstream gets upstream provider for a model
-// Returns "main" or "troll" (default is "troll" if not specified)
+// Returns "main", "troll", "troll-2" (default is "troll" if not specified)
 func GetModelUpstream(modelID string) string {
 	model := GetModelByID(modelID)
 	if model == nil {
 		return "troll"
 	}
-	if model.Upstream == "main" {
-		return "main"
+	if model.Upstream != "" {
+		return model.Upstream
 	}
 	return "troll" // default to troll-key
 }

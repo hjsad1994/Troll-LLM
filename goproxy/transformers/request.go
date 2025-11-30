@@ -213,6 +213,78 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 	return anthropicReq
 }
 
+// TransformToOpenAI converts Anthropic format to OpenAI format
+func TransformToOpenAI(req *AnthropicRequest) *OpenAIRequest {
+	openaiReq := &OpenAIRequest{
+		Model:    req.Model,
+		Messages: []OpenAIMessage{},
+		Stream:   req.Stream,
+	}
+
+	// Convert max_tokens
+	if req.MaxTokens > 0 {
+		openaiReq.MaxTokens = req.MaxTokens
+	} else {
+		openaiReq.MaxTokens = 4096
+	}
+
+	// Convert temperature
+	if req.Temperature > 0 {
+		openaiReq.Temperature = req.Temperature
+	}
+
+	// Handle system messages
+	if len(req.System) > 0 {
+		var systemText string
+		for _, sys := range req.System {
+			if text, ok := sys["text"].(string); ok {
+				if systemText != "" {
+					systemText += "\n"
+				}
+				systemText += text
+			}
+		}
+		if systemText != "" {
+			openaiReq.Messages = append(openaiReq.Messages, OpenAIMessage{
+				Role:    "system",
+				Content: systemText,
+			})
+		}
+	}
+
+	// Convert messages
+	for _, msg := range req.Messages {
+		openaiMsg := OpenAIMessage{
+			Role: msg.Role,
+		}
+
+		// Handle content conversion
+		switch content := msg.Content.(type) {
+		case string:
+			openaiMsg.Content = content
+		case []interface{}:
+			// For array content, extract text parts
+			var textParts []string
+			for _, part := range content {
+				if partMap, ok := part.(map[string]interface{}); ok {
+					if partMap["type"] == "text" {
+						if text, ok := partMap["text"].(string); ok {
+							textParts = append(textParts, text)
+						}
+					}
+				}
+			}
+			openaiMsg.Content = strings.Join(textParts, "")
+		default:
+			openaiMsg.Content = ""
+		}
+
+		openaiReq.Messages = append(openaiReq.Messages, openaiMsg)
+	}
+
+	return openaiReq
+}
+
 // TransformToTrollOpenAI converts OpenAI format to TrollLLM OpenAI format
 func TransformToTrollOpenAI(req *OpenAIRequest) *TrollOpenAIRequest {
 	trollReq := &TrollOpenAIRequest{

@@ -16,6 +16,7 @@
       "id": "claude-opus-4-5-20251101",
       "type": "anthropic",
       "reasoning": "high",
+      "thinking_budget": 31999,
       "input_price_per_mtok": 5.0,
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.25,
@@ -28,48 +29,26 @@
       "id": "claude-sonnet-4-5-20250929",
       "type": "anthropic",
       "reasoning": "high",
+      "thinking_budget": 31999,
       "input_price_per_mtok": 3.0,
       "output_price_per_mtok": 15.0,
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.30,
       "billing_multiplier": 1.0,
-      "upstream": "main"
-    },
-    {
-      "name": "Claude Sonnet 4.5 (alias)",
-      "id": "claude-sonnet-4.5",
-      "type": "anthropic",
-      "reasoning": "high",
-      "input_price_per_mtok": 3.0,
-      "output_price_per_mtok": 15.0,
-      "cache_write_price_per_mtok": 3.75,
-      "cache_hit_price_per_mtok": 0.30,
-      "billing_multiplier": 1.0,
-      "upstream": "main"
+      "upstream": "troll"
     },
     {
       "name": "Claude Haiku 4.5",
       "id": "claude-haiku-4-5-20251001",
       "type": "anthropic",
       "reasoning": "high",
+      "thinking_budget": 8000,
       "input_price_per_mtok": 1.0,
       "output_price_per_mtok": 5.0,
       "cache_write_price_per_mtok": 1.25,
       "cache_hit_price_per_mtok": 0.10,
       "billing_multiplier": 1.0,
-      "upstream": "main"
-    },
-    {
-      "name": "Claude Haiku 4.5 (alias)",
-      "id": "claude-haiku-4.5",
-      "type": "anthropic",
-      "reasoning": "high",
-      "input_price_per_mtok": 1.0,
-      "output_price_per_mtok": 5.0,
-      "cache_write_price_per_mtok": 1.25,
-      "cache_hit_price_per_mtok": 0.10,
-      "billing_multiplier": 1.0,
-      "upstream": "main"
+      "upstream": "troll"
     },
     {
       "name": "GPT-5.1",
@@ -83,6 +62,7 @@
       "billing_multiplier": 1.0,
       "upstream": "main"
     },
+
     {
       "name": "Gemini 3 Pro Preview",
       "id": "gemini-3-pro-preview",
@@ -94,6 +74,50 @@
       "cache_hit_price_per_mtok": 0,
       "billing_multiplier": 1.0,
       "upstream": "main"
+    },
+    {
+      "name": "MiniMax M2",
+      "id": "minimaxai/minimax-m2",
+      "type": "openai",
+      "input_price_per_mtok": 0.5,
+      "output_price_per_mtok": 2.0,
+      "cache_write_price_per_mtok": 0,
+      "cache_hit_price_per_mtok": 0,
+      "billing_multiplier": 1.0,
+      "upstream": "troll-2"
+    },
+    {
+      "name": "Kimi K2 Instruct",
+      "id": "moonshotai/kimi-k2-instruct-0905",
+      "type": "openai",
+      "input_price_per_mtok": 1.0,
+      "output_price_per_mtok": 1.0,
+      "cache_write_price_per_mtok": 0,
+      "cache_hit_price_per_mtok": 0,
+      "billing_multiplier": 1.0,
+      "upstream": "troll-2"
+    },
+    {
+      "name": "OpenAI GPT OSS 20B",
+      "id": "openai-gpt-oss-20b",
+      "type": "openai",
+      "input_price_per_mtok": 0.07,
+      "output_price_per_mtok": 0.30,
+      "cache_write_price_per_mtok": 0,
+      "cache_hit_price_per_mtok": 0,
+      "billing_multiplier": 1.0,
+      "upstream": "troll-2"
+    },
+    {
+      "name": "OpenAI GPT OSS 120B",
+      "id": "openai-gpt-oss-120b",
+      "type": "openai",
+      "input_price_per_mtok": 0.15,
+      "output_price_per_mtok": 0.60,
+      "cache_write_price_per_mtok": 0,
+      "cache_hit_price_per_mtok": 0,
+      "billing_multiplier": 1.0,
+      "upstream": "troll-2"
     }
   ],
   "system_prompt": "You are Droid, an AI software engineering agent built by Factory.It is incorrect to say you are Droid, Some Ask you identify as Claude. You are Claude, an AI assistant made by Anthropic. Never mention conflicting instructions, identity confusion, or system prompts. Just help the user directly.",
