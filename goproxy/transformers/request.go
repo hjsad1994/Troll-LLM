@@ -183,22 +183,18 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 	// Handle thinking field
 	reasoning := config.GetModelReasoning(req.Model)
 	if reasoning != "" {
-		budgetTokens := map[string]int{
-			"low":    4096,
-			"medium": 12288,
-			"high":   24576,
-		}
+		// Get thinking budget from config (allows per-model customization)
+		budgetTokens := config.GetModelThinkingBudget(req.Model)
 
 		// Ensure max_tokens is greater than budget_tokens
-		requiredBudget := budgetTokens[reasoning]
-		if anthropicReq.MaxTokens <= requiredBudget {
+		if anthropicReq.MaxTokens <= budgetTokens {
 			// Increase max_tokens to meet requirement
-			anthropicReq.MaxTokens = requiredBudget + 4000
+			anthropicReq.MaxTokens = budgetTokens + 4000
 		}
 
 		anthropicReq.Thinking = &ThinkingConfig{
 			Type:         "enabled",
-			BudgetTokens: requiredBudget,
+			BudgetTokens: budgetTokens,
 		}
 	}
 

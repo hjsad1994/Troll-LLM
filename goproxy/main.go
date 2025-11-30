@@ -1924,9 +1924,11 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 						if text, ok := block["text"].(string); ok {
 							block["text"] = transformers.FilterDroidIdentity(text)
 						}
-						// Redact thinking blocks - hide system prompt from users
+						// Filter thinking blocks to hide system prompt but show thinking process
 						if blockType, ok := block["type"].(string); ok && blockType == "thinking" {
-							block["thinking"] = "[redacted]"
+							if thinking, ok := block["thinking"].(string); ok {
+								block["thinking"] = transformers.FilterThinkingContent(thinking)
+							}
 						}
 					}
 				}
@@ -2009,25 +2011,28 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				// Track last event type for debugging
 				lastEventType = eventType
 				
-				// Check if this is a content_block_delta - redact thinking content
+				// Filter thinking content to hide system prompt but show thinking process
 				if eventType == "content_block_delta" {
 					if delta, ok := eventData["delta"].(map[string]interface{}); ok {
 						deltaType, _ := delta["type"].(string)
-						// Redact thinking delta - hide system prompt from users
 						if deltaType == "thinking_delta" {
-							delta["thinking"] = ""
-							modified = true
+							if thinking, ok := delta["thinking"].(string); ok {
+								delta["thinking"] = transformers.FilterThinkingContent(thinking, true)
+								modified = true
+							}
 						}
 					}
 				}
 				
-				// Redact content_block_start for thinking blocks
+				// Filter content_block_start for thinking blocks
 				if eventType == "content_block_start" {
 					if contentBlock, ok := eventData["content_block"].(map[string]interface{}); ok {
 						blockType, _ := contentBlock["type"].(string)
 						if blockType == "thinking" {
-							contentBlock["thinking"] = "[redacted]"
-							modified = true
+							if thinking, ok := contentBlock["thinking"].(string); ok {
+								contentBlock["thinking"] = transformers.FilterThinkingContent(thinking)
+								modified = true
+							}
 						}
 					}
 				}

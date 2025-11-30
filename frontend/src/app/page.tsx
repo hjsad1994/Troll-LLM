@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
 import Header from '@/components/Header'
+import { useLanguage } from '@/components/LanguageProvider'
 
 // ===== CODE TEMPLATES WITH DIFFERENT MODELS PER LANGUAGE =====
 const codeConfigs = {
@@ -201,68 +202,49 @@ function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: strin
   return <span>{displayed}{suffix}</span>
 }
 
-// ===== FEATURES =====
-const features = [
-  {
-    title: 'One API, All Models',
-    description: 'Access Claude Opus, Sonnet, and Haiku through a single unified API endpoint.',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Smart Fallbacks',
-    description: 'Automatic failover between models. Requests seamlessly route when needed.',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Real-Time Analytics',
-    description: 'Track usage, monitor costs, and analyze performance across all operations.',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
+// ===== FEATURE ICONS =====
+const featureIcons = [
+  <svg key="1" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+  </svg>,
+  <svg key="2" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  </svg>,
+  <svg key="3" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+  </svg>,
 ]
 
 // ===== STATS =====
-const stats = [
-  { value: '3', suffix: '', label: 'Models' },
-  { value: '99.9', suffix: '%', label: 'Uptime' },
-  { value: '50', suffix: 'ms', label: 'Latency' },
-  { value: '200', suffix: 'K', label: 'Context' },
-]
-
-// ===== FAQ =====
-const faqs = [
-  {
-    question: 'How does pricing work?',
-    answer: 'Pay-as-you-go with transparent per-token rates. No monthly minimums. Volume discounts available.',
-  },
-  {
-    question: 'Which Claude models are supported?',
-    answer: 'We support Claude Opus 4.5, Claude Sonnet 4.5, and Claude Haiku 4.5 - the latest and most capable Claude models from Anthropic.',
-  },
-  {
-    question: 'Is my data secure?',
-    answer: 'Zero-log policy. All data encrypted in transit and at rest. SOC 2 Type II compliant.',
-  },
-  {
-    question: 'Can I use existing Anthropic SDK code?',
-    answer: 'Yes! Our API is fully compatible with the Anthropic SDK. Just change the base URL and you\'re ready to go.',
-  },
+const statsData = [
+  { value: '9', suffix: '', labelKey: 'models' },
+  { value: '99.9', suffix: '%', labelKey: 'uptime' },
+  { value: '50', suffix: 'ms', labelKey: 'latency' },
+  { value: '200', suffix: 'K', labelKey: 'context' },
 ]
 
 // ===== MAIN COMPONENT =====
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const { t } = useLanguage()
+
+  const features = [
+    { title: t.features.feature1.title, description: t.features.feature1.description, icon: featureIcons[0] },
+    { title: t.features.feature2.title, description: t.features.feature2.description, icon: featureIcons[1] },
+    { title: t.features.feature3.title, description: t.features.feature3.description, icon: featureIcons[2] },
+  ]
+
+  const faqs = [
+    { question: t.faq.q1.question, answer: t.faq.q1.answer },
+    { question: t.faq.q2.question, answer: t.faq.q2.answer },
+    { question: t.faq.q3.question, answer: t.faq.q3.answer },
+    { question: t.faq.q4.question, answer: t.faq.q4.answer },
+  ]
+
+  const stats = statsData.map(stat => ({
+    ...stat,
+    label: t.stats[stat.labelKey as keyof typeof t.stats]
+  }))
 
   return (
     <div className="min-h-screen bg-black overflow-x-hidden">
@@ -287,23 +269,23 @@ export default function LandingPage() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                   </span>
-                  <span className="text-slate-400 text-sm">Claude 4.5 Available</span>
+                  <span className="text-slate-400 text-sm">{t.hero.badge}</span>
                 </div>
               </div>
 
               {/* Headline */}
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight opacity-0 animate-fade-in-up animation-delay-100">
                 <span className="text-white">
-                  Access Opus 4.5
+                  {t.hero.title1}
                 </span>
                 <br />
                 <span className="bg-gradient-to-r from-slate-400 to-slate-600 bg-clip-text text-transparent">
-                  with One API Key
+                  {t.hero.title2}
                 </span>
               </h1>
 
               <p className="text-lg text-slate-500 mb-8 opacity-0 animate-fade-in-up animation-delay-200">
-                Premium access to Claude models. Access Opus, Sonnet, and Haiku through a single API.
+                {t.hero.description}
               </p>
 
               {/* CTA Buttons */}
@@ -312,7 +294,7 @@ export default function LandingPage() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
                   </svg>
-                  Get Started
+                  {t.hero.cta}
                 </a>
               </div>
             </div>
@@ -347,10 +329,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Built for developers
+              {t.features.title}
             </h2>
             <p className="text-lg text-slate-500 max-w-xl mx-auto">
-              Everything you need to integrate AI into your applications.
+              {t.features.subtitle}
             </p>
           </div>
 
@@ -380,10 +362,10 @@ export default function LandingPage() {
           {/* Header */}
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Choose Your Plan
+              {t.pricing.title}
             </h2>
             <p className="text-lg text-slate-400 max-w-xl mx-auto">
-              Simple, transparent pricing. No hidden fees. Cancel anytime.
+              {t.pricing.subtitle}
             </p>
           </div>
 
@@ -402,10 +384,10 @@ export default function LandingPage() {
                       <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
-                      <span className="text-slate-400 text-xs font-medium">DEVELOPER</span>
+                      <span className="text-slate-400 text-xs font-medium">{t.pricing.dev.badge}</span>
                     </div>
-                    <h3 className="text-2xl font-bold text-white">Dev</h3>
-                    <p className="text-slate-500 text-sm mt-1">Perfect for side projects</p>
+                    <h3 className="text-2xl font-bold text-white">{t.pricing.dev.name}</h3>
+                    <p className="text-slate-500 text-sm mt-1">{t.pricing.dev.description}</p>
                   </div>
                 </div>
 
@@ -420,7 +402,7 @@ export default function LandingPage() {
                     <span className="text-slate-500 text-lg">VND</span>
                     <span className="text-slate-600 text-sm">/month</span>
                   </div>
-                  <p className="text-emerald-400 text-sm font-medium mt-2">Save 14,000 VND</p>
+                  <p className="text-emerald-400 text-sm font-medium mt-2">{t.pricing.dev.save}</p>
                 </div>
 
                 {/* Divider */}
@@ -429,10 +411,10 @@ export default function LandingPage() {
                 {/* Features */}
                 <ul className="space-y-4 mb-8 flex-grow">
                   {[
-                    { text: '300 requests/minute', highlight: false },
-                    { text: '225 credits/month', highlight: false },
-                    { text: 'All Claude models', highlight: true },
-                    { text: 'Community support', highlight: false },
+                    { text: t.pricing.dev.features.requests, highlight: false },
+                    { text: t.pricing.dev.features.credits, highlight: false },
+                    { text: t.pricing.dev.features.models, highlight: true },
+                    { text: t.pricing.dev.features.support, highlight: false },
                   ].map((item, idx) => (
                     <li key={idx} className="flex items-center gap-3">
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-400'}`}>
@@ -450,7 +432,7 @@ export default function LandingPage() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
                   </svg>
-                  Join Discord
+                  {t.pricing.dev.cta}
                 </a>
               </div>
             </div>
@@ -467,7 +449,7 @@ export default function LandingPage() {
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
                     </svg>
-                    MOST POPULAR
+                    {t.pricing.pro.popular}
                   </div>
                 </div>
 
@@ -478,10 +460,10 @@ export default function LandingPage() {
                       <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      <span className="text-indigo-400 text-xs font-medium">PROFESSIONAL</span>
+                      <span className="text-indigo-400 text-xs font-medium">{t.pricing.pro.badge}</span>
                     </div>
-                    <h3 className="text-2xl font-bold text-white">Pro</h3>
-                    <p className="text-slate-500 text-sm mt-1">Best for teams & production</p>
+                    <h3 className="text-2xl font-bold text-white">{t.pricing.pro.name}</h3>
+                    <p className="text-slate-500 text-sm mt-1">{t.pricing.pro.description}</p>
                   </div>
                 </div>
 
@@ -496,7 +478,7 @@ export default function LandingPage() {
                     <span className="text-slate-500 text-lg">VND</span>
                     <span className="text-slate-600 text-sm">/month</span>
                   </div>
-                  <p className="text-emerald-400 text-sm font-medium mt-2">Save 36,000 VND</p>
+                  <p className="text-emerald-400 text-sm font-medium mt-2">{t.pricing.pro.save}</p>
                 </div>
 
                 {/* Divider */}
@@ -505,10 +487,10 @@ export default function LandingPage() {
                 {/* Features */}
                 <ul className="space-y-4 mb-8 flex-grow">
                   {[
-                    { text: '1000 requests/minute', highlight: true, badge: '3.3x' },
-                    { text: '500 credits/month', highlight: true, badge: '2.2x' },
-                    { text: 'All Claude models', highlight: false },
-                    { text: 'Priority support', highlight: true },
+                    { text: t.pricing.pro.features.requests, highlight: true, badge: '3.3x' },
+                    { text: t.pricing.pro.features.credits, highlight: true, badge: '2.2x' },
+                    { text: t.pricing.pro.features.models, highlight: false },
+                    { text: t.pricing.pro.features.support, highlight: true },
                   ].map((item, idx) => (
                     <li key={idx} className="flex items-center gap-3">
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-400'}`}>
@@ -529,7 +511,7 @@ export default function LandingPage() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
                   </svg>
-                  Join Discord
+                  {t.pricing.pro.cta}
                 </a>
               </div>
             </div>
@@ -538,7 +520,7 @@ export default function LandingPage() {
           {/* Compare link */}
           <div className="text-center mt-8">
             <Link href="/models" className="inline-flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm">
-              <span>Compare all features</span>
+              <span>{t.pricing.compareAll}</span>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
@@ -552,7 +534,7 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-white">
-              FAQ
+              {t.faq.title}
             </h2>
           </div>
 
@@ -592,14 +574,14 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
         <div className="relative max-w-2xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to start?
+            {t.cta.title}
           </h2>
           <p className="text-lg text-slate-500 mb-8">
-            Check out our documentation to get started with the API.
+            {t.cta.subtitle}
           </p>
 
           <Link href="/docs" className="inline-block px-8 py-4 rounded-xl bg-white text-black font-semibold text-lg hover:bg-slate-200 transition-colors">
-            View Documentation
+            {t.cta.button}
           </Link>
         </div>
       </section>
@@ -626,13 +608,13 @@ export default function LandingPage() {
               <span className="text-slate-600 text-sm">© 2024</span>
             </div>
             <div className="flex items-center gap-6 text-slate-600 text-sm">
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
+              <a href="#" className="hover:text-white transition-colors">{t.footer.privacy}</a>
+              <a href="#" className="hover:text-white transition-colors">{t.footer.terms}</a>
               <a href="https://discord.gg/Prs3RxwnyQ" target="_blank" rel="noopener noreferrer" className="hover:text-[#5865F2] transition-colors flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
                 </svg>
-                Discord
+                {t.footer.discord}
               </a>
             </div>
           </div>

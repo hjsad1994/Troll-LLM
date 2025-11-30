@@ -18,6 +18,8 @@ var (
 	identityReplacementRegexes []*identityReplacement
 	// Whitespace cleanup
 	whitespaceRegex *regexp.Regexp
+	// Thinking content filter patterns (to hide system prompt from thinking)
+	thinkingFilterRegexes []*regexp.Regexp
 )
 
 type identityReplacement struct {
@@ -68,6 +70,51 @@ func init() {
 
 	// Pre-compile whitespace cleanup
 	whitespaceRegex = regexp.MustCompile(`\n{3,}`)
+
+	// Pre-compile thinking content filter patterns
+	// These patterns hide system prompt references from thinking blocks
+	thinkingFilterPatterns := []string{
+		// Remove system prompt content mentions - broad patterns
+		`(?is)<system[_-]?prompt>.*?</system[_-]?prompt>`,
+		`(?is)\[system[_-]?prompt\].*?\[/system[_-]?prompt\]`,
+		`(?is)system prompt[:\s]+["'].*?["']`,
+		`(?is)system prompt says[:\s]*.*?(?:\.\s|\n|$)`,
+		`(?is)the system prompt says[:\s]*.*?(?:\.\s|\n|$)`,
+		`(?is)my system prompt[,\s].*?(?:\.\s|\n|$)`,
+		`(?is)the system prompt[,\s].*?(?:\.\s|\n|$)`,
+		`(?is)(?:the|my) system prompt (?:tells|instructs|says|mentions|indicates|asks).*?(?:\.\s|\n|$)`,
+		`(?is)(?:my|the) instructions (?:tell|say|indicate|mention|ask).*?(?:\.\s|\n|$)`,
+		`(?is)I(?:'m| am) (?:instructed|told) to.*?(?:\.\s|\n|$)`,
+		`(?is)According to (?:the|my) system (?:prompt|instructions).*?(?:\.\s|\n|$)`,
+		`(?is)Looking at (?:the|my) system (?:prompt|instructions).*?(?:\.\s|\n|$)`,
+		`(?is)Based on (?:the|my) system (?:prompt|instructions).*?(?:\.\s|\n|$)`,
+		`(?is)From (?:the|my) system (?:prompt|instructions).*?(?:\.\s|\n|$)`,
+		`(?is)In (?:the|my) system (?:prompt|instructions).*?(?:\.\s|\n|$)`,
+		// Remove any sentence containing "system prompt"
+		`(?i)[^.]*system prompt[^.]*\.?\s*`,
+		// Remove Droid/Factory identity references in thinking
+		`(?i)You are Droid[^.]*\.?\s*`,
+		`(?i)I(?:'m| am) Droid[^.]*\.?\s*`,
+		`(?i)AI software engineering agent built by Factory[^.]*\.?\s*`,
+		`(?i)built by Factory[^.]*\.?\s*`,
+		`(?i)made by Factory[^.]*\.?\s*`,
+		`(?i)created by Factory[^.]*\.?\s*`,
+		`(?i)never expose[^.]*\.?\s*`,
+		`(?i)never mention[^.]*prompt[^.]*\.?\s*`,
+		`(?i)It is incorrect to say[^.]*\.?\s*`,
+		`(?i)Some Ask you identify[^.]*\.?\s*`,
+		`(?i)Never mention conflicting[^.]*\.?\s*`,
+		`(?i)identity confusion[^.]*\.?\s*`,
+		`(?i)conflicting instructions[^.]*\.?\s*`,
+		`(?i)I should identify as[^.]*\.?\s*`,
+		`(?i)should identify as Claude[^.]*\.?\s*`,
+		// Remove sentences about user asking identity
+		`(?i)The user is asking if I(?:'m| am) Droid[^.]*\.?\s*`,
+		`(?i)asking (?:if|about) (?:I'm|I am|my) (?:Droid|identity)[^.]*\.?\s*`,
+	}
+	for _, pattern := range thinkingFilterPatterns {
+		thinkingFilterRegexes = append(thinkingFilterRegexes, regexp.MustCompile(pattern))
+	}
 }
 
 // FilterDroidIdentity removes identity confusion statements from Claude's responses
@@ -102,14 +149,134 @@ func FilterDroidIdentity(content string, isStreaming ...bool) string {
 	return result
 }
 
+// Sensitive keywords that should trigger filtering in thinking content
+var thinkingBlockedKeywords = []string{
+	// System prompt references
+	"system prompt",
+	"systemprompt",
+	"system_prompt",
+	"system-prompt",
+	"my prompt",
+	"my instructions",
+	"the instructions",
+	"instructions say",
+	"instructions tell",
+	"prompt says",
+	"prompt tells",
+	// Droid/Factory identity
+	"i am droid",
+	"i'm droid",
+	"you are droid",
+	"am droid",
+	"as droid",
+	"droid,",
+	"built by factory",
+	"made by factory",
+	"created by factory",
+	"by factory",
+	// Meta instructions
+	"never expose",
+	"never mention",
+	"don't expose",
+	"don't mention",
+	"not expose",
+	"not mention",
+	// Identity confusion
+	"identify as claude",
+	"identify as droid",
+	"should identify",
+	"must identify",
+	"conflicting instructions",
+	"identity confusion",
+	"incorrect to say",
+	"ask you identify",
+	"asking if i",
+	"asking about my",
+	// Key phrases from actual system prompt
+	"ai software engineering",
+	"engineering agent",
+	"just help the user",
+}
+
+// ThinkingFilterMode controls how thinking content is filtered
+type ThinkingFilterMode int
+
+const (
+	// ThinkingFilterRedact - completely hide thinking content (safest)
+	ThinkingFilterRedact ThinkingFilterMode = iota
+	// ThinkingFilterKeyword - filter chunks containing sensitive keywords
+	ThinkingFilterKeyword
+	// ThinkingFilterRegex - use regex to remove sensitive sentences
+	ThinkingFilterRegex
+)
+
+// Current filter mode - set to Keyword for filtering sensitive content while showing thinking
+var currentThinkingFilterMode = ThinkingFilterKeyword
+
+// FilterThinkingContent removes system prompt references from thinking blocks
+// This allows users to see the thinking process without exposing internal instructions
+// Set isStreaming=true for streaming mode
+func FilterThinkingContent(content string, isStreaming ...bool) string {
+	if content == "" {
+		return content
+	}
+
+	streaming := len(isStreaming) > 0 && isStreaming[0]
+
+	switch currentThinkingFilterMode {
+	case ThinkingFilterRedact:
+		// Most secure: completely hide all thinking content
+		return "" // Don't emit any thinking content
+
+	case ThinkingFilterKeyword:
+		// Medium security: block chunks with sensitive keywords
+		lowerContent := strings.ToLower(content)
+		for _, keyword := range thinkingBlockedKeywords {
+			if strings.Contains(lowerContent, keyword) {
+				return "" // Hide chunk containing sensitive keyword
+			}
+		}
+		return content
+
+	case ThinkingFilterRegex:
+		// Lower security: regex-based filtering (may miss some content)
+		if streaming {
+			// For streaming, fall back to keyword check
+			lowerContent := strings.ToLower(content)
+			for _, keyword := range thinkingBlockedKeywords {
+				if strings.Contains(lowerContent, keyword) {
+					return ""
+				}
+			}
+			return content
+		}
+
+		// For non-streaming: apply regex-based filtering
+		result := content
+		for _, re := range thinkingFilterRegexes {
+			result = re.ReplaceAllString(result, "")
+		}
+		for _, re := range removePatternRegexes {
+			result = re.ReplaceAllString(result, "")
+		}
+		result = whitespaceRegex.ReplaceAllString(result, "\n\n")
+		result = strings.TrimSpace(result)
+		return result
+
+	default:
+		return "[redacted]"
+	}
+}
+
 // OpenAIResponse represents OpenAI standard response format
 type OpenAIResponse struct {
-	ID      string                 `json:"id"`
-	Object  string                 `json:"object"`
-	Created int64                  `json:"created"`
-	Model   string                 `json:"model"`
-	Choices []OpenAIChoice         `json:"choices"`
-	Usage   map[string]interface{} `json:"usage,omitempty"`
+	ID       string                 `json:"id"`
+	Object   string                 `json:"object"`
+	Created  int64                  `json:"created"`
+	Model    string                 `json:"model"`
+	Choices  []OpenAIChoice         `json:"choices"`
+	Usage    map[string]interface{} `json:"usage,omitempty"`
+	Thinking string                 `json:"thinking,omitempty"` // Claude thinking block content
 }
 
 // OpenAIChoice represents response choice
@@ -169,6 +336,7 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 	// Extended Thinking models return multiple content blocks: thinking + text + tool_use
 	// We need to handle all block types
 	var textContent string
+	var thinkingContent string
 	var toolCalls []map[string]interface{}
 	
 	if content, ok := anthropicResp["content"].([]interface{}); ok && len(content) > 0 {
@@ -184,6 +352,11 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 				}
 				
 				switch contentType {
+				case "thinking":
+					// Extract thinking block content for user visibility (filtered to hide system prompt)
+					if thinking, ok := contentItem["thinking"].(string); ok {
+						thinkingContent = FilterThinkingContent(thinking)
+					}
 				case "text":
 					if text, ok := contentItem["text"].(string); ok {
 						textContent = FilterDroidIdentity(text)
@@ -213,6 +386,10 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 	openaiResp.Choices[0].Message.Content = textContent
 	if len(toolCalls) > 0 {
 		openaiResp.Choices[0].Message.ToolCalls = toolCalls
+	}
+	// Include thinking content in response for user visibility
+	if thinkingContent != "" {
+		openaiResp.Thinking = thinkingContent
 	}
 
 	// Convert stop_reason
@@ -278,6 +455,15 @@ func (t *AnthropicResponseTransformer) TransformStreamChunk(eventType string, ev
 			deltaType, _ := delta["type"].(string)
 			
 			switch deltaType {
+			case "thinking_delta":
+				// Stream thinking content to user (filtered to hide system prompt)
+				if thinkingVal, ok := delta["thinking"].(string); ok && thinkingVal != "" {
+					filteredThinking := FilterThinkingContent(thinkingVal, true) // streaming: preserve whitespace
+					if filteredThinking != "" {
+						return t.createOpenAIChunkWithThinking("", "", false, "", nil, filteredThinking), nil
+					}
+				}
+				return "", nil
 			case "text_delta":
 				text := ""
 				if textVal, ok := delta["text"].(string); ok {
@@ -333,6 +519,11 @@ func (t *AnthropicResponseTransformer) TransformStreamChunk(eventType string, ev
 
 // createOpenAIChunk creates an OpenAI format streaming chunk
 func (t *AnthropicResponseTransformer) createOpenAIChunk(content, role string, finish bool, finishReason string, toolCall map[string]interface{}) string {
+	return t.createOpenAIChunkWithThinking(content, role, finish, finishReason, toolCall, "")
+}
+
+// createOpenAIChunkWithThinking creates an OpenAI format streaming chunk with optional thinking
+func (t *AnthropicResponseTransformer) createOpenAIChunkWithThinking(content, role string, finish bool, finishReason string, toolCall map[string]interface{}, thinking string) string {
 	chunk := OpenAIResponse{
 		ID:      t.RequestID,
 		Object:  "chat.completion.chunk",
@@ -357,6 +548,9 @@ func (t *AnthropicResponseTransformer) createOpenAIChunk(content, role string, f
 	}
 	if finish {
 		chunk.Choices[0].FinishReason = &finishReason
+	}
+	if thinking != "" {
+		chunk.Thinking = thinking
 	}
 
 	jsonData, _ := json.Marshal(chunk)

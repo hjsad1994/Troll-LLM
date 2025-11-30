@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import { useLanguage } from '@/components/LanguageProvider'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface HeaderProps {
   activeLink?: 'models' | 'features' | 'pricing' | 'faq' | 'docs'
@@ -12,6 +14,7 @@ export default function Header({ activeLink }: HeaderProps) {
   const [scrollY, setScrollY] = useState(0)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const { isLoggedIn, user, logout } = useAuth()
+  const { t } = useLanguage()
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY)
@@ -30,10 +33,10 @@ export default function Header({ activeLink }: HeaderProps) {
   }, [showUserMenu])
 
   const navLinks = [
-    { key: 'models', label: 'Models', href: '/models' },
-    { key: 'features', label: 'Features', href: '/#features' },
-    { key: 'pricing', label: 'Pricing', href: '/#pricing' },
-    { key: 'faq', label: 'FAQ', href: '/#faq' },
+    { key: 'models', label: t.nav.models, href: '/models' },
+    { key: 'features', label: t.nav.features, href: '/#features' },
+    { key: 'pricing', label: t.nav.pricing, href: '/#pricing' },
+    { key: 'faq', label: t.nav.faq, href: '/#faq' },
   ]
 
   return (
@@ -76,6 +79,7 @@ export default function Header({ activeLink }: HeaderProps) {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <LanguageSwitcher />
           {isLoggedIn ? (
             <div className="relative user-menu-container">
               <button
@@ -116,7 +120,7 @@ export default function Header({ activeLink }: HeaderProps) {
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                       </svg>
-                      <span className="text-sm">Dashboard</span>
+                      <span className="text-sm">{t.nav.dashboard}</span>
                     </Link>
 
                     <Link
@@ -127,7 +131,7 @@ export default function Header({ activeLink }: HeaderProps) {
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span className="text-sm">Documentation</span>
+                      <span className="text-sm">{t.nav.documentation}</span>
                     </Link>
                   </div>
 
@@ -143,7 +147,7 @@ export default function Header({ activeLink }: HeaderProps) {
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
-                      <span className="text-sm">Sign Out</span>
+                      <span className="text-sm">{t.nav.signOut}</span>
                     </button>
                   </div>
                 </div>
@@ -152,10 +156,10 @@ export default function Header({ activeLink }: HeaderProps) {
           ) : (
             <>
               <Link href="/login" className="text-slate-500 hover:text-white transition-colors text-sm">
-                Sign In
+                {t.nav.signIn}
               </Link>
               <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
-                Get API Key
+                {t.nav.getApiKey}
               </Link>
             </>
           )}
