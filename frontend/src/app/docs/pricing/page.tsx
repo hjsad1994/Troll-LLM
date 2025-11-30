@@ -304,7 +304,7 @@ export default function PricingDocsPage() {
                     ))}
                   </ul>
                   <a
-                    href="https://discord.gg/CHKnQZewkr"
+                    href="https://discord.gg/Prs3RxwnyQ"
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`mt-6 w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
