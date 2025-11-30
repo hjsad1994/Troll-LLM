@@ -209,6 +209,13 @@ func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage
 		return
 	}
 
+	// Debug: log raw response
+	logLen := len(body)
+	if logLen > 500 {
+		logLen = 500
+	}
+	log.Printf("🔍 [Troll-2] Raw response (%d bytes): %s", len(body), string(body[:logLen]))
+
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("❌ [Troll-2] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
@@ -405,6 +412,13 @@ func HandleNonStreamResponseAnthropic(w http.ResponseWriter, resp *http.Response
 		return
 	}
 
+	// Debug: log raw response
+	logLen := len(body)
+	if logLen > 500 {
+		logLen = 500
+	}
+	log.Printf("🔍 [Troll-2-Anthropic] Raw response (%d bytes): %s", len(body), string(body[:logLen]))
+
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("❌ [Troll-2] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
@@ -416,7 +430,7 @@ func HandleNonStreamResponseAnthropic(w http.ResponseWriter, resp *http.Response
 	// Parse OpenAI response
 	var openaiResp map[string]interface{}
 	if err := json.Unmarshal(body, &openaiResp); err != nil {
-		log.Printf("❌ [Troll-2] Parse error: %v", err)
+		log.Printf("❌ [Troll-2] Parse error: %v, body: %s", err, string(body[:logLen]))
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"failed to parse response"}}`, http.StatusInternalServerError)
 		return
 	}
