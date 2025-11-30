@@ -71,7 +71,8 @@ func init() {
 }
 
 // FilterDroidIdentity removes identity confusion statements from Claude's responses
-func FilterDroidIdentity(content string) string {
+// Set isStreaming=true to preserve leading/trailing whitespace in streaming chunks
+func FilterDroidIdentity(content string, isStreaming ...bool) string {
 	if content == "" {
 		return content
 	}
@@ -90,7 +91,13 @@ func FilterDroidIdentity(content string) string {
 
 	// Clean up extra whitespace/newlines
 	result = whitespaceRegex.ReplaceAllString(result, "\n\n")
-	result = strings.TrimSpace(result)
+	
+	// Only trim space for non-streaming responses
+	// Streaming chunks need to preserve leading/trailing spaces to avoid text concatenation issues
+	streaming := len(isStreaming) > 0 && isStreaming[0]
+	if !streaming {
+		result = strings.TrimSpace(result)
+	}
 
 	return result
 }
@@ -274,7 +281,7 @@ func (t *AnthropicResponseTransformer) TransformStreamChunk(eventType string, ev
 			case "text_delta":
 				text := ""
 				if textVal, ok := delta["text"].(string); ok {
-					text = FilterDroidIdentity(textVal)
+					text = FilterDroidIdentity(textVal, true) // streaming: preserve whitespace
 				}
 				return t.createOpenAIChunk(text, "", false, "", nil), nil
 			case "input_json_delta":
@@ -291,7 +298,7 @@ func (t *AnthropicResponseTransformer) TransformStreamChunk(eventType string, ev
 			default:
 				// Legacy format without type
 				if textVal, ok := delta["text"].(string); ok {
-					return t.createOpenAIChunk(FilterDroidIdentity(textVal), "", false, "", nil), nil
+					return t.createOpenAIChunk(FilterDroidIdentity(textVal, true), "", false, "", nil), nil // streaming: preserve whitespace
 				}
 			}
 		}
@@ -554,9 +561,9 @@ func (t *TrollOpenAIResponseTransformer) TransformStreamChunk(eventType string, 
 	case "response.output_text.delta":
 		text := ""
 		if delta, ok := eventData["delta"].(string); ok {
-			text = FilterDroidIdentity(delta)
+			text = FilterDroidIdentity(delta, true) // streaming: preserve whitespace
 		} else if textVal, ok := eventData["text"].(string); ok {
-			text = FilterDroidIdentity(textVal)
+			text = FilterDroidIdentity(textVal, true) // streaming: preserve whitespace
 		}
 		return t.createOpenAIChunk(text, "", false, ""), nil
 
@@ -671,12 +678,12 @@ func (t *TrollOpenAIResponseTransformer) TransformStream(reader io.Reader) chan 
 								if choiceMap, ok := choice.(map[string]interface{}); ok {
 									if delta, ok := choiceMap["delta"].(map[string]interface{}); ok {
 										if content, ok := delta["content"].(string); ok {
-											delta["content"] = FilterDroidIdentity(content)
+											delta["content"] = FilterDroidIdentity(content, true) // streaming: preserve whitespace
 										}
 									}
 									if message, ok := choiceMap["message"].(map[string]interface{}); ok {
 										if content, ok := message["content"].(string); ok {
-											message["content"] = FilterDroidIdentity(content)
+											message["content"] = FilterDroidIdentity(content, true) // streaming: preserve whitespace
 										}
 									}
 								}
