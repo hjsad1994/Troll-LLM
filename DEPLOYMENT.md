@@ -148,7 +148,7 @@ docker compose -f docker-compose.prod.yml logs -f nginx
 
 # Restart service
 docker compose -f docker-compose.prod.yml restart backend
-
+docker compose -f docker-compose.prod.yml restart nginx
 # Rebuild và restart
 docker compose -f docker-compose.prod.yml up -d --build backend
 
