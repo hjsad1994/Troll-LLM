@@ -1118,6 +1118,52 @@ func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq 
 	}
 }
 
+// sanitizeError returns a generic error message without revealing upstream details (OpenAI format)
+func sanitizeError(statusCode int, originalError []byte) []byte {
+	log.Printf("🔒 [GoProxy] Original error (hidden): %s", string(originalError))
+	switch statusCode {
+	case 400:
+		return []byte(`{"error":{"message":"Bad request","type":"invalid_request_error"}}`)
+	case 401:
+		return []byte(`{"error":{"message":"Authentication failed","type":"authentication_error"}}`)
+	case 402:
+		return []byte(`{"error":{"message":"Payment required","type":"payment_error"}}`)
+	case 403:
+		return []byte(`{"error":{"message":"Access denied","type":"permission_error"}}`)
+	case 404:
+		return []byte(`{"error":{"message":"Resource not found","type":"not_found_error"}}`)
+	case 429:
+		return []byte(`{"error":{"message":"Rate limit exceeded","type":"rate_limit_error"}}`)
+	case 500, 502, 503, 504:
+		return []byte(`{"error":{"message":"Upstream service unavailable","type":"server_error"}}`)
+	default:
+		return []byte(`{"error":{"message":"Request failed","type":"api_error"}}`)
+	}
+}
+
+// sanitizeAnthropicError returns a generic error message in Anthropic format
+func sanitizeAnthropicError(statusCode int, originalError []byte) []byte {
+	log.Printf("🔒 [GoProxy] Original error (hidden): %s", string(originalError))
+	switch statusCode {
+	case 400:
+		return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Bad request"}}`)
+	case 401:
+		return []byte(`{"type":"error","error":{"type":"authentication_error","message":"Authentication failed"}}`)
+	case 402:
+		return []byte(`{"type":"error","error":{"type":"payment_error","message":"Payment required"}}`)
+	case 403:
+		return []byte(`{"type":"error","error":{"type":"permission_error","message":"Access denied"}}`)
+	case 404:
+		return []byte(`{"type":"error","error":{"type":"not_found_error","message":"Resource not found"}}`)
+	case 429:
+		return []byte(`{"type":"error","error":{"type":"rate_limit_error","message":"Rate limit exceeded"}}`)
+	case 500, 502, 503, 504:
+		return []byte(`{"type":"error","error":{"type":"api_error","message":"Upstream service unavailable"}}`)
+	default:
+		return []byte(`{"type":"error","error":{"type":"api_error","message":"Request failed"}}`)
+	}
+}
+
 // Handle Anthropic non-streaming response
 func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	// Read response body (automatically handle gzip)
@@ -1134,10 +1180,10 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
-		// Forward error response directly
+		// Sanitize and forward error response (hide upstream details)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		if _, err := w.Write(body); err != nil {
+		if _, err := w.Write(sanitizeError(resp.StatusCode, body)); err != nil {
 			log.Printf("Error: failed to write error response: %v", err)
 		}
 		return
@@ -1237,18 +1283,18 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 
 // Handle Anthropic streaming response
 func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
-	// Log error responses from upstream
+	// Handle error responses from upstream
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ [%s] Upstream error %d: %s", trollKeyID, resp.StatusCode, string(body))
 		// Log failed request for analytics
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
+		// Sanitize and forward error response (hide upstream details)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		w.Write(body)
+		w.Write(sanitizeError(resp.StatusCode, body))
 		return
 	}
 	
@@ -1412,10 +1458,10 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
-		// Forward error response directly
+		// Sanitize and forward error response (hide upstream details)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		if _, err := w.Write(body); err != nil {
+		if _, err := w.Write(sanitizeError(resp.StatusCode, body)); err != nil {
 			log.Printf("Error: failed to write error response: %v", err)
 		}
 		return
@@ -2249,18 +2295,18 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	log.Printf("📥 Stream response status: %d", resp.StatusCode)
 	
-	// If not 200, log response body for debugging
+	// Handle error responses from upstream
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ Stream error response: %s", string(body))
 		// Log failed request for analytics
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
+		// Sanitize and forward error response (hide upstream details)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		w.Write(body)
+		w.Write(sanitizeAnthropicError(resp.StatusCode, body))
 		return
 	}
 	
@@ -2466,6 +2512,14 @@ func main() {
 	healthChecker = proxy.NewHealthChecker(proxyPool)
 	healthChecker.Start()
 	
+	// Start auto-reload for proxy bindings (default 30s, configurable via BINDING_RELOAD_INTERVAL)
+	reloadInterval := 30 * time.Second
+	if intervalStr := getEnv("BINDING_RELOAD_INTERVAL", ""); intervalStr != "" {
+		if parsed, err := time.ParseDuration(intervalStr); err == nil {
+			reloadInterval = parsed
+		}
+	}
+	proxyPool.StartAutoReload(reloadInterval)
 	
 	log.Printf("✅ Proxy pool loaded: %d proxies", proxyPool.GetProxyCount())
 	log.Printf("✅ Troll key pool loaded: %d keys", trollKeyPool.GetKeyCount())
@@ -2529,6 +2583,34 @@ func main() {
 	http.HandleFunc("/v1/chat/completions", corsMiddleware(chatCompletionsHandler))
 	http.HandleFunc("/v1/messages", corsMiddleware(handleAnthropicMessagesEndpoint))
 	http.HandleFunc("/docs", corsMiddleware(docsHandler))
+
+	// Manual reload endpoint for admin to trigger binding refresh
+	http.HandleFunc("/reload", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		log.Printf("🔄 Manual reload triggered")
+		if err := proxyPool.Reload(); err != nil {
+			log.Printf("❌ Manual reload failed: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":      true,
+			"message":      "Proxy bindings reloaded successfully",
+			"proxy_count":  proxyPool.GetProxyCount(),
+			"bindings":     proxyPool.GetBindingsInfo(),
+		})
+	}))
 
 	// Root path
 	http.HandleFunc("/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {

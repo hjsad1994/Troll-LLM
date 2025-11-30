@@ -47,14 +47,14 @@ const sidebarNav = [
 // ===== TIP COMPONENT =====
 function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/10 mb-6">
+    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-500/5 border border-blue-200 dark:border-blue-500/10 mb-6">
       <div className="flex items-start gap-3">
-        <div className="w-5 h-5 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+        <div className="w-5 h-5 rounded bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg className="w-3 h-3 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
         </div>
-        <div className="text-slate-300 text-sm leading-relaxed flex-1">{children}</div>
+        <div className="text-gray-700 dark:text-slate-300 text-sm leading-relaxed flex-1">{children}</div>
       </div>
     </div>
   )
@@ -63,8 +63,8 @@ function Tip({ children }: { children: React.ReactNode }) {
 // ===== NOTE COMPONENT =====
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50 mb-6">
-      <div className="text-slate-300 text-sm leading-relaxed">{children}</div>
+    <div className="p-4 rounded-lg bg-gray-100 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700/50 mb-6">
+      <div className="text-gray-700 dark:text-slate-300 text-sm leading-relaxed">{children}</div>
     </div>
   )
 }
@@ -84,13 +84,13 @@ function Card({
   return (
     <Link
       href={href}
-      className="group p-5 rounded-lg border border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] transition-all"
+      className="group p-5 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-all shadow-sm"
     >
-      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-white transition-colors mb-3">
+      <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors mb-3">
         {icon}
       </div>
-      <h3 className="text-base font-semibold text-white mb-2">{title}</h3>
-      <p className="text-slate-500 text-sm leading-relaxed">{description}</p>
+      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
+      <p className="text-gray-500 dark:text-slate-500 text-sm leading-relaxed">{description}</p>
     </Link>
   )
 }
@@ -121,44 +121,44 @@ function CodeBlock({
 
     if (lang === 'python') {
       escaped = escaped
-        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|client|response|chat|completions|create|base_url|api_key|model|messages|role|content|print|choices|message)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(#.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|client|response|chat|completions|create|base_url|api_key|model|messages|role|content|print|choices|message)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(#.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     } else if (lang === 'javascript' || lang === 'typescript') {
       escaped = escaped
-        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/(".*?"|'.*?'|`.*?`)/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|client|response|chat|completions|create|baseURL|apiKey|model|messages|role|content|console|log)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/(".*?"|'.*?'|`.*?`)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|client|response|chat|completions|create|baseURL|apiKey|model|messages|role|content|console|log)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     } else if (lang === 'bash' || lang === 'shell') {
       escaped = escaped
-        .replace(/\b(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/g, '<span class="text-yellow-400">$1</span>')
-        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/(-[a-zA-Z]|--[a-zA-Z-]+)/g, '<span class="text-cyan-400">$1</span>')
+        .replace(/\b(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/g, '<span class="text-yellow-600 dark:text-yellow-400">$1</span>')
+        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/(-[a-zA-Z]|--[a-zA-Z-]+)/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>')
     }
 
     return escaped
   }
 
   return (
-    <div className="rounded-lg border border-white/10 overflow-hidden mb-6">
+    <div className="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden mb-6 shadow-sm">
       {title && (
-        <div className="px-4 py-2.5 bg-white/[0.02] border-b border-white/10 flex items-center justify-between">
-          <span className="text-slate-400 text-sm font-medium">{title}</span>
-          <span className="text-slate-600 text-xs font-mono uppercase">{language}</span>
+        <div className="px-4 py-2.5 bg-gray-50 dark:bg-white/[0.02] border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <span className="text-gray-600 dark:text-slate-400 text-sm font-medium">{title}</span>
+          <span className="text-gray-400 dark:text-slate-600 text-xs font-mono uppercase">{language}</span>
         </div>
       )}
       <div className="relative">
-        <pre className="p-4 bg-[#0a0a0a] overflow-x-auto">
+        <pre className="p-4 bg-gray-900 dark:bg-[#0a0a0a] overflow-x-auto">
           <code
-            className="text-sm text-slate-300 font-mono leading-relaxed"
+            className="text-sm text-gray-200 dark:text-slate-300 font-mono leading-relaxed"
             dangerouslySetInnerHTML={{ __html: highlightCode(code, language) }}
           />
         </pre>
         <button
           onClick={copyToClipboard}
-          className="absolute top-2 right-2 p-2 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-slate-500 hover:text-white transition-all"
+          className="absolute top-2 right-2 p-2 rounded bg-gray-800 dark:bg-white/5 hover:bg-gray-700 dark:hover:bg-white/10 border border-gray-700 dark:border-white/10 text-gray-400 dark:text-slate-500 hover:text-white transition-all"
         >
           {copied ? (
             <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -178,9 +178,9 @@ function CodeBlock({
 // ===== MODEL BADGE =====
 function ModelBadge({ name, isNew }: { name: string; isNew?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm">
-      <span className="text-white font-medium">{name}</span>
-      {isNew && <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-medium">New</span>}
+    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm">
+      <span className="text-gray-900 dark:text-white font-medium">{name}</span>
+      {isNew && <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-medium">New</span>}
     </span>
   )
 }
@@ -229,7 +229,7 @@ export default function DocsPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white dark:bg-black">
       <Header activeLink="docs" />
 
       <div className="flex pt-[65px]">
@@ -244,26 +244,26 @@ export default function DocsPage() {
         </button>
 
         {/* Sidebar */}
-        <aside className={`fixed lg:sticky top-[65px] left-0 z-40 w-72 h-[calc(100vh-65px)] bg-black/95 backdrop-blur-xl lg:bg-transparent border-r border-white/5 overflow-y-auto transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <aside className={`fixed lg:sticky top-[65px] left-0 z-40 w-72 h-[calc(100vh-65px)] bg-white dark:bg-black/95 backdrop-blur-xl lg:bg-transparent border-r border-gray-200 dark:border-white/5 overflow-y-auto transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="p-6">
             {/* Search */}
             <div className="relative mb-8">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 type="text"
                 placeholder={t.docs.sidebar.searchDocs}
-                className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all"
+                className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500/50 focus:bg-white dark:focus:bg-white/10 transition-all"
               />
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-600 text-xs font-mono">⌘K</kbd>
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/5 border border-gray-300 dark:border-white/10 text-gray-500 dark:text-slate-600 text-xs font-mono">⌘K</kbd>
             </div>
 
             {/* Navigation */}
             <nav className="space-y-6">
               {sidebarNavTranslated.map((section) => (
                 <div key={section.title}>
-                  <h3 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <h3 className="text-gray-500 dark:text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
                     {section.title === t.docs.sidebar.gettingStarted && (
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -293,8 +293,8 @@ export default function DocsPage() {
                           href={item.href}
                           className={`group block px-3 py-2 rounded-lg text-sm transition-all ${
                             item.active
-                              ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                              : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                              ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20'
+                              : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent'
                           }`}
                         >
                           <span className="flex items-center justify-between">
@@ -319,34 +319,34 @@ export default function DocsPage() {
         <main className="flex-1 min-w-0 px-6 lg:px-12 py-12">
           <div className="max-w-4xl mx-auto">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-slate-500 mb-8">
-              <Link href="/" className="hover:text-indigo-400 transition-colors">Home</Link>
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 mb-8">
+              <Link href="/" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Home</Link>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-              <Link href="/docs" className="hover:text-indigo-400 transition-colors">Docs</Link>
+              <Link href="/docs" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Docs</Link>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-              <span className="text-slate-400">Introduction</span>
+              <span className="text-gray-700 dark:text-slate-400">Introduction</span>
             </div>
 
             {/* Title with gradient */}
             <div className="mb-12">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
                 {t.docs.intro.title}
               </h1>
-              <p className="text-xl text-slate-400 leading-relaxed">
+              <p className="text-xl text-gray-500 dark:text-slate-400 leading-relaxed">
                 {t.docs.intro.description}
               </p>
             </div>
 
             {/* Model highlight */}
             <Tip>
-              <strong className="text-emerald-400">{t.docs.intro.tipNew}</strong> {t.docs.intro.tipModels}
-              <span className="text-white mx-1">Claude 4.5 series</span>,
-              <span className="text-white mx-1">GPT-5.1</span>, and
-              <span className="text-white mx-1">Gemini 3 Pro</span> {t.docs.intro.tipContext}
+              <strong className="text-emerald-600 dark:text-emerald-400">{t.docs.intro.tipNew}</strong> {t.docs.intro.tipModels}
+              <span className="text-gray-900 dark:text-white mx-1">Claude 4.5 series</span>,
+              <span className="text-gray-900 dark:text-white mx-1">GPT-5.1</span>, and
+              <span className="text-gray-900 dark:text-white mx-1">Gemini 3 Pro</span> {t.docs.intro.tipContext}
             </Tip>
 
             {/* Available Models */}
@@ -363,12 +363,12 @@ export default function DocsPage() {
             </Note>
 
             {/* Divider */}
-            <div className="h-px bg-white/10 my-12" />
+            <div className="h-px bg-gray-200 dark:bg-white/10 my-12" />
 
             {/* Get Started */}
             <div id="quickstart" className="scroll-mt-20">
-              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.getStarted}</h2>
-              <p className="text-slate-500 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t.docs.intro.getStarted}</h2>
+              <p className="text-gray-500 dark:text-slate-500 mb-6">
                 {t.docs.intro.getStartedDesc}
               </p>
             </div>
@@ -407,11 +407,11 @@ export default function DocsPage() {
             </div>
 
             {/* Quick Example */}
-            <div className="h-px bg-white/10 my-12" />
+            <div className="h-px bg-gray-200 dark:bg-white/10 my-12" />
 
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.quickExample}</h2>
-              <p className="text-slate-500 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t.docs.intro.quickExample}</h2>
+              <p className="text-gray-500 dark:text-slate-500 mb-6">
                 {t.docs.intro.quickExampleDesc}
               </p>
             </div>
@@ -434,12 +434,12 @@ print(response.choices[0].message.content)`}
             />
 
             {/* Divider */}
-            <div className="h-px bg-white/10 my-12" />
+            <div className="h-px bg-gray-200 dark:bg-white/10 my-12" />
 
             {/* Integrations */}
             <div id="integrations" className="scroll-mt-20">
-              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.integrationsTitle}</h2>
-              <p className="text-slate-500 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t.docs.intro.integrationsTitle}</h2>
+              <p className="text-gray-500 dark:text-slate-500 mb-6">
                 {t.docs.intro.integrationsDesc}
               </p>
             </div>
@@ -509,12 +509,12 @@ print(response.choices[0].message.content)`}
             </div>
 
             {/* Divider */}
-            <div className="h-px bg-white/10 my-12" />
+            <div className="h-px bg-gray-200 dark:bg-white/10 my-12" />
 
             {/* Support */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.supportTitle}</h2>
-              <p className="text-slate-500 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t.docs.intro.supportTitle}</h2>
+              <p className="text-gray-500 dark:text-slate-500 mb-6">
                 {t.docs.intro.supportDesc}
               </p>
             </div>
@@ -543,11 +543,11 @@ print(response.choices[0].message.content)`}
             </div>
 
             {/* Footer navigation */}
-            <div className="flex items-center justify-between mt-12 pt-6 border-t border-white/10">
-              <div className="text-slate-600 text-sm">
+            <div className="flex items-center justify-between mt-12 pt-6 border-t border-gray-200 dark:border-white/10">
+              <div className="text-gray-500 dark:text-slate-600 text-sm">
                 {t.docs.intro.lastUpdated} November 2024
               </div>
-              <Link href="/docs/quickstart" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
+              <Link href="/docs/quickstart" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all">
                 <span className="font-medium">{t.docs.intro.next} {t.docs.intro.quickstartTitle}</span>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -558,43 +558,43 @@ print(response.choices[0].message.content)`}
         </main>
 
         {/* Table of contents (right sidebar) */}
-        <aside className="hidden xl:block w-64 flex-shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto border-l border-white/5 p-6">
-          <h3 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
+        <aside className="hidden xl:block w-64 flex-shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto border-l border-gray-200 dark:border-white/5 p-6">
+          <h3 className="text-gray-500 dark:text-slate-500 text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
             </svg>
             {t.docs.intro.onThisPage}
           </h3>
           <nav className="space-y-3">
-            <a href="#" className="group flex items-center gap-2 text-sm text-indigo-400 font-medium">
+            <a href="#" className="group flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 font-medium">
               <div className="w-1 h-4 bg-indigo-500 rounded-full" />
               {t.docs.sidebar.introduction}
             </a>
-            <a href="#quickstart" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+            <a href="#quickstart" className="group flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">
               {t.docs.intro.getStarted}
             </a>
-            <a href="#" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+            <a href="#" className="group flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">
               {t.docs.intro.quickExample}
             </a>
-            <a href="#integrations" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+            <a href="#integrations" className="group flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">
               {t.docs.intro.integrationsTitle}
             </a>
-            <a href="#" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
+            <a href="#" className="group flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">
               {t.docs.intro.supportTitle}
             </a>
           </nav>
 
           {/* Help Card */}
-          <div className="mt-8 p-4 rounded-lg bg-white/[0.02] border border-white/10">
+          <div className="mt-8 p-4 rounded-lg bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/10">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div>
-                <h4 className="text-white font-medium text-sm mb-1">{t.docs.intro.needHelp}</h4>
-                <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                <h4 className="text-gray-900 dark:text-white font-medium text-sm mb-1">{t.docs.intro.needHelp}</h4>
+                <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed mb-3">
                   {t.docs.intro.needHelpDesc}
                 </p>
                 <a href="https://discord.gg/Prs3RxwnyQ" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-medium transition-colors">

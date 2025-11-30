@@ -25,7 +25,11 @@ const updateProxySchema = z.object({
 
 const bindKeySchema = z.object({
   factoryKeyId: z.string().min(1),
-  priority: z.number().int().min(1).max(2),
+  priority: z.number().int().min(1).max(10),
+});
+
+const updateBindingSchema = z.object({
+  priority: z.number().int().min(1).max(10),
 });
 
 // GET /admin/proxies - List all proxies
@@ -41,6 +45,31 @@ router.get('/', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('Error listing proxies:', error);
     res.status(500).json({ error: 'Failed to list proxies' });
+  }
+});
+
+// GET /admin/proxies/bindings - Get all bindings overview
+router.get('/bindings', async (_req: Request, res: Response) => {
+  try {
+    const bindings = await proxyService.getAllBindings();
+    
+    // Group bindings by proxy
+    const byProxy: Record<string, typeof bindings> = {};
+    for (const binding of bindings) {
+      if (!byProxy[binding.proxyId]) {
+        byProxy[binding.proxyId] = [];
+      }
+      byProxy[binding.proxyId].push(binding);
+    }
+
+    res.json({
+      total: bindings.length,
+      bindings,
+      byProxy,
+    });
+  } catch (error) {
+    console.error('Error listing all bindings:', error);
+    res.status(500).json({ error: 'Failed to list bindings' });
   }
 });
 
@@ -141,7 +170,7 @@ router.post('/:id/keys', async (req: Request, res: Response) => {
     const binding = await proxyService.bindKeyToProxy(
       req.params.id,
       input.factoryKeyId,
-      input.priority as 1 | 2
+      input.priority
     );
 
     res.status(201).json(binding);
@@ -162,6 +191,32 @@ router.post('/:id/keys', async (req: Request, res: Response) => {
     }
     console.error('Error binding key:', error);
     res.status(500).json({ error: 'Failed to bind key' });
+  }
+});
+
+// PATCH /admin/proxies/:id/keys/:keyId - Update binding priority
+router.patch('/:id/keys/:keyId', async (req: Request, res: Response) => {
+  try {
+    const input = updateBindingSchema.parse(req.body);
+    const binding = await proxyService.updateBindingPriority(
+      req.params.id,
+      req.params.keyId,
+      input.priority
+    );
+
+    if (!binding) {
+      res.status(404).json({ error: 'Binding not found' });
+      return;
+    }
+
+    res.json(binding);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Invalid input', details: error.errors });
+      return;
+    }
+    console.error('Error updating binding:', error);
+    res.status(500).json({ error: 'Failed to update binding' });
   }
 });
 

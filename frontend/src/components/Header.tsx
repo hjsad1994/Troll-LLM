@@ -9,9 +9,10 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface HeaderProps {
   activeLink?: 'models' | 'features' | 'pricing' | 'faq' | 'docs'
+  hideAuthButtons?: boolean
 }
 
-export default function Header({ activeLink }: HeaderProps) {
+export default function Header({ activeLink, hideAuthButtons }: HeaderProps) {
   const [scrollY, setScrollY] = useState(0)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const { isLoggedIn, user, logout } = useAuth()
@@ -38,6 +39,7 @@ export default function Header({ activeLink }: HeaderProps) {
     { key: 'features', label: t.nav.features, href: '/#features' },
     { key: 'pricing', label: t.nav.pricing, href: '/#pricing' },
     { key: 'faq', label: t.nav.faq, href: '/#faq' },
+    { key: 'docs', label: t.nav.documentation, href: '/docs' },
   ]
 
   return (
@@ -86,7 +88,7 @@ export default function Header({ activeLink }: HeaderProps) {
             <div className="relative user-menu-container">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/20 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 <div className="w-7 h-7 rounded-md bg-black/10 dark:bg-white/10 flex items-center justify-center text-[var(--theme-text)] text-xs font-medium">
                   {user?.username?.charAt(0)?.toUpperCase() || 'U'}
@@ -155,7 +157,7 @@ export default function Header({ activeLink }: HeaderProps) {
                 </div>
               )}
             </div>
-          ) : (
+          ) : !hideAuthButtons ? (
             <>
               <Link href="/login" className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors text-sm">
                 {t.nav.signIn}
@@ -164,7 +166,7 @@ export default function Header({ activeLink }: HeaderProps) {
                 {t.nav.getApiKey}
               </Link>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </nav>

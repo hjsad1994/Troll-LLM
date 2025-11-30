@@ -209,22 +209,22 @@ const models: Model[] = [
 ]
 
 const tierColors = {
-  opus: { bg: 'from-amber-500 to-orange-600', text: 'text-amber-400', border: 'border-amber-500/20', glow: 'shadow-amber-500/10' },
-  sonnet: { bg: 'from-violet-500 to-purple-600', text: 'text-violet-400', border: 'border-violet-500/20', glow: 'shadow-violet-500/10' },
-  haiku: { bg: 'from-emerald-500 to-teal-600', text: 'text-emerald-400', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/10' },
-  'gpt-5': { bg: 'from-cyan-500 to-blue-600', text: 'text-cyan-400', border: 'border-cyan-500/20', glow: 'shadow-cyan-500/10' },
-  'gemini-pro': { bg: 'from-pink-500 to-rose-600', text: 'text-pink-400', border: 'border-pink-500/20', glow: 'shadow-pink-500/10' },
-  'minimax': { bg: 'from-sky-500 to-indigo-600', text: 'text-sky-400', border: 'border-sky-500/20', glow: 'shadow-sky-500/10' },
-  'kimi': { bg: 'from-blue-500 to-cyan-600', text: 'text-blue-400', border: 'border-blue-500/20', glow: 'shadow-blue-500/10' },
-  'gpt-oss': { bg: 'from-slate-500 to-zinc-600', text: 'text-slate-400', border: 'border-slate-500/20', glow: 'shadow-slate-500/10' },
+  opus: { bg: 'from-amber-500 to-orange-600', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/20', glow: 'shadow-amber-500/10' },
+  sonnet: { bg: 'from-violet-500 to-purple-600', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/20', glow: 'shadow-violet-500/10' },
+  haiku: { bg: 'from-emerald-500 to-teal-600', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/10' },
+  'gpt-5': { bg: 'from-cyan-500 to-blue-600', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500/20', glow: 'shadow-cyan-500/10' },
+  'gemini-pro': { bg: 'from-pink-500 to-rose-600', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-500/20', glow: 'shadow-pink-500/10' },
+  'minimax': { bg: 'from-sky-500 to-indigo-600', text: 'text-sky-600 dark:text-sky-400', border: 'border-sky-500/20', glow: 'shadow-sky-500/10' },
+  'kimi': { bg: 'from-blue-500 to-cyan-600', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20', glow: 'shadow-blue-500/10' },
+  'gpt-oss': { bg: 'from-slate-500 to-zinc-600', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-500/20', glow: 'shadow-slate-500/10' },
 }
 
 const providerColors = {
-  anthropic: 'text-orange-400',
-  openai: 'text-cyan-400',
-  google: 'text-pink-400',
-  minimax: 'text-sky-400',
-  moonshot: 'text-blue-400',
+  anthropic: 'text-orange-600 dark:text-orange-400',
+  openai: 'text-cyan-600 dark:text-cyan-400',
+  google: 'text-pink-600 dark:text-pink-400',
+  minimax: 'text-sky-600 dark:text-sky-400',
+  moonshot: 'text-blue-600 dark:text-blue-400',
 }
 
 function getProviderIcon(provider: Provider, className?: string) {
@@ -293,14 +293,14 @@ export default function ModelsPage() {
       <section className="relative pt-32 pb-12 overflow-hidden">
         {/* Background with grid - Same as Homepage */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.08)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.15)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.15)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
         </div>
 
         <div className="relative max-w-4xl mx-auto px-6">
           {/* Badge */}
           <div className="flex justify-center mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
@@ -325,12 +325,12 @@ export default function ModelsPage() {
               <div className="text-2xl font-bold text-[var(--theme-text)]">{models.length}</div>
               <div className="text-[var(--theme-text-subtle)] text-sm">{t.models.stats.models}</div>
             </div>
-            <div className="h-8 w-px bg-black/10 dark:bg-white/10" />
+            <div className="h-8 w-px bg-gray-300 dark:bg-white/10" />
             <div className="text-center">
               <div className="text-2xl font-bold text-[var(--theme-text)]">5</div>
               <div className="text-[var(--theme-text-subtle)] text-sm">{t.models.stats.providers}</div>
             </div>
-            <div className="h-8 w-px bg-black/10 dark:bg-white/10" />
+            <div className="h-8 w-px bg-gray-300 dark:bg-white/10" />
             <div className="text-center">
               <div className="flex items-center gap-3">
                 <AnthropicIcon className="w-5 h-5 text-orange-500 dark:text-orange-400" />
@@ -351,19 +351,19 @@ export default function ModelsPage() {
                 onClick={() => setSelectedProvider(provider.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   selectedProvider === provider.id
-                    ? 'bg-[var(--theme-text)] text-[var(--theme-bg)]'
-                    : 'bg-black/5 dark:bg-white/5 text-[var(--theme-text-muted)] hover:bg-black/10 dark:hover:bg-white/10 hover:text-[var(--theme-text)] border border-black/5 dark:border-white/5'
+                    ? 'bg-[var(--theme-text)] text-[var(--theme-bg)] shadow-md'
+                    : 'bg-white dark:bg-white/5 text-[var(--theme-text-muted)] hover:bg-gray-100 dark:hover:bg-white/10 hover:text-[var(--theme-text)] border border-gray-200 dark:border-white/5 shadow-sm'
                 }`}
               >
                 {provider.icon && <span className={selectedProvider === provider.id ? 'text-[var(--theme-bg)]' : providerColors[provider.id as Provider]}>{provider.icon}</span>}
                 {provider.name}
                 {provider.id === 'all' && (
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${selectedProvider === 'all' ? 'bg-[var(--theme-bg)]/20 text-[var(--theme-bg)]' : 'bg-black/10 dark:bg-white/10 text-[var(--theme-text-subtle)]'}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-xs ${selectedProvider === 'all' ? 'bg-[var(--theme-bg)]/20 text-[var(--theme-bg)]' : 'bg-gray-100 dark:bg-white/10 text-[var(--theme-text-subtle)]'}`}>
                     {models.length}
                   </span>
                 )}
                 {provider.id !== 'all' && (
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${selectedProvider === provider.id ? 'bg-[var(--theme-bg)]/20 text-[var(--theme-bg)]' : 'bg-black/10 dark:bg-white/10 text-[var(--theme-text-subtle)]'}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-xs ${selectedProvider === provider.id ? 'bg-[var(--theme-bg)]/20 text-[var(--theme-bg)]' : 'bg-gray-100 dark:bg-white/10 text-[var(--theme-text-subtle)]'}`}>
                     {models.filter(m => m.provider === provider.id).length}
                   </span>
                 )}
@@ -381,7 +381,7 @@ export default function ModelsPage() {
               placeholder={t.models.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-lg bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 text-[var(--theme-text)] placeholder-[var(--theme-text-subtle)] focus:outline-none focus:border-black/10 dark:focus:border-white/10 transition-colors"
+              className="w-full pl-12 pr-4 py-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 text-[var(--theme-text)] placeholder-[var(--theme-text-subtle)] focus:outline-none focus:border-gray-400 dark:focus:border-white/10 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-sm"
             />
           </div>
         </div>
@@ -390,11 +390,11 @@ export default function ModelsPage() {
       {/* Models Table */}
       <section className="py-12">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="rounded-xl border border-black/5 dark:border-white/5 overflow-hidden">
+          <div className="rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden bg-white dark:bg-transparent shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-black/[0.03] dark:bg-white/[0.03]">
+                  <tr className="bg-gray-50 dark:bg-white/[0.03]">
                     <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.model}</th>
                     <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden sm:table-cell">{t.models.table.provider}</th>
                     <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.context}</th>
@@ -405,16 +405,16 @@ export default function ModelsPage() {
                     <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden xl:table-cell">{t.models.table.apiId}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-black/5 dark:divide-white/5">
+                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                   {filteredModels.map((model) => {
                     const colors = tierColors[model.tier]
                     const providerColor = providerColors[model.provider]
                     return (
-                      <tr key={model.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+                      <tr key={model.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
                         {/* Model Name */}
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center flex-shrink-0 sm:hidden">
+                            <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center flex-shrink-0 sm:hidden">
                               {getProviderIcon(model.provider, `w-4 h-4 ${providerColor}`)}
                             </div>
                             <div>
@@ -458,7 +458,7 @@ export default function ModelsPage() {
                                   (model.speed === 'balanced' && i <= 1) ||
                                   (model.speed === 'powerful' && i <= 2)
                                     ? `bg-gradient-to-r ${colors.bg}`
-                                    : 'bg-black/10 dark:bg-white/10'
+                                    : 'bg-gray-200 dark:bg-white/10'
                                 }`}
                               />
                             ))}
@@ -470,21 +470,21 @@ export default function ModelsPage() {
                             {model.capabilities.slice(0, 3).map((cap) => (
                               <span
                                 key={cap}
-                                className="px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 text-[var(--theme-text-subtle)] text-[10px] capitalize"
+                                className="px-2 py-0.5 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-subtle)] text-[10px] capitalize font-semibold shadow-sm"
                               >
                                 {cap}
                               </span>
                             ))}
                             {model.capabilities.length > 3 && (
-                              <span className="px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 text-[var(--theme-text-subtle)] text-[10px]">
+                              <span className="px-2 py-0.5 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-subtle)] text-[10px] font-semibold shadow-sm">
                                 +{model.capabilities.length - 3}
                               </span>
                             )}
                           </div>
                         </td>
                         {/* API ID */}
-                        <td className="px-4 py-4 hidden xl:table-cell">
-                          <code className="px-2 py-1 rounded bg-black/5 dark:bg-white/5 text-[var(--theme-text-muted)] text-xs font-mono">{model.id}</code>
+                        <td className="px-4 py-4 hidden xl:table-cell whitespace-nowrap">
+                          <code className="px-2 py-1 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-muted)] text-xs font-mono shadow-sm whitespace-nowrap">{model.id}</code>
                         </td>
                       </tr>
                     )
@@ -506,9 +506,9 @@ export default function ModelsPage() {
           )}
 
           {/* Launch Promotion Banner */}
-          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20">
+          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-300 dark:border-emerald-500/20 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/30 flex items-center justify-center flex-shrink-0">
                 <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm2.5 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6.207.293a1 1 0 00-1.414 0l-6 6a1 1 0 101.414 1.414l6-6a1 1 0 000-1.414zM12.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" clipRule="evenodd" />
                 </svg>
@@ -527,7 +527,7 @@ export default function ModelsPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 border-t border-black/5 dark:border-white/5 relative">
+      <section className="py-24 border-t border-gray-200 dark:border-white/5 relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
         <div className="relative max-w-2xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--theme-text)] mb-4">
@@ -537,10 +537,10 @@ export default function ModelsPage() {
             {t.models.ctaDescription}
           </p>
           <div className="flex items-center justify-center gap-4">
-            <Link href="/register" className="px-8 py-4 rounded-xl bg-[var(--theme-text)] text-[var(--theme-bg)] font-semibold hover:opacity-90 transition-colors">
+            <Link href="/register" className="px-8 py-4 rounded-xl bg-[var(--theme-text)] text-[var(--theme-bg)] font-semibold hover:opacity-90 transition-colors shadow-lg">
               {t.models.getApiKey}
             </Link>
-            <Link href="/docs" className="px-8 py-4 rounded-xl border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+            <Link href="/docs" className="px-8 py-4 rounded-xl border border-gray-200 dark:border-white/10 text-[var(--theme-text)] font-semibold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors shadow-sm">
               {t.models.viewDocs}
             </Link>
           </div>
@@ -548,7 +548,7 @@ export default function ModelsPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-black/5 dark:border-white/5">
+      <footer className="py-8 border-t border-gray-200 dark:border-white/5">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">

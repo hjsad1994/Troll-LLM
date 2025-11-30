@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useLanguage } from '@/components/LanguageProvider'
+import Header from '@/components/Header'
 
 // ===== SIDEBAR NAVIGATION =====
 const sidebarNav = [
@@ -69,55 +70,55 @@ function CodeBlock({
 
     if (lang === 'python') {
       escaped = escaped
-        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/("([^"]*)"|'([^']*)')/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(#.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/("([^"]*)"|'([^']*)')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(#.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     } else if (lang === 'javascript' || lang === 'typescript') {
       escaped = escaped
-        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/("([^"]*)"|'([^']*)'|`([^`]*)`)/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/("([^"]*)"|'([^']*)'|`([^`]*)`)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     } else if (lang === 'bash' || lang === 'shell') {
       escaped = escaped
-        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-400">$1</span>')
-        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-400">$1</span>')
+        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-600 dark:text-yellow-400">$1</span>')
+        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>')
     } else if (lang === 'json') {
       escaped = escaped
-        .replace(/("([^"]*)")(\\s*:)/g, '<span class="text-cyan-400">$1</span>$2')
-        .replace(/:\\s*("([^"]*)")/g, ': <span class="text-emerald-400">$1</span>')
-        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-400">$1</span>')
+        .replace(/("([^"]*)")(\\s*:)/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>$2')
+        .replace(/:\\s*("([^"]*)")/g, ': <span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-600 dark:text-amber-400">$1</span>')
     } else if (lang === 'go') {
       escaped = escaped
-        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/("([^"]*)")/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/("([^"]*)")/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     }
 
     return escaped
   }
 
   return (
-    <div className="rounded-xl border border-white/5 overflow-hidden mb-6">
+    <div className="rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden mb-6 shadow-sm">
       {title && (
-        <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
-          <span className="text-slate-500 text-xs font-medium">{title}</span>
-          <span className="text-slate-600 text-xs">{language}</span>
+        <div className="px-4 py-2 bg-gray-50 dark:bg-white/[0.02] border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
+          <span className="text-gray-600 dark:text-slate-500 text-xs font-medium">{title}</span>
+          <span className="text-gray-400 dark:text-slate-600 text-xs">{language}</span>
         </div>
       )}
       <div className="relative">
-        <pre className="p-4 bg-[#0a0a0a] overflow-x-auto">
+        <pre className="p-4 bg-gray-900 dark:bg-[#0a0a0a] overflow-x-auto">
           <code
-            className="text-sm text-slate-300 font-mono"
+            className="text-sm text-gray-200 dark:text-slate-300 font-mono"
             dangerouslySetInnerHTML={{ __html: highlightCode(code, language) }}
           />
         </pre>
         <button
           onClick={copyToClipboard}
-          className="absolute top-3 right-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all"
+          className="absolute top-3 right-3 p-2 rounded-lg bg-gray-800 dark:bg-white/5 hover:bg-gray-700 dark:hover:bg-white/10 text-gray-400 dark:text-slate-500 hover:text-white transition-all"
         >
           {copied ? (
             <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,40 +158,40 @@ function TabbedCodeBlock({
 
     if (lang === 'python') {
       escaped = escaped
-        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/(\"[^\"]*\"|'[^']*')/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(#.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/(\"[^\"]*\"|'[^']*')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(#.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     } else if (lang === 'javascript' || lang === 'typescript') {
       escaped = escaped
-        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/(\"[^\"]*\"|'[^']*'|`[^`]*`)/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/(\"[^\"]*\"|'[^']*'|`[^`]*`)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     } else if (lang === 'bash' || lang === 'shell') {
       escaped = escaped
-        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-400">$1</span>')
-        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-400">$1</span>')
+        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-600 dark:text-yellow-400">$1</span>')
+        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>')
     } else if (lang === 'json') {
       escaped = escaped
-        .replace(/(\"[^\"]*\")(\\s*:)/g, '<span class="text-cyan-400">$1</span>$2')
-        .replace(/:\\s*(\"[^\"]*\")/g, ': <span class="text-emerald-400">$1</span>')
-        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-400">$1</span>')
+        .replace(/(\"[^\"]*\")(\\s*:)/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>$2')
+        .replace(/:\\s*(\"[^\"]*\")/g, ': <span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-600 dark:text-amber-400">$1</span>')
     } else if (lang === 'go') {
       escaped = escaped
-        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-400">$1</span>')
-        .replace(/(\"[^\"]*\")/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
+        .replace(/(\"[^\"]*\")/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
+        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
+        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
     }
 
     return escaped
   }
 
   return (
-    <div className="rounded-xl border border-white/5 overflow-hidden mb-6">
-      <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
+    <div className="rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden mb-6 shadow-sm">
+      <div className="px-4 py-2 bg-gray-50 dark:bg-white/[0.02] border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
         <div className="flex gap-1">
           {tabs.map((tab, i) => (
             <button
@@ -198,26 +199,26 @@ function TabbedCodeBlock({
               onClick={() => setActiveTab(i)}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                 activeTab === i
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-600 hover:text-slate-400'
+                  ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-slate-600 hover:text-gray-900 dark:hover:text-slate-400'
               }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
-        <span className="text-slate-600 text-xs">{tabs[activeTab].language}</span>
+        <span className="text-gray-400 dark:text-slate-600 text-xs">{tabs[activeTab].language}</span>
       </div>
       <div className="relative">
-        <pre className="p-4 bg-[#0a0a0a] overflow-x-auto">
+        <pre className="p-4 bg-gray-900 dark:bg-[#0a0a0a] overflow-x-auto">
           <code
-            className="text-sm text-slate-300 font-mono"
+            className="text-sm text-gray-200 dark:text-slate-300 font-mono"
             dangerouslySetInnerHTML={{ __html: highlightCode(tabs[activeTab].code, tabs[activeTab].language) }}
           />
         </pre>
         <button
           onClick={copyToClipboard}
-          className="absolute top-3 right-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all"
+          className="absolute top-3 right-3 p-2 rounded-lg bg-gray-800 dark:bg-white/5 hover:bg-gray-700 dark:hover:bg-white/10 text-gray-400 dark:text-slate-500 hover:text-white transition-all"
         >
           {copied ? (
             <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -237,14 +238,14 @@ function TabbedCodeBlock({
 // ===== NOTE COMPONENT =====
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 mb-6">
+    <div className="p-4 rounded-xl bg-blue-50 dark:bg-sky-500/10 border border-blue-200 dark:border-sky-500/20 mb-6">
       <div className="flex items-start gap-3">
-        <div className="w-5 h-5 rounded-full bg-sky-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <svg className="w-3 h-3 text-sky-400" fill="currentColor" viewBox="0 0 20 20">
+        <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-sky-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg className="w-3 h-3 text-blue-600 dark:text-sky-400" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
         </div>
-        <div className="text-slate-300 text-sm leading-relaxed">{children}</div>
+        <div className="text-gray-700 dark:text-slate-300 text-sm leading-relaxed">{children}</div>
       </div>
     </div>
   )
@@ -253,16 +254,16 @@ function Note({ children }: { children: React.ReactNode }) {
 // ===== WARNING COMPONENT =====
 function Warning({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 mb-4">
+    <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 mb-4">
       <div className="flex items-start gap-3">
-        <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <svg className="w-3 h-3 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+        <div className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg className="w-3 h-3 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
           </svg>
         </div>
         <div>
-          <h4 className="text-amber-400 font-medium text-sm mb-1">{title}</h4>
-          <div className="text-slate-400 text-sm leading-relaxed">{children}</div>
+          <h4 className="text-amber-700 dark:text-amber-400 font-medium text-sm mb-1">{title}</h4>
+          <div className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed">{children}</div>
         </div>
       </div>
     </div>
@@ -272,12 +273,12 @@ function Warning({ title, children }: { title: string; children: React.ReactNode
 // ===== STEP COMPONENT =====
 function Step({ number, title, children }: { number: number; title: string; children: React.ReactNode }) {
   return (
-    <div className="relative pl-12 pb-8 border-l border-white/10 last:border-0 last:pb-0" id={`step-${number}`}>
-      <div className="absolute left-0 -translate-x-1/2 w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-sm font-medium">
+    <div className="relative pl-12 pb-8 border-l border-gray-200 dark:border-white/10 last:border-0 last:pb-0" id={`step-${number}`}>
+      <div className="absolute left-0 -translate-x-1/2 w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 flex items-center justify-center text-gray-700 dark:text-white text-sm font-medium">
         {number}
       </div>
-      <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
-      <div className="text-slate-400">{children}</div>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{title}</h3>
+      <div className="text-gray-600 dark:text-slate-400">{children}</div>
     </div>
   )
 }
@@ -297,13 +298,13 @@ function Card({
   return (
     <Link
       href={href}
-      className="group p-5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all"
+      className="group p-5 rounded-xl border border-gray-200 dark:border-white/5 bg-white dark:bg-white/[0.02] hover:bg-gray-50 dark:hover:bg-white/[0.05] hover:border-gray-300 dark:hover:border-white/10 transition-all shadow-sm"
     >
-      <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:border-white/20 transition-all mb-4">
+      <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white group-hover:border-gray-300 dark:group-hover:border-white/20 transition-all mb-4">
         {icon}
       </div>
-      <h3 className="text-white font-medium mb-1 group-hover:text-white/90">{title}</h3>
-      <p className="text-slate-500 text-sm leading-relaxed">{description}</p>
+      <h3 className="text-gray-900 dark:text-white font-medium mb-1 group-hover:text-gray-900 dark:group-hover:text-white/90">{title}</h3>
+      <p className="text-gray-500 dark:text-slate-500 text-sm leading-relaxed">{description}</p>
     </Link>
   )
 }
@@ -344,8 +345,8 @@ ANTHROPIC_API_KEY=your-api-key`,
           onClick={() => setFormat('openai')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
             format === 'openai'
-              ? 'bg-white/10 border-white/20 text-white'
-              : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:border-white/10'
+              ? 'bg-gray-100 dark:bg-white/10 border-gray-300 dark:border-white/20 text-gray-900 dark:text-white shadow-sm'
+              : 'bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/5 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/10'
           }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -357,8 +358,8 @@ ANTHROPIC_API_KEY=your-api-key`,
           onClick={() => setFormat('anthropic')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
             format === 'anthropic'
-              ? 'bg-white/10 border-white/20 text-white'
-              : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:border-white/10'
+              ? 'bg-gray-100 dark:bg-white/10 border-gray-300 dark:border-white/20 text-gray-900 dark:text-white shadow-sm'
+              : 'bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/5 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/10'
           }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -369,20 +370,20 @@ ANTHROPIC_API_KEY=your-api-key`,
       </div>
 
       {/* Config Display */}
-      <p className="text-slate-400 text-sm mb-4">{config.description}</p>
+      <p className="text-gray-600 dark:text-slate-400 text-sm mb-4">{config.description}</p>
 
-      <div className="rounded-xl border border-white/5 overflow-hidden">
-        <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
-          <span className="text-slate-500 text-xs font-medium">Environment Variables</span>
-          <span className="text-slate-600 text-xs">.env</span>
+      <div className="rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-sm">
+        <div className="px-4 py-2 bg-gray-50 dark:bg-white/[0.02] border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
+          <span className="text-gray-600 dark:text-slate-500 text-xs font-medium">Environment Variables</span>
+          <span className="text-gray-400 dark:text-slate-600 text-xs">.env</span>
         </div>
         <div className="relative">
-          <pre className="p-4 bg-[#0a0a0a] overflow-x-auto">
-            <code className="text-sm text-slate-300 font-mono">{config.envVars}</code>
+          <pre className="p-4 bg-gray-900 dark:bg-[#0a0a0a] overflow-x-auto">
+            <code className="text-sm text-gray-200 dark:text-slate-300 font-mono">{config.envVars}</code>
           </pre>
           <button
             onClick={copyToClipboard}
-            className="absolute top-3 right-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all"
+            className="absolute top-3 right-3 p-2 rounded-lg bg-gray-800 dark:bg-white/5 hover:bg-gray-700 dark:hover:bg-white/10 text-gray-400 dark:text-slate-500 hover:text-white transition-all"
           >
             {copied ? (
               <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -643,33 +644,14 @@ func main() {
 }`
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-xl font-semibold text-white">
-              TrollLLM
-            </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-slate-400 text-sm">Documentation</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-slate-500 hover:text-white transition-colors text-sm">
-              Sign In
-            </Link>
-            <Link href="/register" className="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors">
-              Get API Key
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-white dark:bg-black">
+      <Header activeLink="docs" />
 
       <div className="flex pt-[65px]">
         {/* Mobile sidebar toggle */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="fixed bottom-6 right-6 z-50 lg:hidden w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-lg"
+          className="fixed bottom-6 right-6 z-50 lg:hidden w-12 h-12 rounded-full bg-gray-900 dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -677,26 +659,26 @@ func main() {
         </button>
 
         {/* Sidebar */}
-        <aside className={`fixed lg:sticky top-[65px] left-0 z-40 w-72 h-[calc(100vh-65px)] bg-black lg:bg-transparent border-r border-white/5 overflow-y-auto transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <aside className={`fixed lg:sticky top-[65px] left-0 z-40 w-72 h-[calc(100vh-65px)] bg-white dark:bg-black lg:bg-transparent border-r border-gray-200 dark:border-white/5 overflow-y-auto transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="p-6">
             {/* Search */}
             <div className="relative mb-6">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 type="text"
                 placeholder={t.docs.sidebar.searchDocs}
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/10 transition-colors"
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-gray-300 dark:focus:border-white/10 transition-colors"
               />
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 text-slate-600 text-xs font-mono">⌘K</kbd>
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/5 text-gray-500 dark:text-slate-600 text-xs font-mono">⌘K</kbd>
             </div>
 
             {/* Navigation */}
             <nav className="space-y-6">
               {sidebarNavTranslated.map((section) => (
                 <div key={section.title}>
-                  <h3 className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-3">{section.title}</h3>
+                  <h3 className="text-gray-500 dark:text-slate-500 text-xs font-medium uppercase tracking-wider mb-3">{section.title}</h3>
                   <ul className="space-y-1">
                     {section.items.map((item) => (
                       <li key={item.href}>
@@ -704,8 +686,8 @@ func main() {
                           href={item.href}
                           className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                             item.active
-                              ? 'bg-white/10 text-white'
-                              : 'text-slate-400 hover:text-white hover:bg-white/5'
+                              ? 'bg-indigo-50 dark:bg-white/10 text-indigo-600 dark:text-white border border-indigo-200 dark:border-transparent'
+                              : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
                           }`}
                         >
                           {item.title}
@@ -723,15 +705,15 @@ func main() {
         <main className="flex-1 min-w-0 px-6 lg:px-12 py-12">
           <div className="max-w-3xl">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-slate-500 mb-8">
-              <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 mb-8">
+              <Link href="/docs" className="hover:text-gray-900 dark:hover:text-white transition-colors">Docs</Link>
               <span>/</span>
-              <span className="text-slate-400">Quickstart</span>
+              <span className="text-gray-700 dark:text-slate-400">Quickstart</span>
             </div>
 
             {/* Title */}
-            <h1 className="text-4xl font-bold text-white mb-4">{t.docs.quickstart.title}</h1>
-            <p className="text-lg text-slate-400 mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">{t.docs.quickstart.title}</h1>
+            <p className="text-lg text-gray-500 dark:text-slate-400 mb-8">
               {t.docs.quickstart.description}
             </p>
 
@@ -766,8 +748,8 @@ func main() {
                     onClick={() => setApiFormat('openai')}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
                       apiFormat === 'openai'
-                        ? 'bg-white/10 border-white/20 text-white'
-                        : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:border-white/10'
+                        ? 'bg-gray-100 dark:bg-white/10 border-gray-300 dark:border-white/20 text-gray-900 dark:text-white shadow-sm'
+                        : 'bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/5 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/10'
                     }`}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -779,8 +761,8 @@ func main() {
                     onClick={() => setApiFormat('anthropic')}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
                       apiFormat === 'anthropic'
-                        ? 'bg-white/10 border-white/20 text-white'
-                        : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:border-white/10'
+                        ? 'bg-gray-100 dark:bg-white/10 border-gray-300 dark:border-white/20 text-gray-900 dark:text-white shadow-sm'
+                        : 'bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/5 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/10'
                     }`}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -790,7 +772,7 @@ func main() {
                   </button>
                 </div>
 
-                <p className="text-slate-400 text-sm mb-4">
+                <p className="text-gray-600 dark:text-slate-400 text-sm mb-4">
                   {apiFormat === 'openai'
                     ? t.docs.quickstart.openaiDesc
                     : t.docs.quickstart.anthropicDesc}
@@ -834,10 +816,10 @@ ANTHROPIC_API_KEY=your-api-key`}
             </div>
 
             {/* Divider */}
-            <hr className="border-white/5 my-10" />
+            <hr className="border-gray-200 dark:border-white/5 my-10" />
 
             {/* Next steps */}
-            <h2 className="text-2xl font-semibold text-white mb-6">{t.docs.quickstart.nextSteps}</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">{t.docs.quickstart.nextSteps}</h2>
             <div className="grid sm:grid-cols-2 gap-4 mb-10">
               <Card
                 title={t.docs.quickstart.authCardTitle}
@@ -882,7 +864,7 @@ ANTHROPIC_API_KEY=your-api-key`}
             </div>
 
             {/* Common Issues */}
-            <h2 className="text-2xl font-semibold text-white mb-6">{t.docs.quickstart.commonIssues}</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">{t.docs.quickstart.commonIssues}</h2>
             <Warning title={t.docs.quickstart.rateLimiting}>
               {t.docs.quickstart.rateLimitingDesc} <Link href="/docs/rate-limits" className="text-amber-400 hover:underline">{t.docs.quickstart.rateLimitsDoc}</Link> {t.docs.quickstart.forDetails}
             </Warning>
@@ -891,14 +873,14 @@ ANTHROPIC_API_KEY=your-api-key`}
             </Warning>
 
             {/* Footer navigation */}
-            <div className="flex items-center justify-between mt-16 pt-8 border-t border-white/5">
-              <Link href="/docs" className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+            <div className="flex items-center justify-between mt-16 pt-8 border-t border-gray-200 dark:border-white/5">
+              <Link href="/docs" className="group flex items-center gap-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
                 <span>{t.docs.quickstart.prev}</span>
               </Link>
-              <Link href="/docs/authentication" className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+              <Link href="/docs/authentication" className="group flex items-center gap-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 <span>{t.docs.quickstart.nextAuth}</span>
                 <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -909,16 +891,16 @@ ANTHROPIC_API_KEY=your-api-key`}
         </main>
 
         {/* Table of contents (right sidebar) */}
-        <aside className="hidden xl:block w-56 flex-shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto border-l border-white/5 p-6">
-          <h3 className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-4">On this page</h3>
+        <aside className="hidden xl:block w-56 flex-shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto border-l border-gray-200 dark:border-white/5 p-6">
+          <h3 className="text-gray-500 dark:text-slate-500 text-xs font-medium uppercase tracking-wider mb-4">On this page</h3>
           <nav className="space-y-2">
-            <a href="#" className="block text-sm text-white">Quickstart</a>
-            <a href="#step-1" className="block text-sm text-slate-500 hover:text-white transition-colors pl-3">1. Get Your API Key</a>
-            <a href="#step-2" className="block text-sm text-slate-500 hover:text-white transition-colors pl-3">2. Choose Your API Format</a>
-            <a href="#step-3" className="block text-sm text-slate-500 hover:text-white transition-colors pl-3">3. Make Your First Request</a>
-            <a href="#step-4" className="block text-sm text-slate-500 hover:text-white transition-colors pl-3">4. Verify Your Setup</a>
-            <a href="#" className="block text-sm text-slate-500 hover:text-white transition-colors">Next Steps</a>
-            <a href="#" className="block text-sm text-slate-500 hover:text-white transition-colors">Common Issues</a>
+            <a href="#" className="block text-sm text-indigo-600 dark:text-white">Quickstart</a>
+            <a href="#step-1" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">1. Get Your API Key</a>
+            <a href="#step-2" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">2. Choose Your API Format</a>
+            <a href="#step-3" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">3. Make Your First Request</a>
+            <a href="#step-4" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">4. Verify Your Setup</a>
+            <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">Next Steps</a>
+            <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">Common Issues</a>
           </nav>
         </aside>
       </div>

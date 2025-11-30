@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthProvider'
+import { useLanguage } from './LanguageProvider'
 import { ThemeToggle } from './ThemeToggle'
+import LanguageSwitcher from './LanguageSwitcher'
 
 interface NavItem {
   href: string
@@ -14,8 +16,17 @@ interface NavItem {
 
 const adminNavItems: NavItem[] = [
   {
-    href: '/admin',
+    href: '/dashboard',
     label: 'Dashboard',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    )
+  },
+  {
+    href: '/admin',
+    label: 'Admin',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -58,6 +69,15 @@ const adminNavItems: NavItem[] = [
       </svg>
     )
   },
+  {
+    href: '/admin/bindings',
+    label: 'Key Bindings',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+      </svg>
+    )
+  },
 ]
 
 const userNavItems: NavItem[] = [
@@ -85,25 +105,55 @@ const userNavItems: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname()
   const { logout, user } = useAuth()
+  const { t } = useLanguage()
   const isAdmin = user?.role === 'admin'
 
   const navItems = isAdmin ? adminNavItems : userNavItems
 
   return (
-    <nav className="w-64 bg-[var(--theme-bg)] p-6 flex flex-col border-r border-[var(--theme-border)] min-h-screen">
-      {/* Logo */}
-      <Link href="/" className="flex items-center gap-3 mb-8">
-        <div className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
-          <svg className="w-4 h-4 text-[var(--theme-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
-        <span className="text-lg font-semibold text-[var(--theme-text)]">TrollLLM</span>
-      </Link>
+    <nav className="w-64 bg-white dark:bg-[var(--theme-bg)] flex flex-col border-r border-slate-200 dark:border-[var(--theme-border)] h-screen sticky top-0 shadow-sm dark:shadow-none">
+      {/* Header Section - Fixed */}
+      <div className="flex-shrink-0 p-5 border-b border-slate-200 dark:border-[var(--theme-border)]">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <span className="text-lg font-bold text-slate-900 dark:text-white">TrollLLM</span>
+            <p className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider">Dashboard</p>
+          </div>
+        </Link>
 
-      {/* Navigation */}
-      <div className="flex-1">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--theme-text-subtle)] mb-3 px-3">Menu</p>
+        {/* User Profile */}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-base shadow-md">
+              {user?.username?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[var(--theme-bg)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-900 dark:text-white text-sm font-semibold truncate">{user?.username || 'User'}</p>
+            {isAdmin ? (
+              <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 text-xs font-medium">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+                </svg>
+                Administrator
+              </span>
+            ) : (
+              <span className="text-slate-500 dark:text-slate-400 text-xs">Member</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 mb-2 px-3 font-semibold">Navigation</p>
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href
@@ -115,9 +165,11 @@ export default function Sidebar() {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-all text-sm font-medium"
                   >
-                    {item.icon}
+                    <span className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                      {item.icon}
+                    </span>
                     {item.label}
                     <svg className="w-3 h-3 ml-auto opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -131,13 +183,19 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                     isActive
-                      ? 'bg-black/10 dark:bg-white/10 text-[var(--theme-text)]'
-                      : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-black/5 dark:hover:bg-white/5'
+                      ? 'bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white border border-slate-300 dark:border-white/10 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5'
                   }`}
                 >
-                  {item.icon}
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    isActive
+                      ? 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white'
+                      : 'bg-slate-100 dark:bg-white/5'
+                  }`}>
+                    {item.icon}
+                  </span>
                   {item.label}
                 </Link>
               </li>
@@ -146,30 +204,26 @@ export default function Sidebar() {
         </ul>
       </div>
 
-      {/* User Section */}
-      <div className="pt-6 border-t border-[var(--theme-border)]">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center">
-              <svg className="w-4 h-4 text-[var(--theme-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[var(--theme-text)] text-sm font-medium truncate">{user?.username || 'User'}</p>
-              <p className="text-[var(--theme-text-subtle)] text-xs">{isAdmin ? 'Admin' : 'User'}</p>
-            </div>
+      {/* Footer Section - Fixed at bottom */}
+      <div className="flex-shrink-0 p-4 border-t border-slate-200 dark:border-[var(--theme-border)] bg-white dark:bg-[var(--theme-bg)]">
+        {/* Settings */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 font-semibold">Settings</span>
+          <div className="flex items-center gap-1">
+            <LanguageSwitcher />
+            <ThemeToggle />
           </div>
-          <ThemeToggle />
         </div>
+
+        {/* Logout Button */}
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-red-400 hover:border-red-500/50 hover:bg-red-500/5 transition-colors text-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-500/50 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-sm font-medium"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          Sign Out
+          {t.nav.signOut}
         </button>
       </div>
     </nav>

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -20,8 +21,9 @@ var (
 type ProxyPool struct {
 	mu          sync.RWMutex
 	proxies     []*Proxy
-	bindings    map[string][]*ProxyKeyBinding // proxyId -> bindings
+	bindings    map[string][]*ProxyKeyBinding // proxyId -> bindings (sorted by priority)
 	current     int
+	keyIndex    map[string]int      // proxyId -> current key index for round-robin
 	clientCache map[string]*http.Client // proxyId -> cached HTTP client
 	clientMu    sync.RWMutex            // separate mutex for client cache
 }
@@ -37,6 +39,7 @@ func GetPool() *ProxyPool {
 			proxies:     make([]*Proxy, 0),
 			bindings:    make(map[string][]*ProxyKeyBinding),
 			current:     0,
+			keyIndex:    make(map[string]int),
 			clientCache: make(map[string]*http.Client),
 		}
 		pool.LoadFromDB()
@@ -85,6 +88,18 @@ func (p *ProxyPool) LoadFromDB() error {
 		p.bindings[binding.ProxyID] = append(p.bindings[binding.ProxyID], &binding)
 	}
 
+	// Sort bindings by priority for each proxy
+	for proxyID := range p.bindings {
+		sort.Slice(p.bindings[proxyID], func(i, j int) bool {
+			return p.bindings[proxyID][i].Priority < p.bindings[proxyID][j].Priority
+		})
+	}
+
+	// Initialize keyIndex for new proxies (preserve existing indices)
+	if p.keyIndex == nil {
+		p.keyIndex = make(map[string]int)
+	}
+
 	log.Printf("✅ Loaded %d proxies with bindings", len(p.proxies))
 	return nil
 }
@@ -124,7 +139,7 @@ func (p *ProxyPool) SelectProxyWithKey() (*Proxy, string, error) {
 }
 
 // SelectProxyWithKeyByClient returns proxy+key using round-robin rotation
-// Each request gets the next available proxy in rotation
+// Each request gets the next available proxy, and rotates through ALL keys of that proxy
 func (p *ProxyPool) SelectProxyWithKeyByClient(clientAPIKey string) (*Proxy, string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -140,29 +155,38 @@ func (p *ProxyPool) SelectProxyWithKeyByClient(clientAPIKey string) (*Proxy, str
 		proxy := p.proxies[idx]
 
 		if proxy.IsAvailable() {
-			// Get key for this proxy
+			// Get bindings for this proxy (already sorted by priority)
 			bindings := p.bindings[proxy.ID]
 			if len(bindings) == 0 {
 				continue
 			}
 
-			// Return primary key (priority 1) first
-			for _, binding := range bindings {
-				if binding.Priority == 1 && binding.IsActive {
-					// Move to next proxy for next request
-					p.current = (idx + 1) % len(p.proxies)
-					return proxy, binding.FactoryKeyID, nil
+			// Get active bindings only
+			activeBindings := make([]*ProxyKeyBinding, 0)
+			for _, b := range bindings {
+				if b.IsActive {
+					activeBindings = append(activeBindings, b)
 				}
+			}
+			if len(activeBindings) == 0 {
+				continue
 			}
 
-			// Fallback to any active binding
-			for _, binding := range bindings {
-				if binding.IsActive {
-					// Move to next proxy for next request
-					p.current = (idx + 1) % len(p.proxies)
-					return proxy, binding.FactoryKeyID, nil
-				}
+			// Round-robin through ALL keys of this proxy
+			keyIdx := p.keyIndex[proxy.ID]
+			if keyIdx >= len(activeBindings) {
+				keyIdx = 0
 			}
+
+			selectedKey := activeBindings[keyIdx].FactoryKeyID
+
+			// Move to next key for this proxy
+			p.keyIndex[proxy.ID] = (keyIdx + 1) % len(activeBindings)
+
+			// Move to next proxy for next request
+			p.current = (idx + 1) % len(p.proxies)
+
+			return proxy, selectedKey, nil
 		}
 	}
 
@@ -350,4 +374,40 @@ func (p *ProxyPool) HasProxies() bool {
 // Reload refreshes the proxy pool from database
 func (p *ProxyPool) Reload() error {
 	return p.LoadFromDB()
+}
+
+// StartAutoReload starts a background goroutine that periodically reloads bindings from database
+func (p *ProxyPool) StartAutoReload(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		log.Printf("🔄 Auto-reload started (interval: %v)", interval)
+
+		for range ticker.C {
+			if err := p.LoadFromDB(); err != nil {
+				log.Printf("⚠️ Auto-reload failed: %v", err)
+			} else {
+				log.Printf("🔄 Auto-reloaded proxy bindings (%d proxies)", p.GetProxyCount())
+			}
+		}
+	}()
+}
+
+// GetBindingsInfo returns a summary of current bindings for logging
+func (p *ProxyPool) GetBindingsInfo() map[string][]string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	info := make(map[string][]string)
+	for proxyID, bindings := range p.bindings {
+		keys := make([]string, 0)
+		for _, b := range bindings {
+			if b.IsActive {
+				keys = append(keys, b.FactoryKeyID)
+			}
+		}
+		info[proxyID] = keys
+	}
+	return info
 }

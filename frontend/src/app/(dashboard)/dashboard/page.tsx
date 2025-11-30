@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, UserProfile, BillingInfo } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
+import { useLanguage } from '@/components/LanguageProvider'
 
 function formatLargeNumber(num: number | undefined | null): string {
   if (num == null) return '0'
@@ -10,13 +11,6 @@ function formatLargeNumber(num: number | undefined | null): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
   return num.toLocaleString()
-}
-
-function getTimeGreeting(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
 }
 
 function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: string }) {
@@ -60,6 +54,14 @@ export default function UserDashboard() {
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
+  const { t } = useLanguage()
+
+  const getTimeGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return t.dashboard.greeting.morning
+    if (hour < 18) return t.dashboard.greeting.afternoon
+    return t.dashboard.greeting.evening
+  }
 
   const loadUserData = useCallback(async () => {
     try {
@@ -136,13 +138,7 @@ export default function UserDashboard() {
   const usagePercentage = billingInfo?.usagePercentage || 0
 
   return (
-    <div className="min-h-screen bg-[var(--theme-bg)] -m-8 p-8">
-      {/* Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
-      </div>
-
+    <div className="min-h-screen">
       <div className="relative max-w-5xl mx-auto space-y-12">
         {/* Header */}
         <header className="pt-8 opacity-0 animate-fade-in-up">
@@ -202,14 +198,14 @@ export default function UserDashboard() {
             {user?.username || 'User'}
           </h1>
           <p className="text-[var(--theme-text-subtle)] text-lg">
-            Welcome to your dashboard
+            {t.dashboard.welcome}
           </p>
         </header>
 
         {/* Main Grid */}
         <div className="grid md:grid-cols-2 gap-6">
           {/* API Key Card */}
-          <div className="p-6 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors opacity-0 animate-fade-in-up animation-delay-200">
+          <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-200">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
@@ -218,8 +214,8 @@ export default function UserDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">API Key</h3>
-                  <p className="text-[var(--theme-text-subtle)] text-sm">Your secret access key</p>
+                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.apiKey.title}</h3>
+                  <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.apiKey.subtitle}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -227,21 +223,21 @@ export default function UserDashboard() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
                 </span>
-                <span className="text-emerald-400 text-xs">Active</span>
+                <span className="text-emerald-400 text-xs">{t.dashboard.apiKey.active}</span>
               </div>
             </div>
 
             {userProfile ? (
               <div className="space-y-4">
                 {/* API Key Display */}
-                <div className="bg-black/5 dark:bg-[#0a0a0a] rounded-lg border border-black/5 dark:border-white/5 p-4">
+                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-4">
                   <div className="flex items-center justify-between gap-4">
-                    <code className="text-[var(--theme-text-muted)] text-sm font-mono break-all">
+                    <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-sm font-mono break-all">
                       {showFullApiKey && fullApiKey ? fullApiKey : userProfile.apiKey}
                     </code>
                     <button
                       onClick={handleShowApiKey}
-                      className="shrink-0 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[var(--theme-text-subtle)] hover:text-[var(--theme-text)] transition-colors"
+                      className="shrink-0 p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/5 text-slate-500 dark:text-[var(--theme-text-subtle)] hover:text-slate-700 dark:hover:text-[var(--theme-text)] transition-colors"
                     >
                       {showFullApiKey ? (
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -263,25 +259,24 @@ export default function UserDashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     <div>
-                      <p className="text-emerald-400 text-sm font-medium">New key generated!</p>
-                      <p className="text-[var(--theme-text-subtle)] text-xs">Copy it now. You won't see it again.</p>
+                      <p className="text-emerald-400 text-sm font-medium">{t.dashboard.apiKey.newKeyGenerated}</p>
+                      <p className="text-[var(--theme-text-subtle)] text-xs">{t.dashboard.apiKey.newKeyCopy}</p>
                     </div>
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex gap-3">
                   <button
                     onClick={handleCopyApiKey}
-                    className="flex-1 py-2.5 rounded-lg bg-[var(--theme-text)] text-[var(--theme-bg)] font-medium text-sm hover:opacity-90 transition-colors"
+                    className="flex-1 py-2.5 rounded-lg bg-indigo-600 dark:bg-[var(--theme-text)] text-white dark:text-[var(--theme-bg)] font-medium text-sm hover:bg-indigo-700 dark:hover:opacity-90 transition-colors"
                   >
-                    {copied ? 'Copied!' : 'Copy Key'}
+                    {copied ? t.dashboard.apiKey.copied : t.dashboard.apiKey.copyKey}
                   </button>
                   <button
                     onClick={() => setShowRotateConfirm(true)}
-                    className="py-2.5 px-4 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    className="py-2.5 px-4 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                   >
-                    Rotate
+                    {t.dashboard.apiKey.rotate}
                   </button>
                 </div>
 
@@ -291,17 +286,17 @@ export default function UserDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="h-14 bg-black/5 dark:bg-white/5 rounded-lg animate-pulse" />
+                <div className="h-14 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
                 <div className="flex gap-3">
-                  <div className="h-10 bg-black/5 dark:bg-white/5 rounded-lg flex-1 animate-pulse" />
-                  <div className="h-10 bg-black/5 dark:bg-white/5 rounded-lg w-24 animate-pulse" />
+                  <div className="h-10 bg-slate-100 dark:bg-white/5 rounded-lg flex-1 animate-pulse" />
+                  <div className="h-10 bg-slate-100 dark:bg-white/5 rounded-lg w-24 animate-pulse" />
                 </div>
               </div>
             )}
           </div>
 
           {/* Credits Card */}
-          <div className="p-6 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors opacity-0 animate-fade-in-up animation-delay-300">
+          <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-300">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -310,15 +305,15 @@ export default function UserDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">Credits</h3>
-                  <p className="text-[var(--theme-text-subtle)] text-sm">Your balance</p>
+                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.credits.title}</h3>
+                  <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.credits.subtitle}</p>
                 </div>
               </div>
               {billingInfo && (
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                  billingInfo.plan === 'enterprise' ? 'bg-purple-500/10 border border-purple-500/20 text-purple-400' :
-                  billingInfo.plan === 'pro' ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400' :
-                  'bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-[var(--theme-text-muted)]'
+                  billingInfo.plan === 'enterprise' ? 'bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400' :
+                  billingInfo.plan === 'pro' ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400' :
+                  'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
                 }`}>
                   {billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)}
                 </span>
@@ -328,11 +323,11 @@ export default function UserDashboard() {
             {userProfile ? (
               <div className="space-y-6">
                 {/* Credits Display */}
-                <div className="bg-black/5 dark:bg-[#0a0a0a] rounded-lg border border-black/5 dark:border-white/5 p-5">
+                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Available Balance</p>
-                      <p className="text-4xl font-bold text-emerald-400">
+                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">{t.dashboard.credits.available}</p>
+                      <p className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
                         ${(userProfile.credits || 0).toFixed(2)}
                       </p>
                     </div>
@@ -342,9 +337,9 @@ export default function UserDashboard() {
                       </svg>
                     </div>
                   </div>
-                  <div className="pt-4 border-t border-black/5 dark:border-white/5">
-                    <p className="text-[var(--theme-text-subtle)] text-xs">Used</p>
-                    <p className="text-[var(--theme-text)] font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
+                  <div className="pt-4 border-t border-slate-300 dark:border-white/10">
+                    <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs">{t.dashboard.credits.used}</p>
+                    <p className="text-slate-800 dark:text-[var(--theme-text)] font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
                   </div>
                 </div>
 
@@ -361,57 +356,27 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-[var(--theme-text-subtle)]">
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-[var(--theme-text-subtle)]">
                   <div className="flex flex-col gap-1">
                     <span>Plan: {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)}</span>
                     {billingInfo?.planExpiresAt && userProfile.plan !== 'free' && (
-                      <span className="text-[var(--theme-text-subtle)]">
+                      <span className="text-slate-500 dark:text-[var(--theme-text-subtle)]">
                         Expires: {new Date(billingInfo.planExpiresAt).toLocaleDateString()}
                       </span>
                     )}
                   </div>
-                  <a href="/#pricing" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <a href="/#pricing" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">
                     Upgrade Plan
                   </a>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="h-32 bg-black/5 dark:bg-white/5 rounded-lg animate-pulse" />
+                <div className="h-32 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
               </div>
             )}
           </div>
         </div>
-
-        {/* Quick Start */}
-        <section className="opacity-0 animate-fade-in-up animation-delay-400">
-          <h2 className="text-xl font-semibold text-[var(--theme-text)] mb-4">Quick Start</h2>
-          <div className="rounded-xl border border-black/5 dark:border-white/5 overflow-hidden">
-            {/* Window chrome */}
-            <div className="bg-black/5 dark:bg-[#111] px-4 py-3 flex items-center gap-3 border-b border-black/5 dark:border-white/5">
-              <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
-                <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
-                <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
-              </div>
-              <span className="text-[var(--theme-text-subtle)] text-xs">example.py</span>
-            </div>
-            {/* Code content */}
-            <div className="bg-black/[0.02] dark:bg-[#0a0a0a] p-6 overflow-x-auto">
-              <pre className="font-mono text-sm text-[var(--theme-text-muted)]">
-                <span className="text-purple-400">from</span> openai <span className="text-purple-400">import</span> OpenAI{'\n\n'}
-                <span className="text-blue-400">client</span> = <span className="text-blue-400">OpenAI</span>({'\n'}
-                {'    '}base_url=<span className="text-emerald-400">"https://chat.trollllm.xyz/v1"</span>,{'\n'}
-                {'    '}api_key=<span className="text-emerald-400">"<span className="text-amber-400">YOUR_API_KEY</span>"</span>{'\n'}
-                ){'\n\n'}
-                <span className="text-blue-400">response</span> = <span className="text-blue-400">client</span>.chat.completions.create({'\n'}
-                {'    '}model=<span className="text-emerald-400">"<span className="text-indigo-400">claude-opus-4-5</span>"</span>,{'\n'}
-                {'    '}messages=[{'{'}role: <span className="text-emerald-400">"user"</span>, content: <span className="text-emerald-400">"Hello!"</span>{'}'}]{'\n'}
-                )
-              </pre>
-            </div>
-          </div>
-        </section>
 
         {/* Quick Links */}
         <section className="pb-8 opacity-0 animate-fade-in-up animation-delay-500">
@@ -420,21 +385,21 @@ export default function UserDashboard() {
               href="/status"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2"
+              className="px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2 shadow-sm dark:shadow-none"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              Status Page
+              {t.dashboard.quickLinks.statusPage}
             </a>
             <a
               href="/models"
-              className="px-5 py-2.5 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2"
+              className="px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2 shadow-sm dark:shadow-none"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
-              View Models
+              {t.dashboard.quickLinks.viewModels}
             </a>
           </div>
         </section>
@@ -442,8 +407,8 @@ export default function UserDashboard() {
 
       {/* Rotate API Key Modal */}
       {showRotateConfirm && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="max-w-md w-full rounded-xl border border-black/10 dark:border-white/10 bg-[var(--theme-card)] p-6">
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="max-w-md w-full rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[var(--theme-card)] p-6 shadow-xl dark:shadow-none">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                 <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -451,8 +416,8 @@ export default function UserDashboard() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-[var(--theme-text)]">Rotate API Key?</h3>
-                <p className="text-[var(--theme-text-subtle)] text-sm">This cannot be undone</p>
+                <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.rotateModal.title}</h3>
+                <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.rotateModal.warning}</p>
               </div>
             </div>
 
@@ -462,7 +427,7 @@ export default function UserDashboard() {
                 'All applications using this key will stop working',
                 'You\'ll need to update the key everywhere'
               ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-amber-400 text-sm">
+                <div key={item} className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
                   <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
@@ -474,9 +439,9 @@ export default function UserDashboard() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowRotateConfirm(false)}
-                className="flex-1 py-2.5 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                className="flex-1 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
               >
-                Cancel
+                {t.dashboard.rotateModal.cancel}
               </button>
               <button
                 onClick={handleRotateApiKey}
@@ -486,10 +451,10 @@ export default function UserDashboard() {
                 {rotating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                    Rotating...
+                    {t.dashboard.rotateModal.rotating}
                   </>
                 ) : (
-                  'Rotate Key'
+                  t.dashboard.rotateModal.confirm
                 )}
               </button>
             </div>

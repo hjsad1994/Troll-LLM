@@ -100,7 +100,7 @@ export async function getProxyBindings(proxyId: string) {
   return result;
 }
 
-export async function bindKeyToProxy(proxyId: string, factoryKeyId: string, priority: 1 | 2) {
+export async function bindKeyToProxy(proxyId: string, factoryKeyId: string, priority: number) {
   // Check proxy exists
   const proxy = await Proxy.findById(proxyId);
   if (!proxy) throw new Error('Proxy not found');
@@ -109,17 +109,9 @@ export async function bindKeyToProxy(proxyId: string, factoryKeyId: string, prio
   const factoryKey = await FactoryKey.findById(factoryKeyId);
   if (!factoryKey) throw new Error('Factory key not found');
 
-  // Check max 2 bindings per proxy
-  const existingCount = await ProxyKeyBinding.countDocuments({ proxyId });
-  if (existingCount >= 2) throw new Error('Maximum 2 keys per proxy');
-
   // Check if already bound
   const existing = await ProxyKeyBinding.findOne({ proxyId, factoryKeyId });
   if (existing) throw new Error('Key already bound to this proxy');
-
-  // Check priority not taken
-  const priorityTaken = await ProxyKeyBinding.findOne({ proxyId, priority });
-  if (priorityTaken) throw new Error(`Priority ${priority} already assigned`);
 
   const binding = new ProxyKeyBinding({
     proxyId,
@@ -135,6 +127,54 @@ export async function bindKeyToProxy(proxyId: string, factoryKeyId: string, prio
     priority: binding.priority,
     createdAt: binding.createdAt,
   };
+}
+
+export async function updateBindingPriority(proxyId: string, factoryKeyId: string, priority: number) {
+  const binding = await ProxyKeyBinding.findOneAndUpdate(
+    { proxyId, factoryKeyId },
+    { $set: { priority } },
+    { new: true }
+  );
+
+  if (!binding) return null;
+
+  return {
+    id: binding._id,
+    proxyId: binding.proxyId,
+    factoryKeyId: binding.factoryKeyId,
+    priority: binding.priority,
+    isActive: binding.isActive,
+    createdAt: binding.createdAt,
+  };
+}
+
+// Get all bindings across all proxies (for overview page)
+export async function getAllBindings() {
+  const bindings = await ProxyKeyBinding.find({ isActive: true }).sort({ proxyId: 1, priority: 1 });
+  const proxies = await Proxy.find({ isActive: true });
+  const factoryKeys = await FactoryKey.find();
+
+  const proxyMap = new Map(proxies.map(p => [p._id, p]));
+  const keyMap = new Map(factoryKeys.map(k => [k._id, k]));
+
+  const result = [];
+  for (const binding of bindings) {
+    const proxy = proxyMap.get(binding.proxyId);
+    const factoryKey = keyMap.get(binding.factoryKeyId);
+    
+    result.push({
+      id: binding._id,
+      proxyId: binding.proxyId,
+      proxyName: proxy?.name || 'Unknown',
+      factoryKeyId: binding.factoryKeyId,
+      factoryKeyStatus: factoryKey?.status || 'unknown',
+      priority: binding.priority,
+      isActive: binding.isActive,
+      createdAt: binding.createdAt,
+    });
+  }
+
+  return result;
 }
 
 export async function unbindKeyFromProxy(proxyId: string, factoryKeyId: string) {

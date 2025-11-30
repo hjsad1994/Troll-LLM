@@ -228,30 +228,24 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Background grid pattern - same as homepage */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-500/10 via-transparent to-transparent" />
-      </div>
-
-      <div className="relative max-w-6xl mx-auto px-6 py-8 space-y-8">
+    <div className="min-h-screen">
+      <div className="relative max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
               Admin Dashboard
             </h1>
-            <p className="text-neutral-500 mt-2">System monitoring and analytics</p>
+            <p className="text-gray-500 dark:text-neutral-500 mt-2">System monitoring and analytics</p>
           </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => loadDashboard()}
-              className="px-4 py-2 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
               Refresh
             </button>
-            <div className="flex items-center gap-2 text-sm text-neutral-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-neutral-500">
               <span className={`relative flex h-2 w-2`}>
                 {loading ? (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400/75 opacity-75"></span>
@@ -264,28 +258,28 @@ export default function AdminDashboard() {
         </header>
 
         {/* Stats Grid - 3 columns */}
-        <section className="py-8 border-y border-white/5">
+        <section className="py-8 border-y border-gray-300 dark:border-white/10">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-white mb-2">
+              <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
                 {loading ? '-' : stats.totalFactoryKeys}
               </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">Troll-Keys</div>
-              <div className="text-neutral-400 text-xs mt-1">{healthyFactoryKeys} healthy</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">Troll-Keys</div>
+              <div className="text-gray-600 dark:text-neutral-400 text-xs mt-1">{healthyFactoryKeys} healthy</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-white mb-2">
+              <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
                 {loading ? '-' : stats.totalProxies}
               </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">Proxies</div>
-              <div className="text-emerald-400 text-xs mt-1">{healthyProxies} online</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">Proxies</div>
+              <div className="text-emerald-500 dark:text-emerald-400 text-xs mt-1">{healthyProxies} online</div>
             </div>
             <div className="text-center">
               <div className={`text-4xl md:text-5xl font-bold mb-2 capitalize ${getHealthColor(stats.healthStatus)}`}>
                 {loading ? '-' : stats.healthStatus}
               </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">System Status</div>
-              <div className="text-neutral-500 text-xs mt-1">{stats.healthyCount}/{stats.totalCount} services</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">System Status</div>
+              <div className="text-gray-500 dark:text-neutral-500 text-xs mt-1">{stats.healthyCount}/{stats.totalCount} services</div>
             </div>
           </div>
         </section>
@@ -293,87 +287,87 @@ export default function AdminDashboard() {
         {/* Main Metrics - Feature cards style */}
         <section className="grid md:grid-cols-3 gap-6">
           {/* API Requests Card */}
-          <div className="md:col-span-2 p-6 rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm hover:bg-neutral-900 transition-colors">
+          <div className="md:col-span-2 p-6 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400">
+                <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/5 border border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-neutral-400">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-white">API Requests</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">API Requests</h3>
               </div>
-              <div className="flex gap-4 text-xs text-neutral-500">
-                <span>Today: <span className="text-white">{formatLargeNumber(metrics.requestsToday || 0)}</span></span>
-                <span>Week: <span className="text-white">{formatLargeNumber(metrics.requestsThisWeek || 0)}</span></span>
+              <div className="flex gap-4 text-xs text-gray-500 dark:text-neutral-500">
+                <span>Today: <span className="text-gray-900 dark:text-white">{formatLargeNumber(metrics.requestsToday || 0)}</span></span>
+                <span>Week: <span className="text-gray-900 dark:text-white">{formatLargeNumber(metrics.requestsThisWeek || 0)}</span></span>
               </div>
             </div>
-            <p className="text-5xl font-bold bg-gradient-to-r from-neutral-300 to-neutral-500 bg-clip-text text-transparent mb-1">
+            <p className="text-5xl font-bold bg-gradient-to-r from-gray-700 to-gray-500 dark:from-neutral-300 dark:to-neutral-500 bg-clip-text text-transparent mb-1">
               {loading ? '...' : formatLargeNumber(metrics.totalRequests)}
             </p>
-            <p className="text-neutral-500 text-sm mb-6">total requests processed</p>
+            <p className="text-gray-500 dark:text-neutral-500 text-sm mb-6">total requests processed</p>
 
             <div className="grid grid-cols-3 gap-4">
-              <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Success Rate</p>
-                <p className="text-xl font-semibold text-emerald-400">{metrics.successRate}%</p>
+              <div className="p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
+                <p className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider mb-1">Success Rate</p>
+                <p className="text-xl font-semibold text-emerald-500 dark:text-emerald-400">{metrics.successRate}%</p>
               </div>
-              <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Avg Latency</p>
+              <div className="p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
+                <p className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider mb-1">Avg Latency</p>
                 <p className={`text-xl font-semibold ${getLatencyColor(metrics.avgLatencyMs)}`}>
                   {(metrics.avgLatencyMs ?? 0).toLocaleString()}ms
                 </p>
               </div>
-              <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Error Rate</p>
-                <p className="text-xl font-semibold text-red-400">{(100 - metrics.successRate).toFixed(1)}%</p>
+              <div className="p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
+                <p className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider mb-1">Error Rate</p>
+                <p className="text-xl font-semibold text-red-500 dark:text-red-400">{(100 - metrics.successRate).toFixed(1)}%</p>
               </div>
             </div>
           </div>
 
           {/* User Stats Card */}
-          <div className="p-6 rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm hover:bg-neutral-900 transition-colors">
+          <div className="p-6 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400">
+              <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/5 border border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-neutral-400">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-white">User Stats</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Stats</h3>
             </div>
-            <p className="text-4xl font-bold bg-gradient-to-r from-neutral-300 to-neutral-500 bg-clip-text text-transparent mb-1">
+            <p className="text-4xl font-bold bg-gradient-to-r from-gray-700 to-gray-500 dark:from-neutral-300 dark:to-neutral-500 bg-clip-text text-transparent mb-1">
               {loading ? '...' : formatLargeNumber(userStats.total_tokens_used)}
             </p>
-            <p className="text-neutral-500 text-sm mb-4">total tokens used by all users</p>
+            <p className="text-gray-500 dark:text-neutral-500 text-sm mb-4">total tokens used by all users</p>
 
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
                   Total Credits
                 </span>
-                <span className="text-emerald-400 font-medium">${userStats.total_credits.toFixed(2)}</span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-medium">${userStats.total_credits.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-white"></span>
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-gray-900 dark:bg-white"></span>
                   Total Users
                 </span>
-                <span className="text-white font-medium">{userStats.total_users}</span>
+                <span className="text-gray-900 dark:text-white font-medium">{userStats.total_users}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-violet-400"></span>
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-violet-500 dark:bg-violet-400"></span>
                   Dev Plan
                 </span>
-                <span className="text-violet-400 font-medium">{userStats.by_plan?.dev || 0}</span>
+                <span className="text-violet-500 dark:text-violet-400 font-medium">{userStats.by_plan?.dev || 0}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400"></span>
                   Pro Plan
                 </span>
-                <span className="text-amber-400 font-medium">{userStats.by_plan?.pro || 0}</span>
+                <span className="text-amber-500 dark:text-amber-400 font-medium">{userStats.by_plan?.pro || 0}</span>
               </div>
             </div>
           </div>
@@ -382,10 +376,10 @@ export default function AdminDashboard() {
         {/* Data Tables Grid */}
         <section className="grid md:grid-cols-2 gap-6">
           {/* Troll-Keys */}
-          <div className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Troll-Keys</h3>
-              <Link href="/troll-keys" className="text-sm text-neutral-400 hover:text-white transition-colors">
+          <div className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-300 dark:border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Troll-Keys</h3>
+              <Link href="/troll-keys" className="text-sm text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 View all
               </Link>
             </div>
@@ -393,7 +387,7 @@ export default function AdminDashboard() {
               {factoryKeys.length > 0 ? (
                 <div className="space-y-3">
                   {factoryKeys.map((key) => (
-                    <div key={key._id || key.id} className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
+                    <div key={key._id || key.id} className="p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm text-neutral-300">{maskApiKey(key.apiKey || '')}</span>
@@ -425,8 +419,8 @@ export default function AdminDashboard() {
         </section>
 
         {/* Proxies Section */}
-        <section className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+        <section className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-300 dark:border-white/10 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-white">Proxy Servers</h3>
             <Link href="/proxies" className="text-sm text-neutral-400 hover:text-white transition-colors">
               View all
@@ -436,7 +430,7 @@ export default function AdminDashboard() {
             {proxies.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {proxies.map((proxy) => (
-                  <div key={proxy._id} className="p-4 rounded-lg border border-white/10 bg-neutral-800/60">
+                  <div key={proxy._id} className="p-4 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-white font-medium">{proxy.name}</span>
                       {getStatusBadge(proxy.status)}
@@ -472,8 +466,8 @@ export default function AdminDashboard() {
         </section>
 
         {/* Recent Activity */}
-        <section className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
+        <section className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-300 dark:border-white/10">
             <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
           </div>
           <div className="p-4">
@@ -481,7 +475,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-neutral-500 text-xs uppercase tracking-wider border-b border-white/10">
+                    <tr className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider border-b border-gray-300 dark:border-white/10">
                       <th className="text-left py-3 px-4">Time</th>
                       <th className="text-left py-3 px-4">Model</th>
                       <th className="text-left py-3 px-4">Latency</th>
@@ -491,12 +485,12 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {recentLogs.map((log) => (
-                      <tr key={log._id} className="border-b border-white/10 hover:bg-neutral-800/50">
+                      <tr key={log._id} className="border-b border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-neutral-800/50">
                         <td className="py-3 px-4 text-neutral-400">
                           {new Date(log.timestamp).toLocaleTimeString()}
                         </td>
                         <td className="py-3 px-4">
-                          <span className="font-mono text-xs bg-neutral-800 border border-white/10 px-2 py-1 rounded text-neutral-300">{log.model}</span>
+                          <span className="font-mono text-xs bg-gray-100 dark:bg-neutral-800 border border-gray-300 dark:border-white/10 px-2 py-1 rounded text-gray-700 dark:text-neutral-300">{log.model}</span>
                         </td>
                         <td className={`py-3 px-4 ${getLatencyColor(log.latencyMs)}`}>
                           {log.latencyMs}ms
@@ -536,7 +530,7 @@ export default function AdminDashboard() {
         </section>
 
         {/* Quick Actions */}
-        <section className="py-8 border-t border-white/5">
+        <section className="py-8 border-t border-gray-300 dark:border-white/10">
           <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -547,13 +541,13 @@ export default function AdminDashboard() {
             </Link>
             <Link
               href="/troll-keys"
-              className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
+              className="px-6 py-3 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
               Add Troll-Key
             </Link>
             <Link
               href="/proxies"
-              className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
+              className="px-6 py-3 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
               Configure Proxy
             </Link>
@@ -561,7 +555,7 @@ export default function AdminDashboard() {
               href="/api/status"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
+              className="px-6 py-3 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
               Health Check API
             </a>

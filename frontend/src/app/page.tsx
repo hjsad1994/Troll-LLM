@@ -125,14 +125,14 @@ function TypingCodeBlock() {
   return (
     <div className="relative group">
       {/* Window chrome */}
-      <div className="bg-slate-100 dark:bg-[#111] rounded-t-xl border border-black/5 dark:border-white/5 border-b-0 px-4 py-3 flex items-center gap-3">
+      <div className="bg-gray-100 dark:bg-[#111] rounded-t-xl border border-gray-300 dark:border-white/5 border-b-0 px-4 py-3 flex items-center gap-3">
         <div className="flex gap-2">
-          <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
-          <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
-          <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
+          <div className="w-3 h-3 rounded-full bg-red-400" />
+          <div className="w-3 h-3 rounded-full bg-yellow-400" />
+          <div className="w-3 h-3 rounded-full bg-green-400" />
         </div>
         <div className="flex-1 flex justify-center">
-          <div className="flex gap-1 bg-black/10 dark:bg-black/50 rounded-lg p-1">
+          <div className="flex gap-1 bg-gray-200 dark:bg-black/50 rounded-lg p-1">
             {([
               { key: 'python', label: 'Python' },
               { key: 'nodejs', label: 'NodeJS' },
@@ -143,8 +143,8 @@ function TypingCodeBlock() {
                 onClick={() => handleLangChange(lang.key)}
                 className={`px-3 py-1 rounded text-xs font-medium transition-all ${
                   currentLang === lang.key
-                    ? 'bg-black/10 dark:bg-white/10 text-[var(--theme-text)]'
-                    : 'text-[var(--theme-text-subtle)] hover:text-[var(--theme-text-muted)]'
+                    ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-[var(--theme-text)] shadow-sm'
+                    : 'text-gray-600 dark:text-[var(--theme-text-subtle)] hover:text-gray-900 dark:hover:text-[var(--theme-text-muted)]'
                 }`}
               >
                 {lang.label}
@@ -156,11 +156,11 @@ function TypingCodeBlock() {
       </div>
 
       {/* Code content */}
-      <div className="bg-slate-50 dark:bg-[#0a0a0a] rounded-b-xl border border-black/5 dark:border-white/5 border-t-0 p-6 overflow-hidden">
-        <pre className="font-mono text-sm overflow-x-auto text-slate-700 dark:text-slate-300">
+      <div className="bg-gray-50 dark:bg-[#0a0a0a] rounded-b-xl border border-gray-300 dark:border-white/5 border-t-0 p-6 overflow-hidden">
+        <pre className="font-mono text-sm overflow-x-auto text-gray-800 dark:text-slate-300">
           <code dangerouslySetInnerHTML={{ __html: highlightCode(currentConfig.before) }} />
-          <span className="text-indigo-500 dark:text-indigo-400 font-semibold">{displayedModel}</span>
-          <span className="inline-block w-0.5 h-4 bg-indigo-500 dark:bg-indigo-400 ml-0.5 animate-blink align-middle" />
+          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{displayedModel}</span>
+          <span className="inline-block w-0.5 h-4 bg-indigo-600 dark:bg-indigo-400 ml-0.5 animate-blink align-middle" />
           <code dangerouslySetInnerHTML={{ __html: highlightCode(currentConfig.after) }} />
         </pre>
       </div>
@@ -267,7 +267,7 @@ export default function LandingPage() {
       <section className="relative pt-32 pb-20 overflow-hidden">
         {/* Background with grid */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.08)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.15)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.15)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
         </div>
 
@@ -277,7 +277,7 @@ export default function LandingPage() {
             <div>
               {/* Badge */}
               <div className="flex justify-start mb-6 opacity-0 animate-fade-in-up">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
@@ -321,8 +321,8 @@ export default function LandingPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 border-y border-black/5 dark:border-white/5 relative">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.06)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+      <section className="py-20 border-y border-gray-200 dark:border-white/5 relative">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.08)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
         <div className="relative max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat) => (
@@ -353,7 +353,7 @@ export default function LandingPage() {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="p-6 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+                className="p-6 rounded-xl border border-gray-200 dark:border-white/5 bg-white dark:bg-white/[0.02] hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors shadow-sm"
               >
                 <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 mb-4">
                   {feature.icon}
@@ -367,7 +367,7 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24 border-t border-black/5 dark:border-white/5 relative overflow-hidden">
+      <section id="pricing" className="py-24 border-t border-gray-200 dark:border-white/5 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
 
@@ -389,7 +389,7 @@ export default function LandingPage() {
               {/* Card glow on hover */}
               <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-400/30 dark:from-slate-600/50 to-slate-500/30 dark:to-slate-700/50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl" />
 
-              <div className="relative p-8 rounded-2xl border border-black/10 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm hover:border-black/20 dark:hover:border-white/20 transition-all duration-300 h-full flex flex-col">
+              <div className="relative p-8 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900/50 backdrop-blur-sm hover:border-gray-300 dark:hover:border-white/20 transition-all duration-300 h-full flex flex-col shadow-sm">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
                   <div>
@@ -455,7 +455,7 @@ export default function LandingPage() {
               {/* Card glow */}
               <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-3xl opacity-30 group-hover:opacity-50 transition-opacity duration-500 blur-xl" />
 
-              <div className="relative p-8 rounded-2xl border border-indigo-500/30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm h-full flex flex-col">
+              <div className="relative p-8 rounded-2xl border border-indigo-300 dark:border-indigo-500/30 bg-white dark:bg-slate-900/80 backdrop-blur-sm h-full flex flex-col shadow-md">
                 {/* Popular badge */}
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                 <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center gap-1.5">
@@ -543,7 +543,7 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-24 border-t border-black/5 dark:border-white/5">
+      <section id="faq" className="py-24 border-t border-gray-200 dark:border-white/5">
         <div className="max-w-2xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--theme-text)]">
@@ -555,7 +555,7 @@ export default function LandingPage() {
             {faqs.map((faq, index) => (
               <div
                 key={index}
-                className="rounded-lg border border-black/5 dark:border-white/5 overflow-hidden"
+                className="rounded-lg border border-gray-200 dark:border-white/5 overflow-hidden bg-white dark:bg-transparent"
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
@@ -583,7 +583,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 border-t border-black/5 dark:border-white/5 relative">
+      <section className="py-24 border-t border-gray-200 dark:border-white/5 relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
         <div className="relative max-w-2xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--theme-text)] mb-4">
@@ -600,7 +600,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-black/5 dark:border-white/5">
+      <footer className="py-8 border-t border-gray-200 dark:border-white/5">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
