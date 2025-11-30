@@ -25,7 +25,8 @@ type Model struct {
 	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
 	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
 	BillingMultiplier      float64 `json:"billing_multiplier"`
-	Upstream              string  `json:"upstream"` // "troll" or "main" - determines which upstream provider to use
+	Upstream              string  `json:"upstream"`                    // "troll" or "main" - determines which upstream provider to use
+	UpstreamModelID       string  `json:"upstream_model_id,omitempty"` // Model ID to use when sending to upstream (if different from ID)
 }
 
 // Config global configuration
@@ -176,6 +177,19 @@ func GetModelUpstream(modelID string) string {
 		return model.Upstream
 	}
 	return "troll" // default to troll-key
+}
+
+// GetUpstreamModelID gets the model ID to use when sending to upstream
+// Returns UpstreamModelID if configured, otherwise returns the original model ID
+func GetUpstreamModelID(modelID string) string {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return modelID
+	}
+	if model.UpstreamModelID != "" {
+		return model.UpstreamModelID
+	}
+	return modelID // use original ID if no mapping configured
 }
 
 // IsModelSupported checks if model is supported

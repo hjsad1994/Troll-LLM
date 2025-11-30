@@ -665,18 +665,41 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 }
 
 // handleMainTargetRequest handles requests routed to main target (external proxy)
-// Forwards OpenAI format directly (Main Target supports both OpenAI and Anthropic)
+// Forwards OpenAI format directly with model ID mapping
 func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
 	if !maintarget.IsConfigured() {
 		http.Error(w, `{"error": {"message": "Main target not configured", "type": "server_error"}}`, http.StatusInternalServerError)
 		return
 	}
 
+	// Get upstream model ID (may be different from client-requested model ID)
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+	
+	// Prepare request body with mapped model ID
+	var requestBody []byte
+	if upstreamModelID != modelID {
+		// Need to replace model ID in request body
+		var reqMap map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &reqMap); err == nil {
+			reqMap["model"] = upstreamModelID
+			if mapped, err := json.Marshal(reqMap); err == nil {
+				requestBody = mapped
+				log.Printf("🔀 [MainTarget] Model mapping: %s -> %s", modelID, upstreamModelID)
+			} else {
+				requestBody = bodyBytes
+			}
+		} else {
+			requestBody = bodyBytes
+		}
+	} else {
+		requestBody = bodyBytes
+	}
+
 	isStreaming := openaiReq.Stream
-	log.Printf("📤 [MainTarget] Forwarding to %s/v1/chat/completions (stream=%v)", maintarget.GetServerURL(), isStreaming)
+	log.Printf("📤 [MainTarget] Forwarding to %s/v1/chat/completions (model=%s, stream=%v)", maintarget.GetServerURL(), upstreamModelID, isStreaming)
 
 	requestStartTime := time.Now()
-	resp, err := maintarget.ForwardOpenAIRequest(bodyBytes, isStreaming)
+	resp, err := maintarget.ForwardOpenAIRequest(requestBody, isStreaming)
 	if err != nil {
 		log.Printf("❌ [MainTarget] Request failed: %v", err)
 		http.Error(w, `{"error": {"message": "Request to main target failed", "type": "upstream_error"}}`, http.StatusBadGateway)
@@ -718,20 +741,42 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 }
 
 // handleMainTargetRequestOpenAI handles requests routed to main target with OpenAI format
-// Forwards OpenAI requests directly without transformation
+// Forwards OpenAI requests directly with model ID mapping
 func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
 	if !maintarget.IsConfigured() {
 		http.Error(w, `{"error": {"message": "Main target not configured", "type": "server_error"}}`, http.StatusInternalServerError)
 		return
 	}
 
+	// Get upstream model ID (may be different from client-requested model ID)
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+	
+	// Prepare request body with mapped model ID
+	var requestBody []byte
+	if upstreamModelID != modelID {
+		var reqMap map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &reqMap); err == nil {
+			reqMap["model"] = upstreamModelID
+			if mapped, err := json.Marshal(reqMap); err == nil {
+				requestBody = mapped
+				log.Printf("🔀 [MainTarget-OpenAI] Model mapping: %s -> %s", modelID, upstreamModelID)
+			} else {
+				requestBody = bodyBytes
+			}
+		} else {
+			requestBody = bodyBytes
+		}
+	} else {
+		requestBody = bodyBytes
+	}
+
 	isStreaming := openaiReq.Stream
 
-	log.Printf("📤 [MainTarget-OpenAI] Forwarding to %s/v1/chat/completions (model=%s, stream=%v)", maintarget.GetServerURL(), modelID, isStreaming)
+	log.Printf("📤 [MainTarget-OpenAI] Forwarding to %s/v1/chat/completions (model=%s, stream=%v)", maintarget.GetServerURL(), upstreamModelID, isStreaming)
 
-	// Forward to main target directly (no transformation)
+	// Forward to main target with mapped model ID
 	requestStartTime := time.Now()
-	resp, err := maintarget.ForwardOpenAIRequest(bodyBytes, isStreaming)
+	resp, err := maintarget.ForwardOpenAIRequest(requestBody, isStreaming)
 	if err != nil {
 		log.Printf("❌ [MainTarget-OpenAI] Request failed: %v", err)
 		http.Error(w, `{"error": {"message": "Request to main target failed", "type": "upstream_error"}}`, http.StatusBadGateway)
@@ -899,18 +944,41 @@ func handleTroll2MessagesRequest(w http.ResponseWriter, anthropicReq *transforme
 }
 
 // handleMainTargetMessagesRequest handles /v1/messages requests routed to main target
-// Forwards the original Anthropic request as-is (no transformation)
+// Forwards the original Anthropic request with model ID mapping
 func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
 	if !maintarget.IsConfigured() {
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Main target not configured"}}`, http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("📤 [MainTarget] Forwarding /v1/messages to %s (stream=%v)", maintarget.GetServerURL(), isStreaming)
+	// Get upstream model ID (may be different from client-requested model ID)
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+	
+	// Prepare request body with mapped model ID
+	var requestBody []byte
+	if upstreamModelID != modelID {
+		// Need to replace model ID in request body
+		var reqMap map[string]interface{}
+		if err := json.Unmarshal(originalBody, &reqMap); err == nil {
+			reqMap["model"] = upstreamModelID
+			if mapped, err := json.Marshal(reqMap); err == nil {
+				requestBody = mapped
+				log.Printf("🔀 [MainTarget] Model mapping: %s -> %s", modelID, upstreamModelID)
+			} else {
+				requestBody = originalBody
+			}
+		} else {
+			requestBody = originalBody
+		}
+	} else {
+		requestBody = originalBody
+	}
 
-	// Forward original request body as-is
+	log.Printf("📤 [MainTarget] Forwarding /v1/messages to %s (model=%s, stream=%v)", maintarget.GetServerURL(), upstreamModelID, isStreaming)
+
+	// Forward request body with mapped model ID
 	requestStartTime := time.Now()
-	resp, err := maintarget.ForwardRequest(originalBody, isStreaming)
+	resp, err := maintarget.ForwardRequest(requestBody, isStreaming)
 	if err != nil {
 		log.Printf("❌ [MainTarget] Request failed: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to main target failed"}}`, http.StatusBadGateway)

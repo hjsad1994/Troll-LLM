@@ -35,7 +35,8 @@
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.30,
       "billing_multiplier": 1.2,
-      "upstream": "troll"
+      "upstream": "main",
+      "upstream_model_id": "claude-sonnet-4.5"
     },
     {
       "name": "Claude Haiku 4.5",
