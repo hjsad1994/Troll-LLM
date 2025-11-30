@@ -1,6 +1,7 @@
 package transformers
 
 import (
+	"log"
 	"strings"
 
 	"github.com/google/uuid"
@@ -169,23 +170,14 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 				"text": systemPrompt,
 			},
 		}
+		log.Printf("✅ [Transform] Applied proxy system prompt (len=%d)", len(systemPrompt))
+	} else {
+		log.Printf("⚠️ [Transform] No proxy system prompt configured!")
 	}
 
-	// Move user-provided system instructions into the conversation
+	// DISABLED: Don't include user system prompt - Factory AI blocks certain content
 	if len(userSystemMessages) > 0 {
-		combinedText := strings.Join(userSystemMessages, "\n\n")
-		if combinedText != "" {
-			prependMsg := AnthropicMessage{
-				Role: "user",
-				Content: []map[string]interface{}{
-					{
-						"type": "text",
-						"text": combinedText,
-					},
-				},
-			}
-			anthropicReq.Messages = append([]AnthropicMessage{prependMsg}, anthropicReq.Messages...)
-		}
+		log.Printf("🚫 [Transform] Discarded %d user system messages (len=%d) - Factory AI bypass", len(userSystemMessages), len(strings.Join(userSystemMessages, "")))
 	}
 
 	// Handle thinking field

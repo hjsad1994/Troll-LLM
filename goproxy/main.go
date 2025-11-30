@@ -1682,20 +1682,9 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	} else {
 		anthropicReq.System = nil
 	}
+	// DISABLED: Don't include user system prompt - Factory AI blocks certain content
 	if userSystemText != "" && userSystemCount > 0 {
-		prepend := transformers.AnthropicMessage{
-			Role: "user",
-			Content: []map[string]interface{}{
-				{
-					"type": "text",
-					"text": userSystemText,
-				},
-			},
-		}
-		anthropicReq.Messages = append([]transformers.AnthropicMessage{prepend}, anthropicReq.Messages...)
-		if debugMode {
-			log.Printf("🔁 Moved %d system instructions into conversation", userSystemCount)
-		}
+		log.Printf("🚫 [/v1/messages] Discarded %d user system messages (len=%d) - Factory AI bypass", userSystemCount, len(userSystemText))
 	}
 
 	// Auto-enable thinking only for "troll" upstream with reasoning: "high"
