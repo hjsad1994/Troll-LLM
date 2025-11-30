@@ -14,6 +14,8 @@ export interface IUser {
   apiKey: string;
   apiKeyCreatedAt: Date;
   plan: UserPlan;
+  planStartDate?: Date | null;
+  planExpiresAt?: Date | null;
   totalTokens: number;
   tokensUsed: number;
   monthlyTokensUsed: number;
@@ -38,6 +40,8 @@ const userSchema = new mongoose.Schema({
   apiKey: { type: String, unique: true, sparse: true },
   apiKeyCreatedAt: { type: Date },
   plan: { type: String, enum: ['free', 'dev', 'pro'], default: 'free' },
+  planStartDate: { type: Date, default: null },
+  planExpiresAt: { type: Date, default: null },
   totalTokens: { type: Number, default: 0 },
   tokensUsed: { type: Number, default: 0 },
   monthlyTokensUsed: { type: Number, default: 0 },

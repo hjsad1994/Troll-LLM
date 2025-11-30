@@ -13,6 +13,7 @@ type UserKey struct {
 	CreatedAt     time.Time  `bson:"createdAt" json:"created_at"`
 	LastUsedAt    *time.Time `bson:"lastUsedAt,omitempty" json:"last_used_at,omitempty"`
 	Notes         string     `bson:"notes,omitempty" json:"notes,omitempty"`
+	PlanExpiresAt *time.Time `bson:"planExpiresAt,omitempty" json:"plan_expires_at,omitempty"`
 }
 
 func (u *UserKey) TokensRemaining() int64 {
@@ -49,4 +50,11 @@ func (u *UserKey) GetRPMLimit() int {
 
 func (u *UserKey) IsFreeUser() bool {
 	return u.Tier == "free" || u.Tier == ""
+}
+
+func (u *UserKey) IsPlanExpired() bool {
+	if u.PlanExpiresAt == nil {
+		return false
+	}
+	return time.Now().After(*u.PlanExpiresAt)
 }

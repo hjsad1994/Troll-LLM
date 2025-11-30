@@ -11,6 +11,7 @@ export interface IUserKey {
   createdAt: Date;
   lastUsedAt?: Date;
   notes?: string;
+  planExpiresAt?: Date | null;
   tokensRemaining?: number;
   usagePercent?: number;
   isExhausted?: boolean;
@@ -27,6 +28,7 @@ const userKeySchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   lastUsedAt: { type: Date },
   notes: { type: String },
+  planExpiresAt: { type: Date, default: null },
 });
 
 userKeySchema.virtual('tokensRemaining').get(function() {

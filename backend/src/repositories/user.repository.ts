@@ -12,6 +12,17 @@ function planToTier(plan: UserPlan): 'dev' | 'pro' {
   return plan === 'pro' ? 'pro' : 'dev';
 }
 
+export function calculatePlanExpiration(startDate: Date): Date {
+  const expiresAt = new Date(startDate);
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
+  return expiresAt;
+}
+
+export function isPlanExpired(user: IUser): boolean {
+  if (user.plan === 'free' || !user.planExpiresAt) return false;
+  return new Date() > new Date(user.planExpiresAt);
+}
+
 export class UserRepository {
   async findById(id: string): Promise<IUser | null> {
     return User.findById(id).lean();
@@ -128,12 +139,24 @@ export class UserRepository {
     if (planLimits.valueUsd > oldPlanLimits.valueUsd) {
       creditsToAdd = planLimits.valueUsd - oldPlanLimits.valueUsd;
     }
+
+    // Set plan expiration dates
+    const now = new Date();
+    let planStartDate: Date | null = null;
+    let planExpiresAt: Date | null = null;
+    
+    if (plan !== 'free') {
+      planStartDate = now;
+      planExpiresAt = calculatePlanExpiration(now);
+    }
     
     const updatedUser = await User.findByIdAndUpdate(
       username,
       { 
         plan, 
         totalTokens: planLimits.totalTokens,
+        planStartDate,
+        planExpiresAt,
         $inc: { credits: creditsToAdd }
       },
       { new: true }
@@ -155,12 +178,13 @@ export class UserRepository {
           requestsCount: 0,
           isActive: true,
           createdAt: new Date(),
+          planExpiresAt,
         });
       } else if (plan !== 'free') {
-        // Change between paid plans: update tier and tokens
+        // Change between paid plans: update tier, tokens and expiration
         await UserKey.updateOne(
           { _id: user.apiKey },
-          { tier: planToTier(plan), totalTokens: planLimits.totalTokens }
+          { tier: planToTier(plan), totalTokens: planLimits.totalTokens, planExpiresAt }
         );
       }
     }
@@ -232,6 +256,39 @@ export class UserRepository {
       { $inc: { credits: amount } },
       { new: true }
     ).lean();
+  }
+
+  async resetExpiredPlan(username: string): Promise<IUser | null> {
+    const user = await User.findById(username).lean();
+    if (!user || !user.apiKey) return null;
+
+    // Delete user_key entry from GoProxy collection
+    await UserKey.deleteOne({ _id: user.apiKey });
+
+    // Reset user to free plan
+    return User.findByIdAndUpdate(
+      username,
+      {
+        plan: 'free',
+        planStartDate: null,
+        planExpiresAt: null,
+        totalTokens: 0,
+        credits: 0,
+      },
+      { new: true }
+    ).lean();
+  }
+
+  async checkAndResetExpiredPlan(username: string): Promise<{ wasExpired: boolean; user: IUser | null }> {
+    const user = await User.findById(username).lean();
+    if (!user) return { wasExpired: false, user: null };
+    
+    if (isPlanExpired(user)) {
+      const resetUser = await this.resetExpiredPlan(username);
+      return { wasExpired: true, user: resetUser };
+    }
+    
+    return { wasExpired: false, user };
   }
 }
 

@@ -99,6 +99,10 @@ export interface BillingInfo {
   monthlyTokensLimit: number
   monthlyResetDate: string
   usagePercentage: number
+  planStartDate: string | null
+  planExpiresAt: string | null
+  daysUntilExpiration: number | null
+  isExpiringSoon: boolean
 }
 
 export async function getUserProfile(): Promise<UserProfile> {

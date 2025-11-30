@@ -1,4 +1,4 @@
-import { userRepository } from '../repositories/user.repository.js';
+import { userRepository, isPlanExpired } from '../repositories/user.repository.js';
 import { maskApiKey, PLAN_LIMITS, IUser } from '../models/user.model.js';
 
 export interface UserProfile {
@@ -23,6 +23,10 @@ export interface BillingInfo {
   monthlyTokensLimit: number;
   monthlyResetDate: Date;
   usagePercentage: number;
+  planStartDate: Date | null;
+  planExpiresAt: Date | null;
+  daysUntilExpiration: number | null;
+  isExpiringSoon: boolean;
 }
 
 export class UserService {
@@ -70,6 +74,18 @@ export class UserService {
       ? (user.monthlyTokensUsed / planLimits.monthlyTokens) * 100
       : 0;
 
+    // Calculate days until expiration
+    let daysUntilExpiration: number | null = null;
+    let isExpiringSoon = false;
+    
+    if (user.planExpiresAt && user.plan !== 'free') {
+      const now = new Date();
+      const expiresAt = new Date(user.planExpiresAt);
+      const diffTime = expiresAt.getTime() - now.getTime();
+      daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      isExpiringSoon = daysUntilExpiration <= 7 && daysUntilExpiration > 0;
+    }
+
     return {
       plan: user.plan,
       planLimits,
@@ -79,11 +95,23 @@ export class UserService {
       monthlyTokensLimit: planLimits.monthlyTokens,
       monthlyResetDate: user.monthlyResetDate,
       usagePercentage: Math.min(100, monthlyUsagePercent),
+      planStartDate: user.planStartDate || null,
+      planExpiresAt: user.planExpiresAt || null,
+      daysUntilExpiration,
+      isExpiringSoon,
     };
   }
 
   async findByApiKey(apiKey: string): Promise<IUser | null> {
     return userRepository.findByApiKey(apiKey);
+  }
+
+  async checkAndResetExpiredPlan(username: string): Promise<{ wasExpired: boolean; user: IUser | null }> {
+    return userRepository.checkAndResetExpiredPlan(username);
+  }
+
+  isPlanExpired(user: IUser): boolean {
+    return isPlanExpired(user);
   }
 }
 

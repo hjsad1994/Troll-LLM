@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { userRepository } from '../repositories/user.repository.js';
+import { userRepository, isPlanExpired } from '../repositories/user.repository.js';
 import { verifyPassword } from '../models/user.model.js';
 import { LoginInput, RegisterInput, AuthResponse, JwtPayload } from '../dtos/auth.dto.js';
 
@@ -16,6 +16,11 @@ export class AuthService {
 
     if (!verifyPassword(input.password, user.passwordHash, user.passwordSalt)) {
       throw new Error('Invalid credentials');
+    }
+
+    // Check if plan has expired and reset if needed
+    if (isPlanExpired(user)) {
+      await userRepository.resetExpiredPlan(input.username);
     }
 
     await userRepository.updateLastLogin(input.username);
