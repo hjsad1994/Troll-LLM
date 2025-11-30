@@ -10,8 +10,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <div className="text-slate-400 text-xl">Loading...</div>
+      <div className="min-h-screen bg-[var(--theme-bg)] flex items-center justify-center">
+        <div className="text-[var(--theme-text-muted)] text-xl">Loading...</div>
       </div>
     )
   }
@@ -21,7 +21,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-[var(--theme-bg)]">
       <Sidebar />
       <main className="flex-1 p-8 overflow-y-auto">
         {children}

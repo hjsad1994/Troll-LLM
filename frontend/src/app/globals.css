@@ -5,18 +5,79 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
+  /* Dark theme (default) */
   :root {
-    --background: #0a0a0f;
-    --foreground: #e2e8f0;
-  }
+    --background: 10 10 15;
+    --foreground: 226 232 240;
+    --card: 17 17 24;
+    --card-foreground: 226 232 240;
+    --popover: 17 17 24;
+    --popover-foreground: 226 232 240;
+    --primary: 56 189 248;
+    --primary-foreground: 15 23 42;
+    --secondary: 30 30 46;
+    --secondary-foreground: 226 232 240;
+    --muted: 30 41 59;
+    --muted-foreground: 148 163 184;
+    --accent: 30 30 46;
+    --accent-foreground: 226 232 240;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --border: 30 30 46;
+    --input: 30 30 46;
+    --ring: 56 189 248;
 
-  html {
+    /* Custom theme colors */
+    --theme-bg: #0a0a0f;
+    --theme-card: #111118;
+    --theme-border: #1e1e2e;
+    --theme-text: #e2e8f0;
+    --theme-text-muted: #94a3b8;
+    --theme-text-subtle: #64748b;
+
     color-scheme: dark;
   }
 
+  /* Light theme - High Contrast */
+  .light {
+    --background: 255 255 255;
+    --foreground: 2 6 23;
+    --card: 255 255 255;
+    --card-foreground: 2 6 23;
+    --popover: 255 255 255;
+    --popover-foreground: 2 6 23;
+    --primary: 79 70 229;
+    --primary-foreground: 255 255 255;
+    --secondary: 243 244 246;
+    --secondary-foreground: 17 24 39;
+    --muted: 243 244 246;
+    --muted-foreground: 55 65 81;
+    --accent: 238 242 255;
+    --accent-foreground: 17 24 39;
+    --destructive: 220 38 38;
+    --destructive-foreground: 255 255 255;
+    --border: 209 213 219;
+    --input: 209 213 219;
+    --ring: 79 70 229;
+
+    /* Custom theme colors - HIGH CONTRAST for light mode */
+    --theme-bg: #ffffff;
+    --theme-card: #ffffff;
+    --theme-border: #d1d5db;
+    --theme-text: #030712;
+    --theme-text-muted: #1f2937;
+    --theme-text-subtle: #374151;
+
+    color-scheme: light;
+  }
+
+  html {
+    transition: color-scheme 0.3s ease;
+  }
+
   html, body {
-    background-color: #0a0a0f;
-    color: #e2e8f0;
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
     min-height: 100%;
   }
 
@@ -278,7 +339,7 @@
   flex: 1;
 }
 
-/* Syntax highlighting */
+/* Syntax highlighting - dark mode */
 .token-keyword { color: #c678dd; }
 .token-string { color: #98c379; }
 .token-function { color: #61afef; }
@@ -289,6 +350,18 @@
 .token-punctuation { color: #abb2bf; }
 .token-property { color: #e5c07b; }
 .token-class { color: #e5c07b; }
+
+/* Syntax highlighting - light mode (High Contrast) */
+.light .token-keyword { color: #7c3aed; }
+.light .token-string { color: #059669; }
+.light .token-function { color: #2563eb; }
+.light .token-comment { color: #6b7280; font-style: italic; }
+.light .token-variable { color: #dc2626; }
+.light .token-number { color: #ea580c; }
+.light .token-operator { color: #0891b2; }
+.light .token-punctuation { color: #1f2937; }
+.light .token-property { color: #ca8a04; }
+.light .token-class { color: #ca8a04; }
 
 /* Hover effects */
 .hover-lift {
@@ -315,10 +388,20 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.light .glass {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
 .glass-dark {
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.light .glass-dark {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /* Neon text */
@@ -337,16 +420,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0f;
+  background: var(--theme-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--theme-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--theme-text-subtle);
 }
 
 @layer components {

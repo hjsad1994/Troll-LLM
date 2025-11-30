@@ -126,8 +126,8 @@ export default function UserDashboard() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Loading...</p>
+          <div className="w-8 h-8 border-2 border-black/20 dark:border-white/20 border-t-[var(--theme-text)] rounded-full animate-spin" />
+          <p className="text-[var(--theme-text-subtle)] text-sm">Loading...</p>
         </div>
       </div>
     )
@@ -136,10 +136,10 @@ export default function UserDashboard() {
   const usagePercentage = billingInfo?.usagePercentage || 0
 
   return (
-    <div className="min-h-screen bg-black -m-8 p-8">
+    <div className="min-h-screen bg-[var(--theme-bg)] -m-8 p-8">
       {/* Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
       </div>
 
@@ -152,7 +152,7 @@ export default function UserDashboard() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
               </span>
-              <span className="text-slate-500 text-sm">{getTimeGreeting()}</span>
+              <span className="text-[var(--theme-text-subtle)] text-sm">{getTimeGreeting()}</span>
             </div>
             {/* Plan Badge */}
             {userProfile && (
@@ -161,7 +161,7 @@ export default function UserDashboard() {
                   ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30'
                   : userProfile.plan === 'pro'
                     ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30'
-                    : 'bg-white/5 border-white/10'
+                    : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10'
               }`}>
                 {userProfile.plan === 'enterprise' ? (
                   <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
@@ -172,7 +172,7 @@ export default function UserDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 text-[var(--theme-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 )}
@@ -181,7 +181,7 @@ export default function UserDashboard() {
                     ? 'text-purple-400'
                     : userProfile.plan === 'pro'
                       ? 'text-indigo-400'
-                      : 'text-slate-400'
+                      : 'text-[var(--theme-text-muted)]'
                 }`}>
                   {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)} Plan
                 </span>
@@ -198,10 +198,10 @@ export default function UserDashboard() {
               </div>
             )}
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
+          <h1 className="text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-2">
             {user?.username || 'User'}
           </h1>
-          <p className="text-slate-500 text-lg">
+          <p className="text-[var(--theme-text-subtle)] text-lg">
             Welcome to your dashboard
           </p>
         </header>
@@ -209,7 +209,7 @@ export default function UserDashboard() {
         {/* Main Grid */}
         <div className="grid md:grid-cols-2 gap-6">
           {/* API Key Card */}
-          <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors opacity-0 animate-fade-in-up animation-delay-200">
+          <div className="p-6 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors opacity-0 animate-fade-in-up animation-delay-200">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
@@ -218,8 +218,8 @@ export default function UserDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">API Key</h3>
-                  <p className="text-slate-600 text-sm">Your secret access key</p>
+                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">API Key</h3>
+                  <p className="text-[var(--theme-text-subtle)] text-sm">Your secret access key</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -234,14 +234,14 @@ export default function UserDashboard() {
             {userProfile ? (
               <div className="space-y-4">
                 {/* API Key Display */}
-                <div className="bg-[#0a0a0a] rounded-lg border border-white/5 p-4">
+                <div className="bg-black/5 dark:bg-[#0a0a0a] rounded-lg border border-black/5 dark:border-white/5 p-4">
                   <div className="flex items-center justify-between gap-4">
-                    <code className="text-slate-300 text-sm font-mono break-all">
+                    <code className="text-[var(--theme-text-muted)] text-sm font-mono break-all">
                       {showFullApiKey && fullApiKey ? fullApiKey : userProfile.apiKey}
                     </code>
                     <button
                       onClick={handleShowApiKey}
-                      className="shrink-0 p-2 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
+                      className="shrink-0 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[var(--theme-text-subtle)] hover:text-[var(--theme-text)] transition-colors"
                     >
                       {showFullApiKey ? (
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -264,7 +264,7 @@ export default function UserDashboard() {
                     </svg>
                     <div>
                       <p className="text-emerald-400 text-sm font-medium">New key generated!</p>
-                      <p className="text-slate-500 text-xs">Copy it now. You won't see it again.</p>
+                      <p className="text-[var(--theme-text-subtle)] text-xs">Copy it now. You won't see it again.</p>
                     </div>
                   </div>
                 )}
@@ -273,35 +273,35 @@ export default function UserDashboard() {
                 <div className="flex gap-3">
                   <button
                     onClick={handleCopyApiKey}
-                    className="flex-1 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-slate-200 transition-colors"
+                    className="flex-1 py-2.5 rounded-lg bg-[var(--theme-text)] text-[var(--theme-bg)] font-medium text-sm hover:opacity-90 transition-colors"
                   >
                     {copied ? 'Copied!' : 'Copy Key'}
                   </button>
                   <button
                     onClick={() => setShowRotateConfirm(true)}
-                    className="py-2.5 px-4 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
+                    className="py-2.5 px-4 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                   >
                     Rotate
                   </button>
                 </div>
 
-                <p className="text-slate-600 text-xs">
+                <p className="text-[var(--theme-text-subtle)] text-xs">
                   Created {new Date(userProfile.apiKeyCreatedAt).toLocaleDateString()}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="h-14 bg-white/5 rounded-lg animate-pulse" />
+                <div className="h-14 bg-black/5 dark:bg-white/5 rounded-lg animate-pulse" />
                 <div className="flex gap-3">
-                  <div className="h-10 bg-white/5 rounded-lg flex-1 animate-pulse" />
-                  <div className="h-10 bg-white/5 rounded-lg w-24 animate-pulse" />
+                  <div className="h-10 bg-black/5 dark:bg-white/5 rounded-lg flex-1 animate-pulse" />
+                  <div className="h-10 bg-black/5 dark:bg-white/5 rounded-lg w-24 animate-pulse" />
                 </div>
               </div>
             )}
           </div>
 
           {/* Credits Card */}
-          <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors opacity-0 animate-fade-in-up animation-delay-300">
+          <div className="p-6 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors opacity-0 animate-fade-in-up animation-delay-300">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -310,15 +310,15 @@ export default function UserDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Credits</h3>
-                  <p className="text-slate-600 text-sm">Your balance</p>
+                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">Credits</h3>
+                  <p className="text-[var(--theme-text-subtle)] text-sm">Your balance</p>
                 </div>
               </div>
               {billingInfo && (
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                   billingInfo.plan === 'enterprise' ? 'bg-purple-500/10 border border-purple-500/20 text-purple-400' :
                   billingInfo.plan === 'pro' ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400' :
-                  'bg-white/5 border border-white/10 text-slate-400'
+                  'bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-[var(--theme-text-muted)]'
                 }`}>
                   {billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)}
                 </span>
@@ -328,10 +328,10 @@ export default function UserDashboard() {
             {userProfile ? (
               <div className="space-y-6">
                 {/* Credits Display */}
-                <div className="bg-[#0a0a0a] rounded-lg border border-white/5 p-5">
+                <div className="bg-black/5 dark:bg-[#0a0a0a] rounded-lg border border-black/5 dark:border-white/5 p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-slate-600 text-xs uppercase tracking-wider mb-1">Available Balance</p>
+                      <p className="text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Available Balance</p>
                       <p className="text-4xl font-bold text-emerald-400">
                         ${(userProfile.credits || 0).toFixed(2)}
                       </p>
@@ -342,9 +342,9 @@ export default function UserDashboard() {
                       </svg>
                     </div>
                   </div>
-                  <div className="pt-4 border-t border-white/5">
-                    <p className="text-slate-600 text-xs">Used</p>
-                    <p className="text-white font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
+                  <div className="pt-4 border-t border-black/5 dark:border-white/5">
+                    <p className="text-[var(--theme-text-subtle)] text-xs">Used</p>
+                    <p className="text-[var(--theme-text)] font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
                   </div>
                 </div>
 
@@ -356,16 +356,16 @@ export default function UserDashboard() {
                     </svg>
                     <div>
                       <p className="text-amber-400 text-sm font-medium">Plan expires in {billingInfo.daysUntilExpiration} day{billingInfo.daysUntilExpiration > 1 ? 's' : ''}</p>
-                      <p className="text-slate-500 text-xs">Contact admin to renew your plan</p>
+                      <p className="text-[var(--theme-text-subtle)] text-xs">Contact admin to renew your plan</p>
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-slate-600">
+                <div className="flex items-center justify-between text-xs text-[var(--theme-text-subtle)]">
                   <div className="flex flex-col gap-1">
                     <span>Plan: {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)}</span>
                     {billingInfo?.planExpiresAt && userProfile.plan !== 'free' && (
-                      <span className="text-slate-500">
+                      <span className="text-[var(--theme-text-subtle)]">
                         Expires: {new Date(billingInfo.planExpiresAt).toLocaleDateString()}
                       </span>
                     )}
@@ -377,7 +377,7 @@ export default function UserDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="h-32 bg-white/5 rounded-lg animate-pulse" />
+                <div className="h-32 bg-black/5 dark:bg-white/5 rounded-lg animate-pulse" />
               </div>
             )}
           </div>
@@ -385,20 +385,20 @@ export default function UserDashboard() {
 
         {/* Quick Start */}
         <section className="opacity-0 animate-fade-in-up animation-delay-400">
-          <h2 className="text-xl font-semibold text-white mb-4">Quick Start</h2>
-          <div className="rounded-xl border border-white/5 overflow-hidden">
+          <h2 className="text-xl font-semibold text-[var(--theme-text)] mb-4">Quick Start</h2>
+          <div className="rounded-xl border border-black/5 dark:border-white/5 overflow-hidden">
             {/* Window chrome */}
-            <div className="bg-[#111] px-4 py-3 flex items-center gap-3 border-b border-white/5">
+            <div className="bg-black/5 dark:bg-[#111] px-4 py-3 flex items-center gap-3 border-b border-black/5 dark:border-white/5">
               <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-white/10" />
-                <div className="w-3 h-3 rounded-full bg-white/10" />
-                <div className="w-3 h-3 rounded-full bg-white/10" />
+                <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
+                <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
+                <div className="w-3 h-3 rounded-full bg-black/10 dark:bg-white/10" />
               </div>
-              <span className="text-slate-600 text-xs">example.py</span>
+              <span className="text-[var(--theme-text-subtle)] text-xs">example.py</span>
             </div>
             {/* Code content */}
-            <div className="bg-[#0a0a0a] p-6 overflow-x-auto">
-              <pre className="font-mono text-sm text-slate-300">
+            <div className="bg-black/[0.02] dark:bg-[#0a0a0a] p-6 overflow-x-auto">
+              <pre className="font-mono text-sm text-[var(--theme-text-muted)]">
                 <span className="text-purple-400">from</span> openai <span className="text-purple-400">import</span> OpenAI{'\n\n'}
                 <span className="text-blue-400">client</span> = <span className="text-blue-400">OpenAI</span>({'\n'}
                 {'    '}base_url=<span className="text-emerald-400">"https://chat.trollllm.xyz/v1"</span>,{'\n'}
@@ -420,7 +420,7 @@ export default function UserDashboard() {
               href="/status"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors inline-flex items-center gap-2"
+              className="px-5 py-2.5 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -429,7 +429,7 @@ export default function UserDashboard() {
             </a>
             <a
               href="/models"
-              className="px-5 py-2.5 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors inline-flex items-center gap-2"
+              className="px-5 py-2.5 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
@@ -443,7 +443,7 @@ export default function UserDashboard() {
       {/* Rotate API Key Modal */}
       {showRotateConfirm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="max-w-md w-full rounded-xl border border-white/10 bg-[#111] p-6">
+          <div className="max-w-md w-full rounded-xl border border-black/10 dark:border-white/10 bg-[var(--theme-card)] p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                 <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -451,8 +451,8 @@ export default function UserDashboard() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Rotate API Key?</h3>
-                <p className="text-slate-500 text-sm">This cannot be undone</p>
+                <h3 className="text-lg font-semibold text-[var(--theme-text)]">Rotate API Key?</h3>
+                <p className="text-[var(--theme-text-subtle)] text-sm">This cannot be undone</p>
               </div>
             </div>
 
@@ -474,7 +474,7 @@ export default function UserDashboard() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowRotateConfirm(false)}
-                className="flex-1 py-2.5 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
+                className="flex-1 py-2.5 rounded-lg border border-black/10 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 Cancel
               </button>

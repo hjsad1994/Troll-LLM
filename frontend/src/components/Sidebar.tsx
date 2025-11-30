@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthProvider'
+import { ThemeToggle } from './ThemeToggle'
 
 interface NavItem {
   href: string
@@ -89,20 +90,20 @@ export default function Sidebar() {
   const navItems = isAdmin ? adminNavItems : userNavItems
 
   return (
-    <nav className="w-64 bg-black p-6 flex flex-col border-r border-white/5 min-h-screen">
+    <nav className="w-64 bg-[var(--theme-bg)] p-6 flex flex-col border-r border-[var(--theme-border)] min-h-screen">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3 mb-8">
-        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
+          <svg className="w-4 h-4 text-[var(--theme-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
-        <span className="text-lg font-semibold text-white">TrollLLM</span>
+        <span className="text-lg font-semibold text-[var(--theme-text)]">TrollLLM</span>
       </Link>
 
       {/* Navigation */}
       <div className="flex-1">
-        <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-3 px-3">Menu</p>
+        <p className="text-[10px] uppercase tracking-wider text-[var(--theme-text-subtle)] mb-3 px-3">Menu</p>
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href
@@ -114,7 +115,7 @@ export default function Sidebar() {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors text-sm"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm"
                   >
                     {item.icon}
                     {item.label}
@@ -132,8 +133,8 @@ export default function Sidebar() {
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm ${
                     isActive
-                      ? 'bg-white/10 text-white'
-                      : 'text-slate-500 hover:text-white hover:bg-white/5'
+                      ? 'bg-black/10 dark:bg-white/10 text-[var(--theme-text)]'
+                      : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
                 >
                   {item.icon}
@@ -146,21 +147,24 @@ export default function Sidebar() {
       </div>
 
       {/* User Section */}
-      <div className="pt-6 border-t border-white/5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+      <div className="pt-6 border-t border-[var(--theme-border)]">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center">
+              <svg className="w-4 h-4 text-[var(--theme-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[var(--theme-text)] text-sm font-medium truncate">{user?.username || 'User'}</p>
+              <p className="text-[var(--theme-text-subtle)] text-xs">{isAdmin ? 'Admin' : 'User'}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">{user?.username || 'User'}</p>
-            <p className="text-slate-600 text-xs">{isAdmin ? 'Admin' : 'User'}</p>
-          </div>
+          <ThemeToggle />
         </div>
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-slate-500 hover:text-red-400 hover:border-red-500/50 hover:bg-red-500/5 transition-colors text-sm"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-red-400 hover:border-red-500/50 hover:bg-red-500/5 transition-colors text-sm"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
