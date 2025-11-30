@@ -35,7 +35,7 @@
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.30,
       "billing_multiplier": 1.0,
-      "upstream": "main"
+      "upstream": "troll"
     },
     {
       "name": "Claude Haiku 4.5",
