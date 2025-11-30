@@ -22,7 +22,8 @@
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.4,
-      "upstream": "troll"
+      "upstream": "main",
+      "upstream_model_id": "claude-opus-4.5"
     },
     {
       "name": "Claude Sonnet 4.5",
