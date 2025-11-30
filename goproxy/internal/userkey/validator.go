@@ -11,10 +11,9 @@ import (
 )
 
 var (
-	ErrKeyNotFound    = errors.New("API key not found")
-	ErrKeyRevoked     = errors.New("API key has been revoked")
-	ErrQuotaExhausted = errors.New("token quota exhausted")
-	ErrPlanExpired    = errors.New("plan has expired")
+	ErrKeyNotFound = errors.New("API key not found")
+	ErrKeyRevoked  = errors.New("API key has been revoked")
+	ErrPlanExpired = errors.New("plan has expired")
 )
 
 func ValidateKey(apiKey string) (*UserKey, error) {
@@ -38,10 +37,6 @@ func ValidateKey(apiKey string) (*UserKey, error) {
 		// Delete expired key from collection
 		go deleteExpiredKey(apiKey)
 		return nil, ErrPlanExpired
-	}
-
-	if userKey.IsExhausted() {
-		return &userKey, ErrQuotaExhausted
 	}
 
 	return &userKey, nil

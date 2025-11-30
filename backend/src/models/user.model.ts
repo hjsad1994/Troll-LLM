@@ -16,17 +16,16 @@ export interface IUser {
   plan: UserPlan;
   planStartDate?: Date | null;
   planExpiresAt?: Date | null;
-  totalTokens: number;
   tokensUsed: number;
   monthlyTokensUsed: number;
   monthlyResetDate: Date;
   credits: number;
 }
 
-export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; totalTokens: number; rpm: number; valueUsd: number }> = {
-  free: { monthlyTokens: 0, totalTokens: 0, rpm: 0, valueUsd: 0 },
-  dev: { monthlyTokens: 15_000_000, totalTokens: 15_000_000, rpm: 300, valueUsd: 225 },
-  pro: { monthlyTokens: 40_000_000, totalTokens: 40_000_000, rpm: 1000, valueUsd: 500 },
+export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; rpm: number; valueUsd: number }> = {
+  free: { monthlyTokens: 0, rpm: 0, valueUsd: 0 },
+  dev: { monthlyTokens: 15_000_000, rpm: 300, valueUsd: 225 },
+  pro: { monthlyTokens: 40_000_000, rpm: 1000, valueUsd: 500 },
 };
 
 const userSchema = new mongoose.Schema({
@@ -42,7 +41,6 @@ const userSchema = new mongoose.Schema({
   plan: { type: String, enum: ['free', 'dev', 'pro'], default: 'free' },
   planStartDate: { type: Date, default: null },
   planExpiresAt: { type: Date, default: null },
-  totalTokens: { type: Number, default: 0 },
   tokensUsed: { type: Number, default: 0 },
   monthlyTokensUsed: { type: Number, default: 0 },
   monthlyResetDate: { type: Date, default: () => getFirstDayOfMonth() },

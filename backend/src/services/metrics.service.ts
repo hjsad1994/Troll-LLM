@@ -2,7 +2,7 @@ import { requestLogRepository } from '../repositories/request-log.repository.js'
 
 export interface SystemMetrics {
   totalRequests: number;
-  totalTokens: number;
+  tokensUsed: number;
   avgLatencyMs: number;
   successRate: number;
   period: string;

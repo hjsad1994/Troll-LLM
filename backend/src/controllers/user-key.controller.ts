@@ -3,19 +3,6 @@ import { z } from 'zod';
 import * as userKeyService from '../services/userkey.service.js';
 import { CreateUserKeyDTO, UpdateUserKeyDTO } from '../dtos/user-key.dto.js';
 
-function calcTokensRemaining(key: { totalTokens: number; tokensUsed: number }) {
-  return Math.max(0, key.totalTokens - key.tokensUsed);
-}
-
-function calcUsagePercent(key: { totalTokens: number; tokensUsed: number }) {
-  if (key.totalTokens === 0) return 0;
-  return (key.tokensUsed / key.totalTokens) * 100;
-}
-
-function calcIsExhausted(key: { totalTokens: number; tokensUsed: number }) {
-  return key.tokensUsed >= key.totalTokens;
-}
-
 export class UserKeyController {
   async list(_req: Request, res: Response): Promise<void> {
     try {
@@ -25,13 +12,9 @@ export class UserKeyController {
       res.json({
         total: stats.total,
         active: stats.active,
-        exhausted: stats.exhausted,
         keys: keys.map(k => ({
           ...k,
           id: k._id,
-          tokens_remaining: calcTokensRemaining(k),
-          usage_percent: Math.round(calcUsagePercent(k) * 100) / 100,
-          is_exhausted: calcIsExhausted(k),
         })),
       });
     } catch (error) {
@@ -51,9 +34,6 @@ export class UserKeyController {
       res.json({
         ...key,
         id: key._id,
-        tokens_remaining: calcTokensRemaining(key),
-        usage_percent: Math.round(calcUsagePercent(key) * 100) / 100,
-        is_exhausted: calcIsExhausted(key),
       });
     } catch (error) {
       console.error('Error getting key:', error);
@@ -70,7 +50,6 @@ export class UserKeyController {
         id: key._id,
         name: key.name,
         tier: key.tier,
-        total_tokens: key.totalTokens,
         created_at: key.createdAt,
       });
     } catch (error) {
@@ -95,8 +74,6 @@ export class UserKeyController {
 
       res.json({
         id: key._id,
-        total_tokens: key.totalTokens,
-        tokens_remaining: calcTokensRemaining(key),
         is_active: key.isActive,
         updated_at: new Date().toISOString(),
       });

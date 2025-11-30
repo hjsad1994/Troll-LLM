@@ -17,7 +17,7 @@ interface Stats {
 
 interface Metrics {
   totalRequests: number
-  totalTokens: number
+  tokensUsed: number
   avgLatencyMs: number
   successRate: number
   inputTokens?: number
@@ -26,13 +26,19 @@ interface Metrics {
   requestsThisWeek?: number
 }
 
+interface UserStats {
+  total_users: number
+  by_plan: Record<string, number>
+  total_tokens_used: number
+  total_credits: number
+}
+
 interface UserKey {
   _id?: string
   id?: string
   name: string
   tier: string
   tokensUsed: number
-  totalTokens: number
   isActive: boolean
 }
 
@@ -126,7 +132,7 @@ export default function AdminDashboard() {
   })
   const [metrics, setMetrics] = useState<Metrics>({
     totalRequests: 0,
-    totalTokens: 0,
+    tokensUsed: 0,
     avgLatencyMs: 0,
     successRate: 0,
   })
@@ -134,6 +140,7 @@ export default function AdminDashboard() {
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
+  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0 })
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
@@ -146,12 +153,13 @@ export default function AdminDashboard() {
 
   const loadDashboard = useCallback(async () => {
     try {
-      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp] = await Promise.all([
+      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
         fetchWithAuth('/admin/troll-keys').catch(() => null),
         fetchWithAuth('/admin/proxies').catch(() => null),
         fetch('/api/status').catch(() => null),
         fetchWithAuth('/admin/metrics').catch(() => null),
+        fetchWithAuth('/admin/user-stats').catch(() => null),
       ])
 
       const keysData = keysResp?.ok ? await keysResp.json() : { total: 0, keys: [] }
@@ -159,6 +167,7 @@ export default function AdminDashboard() {
       const proxiesData = proxiesResp?.ok ? await proxiesResp.json() : { total: 0, proxies: [] }
       const statusData = statusResp?.ok ? await statusResp.json() : { status: 'unknown', summary: { healthy: 0, total: 0 } }
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
+      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0 }
 
       setStats({
         totalKeys: keysData.total || 0,
@@ -171,7 +180,7 @@ export default function AdminDashboard() {
 
       setMetrics({
         totalRequests: metricsData.total_requests || 0,
-        totalTokens: metricsData.total_tokens || 0,
+        tokensUsed: metricsData.tokens_used || 0,
         avgLatencyMs: metricsData.avg_latency_ms || 0,
         successRate: metricsData.success_rate || 0,
         inputTokens: metricsData.input_tokens || 0,
@@ -179,6 +188,8 @@ export default function AdminDashboard() {
         requestsToday: metricsData.requests_today || 0,
         requestsThisWeek: metricsData.requests_this_week || 0,
       })
+
+      setUserStats(userStatsData)
 
       // Set detailed data for tables
       setUserKeys((keysData.keys || []).slice(0, 5))
@@ -320,7 +331,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Token Usage Card */}
+          {/* User Stats Card */}
           <div className="p-6 rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm hover:bg-neutral-900 transition-colors">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400">
@@ -328,37 +339,41 @@ export default function AdminDashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-white">Token Usage</h3>
+              <h3 className="text-lg font-semibold text-white">User Stats</h3>
             </div>
             <p className="text-4xl font-bold bg-gradient-to-r from-neutral-300 to-neutral-500 bg-clip-text text-transparent mb-1">
-              {loading ? '...' : formatLargeNumber(metrics.totalTokens)}
+              {loading ? '...' : formatLargeNumber(userStats.total_tokens_used)}
             </p>
-            <p className="text-neutral-500 text-sm mb-4">total tokens consumed</p>
+            <p className="text-neutral-500 text-sm mb-4">total tokens used by all users</p>
 
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-white"></span>
-                  Input
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Total Credits
                 </span>
-                <span className="text-white font-medium">{formatLargeNumber(metrics.inputTokens || 0)}</span>
+                <span className="text-emerald-400 font-medium">${userStats.total_credits.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-neutral-400"></span>
-                  Output
+                  <span className="w-2 h-2 rounded-full bg-white"></span>
+                  Total Users
                 </span>
-                <span className="text-white font-medium">{formatLargeNumber(metrics.outputTokens || 0)}</span>
+                <span className="text-white font-medium">{userStats.total_users}</span>
               </div>
-              <div className="h-2 bg-neutral-700 rounded-full overflow-hidden flex">
-                <div
-                  className="h-full bg-white"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.inputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
-                />
-                <div
-                  className="h-full bg-neutral-500"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.outputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
-                />
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-violet-400"></span>
+                  Dev Plan
+                </span>
+                <span className="text-violet-400 font-medium">{userStats.by_plan?.dev || 0}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                  Pro Plan
+                </span>
+                <span className="text-amber-400 font-medium">{userStats.by_plan?.pro || 0}</span>
               </div>
             </div>
           </div>

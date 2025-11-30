@@ -23,7 +23,6 @@ export class UserKeyRepository {
       _id: id,
       name: data.name,
       tier: data.tier,
-      totalTokens: data.totalTokens || 30000000,
       notes: data.notes,
     });
     return key.toObject();
@@ -49,12 +48,11 @@ export class UserKeyRepository {
     ).lean();
   }
 
-  async getStats(): Promise<{ total: number; active: number; exhausted: number }> {
+  async getStats(): Promise<{ total: number; active: number }> {
     const keys = await UserKey.find().lean();
     const total = keys.length;
     const active = keys.filter(k => k.isActive).length;
-    const exhausted = keys.filter(k => k.tokensUsed >= k.totalTokens).length;
-    return { total, active, exhausted };
+    return { total, active };
   }
 }
 

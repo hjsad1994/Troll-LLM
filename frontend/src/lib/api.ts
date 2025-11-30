@@ -82,7 +82,6 @@ export interface UserProfile {
   apiKey: string
   apiKeyCreatedAt: string
   plan: string
-  totalTokens: number
   tokensUsed: number
   monthlyTokensUsed: number
   monthlyResetDate: string
@@ -92,8 +91,7 @@ export interface UserProfile {
 
 export interface BillingInfo {
   plan: string
-  planLimits: { monthlyTokens: number; totalTokens: number }
-  totalTokensRemaining: number
+  planLimits: { monthlyTokens: number; rpm: number }
   tokensUsed: number
   monthlyTokensUsed: number
   monthlyTokensLimit: number
@@ -103,6 +101,7 @@ export interface BillingInfo {
   planExpiresAt: string | null
   daysUntilExpiration: number | null
   isExpiringSoon: boolean
+  credits: number
 }
 
 export async function getUserProfile(): Promise<UserProfile> {
@@ -154,7 +153,6 @@ export interface AdminUser {
   apiKey?: string
   apiKeyCreatedAt?: string
   plan: UserPlan
-  totalTokens: number
   tokensUsed: number
   monthlyTokensUsed: number
   monthlyResetDate?: string
@@ -163,7 +161,6 @@ export interface AdminUser {
 
 export interface PlanLimits {
   monthlyTokens: number
-  totalTokens: number
   rpm: number
 }
 

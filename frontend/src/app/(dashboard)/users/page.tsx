@@ -187,7 +187,6 @@ export default function UsersPage() {
                 users.map((u) => {
                   const plan = u.plan || 'free'
                   const tokensUsed = u.tokensUsed ?? 0
-                  const totalTokens = u.totalTokens ?? 0
                   const monthlyTokensUsed = u.monthlyTokensUsed ?? 0
                   const username = u._id || 'unknown'
                   
@@ -248,11 +247,9 @@ export default function UsersPage() {
                       {plan.charAt(0).toUpperCase() + plan.slice(1)}
                     </p>
                     <p className="text-slate-400 text-xs">
-                      {planLimits[plan].totalTokens === 0 
+                      {planLimits[plan].monthlyTokens === 0 
                         ? 'No access' 
-                        : planLimits[plan].totalTokens === -1 
-                          ? 'Unlimited' 
-                          : formatNumber(planLimits[plan].totalTokens)}
+                        : formatNumber(planLimits[plan].monthlyTokens) + '/mo'}
                     </p>
                     <p className="text-slate-600 text-xs">{planLimits[plan].rpm} RPM</p>
                   </div>
@@ -336,11 +333,9 @@ export default function UsersPage() {
                         </p>
                         {planLimits && (
                           <p className="text-slate-500 text-xs mt-0.5">
-                            {planLimits[plan].totalTokens === 0 
+                            {planLimits[plan].monthlyTokens === 0 
                               ? 'No access' 
-                              : planLimits[plan].totalTokens === -1 
-                                ? 'Unlimited' 
-                                : `${formatNumber(planLimits[plan].totalTokens)} tokens`}
+                              : `${formatNumber(planLimits[plan].monthlyTokens)} tokens/mo`}
                             {planLimits[plan].rpm > 0 && ` · ${planLimits[plan].rpm} RPM`}
                           </p>
                         )}

@@ -6,7 +6,6 @@ export interface UserProfile {
   apiKey: string;
   apiKeyCreatedAt: Date;
   plan: string;
-  totalTokens: number;
   tokensUsed: number;
   monthlyTokensUsed: number;
   monthlyResetDate: Date;
@@ -16,8 +15,7 @@ export interface UserProfile {
 
 export interface BillingInfo {
   plan: string;
-  planLimits: { monthlyTokens: number; totalTokens: number };
-  totalTokensRemaining: number;
+  planLimits: { monthlyTokens: number; rpm: number };
   tokensUsed: number;
   monthlyTokensUsed: number;
   monthlyTokensLimit: number;
@@ -27,6 +25,7 @@ export interface BillingInfo {
   planExpiresAt: Date | null;
   daysUntilExpiration: number | null;
   isExpiringSoon: boolean;
+  credits: number;
 }
 
 export class UserService {
@@ -39,7 +38,6 @@ export class UserService {
       apiKey: maskApiKey(user.apiKey),
       apiKeyCreatedAt: user.apiKeyCreatedAt,
       plan: user.plan,
-      totalTokens: user.totalTokens,
       tokensUsed: user.tokensUsed,
       monthlyTokensUsed: user.monthlyTokensUsed,
       monthlyResetDate: user.monthlyResetDate,
@@ -66,9 +64,6 @@ export class UserService {
     if (!user) return null;
 
     const planLimits = PLAN_LIMITS[user.plan];
-    const totalTokensRemaining = user.totalTokens === -1 
-      ? -1 
-      : Math.max(0, user.totalTokens - user.tokensUsed);
     
     const monthlyUsagePercent = planLimits.monthlyTokens > 0
       ? (user.monthlyTokensUsed / planLimits.monthlyTokens) * 100
@@ -88,8 +83,7 @@ export class UserService {
 
     return {
       plan: user.plan,
-      planLimits,
-      totalTokensRemaining,
+      planLimits: { monthlyTokens: planLimits.monthlyTokens, rpm: planLimits.rpm },
       tokensUsed: user.tokensUsed,
       monthlyTokensUsed: user.monthlyTokensUsed,
       monthlyTokensLimit: planLimits.monthlyTokens,
@@ -99,6 +93,7 @@ export class UserService {
       planExpiresAt: user.planExpiresAt || null,
       daysUntilExpiration,
       isExpiringSoon,
+      credits: user.credits || 0,
     };
   }
 

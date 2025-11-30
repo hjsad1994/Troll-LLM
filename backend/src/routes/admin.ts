@@ -10,29 +10,13 @@ const router = Router();
 const createKeySchema = z.object({
   name: z.string().min(1).max(100),
   tier: z.enum(['dev', 'pro']),
-  totalTokens: z.number().int().min(1000000).max(100000000).optional(), // 1M - 100M
   notes: z.string().max(500).optional(),
 });
 
 const updateKeySchema = z.object({
-  totalTokens: z.number().int().min(1000000).max(100000000).optional(),
   notes: z.string().max(500).optional(),
   isActive: z.boolean().optional(),
 });
-
-// Helper functions
-function calcTokensRemaining(key: { totalTokens: number; tokensUsed: number }) {
-  return Math.max(0, key.totalTokens - key.tokensUsed);
-}
-
-function calcUsagePercent(key: { totalTokens: number; tokensUsed: number }) {
-  if (key.totalTokens === 0) return 0;
-  return (key.tokensUsed / key.totalTokens) * 100;
-}
-
-function calcIsExhausted(key: { totalTokens: number; tokensUsed: number }) {
-  return key.tokensUsed >= key.totalTokens;
-}
 
 // GET /admin/keys - List all user keys
 router.get('/keys', async (_req: Request, res: Response) => {
@@ -43,13 +27,9 @@ router.get('/keys', async (_req: Request, res: Response) => {
     res.json({
       total: stats.total,
       active: stats.active,
-      exhausted: stats.exhausted,
       keys: keys.map(k => ({
         ...k,
         id: k._id,
-        tokens_remaining: calcTokensRemaining(k),
-        usage_percent: Math.round(calcUsagePercent(k) * 100) / 100,
-        is_exhausted: calcIsExhausted(k),
       })),
     });
   } catch (error) {
@@ -68,7 +48,6 @@ router.post('/keys', async (req: Request, res: Response) => {
       id: key._id,
       name: key.name,
       tier: key.tier,
-      total_tokens: key.totalTokens,
       created_at: key.createdAt,
     });
   } catch (error) {
@@ -93,9 +72,6 @@ router.get('/keys/:id', async (req: Request, res: Response) => {
     res.json({
       ...key,
       id: key._id,
-      tokens_remaining: calcTokensRemaining(key),
-      usage_percent: Math.round(calcUsagePercent(key) * 100) / 100,
-      is_exhausted: calcIsExhausted(key),
     });
   } catch (error) {
     console.error('Error getting key:', error);
@@ -116,8 +92,6 @@ router.patch('/keys/:id', async (req: Request, res: Response) => {
 
     res.json({
       id: key._id,
-      total_tokens: key.totalTokens,
-      tokens_remaining: calcTokensRemaining(key),
       is_active: key.isActive,
       updated_at: new Date().toISOString(),
     });
@@ -298,7 +272,7 @@ router.get('/metrics', async (req: Request, res: Response) => {
 
     res.json({
       total_requests: metrics.totalRequests,
-      total_tokens: metrics.totalTokens,
+      tokens_used: metrics.tokensUsed,
       avg_latency_ms: metrics.avgLatencyMs,
       success_rate: metrics.successRate,
       period: metrics.period,

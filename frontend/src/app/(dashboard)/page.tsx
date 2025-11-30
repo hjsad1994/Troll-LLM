@@ -16,7 +16,7 @@ interface Stats {
 
 interface Metrics {
   totalRequests: number
-  totalTokens: number
+  tokensUsed: number
   avgLatencyMs: number
   successRate: number
   inputTokens?: number
@@ -31,7 +31,6 @@ interface UserKey {
   name: string
   tier: string
   tokensUsed: number
-  totalTokens: number
   isActive: boolean
 }
 
@@ -121,7 +120,7 @@ export default function Dashboard() {
   })
   const [metrics, setMetrics] = useState<Metrics>({
     totalRequests: 0,
-    totalTokens: 0,
+    tokensUsed: 0,
     avgLatencyMs: 0,
     successRate: 0,
   })
@@ -237,7 +236,7 @@ export default function Dashboard() {
 
       setMetrics({
         totalRequests: metricsData.total_requests || 0,
-        totalTokens: metricsData.total_tokens || 0,
+        tokensUsed: metricsData.tokens_used || 0,
         avgLatencyMs: metricsData.avg_latency_ms || 0,
         successRate: metricsData.success_rate || 0,
         inputTokens: metricsData.input_tokens || 0,
@@ -274,7 +273,6 @@ export default function Dashboard() {
   const healthyFactoryKeys = factoryKeys.filter(k => k.status === 'healthy').length
   const healthyProxies = proxies.filter(p => p.status === 'healthy').length
   const totalKeyTokensUsed = userKeys.reduce((sum, k) => sum + (k.tokensUsed || 0), 0)
-  const totalKeyTokensLimit = userKeys.reduce((sum, k) => sum + (k.totalTokens || 0), 0)
 
   return (
     <div className="space-y-8">
@@ -402,9 +400,9 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-900/50 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Tokens Remaining</p>
-                    <p className="text-2xl font-bold text-white">
-                      {billingInfo.totalTokensRemaining === -1 ? 'Unlimited' : formatLargeNumber(billingInfo.totalTokensRemaining)}
+                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Credits Balance</p>
+                    <p className="text-2xl font-bold text-emerald-400">
+                      ${(billingInfo.credits || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-slate-900/50 rounded-lg p-3">
@@ -570,9 +568,9 @@ export default function Dashboard() {
           <div className="relative">
             <p className="text-slate-400 text-sm font-medium uppercase tracking-wider">Token Usage</p>
             <p className="text-4xl font-bold mt-2 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              {loading ? '...' : formatLargeNumber(metrics.totalTokens)}
+              {loading ? '...' : formatLargeNumber(metrics.tokensUsed)}
             </p>
-            <p className="text-slate-500 text-sm">total tokens consumed</p>
+            <p className="text-slate-500 text-sm">tokens used</p>
             <div className="mt-4 space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-400 flex items-center gap-2">
@@ -591,11 +589,11 @@ export default function Dashboard() {
               <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden flex">
                 <div
                   className="h-full bg-cyan-500"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.inputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
+                  style={{ width: metrics.tokensUsed > 0 ? `${((metrics.inputTokens || 0) / metrics.tokensUsed) * 100}%` : '50%' }}
                 />
                 <div
                   className="h-full bg-blue-500"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.outputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
+                  style={{ width: metrics.tokensUsed > 0 ? `${((metrics.outputTokens || 0) / metrics.tokensUsed) * 100}%` : '50%' }}
                 />
               </div>
             </div>

@@ -14,7 +14,7 @@ function planToTier(plan: UserPlan): 'dev' | 'pro' {
 
 export function calculatePlanExpiration(startDate: Date): Date {
   const expiresAt = new Date(startDate);
-  expiresAt.setMonth(expiresAt.getMonth() + 1);
+  expiresAt.setDate(expiresAt.getDate() + 30); // +30 days, then reset to Free Tier
   return expiresAt;
 }
 
@@ -49,7 +49,6 @@ export class UserRepository {
       apiKey,
       apiKeyCreatedAt: now,
       plan,
-      totalTokens: planLimits.totalTokens,
       tokensUsed: 0,
       monthlyTokensUsed: 0,
       monthlyResetDate: firstDayOfMonth,
@@ -62,7 +61,6 @@ export class UserRepository {
         _id: apiKey,
         name: data.username,
         tier: planToTier(plan),
-        totalTokens: planLimits.totalTokens,
         tokensUsed: 0,
         requestsCount: 0,
         isActive: true,
@@ -110,12 +108,10 @@ export class UserRepository {
         await UserKey.deleteOne({ _id: oldApiKey });
       }
       // Create new key entry
-      const planLimits = PLAN_LIMITS[user.plan];
       await UserKey.create({
         _id: newApiKey,
         name: username,
         tier: planToTier(user.plan),
-        totalTokens: planLimits.totalTokens,
         tokensUsed: user.tokensUsed || 0,
         requestsCount: 0,
         isActive: true,
@@ -154,7 +150,6 @@ export class UserRepository {
       username,
       { 
         plan, 
-        totalTokens: planLimits.totalTokens,
         planStartDate,
         planExpiresAt,
         $inc: { credits: creditsToAdd }
@@ -173,7 +168,6 @@ export class UserRepository {
           _id: user.apiKey,
           name: username,
           tier: planToTier(plan),
-          totalTokens: planLimits.totalTokens,
           tokensUsed: user.tokensUsed || 0,
           requestsCount: 0,
           isActive: true,
@@ -181,10 +175,10 @@ export class UserRepository {
           planExpiresAt,
         });
       } else if (plan !== 'free') {
-        // Change between paid plans: update tier, tokens and expiration
+        // Change between paid plans: update tier and expiration
         await UserKey.updateOne(
           { _id: user.apiKey },
-          { tier: planToTier(plan), totalTokens: planLimits.totalTokens, planExpiresAt }
+          { tier: planToTier(plan), planExpiresAt }
         );
       }
     }
@@ -230,16 +224,27 @@ export class UserRepository {
       .lean();
   }
 
-  async getUserStats(): Promise<{ total: number; byPlan: Record<string, number> }> {
+  async getUserStats(): Promise<{ total: number; byPlan: Record<string, number>; totalTokensUsed: number; totalCredits: number }> {
     const total = await User.countDocuments();
-    const byPlanAgg = await User.aggregate([
-      { $group: { _id: '$plan', count: { $sum: 1 } } }
+    const agg = await User.aggregate([
+      {
+        $group: {
+          _id: '$plan',
+          count: { $sum: 1 },
+          tokensUsed: { $sum: '$tokensUsed' },
+          credits: { $sum: '$credits' },
+        }
+      }
     ]);
     const byPlan: Record<string, number> = {};
-    byPlanAgg.forEach((p) => {
+    let totalTokensUsed = 0;
+    let totalCredits = 0;
+    agg.forEach((p) => {
       byPlan[p._id || 'free'] = p.count;
+      totalTokensUsed += p.tokensUsed || 0;
+      totalCredits += p.credits || 0;
     });
-    return { total, byPlan };
+    return { total, byPlan, totalTokensUsed, totalCredits };
   }
 
   async updateCredits(username: string, credits: number): Promise<IUser | null> {
@@ -272,7 +277,6 @@ export class UserRepository {
         plan: 'free',
         planStartDate: null,
         planExpiresAt: null,
-        totalTokens: 0,
         credits: 0,
       },
       { new: true }

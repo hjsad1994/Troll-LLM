@@ -19,7 +19,7 @@ export class MetricsController {
 
       res.json({
         total_requests: metrics.totalRequests,
-        total_tokens: metrics.totalTokens,
+        tokens_used: metrics.tokensUsed,
         avg_latency_ms: metrics.avgLatencyMs,
         success_rate: metrics.successRate,
         period: metrics.period,

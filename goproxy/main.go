@@ -270,20 +270,27 @@ func min(a, b int) int {
 
 // CORS allowed origins for trollllm.xyz
 var corsAllowedOrigins = map[string]bool{
-	"http://localhost:3000":      true,
-	"http://localhost:3001":      true,
-	"https://trollllm.xyz":       true,
-	"https://www.trollllm.xyz":   true,
-	"https://api.trollllm.xyz":   true,
-	"https://chat.trollllm.xyz":  true,
+	"http://localhost:3000":     true,
+	"http://localhost:3001":     true,
+	"https://trollllm.xyz":      true,
+	"https://www.trollllm.xyz":  true,
+	"https://api.trollllm.xyz":  true,
+	"https://chat.trollllm.xyz": true,
 }
 
 // corsMiddleware wraps handlers with CORS support
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
+		// Allow whitelisted origins, or any origin for external services
 		if corsAllowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if origin != "" {
+			// Allow any origin for compatibility with external services
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			// No origin header (direct API call) - allow all
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key, x-session-id, x-assistant-message-id")
@@ -361,11 +368,15 @@ func modelsHandler(w http.ResponseWriter, r *http.Request) {
 	models := config.GetAllModels()
 	openaiModels := make([]map[string]interface{}, 0, len(models))
 
-	for _, model := range models {
+	// Base timestamp: 2025-01-01 00:00:00 UTC
+	baseTimestamp := int64(1735689600)
+	
+	for i, model := range models {
+		// Each model gets a unique timestamp (1 day apart)
 		openaiModels = append(openaiModels, map[string]interface{}{
 			"id":       model.ID,
 			"object":   "model",
-			"created":  time.Now().Unix(),
+			"created":  baseTimestamp + int64(i*86400),
 			"owned_by": "trollLLM",
 		})
 	}
@@ -435,9 +446,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		userKey, err := userkey.ValidateKey(clientAPIKey)
 		if err != nil {
 			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
-			if err == userkey.ErrQuotaExhausted {
-				http.Error(w, `{"error": {"message": "Token quota exhausted", "type": "rate_limit_error"}}`, http.StatusTooManyRequests)
-			} else if err == userkey.ErrKeyRevoked {
+			if err == userkey.ErrKeyRevoked {
 				http.Error(w, `{"error": {"message": "API key has been revoked", "type": "authentication_error"}}`, http.StatusUnauthorized)
 			} else {
 				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
@@ -1801,9 +1810,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		userKey, err := userkey.ValidateKey(clientAPIKey)
 		if err != nil {
 			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
-			if err == userkey.ErrQuotaExhausted {
-				http.Error(w, `{"type":"error","error":{"type":"rate_limit_error","message":"Token quota exhausted"}}`, http.StatusTooManyRequests)
-			} else if err == userkey.ErrKeyRevoked {
+			if err == userkey.ErrKeyRevoked {
 				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"API key has been revoked"}}`, http.StatusUnauthorized)
 			} else {
 				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)

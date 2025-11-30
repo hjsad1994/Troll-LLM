@@ -30,7 +30,7 @@ export async function resetUserKeyUsage(id: string): Promise<IUserKey | null> {
   return userKeyRepository.resetUsage(id);
 }
 
-export async function getKeyStats(): Promise<{ total: number; active: number; exhausted: number }> {
+export async function getKeyStats(): Promise<{ total: number; active: number }> {
   return userKeyRepository.getStats();
 }
 

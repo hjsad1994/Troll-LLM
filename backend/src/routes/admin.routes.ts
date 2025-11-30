@@ -28,6 +28,22 @@ router.post('/troll-keys/:id/reset', requireAdmin, (req, res) => factoryKeyContr
 // Metrics - all authenticated users can read
 router.get('/metrics', (req, res) => metricsController.getSystemMetrics(req, res));
 
+// User Stats - admin only (for dashboard)
+router.get('/user-stats', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const stats = await userRepository.getUserStats();
+    res.json({
+      total_users: stats.total,
+      by_plan: stats.byPlan,
+      total_tokens_used: stats.totalTokensUsed,
+      total_credits: stats.totalCredits,
+    });
+  } catch (error) {
+    console.error('Failed to get user stats:', error);
+    res.status(500).json({ error: 'Failed to get user stats' });
+  }
+});
+
 // Model Pricing - users can read, only admin can write
 router.get('/pricing', (req, res) => pricingController.list(req, res));
 router.get('/pricing/model/:modelId', (req, res) => pricingController.getByModelId(req, res));
@@ -85,7 +101,7 @@ router.patch('/users/:username/plan', requireAdmin, async (req: Request, res: Re
       user: {
         username: user._id,
         plan: user.plan,
-        totalTokens: user.totalTokens,
+        credits: user.credits,
       }
     });
   } catch (error) {

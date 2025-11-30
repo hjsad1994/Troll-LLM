@@ -88,7 +88,7 @@ export class RequestLogRepository {
 
   async getMetrics(since?: Date): Promise<{
     totalRequests: number;
-    totalTokens: number;
+    tokensUsed: number;
     avgLatencyMs: number;
     successRate: number;
   }> {
@@ -100,7 +100,7 @@ export class RequestLogRepository {
         $group: {
           _id: null,
           totalRequests: { $sum: 1 },
-          totalTokens: { $sum: '$tokensUsed' },
+          tokensUsed: { $sum: '$tokensUsed' },
           avgLatencyMs: { $avg: '$latencyMs' },
           successCount: { $sum: { $cond: ['$isSuccess', 1, 0] } },
         },
@@ -108,15 +108,15 @@ export class RequestLogRepository {
     ]);
 
     if (result.length === 0) {
-      return { totalRequests: 0, totalTokens: 0, avgLatencyMs: 0, successRate: 100 };
+      return { totalRequests: 0, tokensUsed: 0, avgLatencyMs: 0, successRate: 100 };
     }
 
-    const { totalRequests, totalTokens, avgLatencyMs, successCount } = result[0];
+    const { totalRequests, tokensUsed, avgLatencyMs, successCount } = result[0];
     const successRate = totalRequests > 0 ? (successCount / totalRequests) * 100 : 100;
 
     return {
       totalRequests,
-      totalTokens,
+      tokensUsed,
       avgLatencyMs: Math.round(avgLatencyMs || 0),
       successRate: Math.round(successRate * 100) / 100,
     };
