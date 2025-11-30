@@ -233,20 +233,14 @@ func GetModelPricing(modelID string) (inputPrice, outputPrice float64) {
 }
 
 // GetModelCachePricing gets cache write/hit pricing for a model
+// Returns 0 if explicitly set to 0 in config (e.g., models without cache support)
 func GetModelCachePricing(modelID string) (cacheWritePrice, cacheHitPrice float64) {
 	model := GetModelByID(modelID)
 	if model == nil {
 		return DefaultCacheWritePricePerMTok, DefaultCacheHitPricePerMTok
 	}
-	cacheWritePrice = model.CacheWritePricePerMTok
-	cacheHitPrice = model.CacheHitPricePerMTok
-	if cacheWritePrice <= 0 {
-		cacheWritePrice = DefaultCacheWritePricePerMTok
-	}
-	if cacheHitPrice <= 0 {
-		cacheHitPrice = DefaultCacheHitPricePerMTok
-	}
-	return cacheWritePrice, cacheHitPrice
+	// Use configured prices directly (including 0 if explicitly set)
+	return model.CacheWritePricePerMTok, model.CacheHitPricePerMTok
 }
 
 // GetModelMultiplier gets billing multiplier for a model

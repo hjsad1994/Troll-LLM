@@ -1256,15 +1256,113 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 	// Create transformer
 	transformer := transformers.NewAnthropicResponseTransformer(modelID, "")
 
-	// Transform streaming response
-	outputChan := transformer.TransformStream(resp.Body)
+	// Process SSE events manually to capture usage data
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024) // 10MB max buffer
+	var totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens int64
+	var currentEvent string
+	var hasError bool // Track if there was an error in the stream
 
-	for chunk := range outputChan {
-		if _, err := fmt.Fprint(w, chunk); err != nil {
-			log.Printf("Error: failed to write streaming response: %v", err)
-			return
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
 		}
-		flusher.Flush()
+
+		if strings.HasPrefix(line, "event: ") {
+			currentEvent = strings.TrimPrefix(line, "event: ")
+		} else if strings.HasPrefix(line, "data: ") {
+			dataStr := strings.TrimPrefix(line, "data: ")
+			var eventData map[string]interface{}
+			if err := json.Unmarshal([]byte(dataStr), &eventData); err == nil {
+				// Check for error events - don't charge if there's an error
+				if currentEvent == "error" {
+					hasError = true
+					log.Printf("❌ Error event in stream: %s", dataStr)
+				}
+				
+				// Capture usage from message_start event
+				if currentEvent == "message_start" {
+					if message, ok := eventData["message"].(map[string]interface{}); ok {
+						if usageData, ok := message["usage"].(map[string]interface{}); ok {
+							if it, ok := usageData["input_tokens"].(float64); ok {
+								totalInputTokens = int64(it)
+							}
+							if cwt, ok := usageData["cache_creation_input_tokens"].(float64); ok {
+								totalCacheWriteTokens = int64(cwt)
+							}
+							if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
+								totalCacheHitTokens = int64(cht)
+							}
+						}
+					}
+				}
+
+				// Capture usage from message_delta event
+				if currentEvent == "message_delta" {
+					if usageData, ok := eventData["usage"].(map[string]interface{}); ok {
+						if ot, ok := usageData["output_tokens"].(float64); ok {
+							totalOutputTokens = int64(ot)
+						}
+					}
+				}
+
+				// Transform and forward the chunk
+				if chunk, err := transformer.TransformStreamChunk(currentEvent, eventData); err == nil && chunk != "" {
+					if _, err := fmt.Fprint(w, chunk); err != nil {
+						log.Printf("Error: failed to write streaming response: %v", err)
+						return
+					}
+					flusher.Flush()
+				}
+			}
+		}
+	}
+
+	// Send end marker
+	fmt.Fprint(w, "data: [DONE]\n\n")
+	flusher.Flush()
+
+	// Update usage after stream completes - only if no errors occurred
+	if !hasError && (totalInputTokens > 0 || totalOutputTokens > 0) {
+		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
+		billingCost := config.CalculateBillingCostWithCache(modelID, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens)
+		if userApiKey != "" {
+			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
+				log.Printf("⚠️ Failed to update usage: %v", err)
+			} else if debugMode {
+				inputPrice, outputPrice := config.GetModelPricing(modelID)
+				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
+				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+			}
+			// Deduct credits and update tokensUsed for user
+			if username != "" {
+				if err := usage.DeductCredits(username, billingCost, billingTokens); err != nil {
+					log.Printf("⚠️ Failed to update user: %v", err)
+				} else if debugMode {
+					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
+				}
+			}
+			// Log request for analytics
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       trollKeyID,
+				Model:            modelID,
+				InputTokens:      totalInputTokens,
+				OutputTokens:     totalOutputTokens,
+				CacheWriteTokens: totalCacheWriteTokens,
+				CacheHitTokens:   totalCacheHitTokens,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+	} else if hasError {
+		log.Printf("⚠️ Skipping billing due to error in stream")
 	}
 }
 
@@ -1423,15 +1521,137 @@ func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response,
 	// Create transformer
 	transformer := transformers.NewTrollOpenAIResponseTransformer(modelID, "")
 
-	// Transform streaming response
-	outputChan := transformer.TransformStream(resp.Body)
+	// Process SSE events manually to capture usage data
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024) // 10MB max buffer
+	var totalInputTokens, totalOutputTokens int64
+	var currentEvent string
+	var hasError bool // Track if there was an error in the stream
 
-	for chunk := range outputChan {
-		if _, err := fmt.Fprint(w, chunk); err != nil {
-			log.Printf("Error: failed to write streaming response: %v", err)
-			return
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
 		}
-		flusher.Flush()
+
+		if strings.HasPrefix(line, "event: ") {
+			currentEvent = strings.TrimPrefix(line, "event: ")
+		} else if strings.HasPrefix(line, "data: ") {
+			dataStr := strings.TrimPrefix(line, "data: ")
+
+			// Check if it's [DONE] marker
+			if strings.TrimSpace(dataStr) == "[DONE]" {
+				fmt.Fprint(w, "data: [DONE]\n\n")
+				flusher.Flush()
+				continue
+			}
+
+			var eventData map[string]interface{}
+			if err := json.Unmarshal([]byte(dataStr), &eventData); err == nil {
+				// Check for error in response
+				if _, hasErr := eventData["error"]; hasErr {
+					hasError = true
+					log.Printf("❌ Error in stream response: %s", dataStr)
+				}
+				
+				// Check if standard OpenAI format with choices
+				if _, hasChoices := eventData["choices"]; hasChoices {
+					// Extract usage from final chunk (OpenAI format)
+					if usageData, ok := eventData["usage"].(map[string]interface{}); ok {
+						if it, ok := usageData["prompt_tokens"].(float64); ok {
+							totalInputTokens = int64(it)
+						}
+						if ot, ok := usageData["completion_tokens"].(float64); ok {
+							totalOutputTokens = int64(ot)
+						}
+					}
+					// Forward with filtering
+					eventData["model"] = modelID
+					if choices, ok := eventData["choices"].([]interface{}); ok {
+						for _, choice := range choices {
+							if choiceMap, ok := choice.(map[string]interface{}); ok {
+								if delta, ok := choiceMap["delta"].(map[string]interface{}); ok {
+									if content, ok := delta["content"].(string); ok {
+										delta["content"] = transformers.FilterDroidIdentity(content, true)
+									}
+								}
+							}
+						}
+					}
+					if jsonData, err := json.Marshal(eventData); err == nil {
+						fmt.Fprintf(w, "data: %s\n\n", string(jsonData))
+						flusher.Flush()
+					}
+					continue
+				}
+
+				// TrollLLM custom format - extract usage from response.done
+				if currentEvent == "response.done" {
+					if response, ok := eventData["response"].(map[string]interface{}); ok {
+						if usageData, ok := response["usage"].(map[string]interface{}); ok {
+							if it, ok := usageData["input_tokens"].(float64); ok {
+								totalInputTokens = int64(it)
+							}
+							if ot, ok := usageData["output_tokens"].(float64); ok {
+								totalOutputTokens = int64(ot)
+							}
+						}
+					}
+				}
+
+				// Transform and forward the chunk
+				if chunk, err := transformer.TransformStreamChunk(currentEvent, eventData); err == nil && chunk != "" {
+					if _, err := fmt.Fprint(w, chunk); err != nil {
+						log.Printf("Error: failed to write streaming response: %v", err)
+						return
+					}
+					flusher.Flush()
+				}
+			}
+		}
+	}
+
+	// Send end marker if not sent
+	fmt.Fprint(w, "data: [DONE]\n\n")
+	flusher.Flush()
+
+	// Update usage after stream completes - only if no errors occurred
+	if !hasError && (totalInputTokens > 0 || totalOutputTokens > 0) {
+		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
+		billingCost := config.CalculateBillingCostWithCache(modelID, totalInputTokens, totalOutputTokens, 0, 0)
+		if userApiKey != "" {
+			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
+				log.Printf("⚠️ Failed to update usage: %v", err)
+			} else if debugMode {
+				inputPrice, outputPrice := config.GetModelPricing(modelID)
+				log.Printf("📊 Updated usage (stream): in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", 
+					totalInputTokens, totalOutputTokens, billingTokens, inputPrice, outputPrice)
+			}
+			// Deduct credits and update tokensUsed for user
+			if username != "" {
+				if err := usage.DeductCredits(username, billingCost, billingTokens); err != nil {
+					log.Printf("⚠️ Failed to update user: %v", err)
+				} else if debugMode {
+					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
+				}
+			}
+			// Log request for analytics
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:       username,
+				UserKeyID:    userApiKey,
+				TrollKeyID:   trollKeyID,
+				Model:        modelID,
+				InputTokens:  totalInputTokens,
+				OutputTokens: totalOutputTokens,
+				CreditsCost:  billingCost,
+				TokensUsed:   billingTokens,
+				StatusCode:   resp.StatusCode,
+				LatencyMs:    latencyMs,
+			})
+		}
+	} else if hasError {
+		log.Printf("⚠️ Skipping billing due to error in stream")
 	}
 }
 
@@ -2057,6 +2277,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 	var firstEventTime time.Time
 	var lastEventType string
 	var lastEventTime time.Time
+	var hasError bool // Track if there was an error in the stream
 	log.Printf("📡 Stream started")
 	
 	for scanner.Scan() {
@@ -2078,6 +2299,12 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				
 				// Track last event type for debugging
 				lastEventType = eventType
+				
+				// Check for error events - don't charge if there's an error
+				if eventType == "error" {
+					hasError = true
+					log.Printf("❌ Error event in stream: %s", dataStr)
+				}
 				
 				// Filter thinking content to hide system prompt but show thinking process
 				if eventType == "content_block_delta" {
@@ -2144,8 +2371,8 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 		flusher.Flush()
 	}
 
-	// Update usage after stream completes
-	if totalInputTokens > 0 || totalOutputTokens > 0 {
+	// Update usage after stream completes - only if no errors occurred
+	if !hasError && (totalInputTokens > 0 || totalOutputTokens > 0) {
 		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
 		billingCost := config.CalculateBillingCostWithCache(modelID, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens)
 		if userApiKey != "" {
@@ -2182,6 +2409,8 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				LatencyMs:        latencyMs,
 			})
 		}
+	} else if hasError {
+		log.Printf("⚠️ Skipping billing due to error in stream")
 	}
 
 	if err := scanner.Err(); err != nil {
