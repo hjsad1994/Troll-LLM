@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useLanguage } from '@/components/LanguageProvider'
 
 // ===== SIDEBAR NAVIGATION =====
 const sidebarNav = [
@@ -123,6 +124,33 @@ function Step({ number, title, children }: { number: number; title: string; chil
 // ===== MAIN PAGE =====
 export default function RooCodePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { t } = useLanguage()
+
+  const sidebarNavTranslated = [
+    { title: t.docs.sidebar.gettingStarted, items: [
+      { title: t.docs.sidebar.introduction, href: '/docs' },
+      { title: t.docs.sidebar.quickstart, href: '/docs/quickstart' },
+      { title: t.docs.sidebar.authentication, href: '/docs/authentication' },
+    ]},
+    { title: t.docs.sidebar.apiReference, items: [
+      { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
+      { title: t.docs.sidebar.models, href: '/docs/api/models' },
+      { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
+    ]},
+    { title: t.docs.sidebar.integrations, items: [
+      { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
+      { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code', active: true },
+      { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
+      { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
+      { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
+      { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
+    ]},
+    { title: t.docs.sidebar.resources, items: [
+      { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
+      { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
+      { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
+    ]},
+  ]
 
   return (
     <div className="min-h-screen bg-black">
@@ -168,7 +196,7 @@ export default function RooCodePage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search docs..."
+                placeholder={t.docs.sidebar.searchDocs}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/10 transition-colors"
               />
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 text-slate-600 text-xs font-mono">⌘K</kbd>
@@ -176,7 +204,7 @@ export default function RooCodePage() {
 
             {/* Navigation */}
             <nav className="space-y-6">
-              {sidebarNav.map((section) => (
+              {sidebarNavTranslated.map((section) => (
                 <div key={section.title}>
                   <h3 className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-3">{section.title}</h3>
                   <ul className="space-y-1">

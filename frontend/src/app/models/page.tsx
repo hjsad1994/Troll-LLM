@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import React, { useState, useMemo } from 'react'
 import Header from '@/components/Header'
+import { useLanguage } from '@/components/LanguageProvider'
 
 // ===== PROVIDER ICONS =====
 function AnthropicIcon({ className }: { className?: string }) {
@@ -260,6 +261,7 @@ const providers: { id: Provider | 'all'; name: string; icon?: React.ReactNode }[
 export default function ModelsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProvider, setSelectedProvider] = useState<Provider | 'all'>('all')
+  const { t } = useLanguage()
 
   const filteredModels = useMemo(() => {
     let result = models
@@ -303,17 +305,17 @@ export default function ModelsPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
               </span>
-              <span className="text-slate-400 text-sm">All models available</span>
+              <span className="text-slate-400 text-sm">{t.models.badge}</span>
             </div>
           </div>
 
           {/* Title */}
           <div className="text-center mb-8">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              AI Models
+              {t.models.title}
             </h1>
             <p className="text-lg text-slate-500 max-w-xl mx-auto">
-              Access the latest AI models from leading providers through a unified API.
+              {t.models.description}
             </p>
           </div>
 
@@ -321,12 +323,12 @@ export default function ModelsPage() {
           <div className="flex items-center justify-center gap-8 mb-8">
             <div className="text-center">
               <div className="text-2xl font-bold text-white">{models.length}</div>
-              <div className="text-slate-600 text-sm">Models</div>
+              <div className="text-slate-600 text-sm">{t.models.stats.models}</div>
             </div>
             <div className="h-8 w-px bg-white/10" />
             <div className="text-center">
               <div className="text-2xl font-bold text-white">5</div>
-              <div className="text-slate-600 text-sm">Providers</div>
+              <div className="text-slate-600 text-sm">{t.models.stats.providers}</div>
             </div>
             <div className="h-8 w-px bg-white/10" />
             <div className="text-center">
@@ -337,7 +339,7 @@ export default function ModelsPage() {
                 <MiniMaxIcon className="w-5 h-5 text-sky-400" />
                 <KimiIcon className="w-5 h-5 text-blue-400" />
               </div>
-              <div className="text-slate-600 text-sm mt-1">Available</div>
+              <div className="text-slate-600 text-sm mt-1">{t.models.stats.available}</div>
             </div>
           </div>
 
@@ -376,7 +378,7 @@ export default function ModelsPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search models..."
+              placeholder={t.models.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3 rounded-lg bg-white/[0.02] border border-white/5 text-white placeholder-slate-600 focus:outline-none focus:border-white/10 transition-colors"
@@ -393,14 +395,14 @@ export default function ModelsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-white/[0.03]">
-                    <th className="text-left px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">Model</th>
-                    <th className="text-left px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden sm:table-cell">Provider</th>
-                    <th className="text-center px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">Context</th>
-                    <th className="text-right px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">Input</th>
-                    <th className="text-right px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">Output</th>
-                    <th className="text-center px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden md:table-cell">Speed</th>
-                    <th className="text-center px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden lg:table-cell">Capabilities</th>
-                    <th className="text-left px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden xl:table-cell">API ID</th>
+                    <th className="text-left px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">{t.models.table.model}</th>
+                    <th className="text-left px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden sm:table-cell">{t.models.table.provider}</th>
+                    <th className="text-center px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">{t.models.table.context}</th>
+                    <th className="text-right px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">{t.models.table.input}</th>
+                    <th className="text-right px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium">{t.models.table.output}</th>
+                    <th className="text-center px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden md:table-cell">{t.models.table.speed}</th>
+                    <th className="text-center px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden lg:table-cell">{t.models.table.capabilities}</th>
+                    <th className="text-left px-4 py-4 text-slate-400 text-xs uppercase tracking-wider font-medium hidden xl:table-cell">{t.models.table.apiId}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -498,8 +500,8 @@ export default function ModelsPage() {
               <svg className="w-12 h-12 text-slate-800 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 className="text-lg font-medium text-white mb-1">No models found</h3>
-              <p className="text-slate-600 text-sm">Try a different search term or filter</p>
+              <h3 className="text-lg font-medium text-white mb-1">{t.models.empty.title}</h3>
+              <p className="text-slate-600 text-sm">{t.models.empty.description}</p>
             </div>
           )}
 
@@ -513,10 +515,10 @@ export default function ModelsPage() {
               </div>
               <div>
                 <p className="text-emerald-400 font-medium text-sm mb-1">
-                  Launch Promotion
+                  {t.models.promotion.title}
                 </p>
                 <p className="text-slate-400 text-sm">
-                  To celebrate our launch, billing multipliers are significantly reduced! Most models are at <strong className="text-white">1x</strong> (original price), Opus at only <strong className="text-white">1.1x</strong>.
+                  {t.models.promotion.description} <strong className="text-white">1x</strong> {t.models.promotion.original}, {t.models.promotion.opus} <strong className="text-white">1.1x</strong>.
                 </p>
               </div>
             </div>
@@ -529,17 +531,17 @@ export default function ModelsPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
         <div className="relative max-w-2xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to start?
+            {t.models.ctaTitle}
           </h2>
           <p className="text-lg text-slate-500 mb-8">
-            Get instant access to all AI models from Anthropic, OpenAI, and Google with a single API key.
+            {t.models.ctaDescription}
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link href="/register" className="px-8 py-4 rounded-xl bg-white text-black font-semibold hover:bg-slate-200 transition-colors">
-              Get API Key
+              {t.models.getApiKey}
             </Link>
             <Link href="/docs" className="px-8 py-4 rounded-xl border border-white/10 text-white font-semibold hover:bg-white/5 transition-colors">
-              View Docs
+              {t.models.viewDocs}
             </Link>
           </div>
         </div>
@@ -567,9 +569,9 @@ export default function ModelsPage() {
               <span className="text-slate-600 text-sm">© 2024</span>
             </div>
             <div className="flex items-center gap-6 text-slate-600 text-sm">
-              <Link href="/" className="hover:text-white transition-colors">Home</Link>
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
+              <Link href="/" className="hover:text-white transition-colors">{t.models.home}</Link>
+              <a href="#" className="hover:text-white transition-colors">{t.footer.privacy}</a>
+              <a href="#" className="hover:text-white transition-colors">{t.footer.terms}</a>
             </div>
           </div>
         </div>

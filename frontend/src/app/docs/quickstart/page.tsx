@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useLanguage } from '@/components/LanguageProvider'
 
 // ===== SIDEBAR NAVIGATION =====
 const sidebarNav = [
@@ -402,6 +403,45 @@ ANTHROPIC_API_KEY=your-api-key`,
 // ===== MAIN PAGE =====
 export default function QuickstartPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { t } = useLanguage()
+
+  const sidebarNavTranslated = [
+    {
+      title: t.docs.sidebar.gettingStarted,
+      items: [
+        { title: t.docs.sidebar.introduction, href: '/docs' },
+        { title: t.docs.sidebar.quickstart, href: '/docs/quickstart', active: true },
+        { title: t.docs.sidebar.authentication, href: '/docs/authentication' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.apiReference,
+      items: [
+        { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
+        { title: t.docs.sidebar.models, href: '/docs/api/models' },
+        { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.integrations,
+      items: [
+        { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
+        { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
+        { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
+        { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
+        { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
+        { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.resources,
+      items: [
+        { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
+        { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
+        { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
+      ]
+    },
+  ]
 
   const openaiExamples = {
     curl: `curl https://chat.trollllm.xyz/v1/chat/completions \\
@@ -646,7 +686,7 @@ func main() {
               </svg>
               <input
                 type="text"
-                placeholder="Search docs..."
+                placeholder={t.docs.sidebar.searchDocs}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/10 transition-colors"
               />
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 text-slate-600 text-xs font-mono">⌘K</kbd>
@@ -654,7 +694,7 @@ func main() {
 
             {/* Navigation */}
             <nav className="space-y-6">
-              {sidebarNav.map((section) => (
+              {sidebarNavTranslated.map((section) => (
                 <div key={section.title}>
                   <h3 className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-3">{section.title}</h3>
                   <ul className="space-y-1">
@@ -690,21 +730,20 @@ func main() {
             </div>
 
             {/* Title */}
-            <h1 className="text-4xl font-bold text-white mb-4">Quickstart</h1>
+            <h1 className="text-4xl font-bold text-white mb-4">{t.docs.quickstart.title}</h1>
             <p className="text-lg text-slate-400 mb-8">
-              Get up and running with TrollLLM in just a few minutes. Follow these steps to make your first API call.
+              {t.docs.quickstart.description}
             </p>
 
             <Note>
-              You&apos;ll need an API key to follow this guide. If you don&apos;t have one yet, <Link href="/register" className="text-sky-400 hover:underline">create a free account</Link> to get started.
+              {t.docs.quickstart.noteApiKey} <Link href="/register" className="text-sky-400 hover:underline">{t.docs.quickstart.createAccount}</Link> {t.docs.quickstart.toGetStarted}
             </Note>
 
             {/* Steps */}
             <div className="mt-10">
-              <Step number={1} title="Get Your API Key">
+              <Step number={1} title={t.docs.quickstart.step1Title}>
                 <p className="mb-4">
-                  After creating your account, navigate to the dashboard and copy your API key.
-                  Export it as an environment variable for use in your applications.
+                  {t.docs.quickstart.step1Desc}
                 </p>
                 <CodeBlock
                   code="export TROLLLLM_API_KEY=your-api-key-here"
@@ -712,13 +751,13 @@ func main() {
                   title="Terminal"
                 />
                 <p className="text-sm text-slate-500">
-                  For detailed authentication options, see our <Link href="/docs/authentication" className="text-sky-400 hover:underline">Authentication Guide</Link>.
+                  {t.docs.quickstart.step1Details} <Link href="/docs/authentication" className="text-sky-400 hover:underline">{t.docs.quickstart.authGuide}</Link>.
                 </p>
               </Step>
 
-              <Step number={2} title="Choose Your API Format">
+              <Step number={2} title={t.docs.quickstart.step2Title}>
                 <p className="mb-4">
-                  TrollLLM supports two API formats. Choose based on your existing tools and preferences:
+                  {t.docs.quickstart.step2Desc}
                 </p>
 
                 {/* Format Tabs */}
@@ -734,7 +773,7 @@ func main() {
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364l2.0201-1.1638a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>
                     </svg>
-                    <span className="font-medium">OpenAI Format</span>
+                    <span className="font-medium">{t.docs.quickstart.openaiFormat}</span>
                   </button>
                   <button
                     onClick={() => setApiFormat('anthropic')}
@@ -747,14 +786,14 @@ func main() {
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M13.827 3.52h3.603L24 20.48h-3.603l-6.57-16.96zm-7.258 0H10.172L16.74 20.48h-3.603l-1.283-3.36H5.697l-1.283 3.36H.852L6.569 3.52zm.831 10.56h4.097L9.447 8.12l-2.047 5.96z"/>
                     </svg>
-                    <span className="font-medium">Anthropic Format</span>
+                    <span className="font-medium">{t.docs.quickstart.anthropicFormat}</span>
                   </button>
                 </div>
 
                 <p className="text-slate-400 text-sm mb-4">
                   {apiFormat === 'openai'
-                    ? 'Compatible with OpenAI SDK and tools that support custom base URLs.'
-                    : 'Native Anthropic format for Claude-specific features and tools.'}
+                    ? t.docs.quickstart.openaiDesc
+                    : t.docs.quickstart.anthropicDesc}
                 </p>
 
                 <CodeBlock
@@ -768,9 +807,9 @@ ANTHROPIC_API_KEY=your-api-key`}
                 />
               </Step>
 
-              <Step number={3} title="Make Your First Request">
+              <Step number={3} title={t.docs.quickstart.step3Title}>
                 <p className="mb-4">
-                  Use your preferred language or tool to make your first API call:
+                  {t.docs.quickstart.step3Desc}
                 </p>
                 <TabbedCodeBlock
                   tabs={[
@@ -782,14 +821,14 @@ ANTHROPIC_API_KEY=your-api-key`}
                 />
               </Step>
 
-              <Step number={4} title="Verify Your Setup">
+              <Step number={4} title={t.docs.quickstart.step4Title}>
                 <p className="mb-4">
-                  If everything is configured correctly, you should receive a response like this:
+                  {t.docs.quickstart.step4Desc}
                 </p>
                 <CodeBlock
                   code={expectedResponse}
                   language="json"
-                  title="Expected Response"
+                  title={t.docs.quickstart.expectedResponse}
                 />
               </Step>
             </div>
@@ -798,11 +837,11 @@ ANTHROPIC_API_KEY=your-api-key`}
             <hr className="border-white/5 my-10" />
 
             {/* Next steps */}
-            <h2 className="text-2xl font-semibold text-white mb-6">Next Steps</h2>
+            <h2 className="text-2xl font-semibold text-white mb-6">{t.docs.quickstart.nextSteps}</h2>
             <div className="grid sm:grid-cols-2 gap-4 mb-10">
               <Card
-                title="Authentication"
-                description="Learn about API keys, tokens, and secure authentication methods."
+                title={t.docs.quickstart.authCardTitle}
+                description={t.docs.quickstart.authCardDesc}
                 href="/docs/authentication"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -811,8 +850,8 @@ ANTHROPIC_API_KEY=your-api-key`}
                 }
               />
               <Card
-                title="OpenAI API Docs"
-                description="Full reference for the OpenAI-compatible API format."
+                title={t.docs.quickstart.openaiApiDocs}
+                description={t.docs.quickstart.openaiApiDesc}
                 href="/docs/api/chat"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -821,8 +860,8 @@ ANTHROPIC_API_KEY=your-api-key`}
                 }
               />
               <Card
-                title="Anthropic API Docs"
-                description="Full reference for the native Anthropic API format."
+                title={t.docs.quickstart.anthropicApiDocs}
+                description={t.docs.quickstart.anthropicApiDesc}
                 href="/docs/api/anthropic"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -831,8 +870,8 @@ ANTHROPIC_API_KEY=your-api-key`}
                 }
               />
               <Card
-                title="Best Practices"
-                description="Tips and best practices for using TrollLLM effectively."
+                title={t.docs.quickstart.bestPractices}
+                description={t.docs.quickstart.bestPracticesDesc}
                 href="/docs/best-practices"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -843,14 +882,12 @@ ANTHROPIC_API_KEY=your-api-key`}
             </div>
 
             {/* Common Issues */}
-            <h2 className="text-2xl font-semibold text-white mb-6">Common Issues</h2>
-            <Warning title="Rate Limiting">
-              If you&apos;re receiving 429 errors, you may be hitting rate limits.
-              Check our <Link href="/docs/rate-limits" className="text-amber-400 hover:underline">Rate Limits documentation</Link> for details.
+            <h2 className="text-2xl font-semibold text-white mb-6">{t.docs.quickstart.commonIssues}</h2>
+            <Warning title={t.docs.quickstart.rateLimiting}>
+              {t.docs.quickstart.rateLimitingDesc} <Link href="/docs/rate-limits" className="text-amber-400 hover:underline">{t.docs.quickstart.rateLimitsDoc}</Link> {t.docs.quickstart.forDetails}
             </Warning>
-            <Warning title="Authentication Failed">
-              Make sure your API key is correct and has not expired.
-              See the <Link href="/docs/authentication" className="text-amber-400 hover:underline">Authentication Guide</Link> for troubleshooting.
+            <Warning title={t.docs.quickstart.authFailed}>
+              {t.docs.quickstart.authFailedDesc} <Link href="/docs/authentication" className="text-amber-400 hover:underline">{t.docs.quickstart.authGuide}</Link> {t.docs.quickstart.forTroubleshooting}
             </Warning>
 
             {/* Footer navigation */}
@@ -859,10 +896,10 @@ ANTHROPIC_API_KEY=your-api-key`}
                 <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                <span>Introduction</span>
+                <span>{t.docs.quickstart.prev}</span>
               </Link>
               <Link href="/docs/authentication" className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
-                <span>Authentication</span>
+                <span>{t.docs.quickstart.nextAuth}</span>
                 <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>

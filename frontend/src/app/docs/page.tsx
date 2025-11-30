@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import Header from '@/components/Header'
+import { useLanguage } from '@/components/LanguageProvider'
 
 // ===== SIDEBAR NAVIGATION =====
 const sidebarNav = [
@@ -187,6 +188,45 @@ function ModelBadge({ name, isNew }: { name: string; isNew?: boolean }) {
 // ===== MAIN PAGE =====
 export default function DocsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { t } = useLanguage()
+
+  const sidebarNavTranslated = [
+    {
+      title: t.docs.sidebar.gettingStarted,
+      items: [
+        { title: t.docs.sidebar.introduction, href: '/docs', active: true },
+        { title: t.docs.sidebar.quickstart, href: '/docs/quickstart' },
+        { title: t.docs.sidebar.authentication, href: '/docs/authentication' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.apiReference,
+      items: [
+        { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
+        { title: t.docs.sidebar.models, href: '/docs/api/models' },
+        { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.integrations,
+      items: [
+        { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
+        { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
+        { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
+        { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
+        { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
+        { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.resources,
+      items: [
+        { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
+        { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
+        { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
+      ]
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-black">
@@ -213,7 +253,7 @@ export default function DocsPage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search docs..."
+                placeholder={t.docs.sidebar.searchDocs}
                 className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all"
               />
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-600 text-xs font-mono">⌘K</kbd>
@@ -221,25 +261,25 @@ export default function DocsPage() {
 
             {/* Navigation */}
             <nav className="space-y-6">
-              {sidebarNav.map((section) => (
+              {sidebarNavTranslated.map((section) => (
                 <div key={section.title}>
                   <h3 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
-                    {section.title === 'Getting Started' && (
+                    {section.title === t.docs.sidebar.gettingStarted && (
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     )}
-                    {section.title === 'API Reference' && (
+                    {section.title === t.docs.sidebar.apiReference && (
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
                     )}
-                    {section.title === 'Integrations' && (
+                    {section.title === t.docs.sidebar.integrations && (
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                       </svg>
                     )}
-                    {section.title === 'Resources' && (
+                    {section.title === t.docs.sidebar.resources && (
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
@@ -294,20 +334,19 @@ export default function DocsPage() {
             {/* Title with gradient */}
             <div className="mb-12">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Introduction to TrollLLM
+                {t.docs.intro.title}
               </h1>
               <p className="text-xl text-slate-400 leading-relaxed">
-                A unified API gateway that provides access to Claude AI models through an OpenAI-compatible interface.
-                Use your favorite AI coding tools with the power of Claude.
+                {t.docs.intro.description}
               </p>
             </div>
 
             {/* Model highlight */}
             <Tip>
-              <strong className="text-emerald-400">New!</strong> We now support the latest AI models including
+              <strong className="text-emerald-400">{t.docs.intro.tipNew}</strong> {t.docs.intro.tipModels}
               <span className="text-white mx-1">Claude 4.5 series</span>,
               <span className="text-white mx-1">GPT-5.1</span>, and
-              <span className="text-white mx-1">Gemini 3 Pro</span> with up to 1M context window.
+              <span className="text-white mx-1">Gemini 3 Pro</span> {t.docs.intro.tipContext}
             </Tip>
 
             {/* Available Models */}
@@ -320,7 +359,7 @@ export default function DocsPage() {
             </div>
 
             <Note>
-              TrollLLM is fully compatible with the OpenAI SDK format. Just change the base URL and you&apos;re ready to go.
+              {t.docs.intro.noteCompatible}
             </Note>
 
             {/* Divider */}
@@ -328,16 +367,16 @@ export default function DocsPage() {
 
             {/* Get Started */}
             <div id="quickstart" className="scroll-mt-20">
-              <h2 className="text-2xl font-bold text-white mb-2">Get Started</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.getStarted}</h2>
               <p className="text-slate-500 mb-6">
-                Choose your path to integrate TrollLLM into your workflow.
+                {t.docs.intro.getStartedDesc}
               </p>
             </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
               <Card
-                title="Quickstart"
-                description="Get up and running with TrollLLM in under 5 minutes."
+                title={t.docs.intro.quickstartTitle}
+                description={t.docs.intro.quickstartDesc}
                 href="/docs/quickstart"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -346,8 +385,8 @@ export default function DocsPage() {
                 }
               />
               <Card
-                title="Authentication"
-                description="Learn how to authenticate your API requests."
+                title={t.docs.intro.authTitle}
+                description={t.docs.intro.authDesc}
                 href="/docs/authentication"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -356,8 +395,8 @@ export default function DocsPage() {
                 }
               />
               <Card
-                title="API Reference"
-                description="Explore the full API documentation."
+                title={t.docs.intro.apiRefTitle}
+                description={t.docs.intro.apiRefDesc}
                 href="/docs/api/chat"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -371,9 +410,9 @@ export default function DocsPage() {
             <div className="h-px bg-white/10 my-12" />
 
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Quick Example</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.quickExample}</h2>
               <p className="text-slate-500 mb-6">
-                Connect to TrollLLM using the OpenAI SDK with just a few lines of code.
+                {t.docs.intro.quickExampleDesc}
               </p>
             </div>
             <CodeBlock
@@ -399,16 +438,16 @@ print(response.choices[0].message.content)`}
 
             {/* Integrations */}
             <div id="integrations" className="scroll-mt-20">
-              <h2 className="text-2xl font-bold text-white mb-2">Integrations</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.integrationsTitle}</h2>
               <p className="text-slate-500 mb-6">
-                TrollLLM works seamlessly with your favorite AI coding tools.
+                {t.docs.intro.integrationsDesc}
               </p>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-5 mb-12">
               <Card
-                title="Kilo Code"
-                description="Configure Kilo Code to use Claude models for AI-assisted coding."
+                title={t.docs.sidebar.kiloCode}
+                description={t.docs.intro.kiloCodeDesc}
                 href="/docs/integrations/kilo-code"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -417,8 +456,8 @@ print(response.choices[0].message.content)`}
                 }
               />
               <Card
-                title="Roo Code"
-                description="Use Roo Code with Claude for intelligent code completion."
+                title={t.docs.sidebar.rooCode}
+                description={t.docs.intro.rooCodeDesc}
                 href="/docs/integrations/roo-code"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -427,8 +466,8 @@ print(response.choices[0].message.content)`}
                 }
               />
               <Card
-                title="Claude Code CLI"
-                description="Connect Claude Code command line tool to TrollLLM."
+                title={t.docs.sidebar.claudeCode}
+                description={t.docs.intro.claudeCodeDesc}
                 href="/docs/integrations/claude-code"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -437,8 +476,8 @@ print(response.choices[0].message.content)`}
                 }
               />
               <Card
-                title="Droid"
-                description="Configure Droid AI assistant to use Claude models."
+                title={t.docs.sidebar.droid}
+                description={t.docs.intro.droidDesc}
                 href="/docs/integrations/droid"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -447,8 +486,8 @@ print(response.choices[0].message.content)`}
                 }
               />
               <Card
-                title="Cursor"
-                description="Set up Cursor IDE to work with Claude through TrollLLM."
+                title={t.docs.sidebar.cursor}
+                description={t.docs.intro.cursorDesc}
                 href="/docs/integrations/cursor"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -457,8 +496,8 @@ print(response.choices[0].message.content)`}
                 }
               />
               <Card
-                title="Continue"
-                description="Integrate Continue extension with Claude models."
+                title={t.docs.sidebar.continue}
+                description={t.docs.intro.continueDesc}
                 href="/docs/integrations/continue"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -474,16 +513,16 @@ print(response.choices[0].message.content)`}
 
             {/* Support */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Support & Resources</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">{t.docs.intro.supportTitle}</h2>
               <p className="text-slate-500 mb-6">
-                Get help when you need it and stay up to date with our platform status.
+                {t.docs.intro.supportDesc}
               </p>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-5">
               <Card
-                title="API Status"
-                description="Check the current status of TrollLLM services."
+                title={t.docs.intro.apiStatus}
+                description={t.docs.intro.apiStatusDesc}
                 href="/status"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -492,8 +531,8 @@ print(response.choices[0].message.content)`}
                 }
               />
               <Card
-                title="Contact Support"
-                description="Get help from our support team."
+                title={t.docs.intro.contactSupport}
+                description={t.docs.intro.contactSupportDesc}
                 href="mailto:support@trollllm.io"
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -506,10 +545,10 @@ print(response.choices[0].message.content)`}
             {/* Footer navigation */}
             <div className="flex items-center justify-between mt-12 pt-6 border-t border-white/10">
               <div className="text-slate-600 text-sm">
-                Last updated: November 2024
+                {t.docs.intro.lastUpdated} November 2024
               </div>
               <Link href="/docs/quickstart" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
-                <span className="font-medium">Next: Quickstart</span>
+                <span className="font-medium">{t.docs.intro.next} {t.docs.intro.quickstartTitle}</span>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
@@ -524,24 +563,24 @@ print(response.choices[0].message.content)`}
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
             </svg>
-            On this page
+            {t.docs.intro.onThisPage}
           </h3>
           <nav className="space-y-3">
             <a href="#" className="group flex items-center gap-2 text-sm text-indigo-400 font-medium">
               <div className="w-1 h-4 bg-indigo-500 rounded-full" />
-              Introduction
+              {t.docs.sidebar.introduction}
             </a>
             <a href="#quickstart" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
-              Get Started
+              {t.docs.intro.getStarted}
             </a>
             <a href="#" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
-              Quick Example
+              {t.docs.intro.quickExample}
             </a>
             <a href="#integrations" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
-              Integrations
+              {t.docs.intro.integrationsTitle}
             </a>
             <a href="#" className="group flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors pl-3">
-              Support
+              {t.docs.intro.supportTitle}
             </a>
           </nav>
 
@@ -554,15 +593,15 @@ print(response.choices[0].message.content)`}
                 </svg>
               </div>
               <div>
-                <h4 className="text-white font-medium text-sm mb-1">Need Help?</h4>
+                <h4 className="text-white font-medium text-sm mb-1">{t.docs.intro.needHelp}</h4>
                 <p className="text-slate-400 text-xs leading-relaxed mb-3">
-                  Join our Discord community for support and updates.
+                  {t.docs.intro.needHelpDesc}
                 </p>
                 <a href="https://discord.gg/Prs3RxwnyQ" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-medium transition-colors">
                   <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
                   </svg>
-                  Join Discord
+                  {t.docs.intro.joinDiscord}
                 </a>
               </div>
             </div>

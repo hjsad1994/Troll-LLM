@@ -21,6 +21,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const PUBLIC_PATHS = ['/', '/login', '/register', '/models', '/docs']
+const PUBLIC_PREFIXES = ['/docs/']
+
+function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_PATHS.includes(pathname)) return true
+  return PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -54,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!loading && !isLoggedIn && !PUBLIC_PATHS.includes(pathname)) {
+    if (!loading && !isLoggedIn && !isPublicPath(pathname)) {
       router.push('/login')
     }
   }, [loading, isLoggedIn, pathname, router])

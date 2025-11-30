@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useLanguage } from '@/components/LanguageProvider'
 
 const API_BASE_URL = 'https://chat.trollllm.xyz'
 
@@ -108,6 +109,33 @@ function Tabs({ tabs, children }: { tabs: string[]; children: React.ReactNode[] 
 // ===== MAIN PAGE =====
 export default function ClaudeCodePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { t } = useLanguage()
+
+  const sidebarNavTranslated = [
+    { title: t.docs.sidebar.gettingStarted, items: [
+      { title: t.docs.sidebar.introduction, href: '/docs' },
+      { title: t.docs.sidebar.quickstart, href: '/docs/quickstart' },
+      { title: t.docs.sidebar.authentication, href: '/docs/authentication' },
+    ]},
+    { title: t.docs.sidebar.apiReference, items: [
+      { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
+      { title: t.docs.sidebar.models, href: '/docs/api/models' },
+      { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
+    ]},
+    { title: t.docs.sidebar.integrations, items: [
+      { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
+      { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
+      { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code', active: true },
+      { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
+      { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
+      { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
+    ]},
+    { title: t.docs.sidebar.resources, items: [
+      { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
+      { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
+      { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
+    ]},
+  ]
 
   return (
     <div className="min-h-screen bg-black">
@@ -142,7 +170,7 @@ export default function ClaudeCodePage() {
         {/* Sidebar */}
         <aside className={`fixed lg:sticky top-[65px] left-0 z-40 w-64 h-[calc(100vh-65px)] bg-black border-r border-white/5 overflow-y-auto transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <nav className="p-4 space-y-6">
-            {sidebarNav.map((section) => (
+            {sidebarNavTranslated.map((section) => (
               <div key={section.title}>
                 <h3 className="text-slate-600 text-xs font-medium uppercase tracking-wider mb-2">{section.title}</h3>
                 <ul className="space-y-1">

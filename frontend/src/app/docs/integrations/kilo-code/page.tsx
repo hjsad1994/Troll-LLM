@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useLanguage } from '@/components/LanguageProvider'
 
 // ===== SIDEBAR NAVIGATION =====
 const sidebarNav = [
@@ -139,6 +140,45 @@ function Step({ number, title, children }: { number: number; title: string; chil
 // ===== MAIN PAGE =====
 export default function KiloCodePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { t } = useLanguage()
+
+  const sidebarNavTranslated = [
+    {
+      title: t.docs.sidebar.gettingStarted,
+      items: [
+        { title: t.docs.sidebar.introduction, href: '/docs' },
+        { title: t.docs.sidebar.quickstart, href: '/docs/quickstart' },
+        { title: t.docs.sidebar.authentication, href: '/docs/authentication' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.apiReference,
+      items: [
+        { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
+        { title: t.docs.sidebar.models, href: '/docs/api/models' },
+        { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.integrations,
+      items: [
+        { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code', active: true },
+        { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
+        { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
+        { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
+        { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
+        { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.resources,
+      items: [
+        { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
+        { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
+        { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
+      ]
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-black">
@@ -184,7 +224,7 @@ export default function KiloCodePage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search docs..."
+                placeholder={t.docs.sidebar.searchDocs}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/10 transition-colors"
               />
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-white/5 text-slate-600 text-xs font-mono">⌘K</kbd>
@@ -192,7 +232,7 @@ export default function KiloCodePage() {
 
             {/* Navigation */}
             <nav className="space-y-6">
-              {sidebarNav.map((section) => (
+              {sidebarNavTranslated.map((section) => (
                 <div key={section.title}>
                   <h3 className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-3">{section.title}</h3>
                   <ul className="space-y-1">
@@ -235,29 +275,29 @@ export default function KiloCodePage() {
                 K
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-white">Kilo Code</h1>
-                <p className="text-slate-500">VS Code Extension</p>
+                <h1 className="text-4xl font-bold text-white">{t.docs.integrations.kiloCode.title}</h1>
+                <p className="text-slate-500">{t.docs.integrations.kiloCode.subtitle}</p>
               </div>
             </div>
 
             <p className="text-lg text-slate-400 mb-8">
-              Configure Kilo Code to use Claude models through TrollLLM for AI-assisted coding directly in VS Code.
+              {t.docs.integrations.kiloCode.description}
             </p>
 
             <Tip>
-              Kilo Code supports all Claude models including Opus 4.5, Sonnet 4.5, and Haiku 4.5 through the OpenAI-compatible API.
+              {t.docs.integrations.kiloCode.tip}
             </Tip>
 
             {/* Prerequisites */}
-            <h2 className="text-2xl font-semibold text-white mt-10 mb-4">Prerequisites</h2>
+            <h2 className="text-2xl font-semibold text-white mt-10 mb-4">{t.docs.integrations.kiloCode.prerequisites}</h2>
             <ul className="list-disc list-inside text-slate-400 space-y-2 mb-8">
-              <li>VS Code installed on your machine</li>
-              <li>Kilo Code extension installed from VS Code Marketplace</li>
-              <li>A TrollLLM API key (<Link href="/register" className="text-sky-400 hover:underline">get one here</Link>)</li>
+              <li>{t.docs.integrations.kiloCode.prereq1}</li>
+              <li>{t.docs.integrations.kiloCode.prereq2}</li>
+              <li>{t.docs.integrations.kiloCode.prereq3} (<Link href="/register" className="text-sky-400 hover:underline">{t.docs.integrations.kiloCode.getOneHere}</Link>)</li>
             </ul>
 
             {/* Configuration Steps */}
-            <h2 className="text-2xl font-semibold text-white mt-10 mb-6">Configuration</h2>
+            <h2 className="text-2xl font-semibold text-white mt-10 mb-6">{t.docs.integrations.kiloCode.configuration}</h2>
 
             <div className="mt-6">
               <Step number={1} title="Open Kilo Code Settings">
