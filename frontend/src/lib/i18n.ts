@@ -14,6 +14,11 @@ export const translations = {
       documentation: 'Documentation',
       signOut: 'Sign Out',
     },
+    // Banner
+    banner: {
+      discord: 'Join Discord for detailed guidance',
+      joinNow: 'Join now →',
+    },
     // Hero Section
     hero: {
       badge: 'Opus 4.5 Available',
@@ -425,6 +430,11 @@ export const translations = {
       dashboard: 'Bảng điều khiển',
       documentation: 'Tài liệu',
       signOut: 'Đăng xuất',
+    },
+    // Banner
+    banner: {
+      discord: 'Tham gia Discord để được hướng dẫn chi tiết',
+      joinNow: 'Tham gia ngay →',
     },
     // Hero Section
     hero: {
