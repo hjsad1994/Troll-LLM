@@ -156,33 +156,6 @@ The system SHALL support different user plans with varying token limits.
 
 ---
 
-### Requirement: Admin Pricing Dashboard
-The system SHALL provide an admin UI for managing model pricing.
-
-#### Scenario: View pricing dashboard
-- **WHEN** admin navigates to `/admin/pricing`
-- **THEN** the system SHALL display all model pricing in a table
-- **AND** show modelId, displayName, input price, output price, status
-
-#### Scenario: Edit model pricing via UI
-- **WHEN** admin clicks "Edit" on a model pricing row
-- **THEN** a form/modal SHALL appear with editable price fields
-- **AND** admin can update inputPricePerMTok and outputPricePerMTok
-- **AND** validation SHALL ensure prices are positive numbers
-
-#### Scenario: Save pricing changes
-- **WHEN** admin submits pricing changes
-- **THEN** the system SHALL call `PUT /admin/pricing/:modelId`
-- **AND** display success toast on successful update
-- **AND** refresh the pricing table
-
-#### Scenario: Add new model pricing
-- **WHEN** admin clicks "Add Model" button
-- **THEN** a form SHALL appear for entering new model details
-- **AND** require modelId, displayName, inputPricePerMTok, outputPricePerMTok
-
----
-
 ### Requirement: Free Tier Upgrade Prompt
 The system SHALL prompt Free Tier users to upgrade when they attempt to use restricted features.
 
@@ -351,4 +324,21 @@ The system SHALL deduct credits from user balance based on actual API usage cost
 - **WHEN** request uses Claude Opus (input=$5/MTok, output=$25/MTok)
 - **AND** request uses 1000 input tokens and 500 output tokens
 - **THEN** deducted amount = (5 * 1000 / 1_000_000) + (25 * 500 / 1_000_000) = $0.0175
+
+### Requirement: Admin Users Table - Tokens Used Column
+The admin users table SHALL display token usage information for each user.
+
+#### Scenario: Display tokens used column in users table
+- **WHEN** admin views the users table at `/users`
+- **THEN** the table SHALL include a "Tokens Used" column
+- **AND** display total tokens used (lifetime) for each user
+- **AND** display monthly tokens used below or beside the total
+- **AND** format large numbers with K/M suffixes (e.g., 1.5M, 250K)
+
+#### Scenario: Token usage display format
+- **WHEN** displaying token usage in users table
+- **THEN** total tokens SHALL be displayed with icon or label indicating "Total"
+- **AND** monthly tokens SHALL be displayed with label indicating "Monthly"
+- **AND** numbers over 1,000,000 SHALL show as X.XM
+- **AND** numbers over 1,000 SHALL show as X.XK
 

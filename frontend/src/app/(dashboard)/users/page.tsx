@@ -382,6 +382,7 @@ export default function UsersPage() {
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">User</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Plan</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Credits</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Tokens Used</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Created</th>
                 <th className="text-right px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Action</th>
               </tr>
@@ -389,7 +390,7 @@ export default function UsersPage() {
             <tbody className="bg-white dark:bg-transparent">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center">
+                  <td colSpan={6} className="px-5 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-indigo-200 dark:border-white/20 border-t-indigo-600 dark:border-t-white rounded-full animate-spin" />
                       <span className="text-slate-600 dark:text-slate-500 text-sm">Loading...</span>
@@ -398,7 +399,7 @@ export default function UsersPage() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center">
+                  <td colSpan={6} className="px-5 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
                         <svg className="w-6 h-6 text-slate-500 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -456,6 +457,12 @@ export default function UsersPage() {
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-emerald-700 dark:text-emerald-400 font-semibold text-sm">${(u.credits || 0).toFixed(2)}</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="text-sm">
+                          <p className="text-slate-900 dark:text-white font-medium">{formatNumber(tokensUsed)}</p>
+                          <p className="text-slate-500 dark:text-slate-600 text-xs">{formatNumber(monthlyTokensUsed)}/mo</p>
+                        </div>
                       </td>
                       <td className="px-5 py-3 text-slate-600 dark:text-slate-500 text-sm">
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}
