@@ -510,9 +510,9 @@ export default function UsersPage() {
                       {plan.charAt(0).toUpperCase() + plan.slice(1)}
                     </p>
                     <p className="text-slate-600 dark:text-slate-400 text-xs">
-                      {planLimits[plan].monthlyTokens === 0
+                      {planLimits[plan].valueUsd === 0
                         ? 'No access'
-                        : formatNumber(planLimits[plan].monthlyTokens) + '/mo'}
+                        : planLimits[plan].valueUsd + ' credits/mo'}
                     </p>
                     <p className="text-slate-500 dark:text-slate-600 text-xs">{planLimits[plan].rpm} RPM</p>
                   </div>
@@ -596,9 +596,9 @@ export default function UsersPage() {
                         </p>
                         {planLimits && (
                           <p className="text-slate-600 dark:text-slate-500 text-xs mt-0.5">
-                            {planLimits[plan].monthlyTokens === 0
+                            {planLimits[plan].valueUsd === 0
                               ? 'No access'
-                              : `${formatNumber(planLimits[plan].monthlyTokens)} tokens/mo`}
+                              : `${planLimits[plan].valueUsd} credits/mo`}
                             {planLimits[plan].rpm > 0 && ` · ${planLimits[plan].rpm} RPM`}
                           </p>
                         )}

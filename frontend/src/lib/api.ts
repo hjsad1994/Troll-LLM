@@ -181,6 +181,7 @@ export interface AdminUser {
 export interface PlanLimits {
   monthlyTokens: number
   rpm: number
+  valueUsd: number
 }
 
 export interface UsersResponse {
