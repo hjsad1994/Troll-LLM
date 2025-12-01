@@ -368,7 +368,7 @@ export default function AdminDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Stats</h3>
             </div>
             <p className="text-4xl font-bold bg-gradient-to-r from-gray-700 to-gray-500 dark:from-neutral-300 dark:to-neutral-500 bg-clip-text text-transparent mb-1">
-              {loading ? '...' : formatLargeNumber(userStats.total_tokens_used)}
+              {loading ? '...' : formatLargeNumber(userStats.total_input_tokens + userStats.total_output_tokens)}
             </p>
             <p className="text-gray-500 dark:text-neutral-500 text-sm mb-4">total tokens used by all users</p>
 

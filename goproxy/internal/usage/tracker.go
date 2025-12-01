@@ -147,9 +147,15 @@ func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTok
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// tokensUsed should be the sum of input + output tokens
+	actualTokensUsed := inputTokens + outputTokens
+	if actualTokensUsed == 0 {
+		actualTokensUsed = tokensUsed // fallback to billing tokens if no input/output provided
+	}
+
 	incFields := bson.M{
 		"credits":    -cost,
-		"tokensUsed": tokensUsed,
+		"tokensUsed": actualTokensUsed,
 	}
 	
 	if inputTokens > 0 {

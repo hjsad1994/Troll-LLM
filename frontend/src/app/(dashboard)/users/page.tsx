@@ -7,6 +7,17 @@ import { getAdminUsers, updateUserPlan, updateUserCredits, AdminUser, UserPlan, 
 
 const PLAN_ORDER: UserPlan[] = ['free', 'dev', 'pro']
 
+function formatDateTime(dateStr: string | undefined): string {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
 // SVG Icon Components
 const Icons = {
   users: (className: string) => (
@@ -467,8 +478,8 @@ export default function UsersPage() {
                       <td className="px-5 py-3">
                         <span className="text-slate-900 dark:text-white font-medium text-sm">{formatNumber(tokensUsed)}</span>
                       </td>
-                      <td className="px-5 py-3 text-slate-600 dark:text-slate-500 text-sm">
-                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400 text-sm">
+                        {formatDateTime(u.createdAt)}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <button
