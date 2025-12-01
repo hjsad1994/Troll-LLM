@@ -47,7 +47,7 @@ The system SHALL provide each user with a unique API key that can be viewed and 
 ---
 
 ### Requirement: User Billing Dashboard
-The system SHALL display billing information including token usage and current plan.
+The system SHALL display billing information including token usage, current plan, and plan expiration.
 
 #### Scenario: View total tokens remaining
 - **WHEN** authenticated user visits Dashboard Billing section
@@ -63,8 +63,9 @@ The system SHALL display billing information including token usage and current p
 #### Scenario: View current plan
 - **WHEN** authenticated user visits Dashboard Billing section
 - **THEN** the system SHALL display current plan with badge
-- **AND** plan types are: Free, Pro, Enterprise
-- **AND** show plan limits (e.g., "Free: 100K tokens/month")
+- **AND** plan types are: Free, Dev, Pro
+- **AND** show plan limits (e.g., "Dev: 15M tokens/month")
+- **AND** show plan expiration date for Dev/Pro plans
 
 #### Scenario: Monthly token usage reset
 - **WHEN** new billing month starts (first day of month, 00:00 UTC)
@@ -299,19 +300,25 @@ The system SHALL include Request History in the dashboard navigation.
 - **THEN** the "Request History" menu item SHALL be highlighted as active
 
 ### Requirement: Auto-Grant Credits on Plan Upgrade
-The system SHALL automatically grant credits to users when their plan is upgraded by admin.
+The system SHALL automatically grant credits to users when their plan is upgraded by admin and set plan expiration.
 
 #### Scenario: Admin upgrades user to Dev plan
 - **WHEN** admin sets user plan from Free to Dev
 - **THEN** user receives $225 credits added to their balance
+- **AND** `planStartDate` is set to current timestamp
+- **AND** `planExpiresAt` is set to 1 month from now
 
 #### Scenario: Admin upgrades user to Pro plan
 - **WHEN** admin sets user plan from Free to Pro
 - **THEN** user receives $500 credits added to their balance
+- **AND** `planStartDate` is set to current timestamp
+- **AND** `planExpiresAt` is set to 1 month from now
 
 #### Scenario: Admin changes plan between paid tiers
 - **WHEN** admin changes user plan from Dev to Pro
 - **THEN** user receives the difference in credits ($500 - $225 = $275)
+- **AND** `planStartDate` is updated to current timestamp
+- **AND** `planExpiresAt` is updated to 1 month from now
 
 ### Requirement: Deduct Credits Per Request
 The system SHALL deduct credits from user balance based on actual API usage cost.
@@ -341,4 +348,106 @@ The admin users table SHALL display token usage information for each user.
 - **AND** monthly tokens SHALL be displayed with label indicating "Monthly"
 - **AND** numbers over 1,000,000 SHALL show as X.XM
 - **AND** numbers over 1,000 SHALL show as X.XK
+
+### Requirement: Plan Expiration Tracking
+The system SHALL track when a user's plan was upgraded and when it will expire.
+
+#### Scenario: Set plan start date on upgrade
+- **WHEN** admin upgrades user plan from Free to Dev or Pro
+- **THEN** the system SHALL set `planStartDate` to current timestamp
+- **AND** set `planExpiresAt` to 1 month from current timestamp
+
+#### Scenario: Update plan expiration on plan change
+- **WHEN** admin changes user plan between Dev and Pro
+- **THEN** the system SHALL update `planStartDate` to current timestamp
+- **AND** set `planExpiresAt` to 1 month from current timestamp
+
+#### Scenario: Clear plan dates on downgrade to Free
+- **WHEN** admin sets user plan to Free
+- **THEN** the system SHALL set `planStartDate` to null
+- **AND** set `planExpiresAt` to null
+
+---
+
+### Requirement: Automatic Plan Expiration
+The system SHALL automatically reset expired plans to Free Tier.
+
+#### Scenario: Check plan expiration on API request
+- **WHEN** user makes an API request
+- **AND** current time is past `planExpiresAt`
+- **THEN** the system SHALL reset user's `plan` to `'free'`
+- **AND** reset `credits` to `0`
+- **AND** reset `totalTokens` to `0`
+- **AND** set `planStartDate` to null
+- **AND** set `planExpiresAt` to null
+- **AND** continue processing the request with Free Tier limits
+
+#### Scenario: Check plan expiration on login
+- **WHEN** user logs in
+- **AND** current time is past `planExpiresAt`
+- **THEN** the system SHALL reset user's plan to Free Tier (same as API request scenario)
+
+#### Scenario: Scheduled plan expiration check (optional)
+- **WHEN** scheduled job runs (e.g., daily at 00:00 UTC)
+- **THEN** the system SHALL find all users where `planExpiresAt < current time`
+- **AND** reset their plans to Free Tier
+
+---
+
+### Requirement: Plan Expiration Display
+The system SHALL display plan expiration information to users.
+
+#### Scenario: Display plan expiration date in dashboard
+- **WHEN** user with Dev or Pro plan views billing section
+- **THEN** the system SHALL display `planExpiresAt` as "Plan expires on: YYYY-MM-DD"
+- **AND** show countdown if expiring within 7 days
+
+#### Scenario: Display warning for expiring plan
+- **WHEN** user's plan is expiring within 7 days
+- **THEN** the system SHALL display a warning banner
+- **AND** show message "Your plan will expire on {date}. Contact admin to renew."
+
+#### Scenario: Free tier user does not see expiration
+- **WHEN** Free Tier user views billing section
+- **THEN** the system SHALL NOT display plan expiration date
+- **AND** NOT display expiration warning
+
+---
+
+### Requirement: User Model - Separate Input/Output Token Fields
+The User model SHALL track input and output tokens separately from combined totals.
+
+#### Scenario: User model stores input/output tokens
+- **WHEN** a user makes API requests
+- **THEN** the system SHALL track `totalInputTokens` for input tokens used
+- **AND** track `totalOutputTokens` for output tokens used
+- **AND** both fields SHALL default to 0 for new/existing users
+
+### Requirement: Admin Users Table - Input/Output Token Columns
+The admin users table SHALL display separate input and output token columns.
+
+#### Scenario: Display input/output columns in users table
+- **WHEN** admin views the users table at `/users`
+- **THEN** the table SHALL include an "Input Tokens" column
+- **AND** include an "Output Tokens" column
+- **AND** format large numbers with K/M suffixes (e.g., 1.5M, 250K)
+
+### Requirement: Admin Dashboard - System-Wide Token Breakdown
+The admin dashboard SHALL display total input and output tokens across all users.
+
+#### Scenario: Display total input/output tokens on admin page
+- **WHEN** admin views the dashboard at `/admin`
+- **THEN** the page SHALL display total input tokens for all users
+- **AND** display total output tokens for all users
+- **AND** format large numbers appropriately
+
+### Requirement: Admin Dashboard - Time Period Filter
+The admin dashboard SHALL allow filtering metrics by time period.
+
+#### Scenario: Filter metrics by time period
+- **WHEN** admin views the dashboard at `/admin`
+- **THEN** the page SHALL display period filter options (1h, 24h, 7d, All)
+- **AND** clicking a period SHALL re-fetch metrics for that time range
+- **AND** the selected period SHALL be visually indicated
+- **AND** metrics card SHALL display the current period context
 

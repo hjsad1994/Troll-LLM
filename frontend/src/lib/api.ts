@@ -141,6 +141,22 @@ export async function getBillingInfo(): Promise<BillingInfo> {
   return resp.json()
 }
 
+export interface CreditsUsage {
+  last1h: number
+  last24h: number
+  last7d: number
+  last30d: number
+}
+
+export async function getCreditsUsage(): Promise<CreditsUsage> {
+  const resp = await fetchWithAuth('/api/user/credits-usage')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get credits usage')
+  }
+  return resp.json()
+}
+
 // Admin User Management
 export type UserPlan = 'free' | 'dev' | 'pro'
 
@@ -154,6 +170,8 @@ export interface AdminUser {
   apiKeyCreatedAt?: string
   plan: UserPlan
   tokensUsed: number
+  totalInputTokens: number
+  totalOutputTokens: number
   monthlyTokensUsed: number
   monthlyResetDate?: string
   credits: number

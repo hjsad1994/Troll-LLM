@@ -17,6 +17,8 @@ export interface IUser {
   planStartDate?: Date | null;
   planExpiresAt?: Date | null;
   tokensUsed: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
   monthlyTokensUsed: number;
   monthlyResetDate: Date;
   credits: number;
@@ -42,6 +44,8 @@ const userSchema = new mongoose.Schema({
   planStartDate: { type: Date, default: null },
   planExpiresAt: { type: Date, default: null },
   tokensUsed: { type: Number, default: 0 },
+  totalInputTokens: { type: Number, default: 0 },
+  totalOutputTokens: { type: Number, default: 0 },
   monthlyTokensUsed: { type: Number, default: 0 },
   monthlyResetDate: { type: Date, default: () => getFirstDayOfMonth() },
   credits: { type: Number, default: 0 },

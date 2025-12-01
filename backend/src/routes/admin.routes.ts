@@ -28,14 +28,19 @@ router.post('/troll-keys/:id/reset', requireAdmin, (req, res) => factoryKeyContr
 router.get('/metrics', (req, res) => metricsController.getSystemMetrics(req, res));
 
 // User Stats - admin only (for dashboard)
-router.get('/user-stats', requireAdmin, async (_req: Request, res: Response) => {
+router.get('/user-stats', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const stats = await userRepository.getUserStats();
+    const period = (req.query.period as string) || 'all';
+    const stats = await userRepository.getUserStats(period);
     res.json({
       total_users: stats.total,
       by_plan: stats.byPlan,
       total_tokens_used: stats.totalTokensUsed,
       total_credits: stats.totalCredits,
+      total_input_tokens: stats.totalInputTokens,
+      total_output_tokens: stats.totalOutputTokens,
+      total_credits_burned: stats.totalCreditsBurned,
+      period,
     });
   } catch (error) {
     console.error('Failed to get user stats:', error);

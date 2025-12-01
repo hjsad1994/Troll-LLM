@@ -31,6 +31,9 @@ interface UserStats {
   by_plan: Record<string, number>
   total_tokens_used: number
   total_credits: number
+  total_input_tokens: number
+  total_output_tokens: number
+  total_credits_burned: number
 }
 
 interface UserKey {
@@ -140,9 +143,10 @@ export default function AdminDashboard() {
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
-  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0 })
+  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0, total_input_tokens: 0, total_output_tokens: 0, total_credits_burned: 0 })
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [metricsPeriod, setMetricsPeriod] = useState<'1h' | '24h' | '7d' | 'all'>('all')
 
   // Redirect non-admin users
   useEffect(() => {
@@ -151,15 +155,15 @@ export default function AdminDashboard() {
     }
   }, [user, isAdmin, router])
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
     try {
       const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
         fetchWithAuth('/admin/troll-keys').catch(() => null),
         fetchWithAuth('/admin/proxies').catch(() => null),
         fetch('/api/status').catch(() => null),
-        fetchWithAuth('/admin/metrics').catch(() => null),
-        fetchWithAuth('/admin/user-stats').catch(() => null),
+        fetchWithAuth(`/admin/metrics?period=${period}`).catch(() => null),
+        fetchWithAuth(`/admin/user-stats?period=${period}`).catch(() => null),
       ])
 
       const keysData = keysResp?.ok ? await keysResp.json() : { total: 0, keys: [] }
@@ -167,7 +171,7 @@ export default function AdminDashboard() {
       const proxiesData = proxiesResp?.ok ? await proxiesResp.json() : { total: 0, proxies: [] }
       const statusData = statusResp?.ok ? await statusResp.json() : { status: 'unknown', summary: { healthy: 0, total: 0 } }
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
-      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0 }
+      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0, total_input_tokens: 0, total_output_tokens: 0, total_credits_burned: 0 }
 
       setStats({
         totalKeys: keysData.total || 0,
@@ -203,7 +207,14 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [metricsPeriod])
+
+  // Reload when period changes
+  useEffect(() => {
+    if (isAdmin) {
+      loadDashboard(metricsPeriod)
+    }
+  }, [metricsPeriod, isAdmin])
 
   useEffect(() => {
     if (isAdmin) {
@@ -284,6 +295,24 @@ export default function AdminDashboard() {
           </div>
         </section>
 
+        {/* Period Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 dark:text-neutral-500 text-sm mr-2">Period:</span>
+          {(['1h', '24h', '7d', 'all'] as const).map((period) => (
+            <button
+              key={period}
+              onClick={() => setMetricsPeriod(period)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                metricsPeriod === period
+                  ? 'bg-indigo-500 dark:bg-white text-white dark:text-black'
+                  : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-white/10'
+              }`}
+            >
+              {period === 'all' ? 'All Time' : period === '1h' ? '1 Hour' : period === '24h' ? '24 Hours' : '7 Days'}
+            </button>
+          ))}
+        </div>
+
         {/* Main Metrics - Feature cards style */}
         <section className="grid md:grid-cols-3 gap-6">
           {/* API Requests Card */}
@@ -296,6 +325,9 @@ export default function AdminDashboard() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">API Requests</h3>
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400">
+                  {metricsPeriod === 'all' ? 'All Time' : metricsPeriod === '1h' ? 'Last 1h' : metricsPeriod === '24h' ? 'Last 24h' : 'Last 7d'}
+                </span>
               </div>
               <div className="flex gap-4 text-xs text-gray-500 dark:text-neutral-500">
                 <span>Today: <span className="text-gray-900 dark:text-white">{formatLargeNumber(metrics.requestsToday || 0)}</span></span>
@@ -343,10 +375,31 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400"></span>
+                  Input Tokens
+                </span>
+                <span className="text-cyan-500 dark:text-cyan-400 font-medium">{formatLargeNumber(userStats.total_input_tokens)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400"></span>
+                  Output Tokens
+                </span>
+                <span className="text-purple-500 dark:text-purple-400 font-medium">{formatLargeNumber(userStats.total_output_tokens)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
                   Total Credits
                 </span>
                 <span className="text-emerald-500 dark:text-emerald-400 font-medium">${userStats.total_credits.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400"></span>
+                  Credits Burned
+                </span>
+                <span className="text-orange-500 dark:text-orange-400 font-medium">${(userStats.total_credits_burned || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">

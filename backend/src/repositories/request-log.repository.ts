@@ -156,6 +156,57 @@ export class RequestLogRepository {
       last7d: d7[0]?.total || 0,
     };
   }
+
+  async getCreditsUsageByPeriod(userId?: string): Promise<{
+    last1h: number;
+    last24h: number;
+    last7d: number;
+    last30d: number;
+  }> {
+    const now = new Date();
+    const hour1 = new Date(now.getTime() - 60 * 60 * 1000);
+    const hours24 = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const days7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const days30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const match: any = {};
+    if (userId) match.userId = userId;
+
+    const [h1, h24, d7, d30] = await Promise.all([
+      RequestLog.aggregate([
+        { $match: { ...match, createdAt: { $gte: hour1 } } },
+        { $group: { _id: null, total: { $sum: '$creditsCost' } } },
+      ]),
+      RequestLog.aggregate([
+        { $match: { ...match, createdAt: { $gte: hours24 } } },
+        { $group: { _id: null, total: { $sum: '$creditsCost' } } },
+      ]),
+      RequestLog.aggregate([
+        { $match: { ...match, createdAt: { $gte: days7 } } },
+        { $group: { _id: null, total: { $sum: '$creditsCost' } } },
+      ]),
+      RequestLog.aggregate([
+        { $match: { ...match, createdAt: { $gte: days30 } } },
+        { $group: { _id: null, total: { $sum: '$creditsCost' } } },
+      ]),
+    ]);
+
+    return {
+      last1h: h1[0]?.total || 0,
+      last24h: h24[0]?.total || 0,
+      last7d: d7[0]?.total || 0,
+      last30d: d30[0]?.total || 0,
+    };
+  }
+
+  async getTotalCreditsBurned(since?: Date): Promise<number> {
+    const match = since ? { createdAt: { $gte: since } } : {};
+    const result = await RequestLog.aggregate([
+      { $match: match },
+      { $group: { _id: null, total: { $sum: '$creditsCost' } } },
+    ]);
+    return result[0]?.total || 0;
+  }
 }
 
 export const requestLogRepository = new RequestLogRepository();

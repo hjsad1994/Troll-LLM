@@ -107,4 +107,23 @@ router.get('/request-history', jwtAuth, (req: Request, res: Response) => {
   res.status(503).json({ error: 'Request history is temporarily disabled' });
 });
 
+router.get('/credits-usage', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const usage = await requestLogRepository.getCreditsUsageByPeriod(username);
+    res.json({
+      last1h: usage.last1h,
+      last24h: usage.last24h,
+      last7d: usage.last7d,
+      last30d: usage.last30d,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

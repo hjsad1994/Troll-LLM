@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, UserProfile, BillingInfo } from '@/lib/api'
+import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getCreditsUsage, UserProfile, BillingInfo, CreditsUsage } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 
@@ -46,6 +46,8 @@ function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: strin
 export default function UserDashboard() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
+  const [creditsUsage, setCreditsUsage] = useState<CreditsUsage | null>(null)
+  const [usagePeriod, setUsagePeriod] = useState<'1h' | '24h' | '7d' | '30d'>('24h')
   const [showFullApiKey, setShowFullApiKey] = useState(false)
   const [fullApiKey, setFullApiKey] = useState<string | null>(null)
   const [rotating, setRotating] = useState(false)
@@ -65,12 +67,14 @@ export default function UserDashboard() {
 
   const loadUserData = useCallback(async () => {
     try {
-      const [profile, billing] = await Promise.all([
+      const [profile, billing, credits] = await Promise.all([
         getUserProfile().catch(() => null),
         getBillingInfo().catch(() => null),
+        getCreditsUsage().catch(() => null),
       ])
       if (profile) setUserProfile(profile)
       if (billing) setBillingInfo(billing)
+      if (credits) setCreditsUsage(credits)
     } catch (err) {
       console.error('Failed to load user data:', err)
     } finally {
@@ -375,6 +379,47 @@ export default function UserDashboard() {
                 <div className="h-32 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Credits Usage Card */}
+        <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-400">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--theme-text)]">Credits Usage</h3>
+                <p className="text-[var(--theme-text-subtle)] text-sm">Your spending over time</p>
+              </div>
+            </div>
+            <div className="flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10">
+              {(['1h', '24h', '7d', '30d'] as const).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setUsagePeriod(period)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    usagePeriod === period
+                      ? 'bg-orange-500 text-white'
+                      : 'text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-6 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-center">
+            <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-sm mb-2">
+              {usagePeriod === '1h' ? 'Last 1 Hour' : usagePeriod === '24h' ? 'Last 24 Hours' : usagePeriod === '7d' ? 'Last 7 Days' : 'Last 30 Days'}
+            </p>
+            <p className="text-4xl font-bold text-orange-600 dark:text-orange-400">
+              ${(creditsUsage ? creditsUsage[`last${usagePeriod}`] : 0).toFixed(2)}
+            </p>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { User, IUser, hashPassword, generateApiKey, PLAN_LIMITS, UserPlan } from '../models/user.model.js';
 import { UserKey } from '../models/user-key.model.js';
+import { RequestLog } from '../models/request-log.model.js';
 
 export interface CreateUserData {
   username: string;
@@ -224,27 +225,92 @@ export class UserRepository {
       .lean();
   }
 
-  async getUserStats(): Promise<{ total: number; byPlan: Record<string, number>; totalTokensUsed: number; totalCredits: number }> {
+  async getUserStats(period: string = 'all'): Promise<{ total: number; byPlan: Record<string, number>; totalTokensUsed: number; totalCredits: number; totalInputTokens: number; totalOutputTokens: number; totalCreditsBurned: number }> {
     const total = await User.countDocuments();
-    const agg = await User.aggregate([
+    
+    // Get user counts by plan
+    const userAgg = await User.aggregate([
       {
         $group: {
           _id: '$plan',
           count: { $sum: 1 },
-          tokensUsed: { $sum: '$tokensUsed' },
           credits: { $sum: '$credits' },
         }
       }
     ]);
     const byPlan: Record<string, number> = {};
-    let totalTokensUsed = 0;
     let totalCredits = 0;
-    agg.forEach((p) => {
+    userAgg.forEach((p) => {
       byPlan[p._id || 'free'] = p.count;
-      totalTokensUsed += p.tokensUsed || 0;
       totalCredits += p.credits || 0;
     });
-    return { total, byPlan, totalTokensUsed, totalCredits };
+
+    // Get token stats and credits burned - from request_logs if filtered, from users if 'all'
+    let totalTokensUsed = 0;
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let totalCreditsBurned = 0;
+
+    if (period === 'all') {
+      // Use lifetime totals from user collection
+      const tokenAgg = await User.aggregate([
+        {
+          $group: {
+            _id: null,
+            tokensUsed: { $sum: '$tokensUsed' },
+            inputTokens: { $sum: '$totalInputTokens' },
+            outputTokens: { $sum: '$totalOutputTokens' },
+          }
+        }
+      ]);
+      if (tokenAgg.length > 0) {
+        totalTokensUsed = tokenAgg[0].tokensUsed || 0;
+        totalInputTokens = tokenAgg[0].inputTokens || 0;
+        totalOutputTokens = tokenAgg[0].outputTokens || 0;
+      }
+      // Get all-time credits burned from request_logs
+      const creditsAgg = await RequestLog.aggregate([
+        { $group: { _id: null, total: { $sum: '$creditsCost' } } }
+      ]);
+      totalCreditsBurned = creditsAgg[0]?.total || 0;
+    } else {
+      // Aggregate from request_logs for the specified period
+      let since: Date;
+      switch (period) {
+        case '1h':
+          since = new Date(Date.now() - 60 * 60 * 1000);
+          break;
+        case '24h':
+          since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          since = new Date(0);
+      }
+      
+      const logAgg = await RequestLog.aggregate([
+        { $match: { createdAt: { $gte: since } } },
+        {
+          $group: {
+            _id: null,
+            tokensUsed: { $sum: '$tokensUsed' },
+            inputTokens: { $sum: '$inputTokens' },
+            outputTokens: { $sum: '$outputTokens' },
+            creditsBurned: { $sum: '$creditsCost' },
+          }
+        }
+      ]);
+      if (logAgg.length > 0) {
+        totalTokensUsed = logAgg[0].tokensUsed || 0;
+        totalInputTokens = logAgg[0].inputTokens || 0;
+        totalOutputTokens = logAgg[0].outputTokens || 0;
+        totalCreditsBurned = logAgg[0].creditsBurned || 0;
+      }
+    }
+
+    return { total, byPlan, totalTokensUsed, totalCredits, totalInputTokens, totalOutputTokens, totalCreditsBurned };
   }
 
   async updateCredits(username: string, credits: number): Promise<IUser | null> {

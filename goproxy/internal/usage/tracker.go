@@ -76,9 +76,6 @@ func LogRequest(userKeyID, trollKeyID string, tokensUsed int64, statusCode int, 
 }
 
 func LogRequestDetailed(params RequestLogParams) {
-	// TEMPORARILY DISABLED - request history logging
-	return
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -138,6 +135,11 @@ func UpdateTrollKeyUsage(trollKeyID string, tokensUsed int64) {
 
 // DeductCredits deducts credits (USD) from user's balance and updates tokensUsed
 func DeductCredits(username string, cost float64, tokensUsed int64) error {
+	return DeductCreditsWithTokens(username, cost, tokensUsed, 0, 0)
+}
+
+// DeductCreditsWithTokens deducts credits and updates token counts (total, input, output)
+func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
 	if username == "" {
 		return nil
 	}
@@ -145,11 +147,20 @@ func DeductCredits(username string, cost float64, tokensUsed int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	incFields := bson.M{
+		"credits":    -cost,
+		"tokensUsed": tokensUsed,
+	}
+	
+	if inputTokens > 0 {
+		incFields["totalInputTokens"] = inputTokens
+	}
+	if outputTokens > 0 {
+		incFields["totalOutputTokens"] = outputTokens
+	}
+
 	update := bson.M{
-		"$inc": bson.M{
-			"credits":    -cost,
-			"tokensUsed": tokensUsed,
-		},
+		"$inc": incFields,
 	}
 
 	_, err := db.UsersCollection().UpdateByID(ctx, username, update)
