@@ -171,10 +171,18 @@ export default function ClaudeCodePage() {
               </p>
               <Code title="~/.claude/settings.json">{`{
   "env": {
-    "ANTHROPIC_AUTH_TOKEN": "your_api_key",
     "ANTHROPIC_BASE_URL": "${API_BASE_URL}",
-    "API_TIMEOUT_MS": "600000"
-  }
+    "ANTHROPIC_API_KEY": "your-trollllm-api-key",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250514",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20250514",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20250514",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
+  "permissions": {
+    "allow": [],
+    "deny": []
+  },
+  "alwaysThinkingEnabled": true
 }`}</Code>
             </div>
 
@@ -182,17 +190,23 @@ export default function ClaudeCodePage() {
               <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">
                 {t.docs.integrations.claudeCode.addToShell} <code className="text-gray-800 dark:text-slate-300 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded">~/.bashrc</code> {t.docs.integrations.claudeCode.or} <code className="text-gray-800 dark:text-slate-300 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded">~/.zshrc</code>:
               </p>
-              <Code>{`export ANTHROPIC_AUTH_TOKEN="your_api_key"
-export ANTHROPIC_BASE_URL="${API_BASE_URL}"
-export API_TIMEOUT_MS="600000"`}</Code>
+              <Code>{`export ANTHROPIC_BASE_URL="${API_BASE_URL}"
+export ANTHROPIC_API_KEY="your-trollllm-api-key"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-sonnet-4-5-20250514"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-opus-4-5-20250514"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="claude-haiku-4-5-20250514"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"`}</Code>
               <p className="text-gray-500 dark:text-slate-500 text-sm">{t.docs.integrations.claudeCode.thenRun} <code className="text-gray-800 dark:text-slate-300">source ~/.bashrc</code></p>
             </div>
 
             <div>
               <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">{t.docs.integrations.claudeCode.runInCmd}</p>
-              <Code>{`setx ANTHROPIC_AUTH_TOKEN your_api_key
-setx ANTHROPIC_BASE_URL ${API_BASE_URL}
-setx API_TIMEOUT_MS 600000`}</Code>
+              <Code>{`setx ANTHROPIC_BASE_URL ${API_BASE_URL}
+setx ANTHROPIC_API_KEY your-trollllm-api-key
+setx ANTHROPIC_DEFAULT_SONNET_MODEL claude-sonnet-4-5-20250514
+setx ANTHROPIC_DEFAULT_OPUS_MODEL claude-opus-4-5-20250514
+setx ANTHROPIC_DEFAULT_HAIKU_MODEL claude-haiku-4-5-20250514
+setx CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 1`}</Code>
               <p className="text-gray-500 dark:text-slate-500 text-sm">{t.docs.integrations.claudeCode.restartTerminal}</p>
             </div>
           </Tabs>

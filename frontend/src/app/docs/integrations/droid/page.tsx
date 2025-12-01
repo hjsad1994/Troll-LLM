@@ -259,6 +259,26 @@ export ANTHROPIC_API_KEY="your-trollllm-api-key"`}
   "temperature": 0.7
 }`}
                 />
+                
+                <div className="mt-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+                  <h4 className="text-amber-800 dark:text-amber-300 font-medium mb-2">{t.docs.integrations.droid.step2bTitle}</h4>
+                  <p className="text-amber-700 dark:text-amber-400 text-sm mb-4">{t.docs.integrations.droid.step2bDesc}</p>
+                  <CodeBlock
+                    title="~/.droid/config.json"
+                    language="json"
+                    code={`{
+  "custom_models": [
+    {
+      "model_display_name": "Claude Sonnet 4.5",
+      "model": "claude-sonnet-4-5-20250929",
+      "base_url": "https://chat.trollllm.xyz",
+      "api_key": "your-trollllm-api-key",
+      "provider": "anthropic"
+    }
+  ]
+}`}
+                  />
+                </div>
               </Step>
 
               <Step number={3} title={t.docs.integrations.droid.step3Title}>
