@@ -180,14 +180,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--theme-bg)] -m-8 p-8">
-      {/* Background Grid */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.1)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-300/20 dark:from-indigo-500/10 via-transparent to-transparent" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-indigo-200/30 dark:from-indigo-500/5 to-transparent rounded-full blur-3xl" />
-      </div>
-
+    <div className="min-h-screen">
       <div className="relative max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <header className="pt-4">
@@ -210,10 +203,10 @@ export default function UsersPage() {
             {/* Total Card */}
             <button
               onClick={() => setPlanFilter('all')}
-              className={`p-4 rounded-xl border transition-all text-left group ${
+              className={`p-4 rounded-xl border transition-all text-left group backdrop-blur-sm ${
                 planFilter === 'all'
-                  ? 'border-indigo-300 dark:border-white/20 bg-indigo-50 dark:bg-white/[0.04] ring-1 ring-indigo-200 dark:ring-white/10 shadow-md dark:shadow-none'
-                  : 'border-slate-300 dark:border-white/5 bg-white dark:bg-white/[0.02] hover:border-indigo-300 dark:hover:border-white/10 hover:bg-indigo-50/50 dark:hover:bg-white/[0.03] shadow-sm dark:shadow-none'
+                  ? 'border-indigo-300 dark:border-white/20 bg-indigo-50 dark:bg-black/60 ring-1 ring-indigo-200 dark:ring-white/10 shadow-md'
+                  : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 hover:border-indigo-300 dark:hover:border-white/20 hover:bg-indigo-50/50 dark:hover:bg-black/60 shadow-sm'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -239,10 +232,10 @@ export default function UsersPage() {
                 <button
                   key={plan}
                   onClick={() => setPlanFilter(plan)}
-                  className={`p-4 rounded-xl border transition-all text-left group ${
+                  className={`p-4 rounded-xl border transition-all text-left group backdrop-blur-sm ${
                     isActive
-                      ? `${config.border} bg-gradient-to-br ${config.gradient} ring-1 ${config.border} shadow-md dark:shadow-none`
-                      : 'border-slate-300 dark:border-white/5 bg-white dark:bg-white/[0.02] hover:border-slate-400 dark:hover:border-white/10 hover:bg-slate-50 dark:hover:bg-white/[0.03] shadow-sm dark:shadow-none'
+                      ? `${config.border} bg-gradient-to-br ${config.gradient} dark:bg-black/60 ring-1 ${config.border} shadow-md`
+                      : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 hover:border-slate-400 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-black/60 shadow-sm'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -267,39 +260,39 @@ export default function UsersPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setRoleFilter('all')}
-            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all backdrop-blur-sm ${
               roleFilter === 'all'
-                ? 'border-indigo-300 dark:border-white/20 bg-indigo-50 dark:bg-white/[0.06] text-indigo-700 dark:text-white shadow-sm dark:shadow-none'
-                : 'border-slate-300 dark:border-white/5 bg-white dark:bg-white/[0.02] text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/10 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none'
+                ? 'border-indigo-300 dark:border-white/20 bg-indigo-50 dark:bg-black/60 text-indigo-700 dark:text-white shadow-sm'
+                : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/20 hover:text-slate-900 dark:hover:text-white shadow-sm'
             }`}
           >
             All Roles
           </button>
           <button
             onClick={() => setRoleFilter('admin')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all backdrop-blur-sm ${
               roleFilter === 'admin'
-                ? 'border-rose-400 dark:border-rose-500/30 bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 shadow-sm dark:shadow-none'
-                : 'border-slate-300 dark:border-white/5 bg-white dark:bg-white/[0.02] text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/10 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none'
+                ? 'border-rose-400 dark:border-rose-500/30 bg-rose-100 dark:bg-black/60 text-rose-700 dark:text-rose-400 shadow-sm'
+                : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/20 hover:text-slate-900 dark:hover:text-white shadow-sm'
             }`}
           >
             {Icons.admin(`w-4 h-4 ${roleFilter === 'admin' ? 'text-rose-700 dark:text-rose-400' : 'text-slate-500 dark:text-slate-500'}`)}
             <span>Admin</span>
-            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${roleFilter === 'admin' ? 'bg-rose-200 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400' : 'bg-slate-200 dark:bg-white/5 text-slate-600 dark:text-slate-400'}`}>
+            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${roleFilter === 'admin' ? 'bg-rose-200 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400'}`}>
               {roleStats.admin}
             </span>
           </button>
           <button
             onClick={() => setRoleFilter('user')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all backdrop-blur-sm ${
               roleFilter === 'user'
-                ? 'border-sky-400 dark:border-sky-500/30 bg-sky-100 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 shadow-sm dark:shadow-none'
-                : 'border-slate-300 dark:border-white/5 bg-white dark:bg-white/[0.02] text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/10 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none'
+                ? 'border-sky-400 dark:border-sky-500/30 bg-sky-100 dark:bg-black/60 text-sky-700 dark:text-sky-400 shadow-sm'
+                : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-white/20 hover:text-slate-900 dark:hover:text-white shadow-sm'
             }`}
           >
             {Icons.user(`w-4 h-4 ${roleFilter === 'user' ? 'text-sky-700 dark:text-sky-400' : 'text-slate-500 dark:text-slate-500'}`)}
             <span>User</span>
-            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${roleFilter === 'user' ? 'bg-sky-200 dark:bg-sky-500/20 text-sky-700 dark:text-sky-400' : 'bg-slate-200 dark:bg-white/5 text-slate-600 dark:text-slate-400'}`}>
+            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${roleFilter === 'user' ? 'bg-sky-200 dark:bg-sky-500/20 text-sky-700 dark:text-sky-400' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400'}`}>
               {roleStats.user}
             </span>
           </button>
@@ -316,13 +309,13 @@ export default function UsersPage() {
               placeholder="Search by username..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-400 dark:focus:border-white/20 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-transparent transition-all text-sm shadow-sm dark:shadow-none"
+              className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-400 dark:focus:border-white/20 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-transparent transition-all text-sm shadow-sm"
             />
           </div>
 
           {/* Active Filter Badge */}
           {planFilter !== 'all' && (
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${PLAN_CONFIG[planFilter].border} ${PLAN_CONFIG[planFilter].bg} shadow-sm dark:shadow-none`}>
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border backdrop-blur-sm ${PLAN_CONFIG[planFilter].border} ${PLAN_CONFIG[planFilter].bg} dark:bg-black/40 shadow-sm`}>
               {Icons[PLAN_CONFIG[planFilter].iconKey](`w-4 h-4 ${PLAN_CONFIG[planFilter].text}`)}
               <span className={`text-sm font-medium ${PLAN_CONFIG[planFilter].text}`}>
                 {planFilter.charAt(0).toUpperCase() + planFilter.slice(1)}
@@ -375,22 +368,22 @@ export default function UsersPage() {
         </div>
 
         {/* Users Table */}
-        <div className="rounded-xl border border-slate-300 dark:border-white/5 overflow-hidden shadow-md dark:shadow-none">
+        <div className="rounded-xl border border-slate-300 dark:border-white/10 overflow-hidden shadow-md backdrop-blur-sm">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.02]">
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">User</th>
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Plan</th>
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Credits</th>
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Burned</th>
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Input Tokens</th>
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Output Tokens</th>
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Total Tokens</th>
-                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Created</th>
-                <th className="text-right px-5 py-3 text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold">Action</th>
+              <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/60">
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">User</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Plan</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Credits</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Burned</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Input Tokens</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Output Tokens</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Total Tokens</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Created</th>
+                <th className="text-right px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Action</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-transparent">
+            <tbody className="bg-white dark:bg-black/40">
               {loading ? (
                 <tr>
                   <td colSpan={9} className="px-5 py-12 text-center">
@@ -442,7 +435,7 @@ export default function UsersPage() {
                   const username = u._id || 'unknown'
 
                   return (
-                    <tr key={username} className="border-b border-slate-100 dark:border-white/5 hover:bg-indigo-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                    <tr key={username} className="border-b border-slate-100 dark:border-white/10 hover:bg-indigo-50/50 dark:hover:bg-white/5 transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-white/10 flex items-center justify-center text-indigo-700 dark:text-white text-sm font-semibold">
@@ -495,8 +488,8 @@ export default function UsersPage() {
 
         {/* Plan Reference */}
         {planLimits && (
-          <div className="rounded-xl border border-slate-300 dark:border-white/5 p-5 bg-white dark:bg-white/[0.02] shadow-md dark:shadow-none">
-            <p className="text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-4">Plan Limits</p>
+          <div className="rounded-xl border border-slate-300 dark:border-white/10 p-5 bg-white dark:bg-black/40 backdrop-blur-sm shadow-md">
+            <p className="text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold mb-4">Plan Limits</p>
             <div className="grid grid-cols-3 gap-4">
               {PLAN_ORDER.map((plan) => {
                 const textColors: Record<string, string> = {

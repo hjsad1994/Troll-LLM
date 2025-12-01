@@ -13,6 +13,15 @@ function formatLargeNumber(num: number | undefined | null): string {
   return num.toLocaleString()
 }
 
+function formatDateDMY(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
 function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: string }) {
   const [displayed, setDisplayed] = useState('0')
 
@@ -156,46 +165,65 @@ export default function UserDashboard() {
             </div>
             {/* Plan Badge */}
             {userProfile && (
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-sm ${
-                userProfile.plan === 'enterprise'
-                  ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30'
-                  : userProfile.plan === 'pro'
-                    ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30'
-                    : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10'
-              }`}>
-                {userProfile.plan === 'enterprise' ? (
-                  <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                  </svg>
-                ) : userProfile.plan === 'pro' ? (
-                  <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-[var(--theme-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                )}
-                <span className={`text-sm font-semibold ${
+              userProfile.plan === 'free' ? (
+                <div className="inline-flex items-center gap-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <span className="text-sm font-medium text-slate-500 dark:text-[var(--theme-text-muted)]">Free Tier</span>
+                  </div>
+                  <a
+                    href="https://discord.gg/Prs3RxwnyQ"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-sm bg-gradient-to-r from-[#5865F2]/10 to-indigo-500/10 border-[#5865F2]/30 hover:border-[#5865F2]/50 hover:bg-[#5865F2]/20 transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-[#5865F2]" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                    </svg>
+                    <span className="text-sm font-semibold text-[#5865F2]">{t.dashboard.upgrade.button}</span>
+                  </a>
+                </div>
+              ) : (
+                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-sm ${
                   userProfile.plan === 'enterprise'
-                    ? 'text-purple-400'
+                    ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30'
                     : userProfile.plan === 'pro'
-                      ? 'text-indigo-400'
-                      : 'text-[var(--theme-text-muted)]'
+                      ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30'
+                      : 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500/30'
                 }`}>
-                  {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)} Plan
-                </span>
-                {userProfile.plan !== 'free' && userProfile.plan !== 'dev' && (
-                  <span className="relative flex h-2 w-2">
-                    <span className={`animate-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                      userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
-                    }`}></span>
-                    <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                      userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
-                    }`}></span>
+                  {userProfile.plan === 'enterprise' ? (
+                    <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                    </svg>
+                  ) : userProfile.plan === 'pro' ? (
+                    <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                  )}
+                  <span className={`text-sm font-semibold ${
+                    userProfile.plan === 'enterprise'
+                      ? 'text-purple-400'
+                      : userProfile.plan === 'pro'
+                        ? 'text-indigo-400'
+                        : 'text-emerald-400'
+                  }`}>
+                    {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)} Plan
                   </span>
-                )}
-              </div>
+                  {(userProfile.plan === 'pro' || userProfile.plan === 'enterprise') && (
+                    <span className="relative flex h-2 w-2">
+                      <span className={`animate-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
+                      }`}></span>
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                        userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
+                      }`}></span>
+                    </span>
+                  )}
+                </div>
+              )
             )}
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-2">
@@ -360,19 +388,46 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-[var(--theme-text-subtle)]">
-                  <div className="flex flex-col gap-1">
-                    <span>Plan: {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)}</span>
-                    {billingInfo?.planExpiresAt && userProfile.plan !== 'free' && (
-                      <span className="text-slate-500 dark:text-[var(--theme-text-subtle)]">
-                        Expires: {new Date(billingInfo.planExpiresAt).toLocaleDateString()}
-                      </span>
-                    )}
+                {/* Plan Period Section - for paid plans */}
+                {userProfile.plan !== 'free' && (
+                  <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">{t.dashboard.planPeriod.title}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.planPeriod.started}</p>
+                        <p className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">
+                          {billingInfo?.planStartDate ? formatDateDMY(billingInfo.planStartDate) : t.dashboard.planPeriod.notSet}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.planPeriod.expires}</p>
+                        <p className={`text-sm font-medium ${
+                          billingInfo?.isExpiringSoon 
+                            ? 'text-amber-600 dark:text-amber-400' 
+                            : 'text-slate-700 dark:text-[var(--theme-text)]'
+                        }`}>
+                          {billingInfo?.planExpiresAt ? formatDateDMY(billingInfo.planExpiresAt) : t.dashboard.planPeriod.notSet}
+                          {billingInfo?.daysUntilExpiration !== null && billingInfo?.daysUntilExpiration !== undefined && (
+                            <span className={`ml-2 text-xs ${
+                              billingInfo.isExpiringSoon 
+                                ? 'text-amber-500 dark:text-amber-400' 
+                                : 'text-slate-500 dark:text-[var(--theme-text-subtle)]'
+                            }`}>
+                              ({billingInfo.daysUntilExpiration} {t.dashboard.planPeriod.days})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <a href="/#pricing" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">
-                    Upgrade Plan
-                  </a>
-                </div>
+                )}
+
+
               </div>
             ) : (
               <div className="space-y-4">

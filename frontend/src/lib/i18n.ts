@@ -177,6 +177,16 @@ export const translations = {
         statusPage: 'Status Page',
         viewModels: 'View Models',
       },
+      upgrade: {
+        button: 'Upgrade',
+      },
+      planPeriod: {
+        title: 'Plan Period',
+        started: 'Started',
+        expires: 'Expires',
+        days: 'days',
+        notSet: 'Not set',
+      },
       creditsUsage: {
         title: 'Credits Usage',
         subtitle: 'Your spending over time',
@@ -771,6 +781,16 @@ export const translations = {
       quickLinks: {
         statusPage: 'Trạng thái Hệ thống',
         viewModels: 'Xem Mô hình',
+      },
+      upgrade: {
+        button: 'Nâng cấp',
+      },
+      planPeriod: {
+        title: 'Thời hạn gói',
+        started: 'Bắt đầu',
+        expires: 'Hết hạn',
+        days: 'ngày',
+        notSet: 'Chưa thiết lập',
       },
       creditsUsage: {
         title: 'Mức sử dụng Credits',
