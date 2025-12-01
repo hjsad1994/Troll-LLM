@@ -232,7 +232,7 @@ export default function RooCodePage() {
   "rooCode.apiProvider": "openai-compatible",
   "rooCode.openaiCompatible.baseUrl": "https://chat.trollllm.xyz/v1",
   "rooCode.openaiCompatible.apiKey": "your-trollllm-api-key",
-  "rooCode.openaiCompatible.model": "claude-sonnet-4-5"
+  "rooCode.openaiCompatible.model": "claude-sonnet-4-5-20250929"
 }`}
                 />
               </Step>

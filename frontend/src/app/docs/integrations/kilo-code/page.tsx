@@ -260,7 +260,7 @@ export default function KiloCodePage() {
   "kilocode.apiProvider": "openai-compatible",
   "kilocode.apiBaseUrl": "https://chat.trollllm.xyz/v1",
   "kilocode.apiKey": "your-trollllm-api-key",
-  "kilocode.model": "claude-sonnet-4-5"
+  "kilocode.model": "claude-sonnet-4-5-20250929"
 }`}
                 />
               </Step>
