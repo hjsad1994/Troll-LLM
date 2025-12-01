@@ -217,7 +217,7 @@ const featureIcons = [
 
 // ===== STATS =====
 const statsData = [
-  { value: '9', suffix: '', labelKey: 'models' },
+  { value: '5', suffix: '', labelKey: 'models' },
   { value: '99.9', suffix: '%', labelKey: 'uptime' },
   { value: '50', suffix: 'ms', labelKey: 'latency' },
   { value: '200', suffix: 'K', labelKey: 'context' },
