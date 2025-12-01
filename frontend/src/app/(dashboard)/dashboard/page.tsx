@@ -392,8 +392,8 @@ export default function UserDashboard() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-[var(--theme-text)]">Credits Usage</h3>
-                <p className="text-[var(--theme-text-subtle)] text-sm">Your spending over time</p>
+                <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.creditsUsage.title}</h3>
+                <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.creditsUsage.subtitle}</p>
               </div>
             </div>
             <div className="flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10">
@@ -415,7 +415,7 @@ export default function UserDashboard() {
 
           <div className="p-6 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-center">
             <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-sm mb-2">
-              {usagePeriod === '1h' ? 'Last 1 Hour' : usagePeriod === '24h' ? 'Last 24 Hours' : usagePeriod === '7d' ? 'Last 7 Days' : 'Last 30 Days'}
+              {usagePeriod === '1h' ? t.dashboard.creditsUsage.last1h : usagePeriod === '24h' ? t.dashboard.creditsUsage.last24h : usagePeriod === '7d' ? t.dashboard.creditsUsage.last7d : t.dashboard.creditsUsage.last30d}
             </p>
             <p className="text-4xl font-bold text-orange-600 dark:text-orange-400">
               ${(creditsUsage ? creditsUsage[`last${usagePeriod}`] : 0).toFixed(2)}

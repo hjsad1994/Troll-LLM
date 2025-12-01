@@ -177,6 +177,40 @@ export const translations = {
         statusPage: 'Status Page',
         viewModels: 'View Models',
       },
+      creditsUsage: {
+        title: 'Credits Usage',
+        subtitle: 'Your spending over time',
+        last1h: 'Last 1 Hour',
+        last24h: 'Last 24 Hours',
+        last7d: 'Last 7 Days',
+        last30d: 'Last 30 Days',
+      },
+    },
+    // Dashboard Models Page
+    dashboardModels: {
+      badge: 'Available Models',
+      title: 'Supported Models',
+      subtitle: 'Explore all AI models available through TrollLLM API',
+      stats: {
+        total: 'Total Models',
+        anthropic: 'Anthropic',
+        openai: 'OpenAI',
+        google: 'Google',
+      },
+      filters: {
+        all: 'All',
+      },
+      card: {
+        input: 'Input',
+        output: 'Output',
+        cacheWrite: 'Cache Write',
+        cacheHit: 'Cache Hit',
+        perMTok: '/MTok',
+      },
+      info: {
+        title: 'Pricing Information',
+        description: 'Prices shown are per million tokens (MTok). Cache pricing applies when using prompt caching features.',
+      },
     },
     // Register Page
     register: {
@@ -735,6 +769,40 @@ export const translations = {
       quickLinks: {
         statusPage: 'Trạng thái Hệ thống',
         viewModels: 'Xem Mô hình',
+      },
+      creditsUsage: {
+        title: 'Mức sử dụng Credits',
+        subtitle: 'Chi tiêu của bạn theo thời gian',
+        last1h: '1 Giờ qua',
+        last24h: '24 Giờ qua',
+        last7d: '7 Ngày qua',
+        last30d: '30 Ngày qua',
+      },
+    },
+    // Dashboard Models Page
+    dashboardModels: {
+      badge: 'Mô hình có sẵn',
+      title: 'Mô hình Hỗ trợ',
+      subtitle: 'Khám phá tất cả mô hình AI có sẵn qua TrollLLM API',
+      stats: {
+        total: 'Tổng Mô hình',
+        anthropic: 'Anthropic',
+        openai: 'OpenAI',
+        google: 'Google',
+      },
+      filters: {
+        all: 'Tất cả',
+      },
+      card: {
+        input: 'Đầu vào',
+        output: 'Đầu ra',
+        cacheWrite: 'Ghi Cache',
+        cacheHit: 'Đọc Cache',
+        perMTok: '/MTok',
+      },
+      info: {
+        title: 'Thông tin Giá',
+        description: 'Giá hiển thị trên mỗi triệu token (MTok). Giá cache áp dụng khi sử dụng tính năng prompt caching.',
       },
     },
     // Register Page
