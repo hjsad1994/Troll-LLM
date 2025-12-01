@@ -167,7 +167,7 @@ func GetModelThinkingBudget(modelID string) int {
 }
 
 // GetModelUpstream gets upstream provider for a model
-// Returns "main", "troll", "troll-2" (default is "troll" if not specified)
+// Returns "main" or "troll" (default is "troll" if not specified)
 func GetModelUpstream(modelID string) string {
 	model := GetModelByID(modelID)
 	if model == nil {

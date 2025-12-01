@@ -21,7 +21,6 @@ import (
 	"goproxy/db"
 	"goproxy/internal/keypool"
 	"goproxy/internal/maintarget"
-	"goproxy/internal/troll2"
 	"goproxy/internal/proxy"
 	"goproxy/internal/ratelimit"
 	"goproxy/internal/usage"
@@ -48,9 +47,6 @@ var (
 	// Main Target Server configuration (for Sonnet 4.5 and Haiku 4.5)
 	mainTargetServer string
 	mainUpstreamKey  string
-	// MegaLLM configuration
-	megaLLMServer string
-	megaLLMKey    string
 	// NEW MODEL-BASED ROUTING - END
 )
 
@@ -158,20 +154,6 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 		}, nil, nil
 	}
 
-	if upstream == "troll-2" {
-		// Use Troll-2
-		if megaLLMKey == "" {
-			return nil, nil, fmt.Errorf("Troll-2 not configured")
-		}
-		log.Printf("🔀 [Model Routing] %s -> Troll-2", modelID)
-		return &UpstreamConfig{
-			EndpointURL: megaLLMServer + "/v1/chat/completions",
-			APIKey:      megaLLMKey,
-			UseProxy:    false,
-			KeyID:       "troll-2",
-		}, nil, nil
-	}
-	
 	// Default: Use Troll Key (Factory AI) with proxy pool
 	var selectedProxy *proxy.Proxy
 	var trollAPIKey string
@@ -593,8 +575,6 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		// For "main" upstream: route to Main Target Server with OpenAI response format
 		if upstreamConfig.KeyID == "main" {
 			handleMainTargetRequestOpenAI(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
-		} else if upstreamConfig.KeyID == "troll-2" {
-			handleTroll2Request(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else {
 			handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
 		}
@@ -825,130 +805,6 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 		maintarget.HandleOpenAIStreamResponse(w, resp, onUsage)
 	} else {
 		maintarget.HandleOpenAINonStreamResponse(w, resp, onUsage)
-	}
-}
-
-// handleTroll2Request handles requests routed to Troll-2
-func handleTroll2Request(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
-	if !troll2.IsConfigured() {
-		http.Error(w, `{"error": {"message": "Troll-2 not configured", "type": "server_error"}}`, http.StatusInternalServerError)
-		return
-	}
-
-	isStreaming := openaiReq.Stream
-
-	log.Printf("📤 [Troll-2] Forwarding to %s (model=%s, stream=%v)", troll2.GetServerURL(), modelID, isStreaming)
-
-	// Forward to Troll-2 (OpenAI format, no transformation needed)
-	requestStartTime := time.Now()
-	resp, err := troll2.ForwardRequest(bodyBytes, isStreaming)
-	if err != nil {
-		log.Printf("❌ [Troll-2] Request failed: %v", err)
-		http.Error(w, `{"error": {"message": "Request to Troll-2 failed", "type": "upstream_error"}}`, http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Usage callback
-	onUsage := func(input, output int64) {
-		billingTokens := config.CalculateBillingTokens(modelID, input, output)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, 0, 0)
-
-		if userApiKey != "" {
-			usage.UpdateUsage(userApiKey, billingTokens)
-			if username != "" {
-				usage.DeductCredits(username, billingCost, billingTokens)
-			}
-			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:      username,
-				UserKeyID:   userApiKey,
-				TrollKeyID:  "troll-2",
-				Model:       modelID,
-				InputTokens: input,
-				OutputTokens: output,
-				CreditsCost: billingCost,
-				TokensUsed:  billingTokens,
-				StatusCode:  resp.StatusCode,
-				LatencyMs:   latencyMs,
-			})
-		}
-		log.Printf("📊 [Troll-2] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
-	}
-
-	// Handle response
-	if isStreaming {
-		troll2.HandleStreamResponse(w, resp, onUsage)
-	} else {
-		troll2.HandleNonStreamResponse(w, resp, onUsage)
-	}
-}
-
-// handleTroll2MessagesRequest handles /v1/messages requests routed to Troll-2
-// Transforms Anthropic request to OpenAI format
-func handleTroll2MessagesRequest(w http.ResponseWriter, anthropicReq *transformers.AnthropicRequest, originalBody []byte, isStreaming bool, userApiKey string, username string) {
-	if !troll2.IsConfigured() {
-		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Troll-2 not configured"}}`, http.StatusInternalServerError)
-		return
-	}
-
-	modelID := anthropicReq.Model
-
-	// Transform Anthropic -> OpenAI format
-	openaiReq := transformers.TransformToOpenAI(anthropicReq)
-	openaiReq.Stream = isStreaming
-
-	openaiBody, err := json.Marshal(openaiReq)
-	if err != nil {
-		log.Printf("❌ [Troll-2] Failed to marshal OpenAI request: %v", err)
-		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to transform request"}}`, http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("📤 [Troll-2] Forwarding /v1/messages to %s (model=%s, stream=%v)", troll2.GetServerURL(), modelID, isStreaming)
-
-	// Forward to Troll-2
-	requestStartTime := time.Now()
-	resp, err := troll2.ForwardRequest(openaiBody, isStreaming)
-	if err != nil {
-		log.Printf("❌ [Troll-2] Request failed: %v", err)
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to Troll-2 failed"}}`, http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Usage callback
-	onUsage := func(input, output int64) {
-		billingTokens := config.CalculateBillingTokens(modelID, input, output)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, 0, 0)
-
-		if userApiKey != "" {
-			usage.UpdateUsage(userApiKey, billingTokens)
-			if username != "" {
-				usage.DeductCredits(username, billingCost, billingTokens)
-			}
-			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:       username,
-				UserKeyID:    userApiKey,
-				TrollKeyID:   "troll-2",
-				Model:        modelID,
-				InputTokens:  input,
-				OutputTokens: output,
-				CreditsCost:  billingCost,
-				TokensUsed:   billingTokens,
-				StatusCode:   resp.StatusCode,
-				LatencyMs:    latencyMs,
-			})
-		}
-		log.Printf("📊 [Troll-2] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
-	}
-
-	// Handle response and transform OpenAI -> Anthropic format
-	if isStreaming {
-		troll2.HandleStreamResponseAnthropic(w, resp, modelID, onUsage)
-	} else {
-		troll2.HandleNonStreamResponseAnthropic(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1958,12 +1814,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		handleMainTargetMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
 		return
 	}
-
-	// For "troll-2" upstream: transform Anthropic -> OpenAI and forward
-	if upstreamConfig.KeyID == "troll-2" {
-		handleTroll2MessagesRequest(w, &anthropicReq, bodyBytes, stream, clientAPIKey, username)
-		return
-	}
 	// NEW MODEL-BASED ROUTING - END
 
 	// Normalize message content format (convert string to array if needed)
@@ -2535,15 +2385,6 @@ func main() {
 		log.Printf("⚠️ Main Target Server not configured (Sonnet/Haiku will use Troll Key)")
 	}
 
-	// Load Troll-2 configuration
-	megaLLMServer = getEnv("MEGALLM_SERVER", "https://ai.megallm.io")
-	megaLLMKey = getEnv("MEGALLM_API_KEY", "")
-	if megaLLMKey != "" {
-		troll2.Configure(megaLLMServer, megaLLMKey)
-		log.Printf("✅ Troll-2 configured: %s", megaLLMServer)
-	} else {
-		log.Printf("⚠️ Troll-2 not configured (MEGALLM_API_KEY not set)")
-	}
 	// NEW MODEL-BASED ROUTING - END
 
 	// Validate environment variables (TROLL_API_KEY is optional if using key pool from DB)

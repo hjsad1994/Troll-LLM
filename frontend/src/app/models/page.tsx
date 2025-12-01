@@ -33,26 +33,9 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
-function MiniMaxIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M16.278 2c1.156 0 2.093.927 2.093 2.07v12.501a.74.74 0 00.744.709.74.74 0 00.743-.709V9.099a2.06 2.06 0 012.071-2.049A2.06 2.06 0 0124 9.1v6.561a.649.649 0 01-.652.645.649.649 0 01-.653-.645V9.1a.762.762 0 00-.766-.758.762.762 0 00-.766.758v7.472a2.037 2.037 0 01-2.048 2.026 2.037 2.037 0 01-2.048-2.026v-12.5a.785.785 0 00-.788-.753.785.785 0 00-.789.752l-.001 15.904A2.037 2.037 0 0113.441 22a2.037 2.037 0 01-2.048-2.026V18.04c0-.356.292-.645.652-.645.36 0 .652.289.652.645v1.934c0 .263.142.506.372.638.23.131.514.131.744 0a.734.734 0 00.372-.638V4.07c0-1.143.937-2.07 2.093-2.07zm-5.674 0c1.156 0 2.093.927 2.093 2.07v11.523a.648.648 0 01-.652.645.648.648 0 01-.652-.645V4.07a.785.785 0 00-.789-.78.785.785 0 00-.789.78v14.013a2.06 2.06 0 01-2.07 2.048 2.06 2.06 0 01-2.071-2.048V9.1a.762.762 0 00-.766-.758.762.762 0 00-.766.758v3.8a2.06 2.06 0 01-2.071 2.049A2.06 2.06 0 010 12.9v-1.378c0-.357.292-.646.652-.646.36 0 .653.29.653.646V12.9c0 .418.343.757.766.757s.766-.339.766-.757V9.099a2.06 2.06 0 012.07-2.048 2.06 2.06 0 012.071 2.048v8.984c0 .419.343.758.767.758.423 0 .766-.339.766-.758V4.07c0-1.143.937-2.07 2.093-2.07z"/>
-    </svg>
-  )
-}
-
-function KimiIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M19.738 5.776c.163-.209.306-.4.457-.585.07-.087.064-.153-.004-.244-.655-.861-.717-1.817-.34-2.787.283-.73.909-1.072 1.674-1.145.477-.045.945.004 1.379.236.57.305.902.77 1.01 1.412.086.512.07 1.012-.075 1.508-.257.878-.888 1.333-1.753 1.448-.718.096-1.446.108-2.17.157-.056.004-.113 0-.178 0z"/>
-      <path d="M17.962 1.844h-4.326l-3.425 7.81H5.369V1.878H1.5V22h3.87v-8.477h6.824a3.025 3.025 0 002.743-1.75V22h3.87v-8.477a3.87 3.87 0 00-3.588-3.86v-.01h-2.125a3.94 3.94 0 002.323-2.12l2.545-5.689z"/>
-    </svg>
-  )
-}
-
 // ===== MODEL DATA =====
-type Provider = 'anthropic' | 'openai' | 'google' | 'minimax' | 'moonshot'
-type ModelTier = 'opus' | 'sonnet' | 'haiku' | 'gpt-5' | 'gemini-pro' | 'minimax' | 'kimi' | 'gpt-oss'
+type Provider = 'anthropic' | 'openai' | 'google'
+type ModelTier = 'opus' | 'sonnet' | 'haiku' | 'gpt-5' | 'gemini-pro'
 
 interface Model {
   id: string
@@ -82,7 +65,7 @@ const models: Model[] = [
     outputPrice: 25,
     cacheWritePrice: 6.25,
     cacheHitPrice: 0.50,
-    billingMultiplier: 1.1,
+    billingMultiplier: 1.2,
     capabilities: ['vision', 'function-calling', 'reasoning', 'code'],
     speed: 'powerful',
   },
@@ -97,7 +80,7 @@ const models: Model[] = [
     outputPrice: 15,
     cacheWritePrice: 3.75,
     cacheHitPrice: 0.30,
-    billingMultiplier: 1.0,
+    billingMultiplier: 1.2,
     capabilities: ['vision', 'function-calling', 'code'],
     speed: 'balanced',
   },
@@ -112,7 +95,7 @@ const models: Model[] = [
     outputPrice: 5,
     cacheWritePrice: 1.25,
     cacheHitPrice: 0.10,
-    billingMultiplier: 1.0,
+    billingMultiplier: 1.1,
     capabilities: ['vision', 'function-calling', 'code'],
     speed: 'fast',
   },
@@ -146,66 +129,6 @@ const models: Model[] = [
     capabilities: ['vision', 'function-calling', 'reasoning', 'code', 'multimodal'],
     speed: 'powerful',
   },
-  {
-    id: 'minimaxai/minimax-m2',
-    name: 'MiniMax M2',
-    provider: 'minimax',
-    tier: 'minimax',
-    description: 'High-performance model with excellent cost efficiency for diverse tasks.',
-    contextLength: 128000,
-    inputPrice: 0.5,
-    outputPrice: 2.0,
-    cacheWritePrice: 0,
-    cacheHitPrice: 0,
-    billingMultiplier: 1.0,
-    capabilities: ['function-calling', 'code'],
-    speed: 'fast',
-  },
-  {
-    id: 'moonshotai/kimi-k2-instruct-0905',
-    name: 'Kimi K2 Instruct',
-    provider: 'moonshot',
-    tier: 'kimi',
-    description: 'Advanced instruction-following model with strong reasoning capabilities.',
-    contextLength: 128000,
-    inputPrice: 1.0,
-    outputPrice: 1.0,
-    cacheWritePrice: 0,
-    cacheHitPrice: 0,
-    billingMultiplier: 1.0,
-    capabilities: ['function-calling', 'reasoning', 'code'],
-    speed: 'balanced',
-  },
-  {
-    id: 'openai-gpt-oss-20b',
-    name: 'OpenAI GPT OSS 20B',
-    provider: 'openai',
-    tier: 'gpt-oss',
-    description: 'Lightweight open-source model. Great for simple tasks at minimal cost.',
-    contextLength: 128000,
-    inputPrice: 0.07,
-    outputPrice: 0.30,
-    cacheWritePrice: 0,
-    cacheHitPrice: 0,
-    billingMultiplier: 1.0,
-    capabilities: ['code'],
-    speed: 'fast',
-  },
-  {
-    id: 'openai-gpt-oss-120b',
-    name: 'OpenAI GPT OSS 120B',
-    provider: 'openai',
-    tier: 'gpt-oss',
-    description: 'Larger open-source model with improved reasoning at low cost.',
-    contextLength: 128000,
-    inputPrice: 0.15,
-    outputPrice: 0.60,
-    cacheWritePrice: 0,
-    cacheHitPrice: 0,
-    billingMultiplier: 1.0,
-    capabilities: ['reasoning', 'code'],
-    speed: 'balanced',
-  },
 ]
 
 const tierColors = {
@@ -214,17 +137,12 @@ const tierColors = {
   haiku: { bg: 'from-emerald-500 to-teal-600', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/10' },
   'gpt-5': { bg: 'from-cyan-500 to-blue-600', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500/20', glow: 'shadow-cyan-500/10' },
   'gemini-pro': { bg: 'from-pink-500 to-rose-600', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-500/20', glow: 'shadow-pink-500/10' },
-  'minimax': { bg: 'from-sky-500 to-indigo-600', text: 'text-sky-600 dark:text-sky-400', border: 'border-sky-500/20', glow: 'shadow-sky-500/10' },
-  'kimi': { bg: 'from-blue-500 to-cyan-600', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20', glow: 'shadow-blue-500/10' },
-  'gpt-oss': { bg: 'from-slate-500 to-zinc-600', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-500/20', glow: 'shadow-slate-500/10' },
 }
 
 const providerColors = {
   anthropic: 'text-orange-600 dark:text-orange-400',
   openai: 'text-cyan-600 dark:text-cyan-400',
   google: 'text-pink-600 dark:text-pink-400',
-  minimax: 'text-sky-600 dark:text-sky-400',
-  moonshot: 'text-blue-600 dark:text-blue-400',
 }
 
 function getProviderIcon(provider: Provider, className?: string) {
@@ -235,10 +153,6 @@ function getProviderIcon(provider: Provider, className?: string) {
       return <OpenAIIcon className={className} />
     case 'google':
       return <GoogleIcon className={className} />
-    case 'minimax':
-      return <MiniMaxIcon className={className} />
-    case 'moonshot':
-      return <KimiIcon className={className} />
   }
 }
 
@@ -253,8 +167,6 @@ const providers: { id: Provider | 'all'; name: string; icon?: React.ReactNode }[
   { id: 'anthropic', name: 'Anthropic', icon: <AnthropicIcon className="w-4 h-4" /> },
   { id: 'openai', name: 'OpenAI', icon: <OpenAIIcon className="w-4 h-4" /> },
   { id: 'google', name: 'Google', icon: <GoogleIcon className="w-4 h-4" /> },
-  { id: 'minimax', name: 'MiniMax', icon: <MiniMaxIcon className="w-4 h-4" /> },
-  { id: 'moonshot', name: 'Moonshot', icon: <KimiIcon className="w-4 h-4" /> },
 ]
 
 // ===== MAIN PAGE =====
@@ -327,7 +239,7 @@ export default function ModelsPage() {
             </div>
             <div className="h-8 w-px bg-gray-300 dark:bg-white/10" />
             <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--theme-text)]">5</div>
+              <div className="text-2xl font-bold text-[var(--theme-text)]">3</div>
               <div className="text-[var(--theme-text-subtle)] text-sm">{t.models.stats.providers}</div>
             </div>
             <div className="h-8 w-px bg-gray-300 dark:bg-white/10" />
@@ -336,8 +248,6 @@ export default function ModelsPage() {
                 <AnthropicIcon className="w-5 h-5 text-orange-500 dark:text-orange-400" />
                 <OpenAIIcon className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
                 <GoogleIcon className="w-5 h-5 text-pink-500 dark:text-pink-400" />
-                <MiniMaxIcon className="w-5 h-5 text-sky-500 dark:text-sky-400" />
-                <KimiIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" />
               </div>
               <div className="text-[var(--theme-text-subtle)] text-sm mt-1">{t.models.stats.available}</div>
             </div>
