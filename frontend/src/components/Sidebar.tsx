@@ -107,14 +107,19 @@ export default function Sidebar() {
       {/* Header Section - Fixed */}
       <div className="flex-shrink-0 p-5 border-b border-slate-200 dark:border-[var(--theme-border)]">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+        <Link href="/" className="flex items-center gap-3 mb-5 group">
+          <div className="relative w-9 h-9">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg rotate-6 group-hover:rotate-12 transition-transform duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3C7 3 3 7 3 12s4 9 9 9 9-4 9-9" />
+                <path d="M12 3c2.5 0 5 4 5 9" />
+                <circle cx="19" cy="5" r="2" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
           </div>
           <div>
-            <span className="text-lg font-bold text-slate-900 dark:text-white">TrollLLM</span>
+            <span className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Troll<span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">LLM</span></span>
             <p className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider">Dashboard</p>
           </div>
         </Link>
