@@ -22,7 +22,7 @@
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.4,
-      "upstream": "troll",
+      "upstream": "main",
       "upstream_model_id": "claude-opus-4.5"
     },
     {
@@ -36,7 +36,7 @@
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.30,
       "billing_multiplier": 1.3,
-      "upstream": "troll",
+      "upstream": "main",
       "upstream_model_id": "claude-sonnet-4.5"
     },
     {
@@ -62,7 +62,7 @@
       "cache_write_price_per_mtok": 1.4625,
       "cache_hit_price_per_mtok": 0.125,
       "billing_multiplier": 1.3,
-      "upstream": "troll"
+      "upstream": "main"
     },
 
     {
@@ -75,7 +75,7 @@
       "cache_write_price_per_mtok": 0,
       "cache_hit_price_per_mtok": 0,
       "billing_multiplier": 1.2,
-      "upstream": "troll"
+      "upstream": "main"
     },
     {
       "name": "MiniMax M2",
