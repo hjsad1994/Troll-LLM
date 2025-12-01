@@ -4,6 +4,7 @@ import { factoryKeyController } from '../controllers/factory-key.controller.js';
 import { metricsController } from '../controllers/metrics.controller.js';
 import { allowReadOnly, requireAdmin } from '../middleware/role.middleware.js';
 import { userRepository } from '../repositories/user.repository.js';
+import { requestLogRepository } from '../repositories/request-log.repository.js';
 import { PLAN_LIMITS, UserPlan } from '../models/user.model.js';
 
 const router = Router();
@@ -52,9 +53,16 @@ router.get('/user-stats', requireAdmin, async (req: Request, res: Response) => {
 router.get('/users', requireAdmin, async (req: Request, res: Response) => {
   try {
     const search = req.query.search as string | undefined;
-    const users = await userRepository.listUsers(search);
-    const stats = await userRepository.getUserStats();
-    res.json({ users, stats, planLimits: PLAN_LIMITS });
+    const [users, stats, creditsBurnedMap] = await Promise.all([
+      userRepository.listUsers(search),
+      userRepository.getUserStats(),
+      requestLogRepository.getCreditsBurnedByUser(),
+    ]);
+    const usersWithCredits = users.map((u: any) => ({
+      ...u,
+      creditsBurned: creditsBurnedMap[u._id] || 0,
+    }));
+    res.json({ users: usersWithCredits, stats, planLimits: PLAN_LIMITS });
   } catch (error) {
     console.error('Failed to list users:', error);
     res.status(500).json({ error: 'Failed to list users' });

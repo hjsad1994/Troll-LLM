@@ -207,6 +207,17 @@ export class RequestLogRepository {
     ]);
     return result[0]?.total || 0;
   }
+
+  async getCreditsBurnedByUser(): Promise<Record<string, number>> {
+    const result = await RequestLog.aggregate([
+      { $group: { _id: '$userId', total: { $sum: '$creditsCost' } } },
+    ]);
+    const map: Record<string, number> = {};
+    result.forEach((r) => {
+      if (r._id) map[r._id] = r.total || 0;
+    });
+    return map;
+  }
 }
 
 export const requestLogRepository = new RequestLogRepository();

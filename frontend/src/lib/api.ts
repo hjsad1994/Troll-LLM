@@ -175,6 +175,7 @@ export interface AdminUser {
   monthlyTokensUsed: number
   monthlyResetDate?: string
   credits: number
+  creditsBurned: number
 }
 
 export interface PlanLimits {
