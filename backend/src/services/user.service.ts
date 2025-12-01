@@ -11,6 +11,8 @@ export interface UserProfile {
   monthlyResetDate: Date;
   role: string;
   credits: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
 }
 
 export interface BillingInfo {
@@ -43,6 +45,8 @@ export class UserService {
       monthlyResetDate: user.monthlyResetDate,
       role: user.role,
       credits: user.credits || 0,
+      totalInputTokens: (user as any).totalInputTokens || 0,
+      totalOutputTokens: (user as any).totalOutputTokens || 0,
     };
   }
 

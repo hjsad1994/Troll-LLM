@@ -253,7 +253,7 @@ export ANTHROPIC_API_KEY="your-trollllm-api-key"`}
                   language="json"
                   code={`{
   "provider": "anthropic",
-  "model": "claude-sonnet-4-5",
+  "model": "claude-sonnet-4-5-20250929",
   "apiBaseUrl": "https://chat.trollllm.xyz",
   "maxTokens": 8192,
   "temperature": 0.7

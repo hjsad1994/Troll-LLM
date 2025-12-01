@@ -173,9 +173,9 @@ export default function ClaudeCodePage() {
   "env": {
     "ANTHROPIC_BASE_URL": "${API_BASE_URL}",
     "ANTHROPIC_API_KEY": "your-trollllm-api-key",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250514",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20250514",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20250514",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250929",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20251101",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20251001",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
   "permissions": {
@@ -192,9 +192,9 @@ export default function ClaudeCodePage() {
               </p>
               <Code>{`export ANTHROPIC_BASE_URL="${API_BASE_URL}"
 export ANTHROPIC_API_KEY="your-trollllm-api-key"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-sonnet-4-5-20250514"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-opus-4-5-20250514"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="claude-haiku-4-5-20250514"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-sonnet-4-5-20250929"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-opus-4-5-20251101"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="claude-haiku-4-5-20251001"
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"`}</Code>
               <p className="text-gray-500 dark:text-slate-500 text-sm">{t.docs.integrations.claudeCode.thenRun} <code className="text-gray-800 dark:text-slate-300">source ~/.bashrc</code></p>
             </div>
@@ -203,9 +203,9 @@ export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"`}</Code>
               <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">{t.docs.integrations.claudeCode.runInCmd}</p>
               <Code>{`setx ANTHROPIC_BASE_URL ${API_BASE_URL}
 setx ANTHROPIC_API_KEY your-trollllm-api-key
-setx ANTHROPIC_DEFAULT_SONNET_MODEL claude-sonnet-4-5-20250514
-setx ANTHROPIC_DEFAULT_OPUS_MODEL claude-opus-4-5-20250514
-setx ANTHROPIC_DEFAULT_HAIKU_MODEL claude-haiku-4-5-20250514
+setx ANTHROPIC_DEFAULT_SONNET_MODEL claude-sonnet-4-5-20250929
+setx ANTHROPIC_DEFAULT_OPUS_MODEL claude-opus-4-5-20251101
+setx ANTHROPIC_DEFAULT_HAIKU_MODEL claude-haiku-4-5-20251001
 setx CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 1`}</Code>
               <p className="text-gray-500 dark:text-slate-500 text-sm">{t.docs.integrations.claudeCode.restartTerminal}</p>
             </div>

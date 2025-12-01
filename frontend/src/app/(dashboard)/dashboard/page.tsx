@@ -371,7 +371,7 @@ export default function UserDashboard() {
                   </div>
                   <div className="pt-4 border-t border-slate-300 dark:border-white/10">
                     <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs">{t.dashboard.credits.used}</p>
-                    <p className="text-slate-800 dark:text-[var(--theme-text)] font-medium">{formatLargeNumber(userProfile.tokensUsed)}</p>
+                    <p className="text-slate-800 dark:text-[var(--theme-text)] font-medium">{formatLargeNumber((userProfile.totalInputTokens || 0) + (userProfile.totalOutputTokens || 0))}</p>
                   </div>
                 </div>
 

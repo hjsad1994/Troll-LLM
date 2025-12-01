@@ -87,6 +87,8 @@ export interface UserProfile {
   monthlyResetDate: string
   role: string
   credits: number
+  totalInputTokens: number
+  totalOutputTokens: number
 }
 
 export interface BillingInfo {
