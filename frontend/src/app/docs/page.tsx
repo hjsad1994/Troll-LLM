@@ -119,23 +119,86 @@ function CodeBlock({
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
 
+    // Use placeholders to avoid regex conflicts with inserted HTML
+    const strings: string[] = []
+    const comments: string[] = []
+
     if (lang === 'python') {
+      // Extract comments first
+      escaped = escaped.replace(/(#.*$)/gm, (match) => {
+        comments.push(match)
+        return `__COMMENT_${comments.length - 1}__`
+      })
+      // Extract strings
+      escaped = escaped.replace(/(".*?"|'.*?')/g, (match) => {
+        strings.push(match)
+        return `__STRING_${strings.length - 1}__`
+      })
+      // Highlight keywords and identifiers
       escaped = escaped
         .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
         .replace(/\b(OpenAI|client|response|chat|completions|create|base_url|api_key|model|messages|role|content|print|choices|message)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(#.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+      // Restore strings and comments with highlighting
+      strings.forEach((s, i) => {
+        escaped = escaped.replace(`__STRING_${i}__`, `<span class="text-emerald-600 dark:text-emerald-400">${s}</span>`)
+      })
+      comments.forEach((c, i) => {
+        escaped = escaped.replace(`__COMMENT_${i}__`, `<span class="text-gray-400 dark:text-slate-500">${c}</span>`)
+      })
     } else if (lang === 'javascript' || lang === 'typescript') {
+      // Extract comments first
+      escaped = escaped.replace(/(\/\/.*$)/gm, (match) => {
+        comments.push(match)
+        return `__COMMENT_${comments.length - 1}__`
+      })
+      // Extract strings
+      escaped = escaped.replace(/(".*?"|'.*?'|`.*?`)/g, (match) => {
+        strings.push(match)
+        return `__STRING_${strings.length - 1}__`
+      })
+      // Highlight keywords and identifiers
       escaped = escaped
         .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/(".*?"|'.*?'|`.*?`)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
         .replace(/\b(OpenAI|client|response|chat|completions|create|baseURL|apiKey|model|messages|role|content|console|log)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+      // Restore strings and comments with highlighting
+      strings.forEach((s, i) => {
+        escaped = escaped.replace(`__STRING_${i}__`, `<span class="text-emerald-600 dark:text-emerald-400">${s}</span>`)
+      })
+      comments.forEach((c, i) => {
+        escaped = escaped.replace(`__COMMENT_${i}__`, `<span class="text-gray-400 dark:text-slate-500">${c}</span>`)
+      })
     } else if (lang === 'bash' || lang === 'shell') {
+      // Extract comments first
+      escaped = escaped.replace(/(#.*$)/gm, (match) => {
+        comments.push(match)
+        return `__COMMENT_${comments.length - 1}__`
+      })
+      // Extract strings
+      escaped = escaped.replace(/(".*?"|'.*?')/g, (match) => {
+        strings.push(match)
+        return `__STRING_${strings.length - 1}__`
+      })
+      // Extract flags (before adding any HTML to avoid matching class names)
+      const flags: string[] = []
+      escaped = escaped.replace(/(\s)(-[a-zA-Z]|--[a-zA-Z-]+)/g, (match, space, flag) => {
+        flags.push(flag)
+        return `${space}__FLAG_${flags.length - 1}__`
+      })
+      // Highlight commands
       escaped = escaped
         .replace(/\b(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/g, '<span class="text-yellow-600 dark:text-yellow-400">$1</span>')
-        .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/(-[a-zA-Z]|--[a-zA-Z-]+)/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>')
+      // Restore flags with highlighting
+      flags.forEach((f, i) => {
+        escaped = escaped.replace(`__FLAG_${i}__`, `<span class="text-cyan-600 dark:text-cyan-400">${f}</span>`)
+      })
+      // Restore strings with highlighting
+      strings.forEach((s, i) => {
+        escaped = escaped.replace(`__STRING_${i}__`, `<span class="text-emerald-600 dark:text-emerald-400">${s}</span>`)
+      })
+      // Restore comments with highlighting
+      comments.forEach((c, i) => {
+        escaped = escaped.replace(`__COMMENT_${i}__`, `<span class="text-gray-400 dark:text-slate-500">${c}</span>`)
+      })
     }
 
     return escaped
@@ -178,7 +241,7 @@ function CodeBlock({
 // ===== MODEL BADGE =====
 function ModelBadge({ name, isNew }: { name: string; isNew?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm">
+    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs whitespace-nowrap">
       <span className="text-gray-900 dark:text-white font-medium">{name}</span>
       {isNew && <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-medium">New</span>}
     </span>
@@ -351,9 +414,9 @@ export default function DocsPage() {
 
             {/* Available Models */}
             <div className="flex flex-wrap gap-2 mb-6">
-              <ModelBadge name="claude-opus-4-5" />
-              <ModelBadge name="claude-sonnet-4-5" />
-              <ModelBadge name="claude-haiku-4-5" />
+              <ModelBadge name="claude-opus-4-5-20251101" />
+              <ModelBadge name="claude-sonnet-4-5-20250929" />
+              <ModelBadge name="claude-haiku-4-5-20251001" />
               <ModelBadge name="gpt-5.1" isNew />
               <ModelBadge name="gemini-3-pro-preview" isNew />
             </div>
@@ -426,7 +489,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="claude-sonnet-4-5",
+    model="claude-sonnet-4-5-20250929",
     messages=[{"role": "user", "content": "Hello!"}]
 )
 

@@ -449,7 +449,7 @@ export default function QuickstartPage() {
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer $OPENAI_API_KEY" \\
   -d '{
-    "model": "gpt-4",
+    "model": "gpt-5.1",
     "messages": [
       {"role": "user", "content": "Hello! What can you help me with?"}
     ]
@@ -462,7 +462,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="gpt-4",
+    model="gpt-5.1",
     messages=[
         {"role": "user", "content": "Hello! What can you help me with?"}
     ]
@@ -477,7 +477,7 @@ const client = new OpenAI({
 });
 
 const response = await client.chat.completions.create({
-  model: 'gpt-4',
+  model: 'gpt-5.1',
   messages: [
     { role: 'user', content: 'Hello! What can you help me with?' }
   ]
@@ -498,7 +498,7 @@ func main() {
     url := "https://chat.trollllm.xyz/v1/chat/completions"
 
     payload := map[string]interface{}{
-        "model": "gpt-4",
+        "model": "gpt-5.1",
         "messages": []map[string]string{
             {"role": "user", "content": "Hello! What can you help me with?"},
         },
@@ -525,7 +525,7 @@ func main() {
   -H "x-api-key: $ANTHROPIC_API_KEY" \\
   -H "anthropic-version: 2023-06-01" \\
   -d '{
-    "model": "claude-sonnet-4-5-20250514",
+    "model": "claude-sonnet-4-5-20250929",
     "max_tokens": 1024,
     "messages": [
       {"role": "user", "content": "Hello! What can you help me with?"}
@@ -539,7 +539,7 @@ client = anthropic.Anthropic(
 )
 
 message = client.messages.create(
-    model="claude-sonnet-4-5-20250514",
+    model="claude-sonnet-4-5-20250929",
     max_tokens=1024,
     messages=[
         {"role": "user", "content": "Hello! What can you help me with?"}
@@ -555,7 +555,7 @@ const client = new Anthropic({
 });
 
 const message = await client.messages.create({
-  model: 'claude-sonnet-4-5-20250514',
+  model: 'claude-sonnet-4-5-20250929',
   max_tokens: 1024,
   messages: [
     { role: 'user', content: 'Hello! What can you help me with?' }
@@ -577,7 +577,7 @@ func main() {
     url := "https://chat.trollllm.xyz/v1/messages"
 
     payload := map[string]interface{}{
-        "model": "claude-sonnet-4-5-20250514",
+        "model": "claude-sonnet-4-5-20250929",
         "max_tokens": 1024,
         "messages": []map[string]string{
             {"role": "user", "content": "Hello! What can you help me with?"},
@@ -608,7 +608,7 @@ func main() {
   "id": "chatcmpl-abc123",
   "object": "chat.completion",
   "created": 1701234567,
-  "model": "gpt-4",
+  "model": "gpt-5.1",
   "choices": [
     {
       "index": 0,
@@ -629,7 +629,7 @@ func main() {
   "id": "msg_abc123",
   "type": "message",
   "role": "assistant",
-  "model": "claude-sonnet-4-5-20250514",
+  "model": "claude-sonnet-4-5-20250929",
   "content": [
     {
       "type": "text",
