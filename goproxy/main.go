@@ -1887,50 +1887,58 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	modelUpstream := config.GetModelUpstream(model.ID)
 	serverThinkingBudget := config.GetModelThinkingBudget(model.ID)
 	
-	// Check assistant messages in history to determine thinking compatibility
-	// - If any assistant has thinking blocks → must enable thinking
-	// - If any assistant has NO thinking blocks → must disable thinking
-	hasAssistantWithThinking := false
-	hasAssistantWithoutThinking := false
-	for _, msg := range anthropicReq.Messages {
-		if msg.Role == "assistant" {
-			hasThinking := false
-			if contentArr, ok := msg.Content.([]interface{}); ok {
-				for _, item := range contentArr {
-					if itemMap, ok := item.(map[string]interface{}); ok {
-						if itemType, ok := itemMap["type"].(string); ok {
-							if itemType == "thinking" || itemType == "redacted_thinking" {
-								hasThinking = true
-								break
-							}
+	// Helper function to check if content has thinking blocks
+	contentHasThinking := func(content interface{}) bool {
+		// Check []interface{} format
+		if contentArr, ok := content.([]interface{}); ok {
+			for _, item := range contentArr {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if itemType, ok := itemMap["type"].(string); ok {
+						if itemType == "thinking" || itemType == "redacted_thinking" {
+							return true
 						}
 					}
 				}
 			}
-			if hasThinking {
-				hasAssistantWithThinking = true
-			} else {
-				hasAssistantWithoutThinking = true
+		}
+		// Check []map[string]interface{} format
+		if contentArr, ok := content.([]map[string]interface{}); ok {
+			for _, itemMap := range contentArr {
+				if itemType, ok := itemMap["type"].(string); ok {
+					if itemType == "thinking" || itemType == "redacted_thinking" {
+						return true
+					}
+				}
 			}
+		}
+		return false
+	}
+
+	// Find the last assistant message and check if it has thinking
+	var lastAssistantHasThinking *bool
+	for i := len(anthropicReq.Messages) - 1; i >= 0; i-- {
+		msg := anthropicReq.Messages[i]
+		if msg.Role == "assistant" {
+			hasThinking := contentHasThinking(msg.Content)
+			lastAssistantHasThinking = &hasThinking
+			break
 		}
 	}
 	
-	// Determine thinking mode based on history
-	if hasAssistantWithThinking && hasAssistantWithoutThinking {
-		// Mixed history - this is problematic, disable thinking and log warning
-		anthropicReq.Thinking = nil
-		log.Printf("⚠️ Thinking: DISABLED (mixed history - some assistant messages have thinking, some don't)")
-	} else if hasAssistantWithThinking {
-		// History has thinking blocks - must enable thinking
-		anthropicReq.Thinking = &transformers.ThinkingConfig{
-			Type:         "enabled",
-			BudgetTokens: serverThinkingBudget,
+	// Determine thinking mode based on last assistant message
+	if lastAssistantHasThinking != nil {
+		if *lastAssistantHasThinking {
+			// Last assistant has thinking - MUST enable thinking
+			anthropicReq.Thinking = &transformers.ThinkingConfig{
+				Type:         "enabled",
+				BudgetTokens: serverThinkingBudget,
+			}
+			log.Printf("🧠 Thinking: ENABLED (last assistant has thinking blocks, budget: %d)", serverThinkingBudget)
+		} else {
+			// Last assistant has NO thinking - MUST disable thinking
+			anthropicReq.Thinking = nil
+			log.Printf("🧠 Thinking: DISABLED (last assistant has no thinking blocks)")
 		}
-		log.Printf("🧠 Thinking: ENABLED (history has thinking blocks, budget: %d)", serverThinkingBudget)
-	} else if hasAssistantWithoutThinking {
-		// History has NO thinking blocks - must disable thinking
-		anthropicReq.Thinking = nil
-		log.Printf("🧠 Thinking: DISABLED (history has assistant messages without thinking blocks)")
 	} else if modelUpstream == "troll" && modelReasoning != "" && modelReasoning != "off" {
 		// Server controls thinking for troll upstream - always use server's budget
 		anthropicReq.Thinking = &transformers.ThinkingConfig{
