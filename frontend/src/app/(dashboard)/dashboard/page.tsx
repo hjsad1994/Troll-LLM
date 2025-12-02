@@ -63,6 +63,7 @@ export default function UserDashboard() {
   const [newApiKey, setNewApiKey] = useState<string | null>(null)
   const [showRotateConfirm, setShowRotateConfirm] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [providerCopied, setProviderCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const { t } = useLanguage()
@@ -116,6 +117,16 @@ export default function UserDashboard() {
       await navigator.clipboard.writeText(key)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const handleCopyProvider = async () => {
+    try {
+      await navigator.clipboard.writeText('https://chat.trollllm.xyz')
+      setProviderCopied(true)
+      setTimeout(() => setProviderCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy:', err)
     }
@@ -315,6 +326,30 @@ export default function UserDashboard() {
                 <p className="text-[var(--theme-text-subtle)] text-xs">
                   Created {new Date(userProfile.apiKeyCreatedAt).toLocaleDateString()}
                 </p>
+
+                {/* AI Provider Section */}
+                <div className="pt-4 mt-4 border-t border-slate-200 dark:border-white/10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                    </svg>
+                    <span className="text-sm font-medium text-[var(--theme-text)]">{t.dashboard.aiProvider.title}</span>
+                    <span className="text-xs text-[var(--theme-text-subtle)]">({t.dashboard.aiProvider.subtitle})</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-sm font-mono">
+                        https://chat.trollllm.xyz
+                      </code>
+                      <button
+                        onClick={handleCopyProvider}
+                        className="shrink-0 px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--theme-text)] text-slate-700 dark:text-[var(--theme-bg)] border border-slate-300 dark:border-transparent text-xs font-medium hover:bg-slate-50 dark:hover:opacity-90 transition-colors"
+                      >
+                        {providerCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">

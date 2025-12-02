@@ -9,6 +9,7 @@ import usageRoutes from './routes/usage.js';
 import proxyRoutes from './routes/proxy.js';
 import statusRoutes from './routes/status.js';
 import userRoutes from './routes/user.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
@@ -47,6 +48,9 @@ app.use('/api', authRoutes);
 
 // User routes (protected with JWT)
 app.use('/api/user', userRoutes);
+
+// Payment routes (mixed: some public, some protected)
+app.use('/api/payment', paymentRoutes);
 
 // Admin routes (protected with JWT)
 app.use('/admin', authMiddleware, adminRoutes);

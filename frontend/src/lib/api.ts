@@ -231,6 +231,81 @@ export async function updateUserCredits(username: string, credits: number): Prom
   return resp.json()
 }
 
+// Payment
+export interface PaymentPlan {
+  id: string
+  name: string
+  price: number
+  credits: number
+  currency: string
+  features: string[]
+}
+
+export interface CheckoutResponse {
+  paymentId: string
+  orderCode: string
+  qrCodeUrl: string
+  amount: number
+  plan: string
+  expiresAt: string
+}
+
+export interface PaymentStatusResponse {
+  status: 'pending' | 'success' | 'failed' | 'expired'
+  remainingSeconds: number
+  plan?: string
+  completedAt?: string
+}
+
+export interface PaymentHistoryItem {
+  id: string
+  orderCode: string
+  plan: string
+  amount: number
+  status: string
+  createdAt: string
+  completedAt?: string
+}
+
+export async function getPaymentPlans(): Promise<{ plans: PaymentPlan[] }> {
+  const resp = await fetch('/api/payment/plans')
+  if (!resp.ok) {
+    throw new Error('Failed to get payment plans')
+  }
+  return resp.json()
+}
+
+export async function createCheckout(plan: 'dev' | 'pro', discordId?: string): Promise<CheckoutResponse> {
+  const resp = await fetchWithAuth('/api/payment/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan, discordId })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to create checkout')
+  }
+  return resp.json()
+}
+
+export async function getPaymentStatus(paymentId: string): Promise<PaymentStatusResponse> {
+  const resp = await fetchWithAuth(`/api/payment/${paymentId}/status`)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get payment status')
+  }
+  return resp.json()
+}
+
+export async function getPaymentHistory(): Promise<{ payments: PaymentHistoryItem[] }> {
+  const resp = await fetchWithAuth('/api/payment/history')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get payment history')
+  }
+  return resp.json()
+}
+
 // Request History
 export interface RequestLogEntry {
   _id: string
