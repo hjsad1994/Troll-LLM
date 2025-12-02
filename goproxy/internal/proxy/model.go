@@ -128,10 +128,10 @@ func (p *Proxy) createSOCKS5ProxyTransport() (*http.Transport, error) {
 		}
 	}
 
-	// Create base dialer with aggressive TCP KeepAlive
+	// Create base dialer with very aggressive TCP KeepAlive
 	baseDialer := &net.Dialer{
 		Timeout:   40 * time.Second, // Balanced for SOCKS5 proxy
-		KeepAlive: 3 * time.Second,  // More aggressive keepalive (every 3s)
+		KeepAlive: 1 * time.Second,  // Very aggressive keepalive (every 1s) to beat 15s proxy timeout
 	}
 
 	dialer, err := proxy.SOCKS5("tcp", p.Host+":"+itoa(p.Port), auth, baseDialer)
@@ -146,10 +146,10 @@ func (p *Proxy) createSOCKS5ProxyTransport() (*http.Transport, error) {
 			if err != nil {
 				return nil, err
 			}
-			// Enable aggressive TCP KeepAlive on the connection
+			// Enable very aggressive TCP KeepAlive on the connection
 			if tcpConn, ok := conn.(*net.TCPConn); ok {
 				tcpConn.SetKeepAlive(true)
-				tcpConn.SetKeepAlivePeriod(3 * time.Second) // Every 3s to beat 15s timeout
+				tcpConn.SetKeepAlivePeriod(1 * time.Second) // Every 1s to beat 15s proxy timeout
 			}
 			return conn, nil
 		},

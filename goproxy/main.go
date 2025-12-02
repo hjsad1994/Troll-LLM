@@ -1882,19 +1882,22 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("🚫 [/v1/messages] Discarded %d user system messages (len=%d) - Factory AI bypass", userSystemCount, len(userSystemText))
 	}
 
-	// Auto-enable thinking only for "troll" upstream with reasoning: "high"
+	// Configure thinking based on server config (override client's budget)
 	modelReasoning := config.GetModelReasoning(model.ID)
 	modelUpstream := config.GetModelUpstream(model.ID)
-	if anthropicReq.Thinking == nil && modelReasoning == "high" && modelUpstream == "troll" {
-		// Auto-enable thinking with budget from config (only for troll upstream)
-		thinkingBudget := config.GetModelThinkingBudget(model.ID)
+	serverThinkingBudget := config.GetModelThinkingBudget(model.ID)
+	
+	if modelUpstream == "troll" && modelReasoning != "" && modelReasoning != "off" {
+		// Server controls thinking for troll upstream - always use server's budget
 		anthropicReq.Thinking = &transformers.ThinkingConfig{
 			Type:         "enabled",
-			BudgetTokens: thinkingBudget,
+			BudgetTokens: serverThinkingBudget,
 		}
-		log.Printf("🧠 Thinking: AUTO-ENABLED (upstream: %s, budget: %d)", modelUpstream, thinkingBudget)
+		log.Printf("🧠 Thinking: ENABLED (server config, reasoning: %s, budget: %d)", modelReasoning, serverThinkingBudget)
 	} else if anthropicReq.Thinking != nil {
-		log.Printf("🧠 Thinking: ENABLED (client requested, budget: %d)", anthropicReq.Thinking.BudgetTokens)
+		// For non-troll upstream, still override client's budget with server's
+		anthropicReq.Thinking.BudgetTokens = serverThinkingBudget
+		log.Printf("🧠 Thinking: ENABLED (client requested, budget overridden to: %d)", serverThinkingBudget)
 	} else {
 		log.Printf("🧠 Thinking: DISABLED (upstream: %s)", modelUpstream)
 	}
