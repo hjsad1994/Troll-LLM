@@ -46,13 +46,17 @@ func getClient() *http.Client {
 		transport := &http.Transport{
 			TLSClientConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
 			ForceAttemptHTTP2:     true,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
+			MaxIdleConns:          200,              // Increased from 100
+			MaxIdleConnsPerHost:   50,               // Added - keep connections to main target
+			MaxConnsPerHost:       100,              // Added - limit concurrent connections
+			IdleConnTimeout:       120 * time.Second, // Increased from 90s
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
+			DisableCompression:    false,            // Enable compression
 		}
 		http2.ConfigureTransport(transport)
 		client = &http.Client{Transport: transport, Timeout: 0}
+		log.Printf("✅ [MainTarget] HTTP client initialized with optimized connection pool")
 	})
 	return client
 }
