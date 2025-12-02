@@ -1887,12 +1887,13 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	modelUpstream := config.GetModelUpstream(model.ID)
 	serverThinkingBudget := config.GetModelThinkingBudget(model.ID)
 	
-	// Check if history has assistant messages without thinking blocks
-	// If so, we must disable thinking to avoid 400 error from Claude API
+	// Check assistant messages in history to determine thinking compatibility
+	// - If any assistant has thinking blocks → must enable thinking
+	// - If any assistant has NO thinking blocks → must disable thinking
+	hasAssistantWithThinking := false
 	hasAssistantWithoutThinking := false
 	for _, msg := range anthropicReq.Messages {
 		if msg.Role == "assistant" {
-			// Check if content has thinking block
 			hasThinking := false
 			if contentArr, ok := msg.Content.([]interface{}); ok {
 				for _, item := range contentArr {
@@ -1906,15 +1907,28 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			if !hasThinking {
+			if hasThinking {
+				hasAssistantWithThinking = true
+			} else {
 				hasAssistantWithoutThinking = true
-				break
 			}
 		}
 	}
 	
-	if hasAssistantWithoutThinking {
-		// Disable thinking to avoid 400 error
+	// Determine thinking mode based on history
+	if hasAssistantWithThinking && hasAssistantWithoutThinking {
+		// Mixed history - this is problematic, disable thinking and log warning
+		anthropicReq.Thinking = nil
+		log.Printf("⚠️ Thinking: DISABLED (mixed history - some assistant messages have thinking, some don't)")
+	} else if hasAssistantWithThinking {
+		// History has thinking blocks - must enable thinking
+		anthropicReq.Thinking = &transformers.ThinkingConfig{
+			Type:         "enabled",
+			BudgetTokens: serverThinkingBudget,
+		}
+		log.Printf("🧠 Thinking: ENABLED (history has thinking blocks, budget: %d)", serverThinkingBudget)
+	} else if hasAssistantWithoutThinking {
+		// History has NO thinking blocks - must disable thinking
 		anthropicReq.Thinking = nil
 		log.Printf("🧠 Thinking: DISABLED (history has assistant messages without thinking blocks)")
 	} else if modelUpstream == "troll" && modelReasoning != "" && modelReasoning != "off" {
