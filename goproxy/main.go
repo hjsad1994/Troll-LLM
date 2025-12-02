@@ -626,10 +626,12 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	if selectedProxy != nil {
 		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
 		if err != nil {
-			log.Printf("⚠️ Failed to create proxy client, falling back to direct: %v", err)
-		} else {
-			client = proxyClient
+			// SECURITY: Do NOT fallback to direct - would expose server IP
+			log.Printf("❌ Failed to create proxy client (no fallback): %v", err)
+			http.Error(w, `{"error": {"message": "Proxy unavailable", "type": "server_error"}}`, http.StatusServiceUnavailable)
+			return
 		}
+		client = proxyClient
 	}
 	
 	requestStartTime := time.Now()
@@ -939,10 +941,12 @@ func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq 
 	if selectedProxy != nil {
 		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
 		if err != nil {
-			log.Printf("⚠️ Failed to create proxy client, falling back to direct: %v", err)
-		} else {
-			client = proxyClient
+			// SECURITY: Do NOT fallback to direct - would expose server IP
+			log.Printf("❌ Failed to create proxy client (no fallback): %v", err)
+			http.Error(w, `{"error": {"message": "Proxy unavailable", "type": "server_error"}}`, http.StatusServiceUnavailable)
+			return
 		}
+		client = proxyClient
 	}
 	
 	// Track request start time for latency measurement
@@ -1974,10 +1978,14 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	if selectedProxy != nil {
 		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
 		if err != nil {
-			log.Printf("⚠️ Failed to create proxy client, falling back to direct: %v", err)
-		} else {
-			client = proxyClient
+			// SECURITY: Do NOT fallback to direct - would expose server IP
+			log.Printf("❌ Failed to create proxy client (no fallback): %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"type":"error","error":{"type":"server_error","message":"Proxy unavailable"}}`))
+			return
 		}
+		client = proxyClient
 	}
 	
 	// Log upstream destination
