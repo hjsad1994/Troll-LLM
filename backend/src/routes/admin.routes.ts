@@ -5,6 +5,7 @@ import { metricsController } from '../controllers/metrics.controller.js';
 import { allowReadOnly, requireAdmin } from '../middleware/role.middleware.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
+import { backupKeyRepository } from '../repositories/backup-key.repository.js';
 import { PLAN_LIMITS, UserPlan } from '../models/user.model.js';
 
 const router = Router();
@@ -136,6 +137,80 @@ router.patch('/users/:username/credits', requireAdmin, async (req: Request, res:
   } catch (error) {
     console.error('Failed to update user credits:', error);
     res.status(500).json({ error: 'Failed to update user credits' });
+  }
+});
+
+// Backup Keys - admin only (for auto key rotation)
+router.get('/backup-keys', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const [keys, stats] = await Promise.all([
+      backupKeyRepository.findAll(),
+      backupKeyRepository.getStats(),
+    ]);
+    // Mask API keys for security
+    const maskedKeys = keys.map((k: any) => ({
+      id: k._id,
+      maskedApiKey: k.apiKey ? `${k.apiKey.slice(0, 8)}...${k.apiKey.slice(-4)}` : '***',
+      isUsed: k.isUsed,
+      usedFor: k.usedFor,
+      usedAt: k.usedAt,
+      createdAt: k.createdAt,
+    }));
+    res.json({ keys: maskedKeys, ...stats });
+  } catch (error) {
+    console.error('Failed to list backup keys:', error);
+    res.status(500).json({ error: 'Failed to list backup keys' });
+  }
+});
+
+router.post('/backup-keys', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { id, apiKey } = req.body;
+    if (!id || !apiKey) {
+      return res.status(400).json({ error: 'ID and API key are required' });
+    }
+    const key = await backupKeyRepository.create({ id, apiKey });
+    res.status(201).json({ 
+      success: true, 
+      key: {
+        id: key._id,
+        maskedApiKey: `${apiKey.slice(0, 8)}...${apiKey.slice(-4)}`,
+        isUsed: key.isUsed,
+        createdAt: key.createdAt,
+      }
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Backup key with this ID already exists' });
+    }
+    console.error('Failed to create backup key:', error);
+    res.status(500).json({ error: 'Failed to create backup key' });
+  }
+});
+
+router.delete('/backup-keys/:id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const deleted = await backupKeyRepository.delete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Backup key not found' });
+    }
+    res.json({ success: true, message: 'Backup key deleted' });
+  } catch (error) {
+    console.error('Failed to delete backup key:', error);
+    res.status(500).json({ error: 'Failed to delete backup key' });
+  }
+});
+
+router.post('/backup-keys/:id/restore', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const key = await backupKeyRepository.markAsAvailable(req.params.id);
+    if (!key) {
+      return res.status(404).json({ error: 'Backup key not found' });
+    }
+    res.json({ success: true, message: 'Backup key restored to available' });
+  } catch (error) {
+    console.error('Failed to restore backup key:', error);
+    res.status(500).json({ error: 'Failed to restore backup key' });
   }
 });
 

@@ -1151,6 +1151,10 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
+		// Check if key needs rotation (async)
+		if trollKeyID != "" && trollKeyID != "env" && trollKeyID != "main" {
+			trollKeyPool.CheckAndRotateOnError(trollKeyID, resp.StatusCode, string(body))
+		}
 		// Sanitize and forward error response (hide upstream details)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
@@ -1317,6 +1321,10 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
+		}
+		// Check if key needs rotation (async)
+		if trollKeyID != "" && trollKeyID != "env" && trollKeyID != "main" {
+			trollKeyPool.CheckAndRotateOnError(trollKeyID, resp.StatusCode, string(body))
 		}
 		// Sanitize and forward error response (hide upstream details)
 		w.Header().Set("Content-Type", "application/json")
@@ -2038,6 +2046,10 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
 		}
+		// Check if key needs rotation (async)
+		if trollKeyID != "" && trollKeyID != "env" && trollKeyID != "main" {
+			trollKeyPool.CheckAndRotateOnError(trollKeyID, resp.StatusCode, string(body))
+		}
 	}
 
 	// Filter Droid identity from response content and track usage
@@ -2147,6 +2159,10 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequest(userApiKey, trollKeyID, 0, resp.StatusCode, latencyMs)
+		}
+		// Check if key needs rotation (async)
+		if trollKeyID != "" && trollKeyID != "env" && trollKeyID != "main" {
+			trollKeyPool.CheckAndRotateOnError(trollKeyID, resp.StatusCode, string(body))
 		}
 		// Sanitize and forward error response (hide upstream details)
 		w.Header().Set("Content-Type", "application/json")
