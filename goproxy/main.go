@@ -1887,7 +1887,37 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	modelUpstream := config.GetModelUpstream(model.ID)
 	serverThinkingBudget := config.GetModelThinkingBudget(model.ID)
 	
-	if modelUpstream == "troll" && modelReasoning != "" && modelReasoning != "off" {
+	// Check if history has assistant messages without thinking blocks
+	// If so, we must disable thinking to avoid 400 error from Claude API
+	hasAssistantWithoutThinking := false
+	for _, msg := range anthropicReq.Messages {
+		if msg.Role == "assistant" {
+			// Check if content has thinking block
+			hasThinking := false
+			if contentArr, ok := msg.Content.([]interface{}); ok {
+				for _, item := range contentArr {
+					if itemMap, ok := item.(map[string]interface{}); ok {
+						if itemType, ok := itemMap["type"].(string); ok {
+							if itemType == "thinking" || itemType == "redacted_thinking" {
+								hasThinking = true
+								break
+							}
+						}
+					}
+				}
+			}
+			if !hasThinking {
+				hasAssistantWithoutThinking = true
+				break
+			}
+		}
+	}
+	
+	if hasAssistantWithoutThinking {
+		// Disable thinking to avoid 400 error
+		anthropicReq.Thinking = nil
+		log.Printf("🧠 Thinking: DISABLED (history has assistant messages without thinking blocks)")
+	} else if modelUpstream == "troll" && modelReasoning != "" && modelReasoning != "off" {
 		// Server controls thinking for troll upstream - always use server's budget
 		anthropicReq.Thinking = &transformers.ThinkingConfig{
 			Type:         "enabled",
