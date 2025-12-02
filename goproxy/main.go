@@ -2381,6 +2381,7 @@ func main() {
 		}
 	}
 	proxyPool.StartAutoReload(reloadInterval)
+	trollKeyPool.StartAutoReload(reloadInterval)
 	
 	log.Printf("✅ Proxy pool loaded: %d proxies", proxyPool.GetProxyCount())
 	log.Printf("✅ Troll key pool loaded: %d keys", trollKeyPool.GetKeyCount())

@@ -196,3 +196,26 @@ func (p *KeyPool) GetAPIKey(keyID string) string {
 	}
 	return ""
 }
+
+// Reload refreshes the key pool from database
+func (p *KeyPool) Reload() error {
+	return p.LoadKeys()
+}
+
+// StartAutoReload starts a background goroutine that periodically reloads keys from database
+func (p *KeyPool) StartAutoReload(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		log.Printf("🔄 Key pool auto-reload started (interval: %v)", interval)
+
+		for range ticker.C {
+			if err := p.LoadKeys(); err != nil {
+				log.Printf("⚠️ Key pool auto-reload failed: %v", err)
+			} else {
+				log.Printf("🔄 Auto-reloaded troll keys (%d keys)", p.GetKeyCount())
+			}
+		}
+	}()
+}
