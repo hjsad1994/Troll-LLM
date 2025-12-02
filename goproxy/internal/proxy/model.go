@@ -100,21 +100,21 @@ func (p *Proxy) createHTTPProxyTransport() (*http.Transport, error) {
 
 	// Custom dialer with aggressive TCP KeepAlive to prevent proxy idle timeout (15s)
 	dialer := &net.Dialer{
-		Timeout:   60 * time.Second, // Increased connection timeout
+		Timeout:   30 * time.Second, // Reduced from 60s for faster fail
 		KeepAlive: 3 * time.Second,  // More aggressive keepalive (every 3s)
 	}
 
 	transport := &http.Transport{
 		Proxy:                 http.ProxyURL(proxyURL),
 		DialContext:           dialer.DialContext,
-		IdleConnTimeout:       300 * time.Second,  // Increased from 120s
+		IdleConnTimeout:       120 * time.Second,  // Reduced from 300s
 		ResponseHeaderTimeout: 0,                   // No timeout for streaming
-		ExpectContinueTimeout: 30 * time.Second,   // Increased from 10s
-		TLSHandshakeTimeout:   30 * time.Second,   // Added TLS timeout
+		ExpectContinueTimeout: 5 * time.Second,    // Reduced from 30s
+		TLSHandshakeTimeout:   15 * time.Second,   // Reduced from 30s
 		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   20,                 // Increased from 10
-		DisableKeepAlives:     false,              // Explicitly enable keepalives
-		ForceAttemptHTTP2:     false,              // Disable HTTP/2 for residential proxies (often not supported)
+		MaxIdleConnsPerHost:   20,
+		DisableKeepAlives:     false,
+		ForceAttemptHTTP2:     false,              // Disable HTTP/2 for residential proxies
 	}
 	return transport, nil
 }
@@ -130,7 +130,7 @@ func (p *Proxy) createSOCKS5ProxyTransport() (*http.Transport, error) {
 
 	// Create base dialer with aggressive TCP KeepAlive
 	baseDialer := &net.Dialer{
-		Timeout:   60 * time.Second, // Increased connection timeout
+		Timeout:   40 * time.Second, // Balanced for SOCKS5 proxy
 		KeepAlive: 3 * time.Second,  // More aggressive keepalive (every 3s)
 	}
 
@@ -153,13 +153,13 @@ func (p *Proxy) createSOCKS5ProxyTransport() (*http.Transport, error) {
 			}
 			return conn, nil
 		},
-		IdleConnTimeout:       300 * time.Second,  // Increased from 120s
+		IdleConnTimeout:       120 * time.Second,  // Reduced from 300s
 		ResponseHeaderTimeout: 0,                   // No timeout for streaming
-		ExpectContinueTimeout: 30 * time.Second,   // Increased from 10s
-		TLSHandshakeTimeout:   30 * time.Second,   // Added TLS timeout
+		ExpectContinueTimeout: 5 * time.Second,    // Reduced from 30s
+		TLSHandshakeTimeout:   15 * time.Second,   // Reduced from 30s
 		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   20,                 // Increased from 10
-		DisableKeepAlives:     false,              // Explicitly enable keepalives
+		MaxIdleConnsPerHost:   20,
+		DisableKeepAlives:     false,
 		ForceAttemptHTTP2:     false,              // Disable HTTP/2 for residential proxies
 	}
 	return transport, nil

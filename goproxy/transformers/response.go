@@ -210,8 +210,8 @@ const (
 	ThinkingFilterRegex
 )
 
-// Current filter mode - set to Keyword for filtering sensitive content while showing thinking
-var currentThinkingFilterMode = ThinkingFilterKeyword
+// Current filter mode - set to Redact to completely hide thinking content from users
+var currentThinkingFilterMode = ThinkingFilterRedact
 
 // FilterThinkingContent removes system prompt references from thinking blocks
 // This allows users to see the thinking process without exposing internal instructions
