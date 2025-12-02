@@ -1882,77 +1882,9 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("🚫 [/v1/messages] Discarded %d user system messages (len=%d) - Factory AI bypass", userSystemCount, len(userSystemText))
 	}
 
-	// Configure thinking based on server config (override client's budget)
-	modelReasoning := config.GetModelReasoning(model.ID)
-	modelUpstream := config.GetModelUpstream(model.ID)
-	serverThinkingBudget := config.GetModelThinkingBudget(model.ID)
-	
-	// Helper function to check if content has thinking blocks
-	contentHasThinking := func(content interface{}) bool {
-		// Check []interface{} format
-		if contentArr, ok := content.([]interface{}); ok {
-			for _, item := range contentArr {
-				if itemMap, ok := item.(map[string]interface{}); ok {
-					if itemType, ok := itemMap["type"].(string); ok {
-						if itemType == "thinking" || itemType == "redacted_thinking" {
-							return true
-						}
-					}
-				}
-			}
-		}
-		// Check []map[string]interface{} format
-		if contentArr, ok := content.([]map[string]interface{}); ok {
-			for _, itemMap := range contentArr {
-				if itemType, ok := itemMap["type"].(string); ok {
-					if itemType == "thinking" || itemType == "redacted_thinking" {
-						return true
-					}
-				}
-			}
-		}
-		return false
-	}
-
-	// Find the last assistant message and check if it has thinking
-	var lastAssistantHasThinking *bool
-	for i := len(anthropicReq.Messages) - 1; i >= 0; i-- {
-		msg := anthropicReq.Messages[i]
-		if msg.Role == "assistant" {
-			hasThinking := contentHasThinking(msg.Content)
-			lastAssistantHasThinking = &hasThinking
-			break
-		}
-	}
-	
-	// Determine thinking mode based on last assistant message
-	if lastAssistantHasThinking != nil {
-		if *lastAssistantHasThinking {
-			// Last assistant has thinking - MUST enable thinking
-			anthropicReq.Thinking = &transformers.ThinkingConfig{
-				Type:         "enabled",
-				BudgetTokens: serverThinkingBudget,
-			}
-			log.Printf("🧠 Thinking: ENABLED (last assistant has thinking blocks, budget: %d)", serverThinkingBudget)
-		} else {
-			// Last assistant has NO thinking - MUST disable thinking
-			anthropicReq.Thinking = nil
-			log.Printf("🧠 Thinking: DISABLED (last assistant has no thinking blocks)")
-		}
-	} else if modelUpstream == "troll" && modelReasoning != "" && modelReasoning != "off" {
-		// Server controls thinking for troll upstream - always use server's budget
-		anthropicReq.Thinking = &transformers.ThinkingConfig{
-			Type:         "enabled",
-			BudgetTokens: serverThinkingBudget,
-		}
-		log.Printf("🧠 Thinking: ENABLED (server config, reasoning: %s, budget: %d)", modelReasoning, serverThinkingBudget)
-	} else if anthropicReq.Thinking != nil {
-		// For non-troll upstream, still override client's budget with server's
-		anthropicReq.Thinking.BudgetTokens = serverThinkingBudget
-		log.Printf("🧠 Thinking: ENABLED (client requested, budget overridden to: %d)", serverThinkingBudget)
-	} else {
-		log.Printf("🧠 Thinking: DISABLED (upstream: %s)", modelUpstream)
-	}
+	// Disable thinking - let client control it directly
+	anthropicReq.Thinking = nil
+	log.Printf("🧠 Thinking: DISABLED (server policy)")
 
 	// Ensure max_tokens is always large enough for thinking + response
 	if anthropicReq.MaxTokens <= 0 {
