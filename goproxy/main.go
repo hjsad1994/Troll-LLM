@@ -1343,6 +1343,26 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 		}
 	}
 
+	// Send final chunk with usage data (OpenAI format)
+	if totalInputTokens > 0 || totalOutputTokens > 0 {
+		usageChunk := map[string]interface{}{
+			"id":      fmt.Sprintf("chatcmpl-%d", time.Now().UnixNano()),
+			"object":  "chat.completion.chunk",
+			"created": time.Now().Unix(),
+			"model":   modelID,
+			"choices": []map[string]interface{}{},
+			"usage": map[string]interface{}{
+				"prompt_tokens":     totalInputTokens,
+				"completion_tokens": totalOutputTokens,
+				"total_tokens":      totalInputTokens + totalOutputTokens,
+			},
+		}
+		if usageJSON, err := json.Marshal(usageChunk); err == nil {
+			fmt.Fprintf(w, "data: %s\n\n", string(usageJSON))
+			flusher.Flush()
+		}
+	}
+
 	// Send end marker
 	fmt.Fprint(w, "data: [DONE]\n\n")
 	flusher.Flush()
