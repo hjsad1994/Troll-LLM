@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +16,21 @@ import (
 var (
 	ErrNoHealthyKeys = errors.New("no healthy troll keys available")
 )
+
+// UseOptimizedKeyPool controls whether to use the lock-free optimized pool
+// Can be disabled via env: GOPROXY_DISABLE_OPTIMIZATIONS=true
+var UseOptimizedKeyPool = true
+
+func init() {
+	if isKeyPoolEnvDisabled("GOPROXY_DISABLE_OPTIMIZATIONS") || isKeyPoolEnvDisabled("GOPROXY_DISABLE_KEY_POOL_OPT") {
+		UseOptimizedKeyPool = false
+	}
+}
+
+func isKeyPoolEnvDisabled(key string) bool {
+	val := strings.ToLower(os.Getenv(key))
+	return val == "true" || val == "1" || val == "yes"
+}
 
 type KeyPool struct {
 	mu      sync.Mutex
@@ -35,6 +52,27 @@ func GetPool() *KeyPool {
 		pool.LoadKeys()
 	})
 	return pool
+}
+
+// GetOptimizedOrLegacyKeyPool returns the appropriate pool based on configuration
+func GetOptimizedOrLegacyKeyPool() interface {
+	SelectKey() (*TrollKey, error)
+	GetStats() map[string]int
+	GetAllKeysStatus() []map[string]interface{}
+	GetKeyCount() int
+	GetKeyByID(string) *TrollKey
+	GetAPIKey(string) string
+	Reload() error
+	MarkHealthy(string)
+	MarkRateLimited(string)
+	MarkExhausted(string)
+	MarkError(string, string)
+	CheckAndRotateOnError(string, int, string)
+} {
+	if UseOptimizedKeyPool {
+		return GetOptimizedKeyPool()
+	}
+	return GetPool()
 }
 
 func (p *KeyPool) LoadKeys() error {

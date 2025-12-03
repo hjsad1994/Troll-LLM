@@ -1,6 +1,8 @@
 package ratelimit
 
 import (
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -8,20 +10,47 @@ import (
 // DefaultRPM is the rate limit for all API keys (300 requests per minute - Dev tier default)
 const DefaultRPM = 300
 
-type RateLimiter struct {
-	mu       sync.Mutex
-	requests map[string][]time.Time
-	window   time.Duration
-}
+// UseOptimizedLimiter controls whether to use the optimized limiter
+// Set to true for production (O(1) sliding window)
+// Can be disabled via env: GOPROXY_DISABLE_OPTIMIZATIONS=true
+var UseOptimizedLimiter = true
 
-func NewRateLimiter() *RateLimiter {
-	return &RateLimiter{
-		requests: make(map[string][]time.Time),
-		window:   time.Minute,
+func init() {
+	if isEnvDisabled("GOPROXY_DISABLE_OPTIMIZATIONS") || isEnvDisabled("GOPROXY_DISABLE_RATE_LIMITER_OPT") {
+		UseOptimizedLimiter = false
 	}
 }
 
+func isEnvDisabled(key string) bool {
+	val := strings.ToLower(os.Getenv(key))
+	return val == "true" || val == "1" || val == "yes"
+}
+
+type RateLimiter struct {
+	mu        sync.Mutex
+	requests  map[string][]time.Time
+	window    time.Duration
+	optimized *OptimizedRateLimiter
+}
+
+func NewRateLimiter() *RateLimiter {
+	r := &RateLimiter{
+		requests: make(map[string][]time.Time),
+		window:   time.Minute,
+	}
+	if UseOptimizedLimiter {
+		r.optimized = NewOptimizedRateLimiter()
+	}
+	return r
+}
+
 func (r *RateLimiter) Allow(key string, limit int) bool {
+	// Use optimized limiter if enabled
+	if r.optimized != nil {
+		return r.optimized.Allow(key, limit)
+	}
+
+	// Fallback to legacy implementation
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -56,6 +85,12 @@ func (r *RateLimiter) Allow(key string, limit int) bool {
 }
 
 func (r *RateLimiter) RetryAfter(key string, limit int) int {
+	// Use optimized limiter if enabled
+	if r.optimized != nil {
+		return r.optimized.RetryAfter(key, limit)
+	}
+
+	// Fallback to legacy implementation
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -113,6 +148,12 @@ func (r *RateLimiter) CurrentCount(key string) int {
 
 // Remaining returns the number of requests remaining in the current window
 func (r *RateLimiter) Remaining(key string, limit int) int {
+	// Use optimized limiter if enabled
+	if r.optimized != nil {
+		return r.optimized.Remaining(key, limit)
+	}
+
+	// Fallback to legacy implementation
 	count := r.CurrentCount(key)
 	remaining := limit - count
 	if remaining < 0 {

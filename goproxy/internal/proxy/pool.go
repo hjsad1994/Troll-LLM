@@ -5,7 +5,9 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +30,21 @@ type ProxyPool struct {
 	clientMu    sync.RWMutex            // separate mutex for client cache
 }
 
+// UseOptimizedPool controls whether to use the lock-free optimized pool
+// Can be disabled via env: GOPROXY_DISABLE_OPTIMIZATIONS=true
+var UseOptimizedPool = true
+
+func init() {
+	if isProxyEnvDisabled("GOPROXY_DISABLE_OPTIMIZATIONS") || isProxyEnvDisabled("GOPROXY_DISABLE_PROXY_POOL_OPT") {
+		UseOptimizedPool = false
+	}
+}
+
+func isProxyEnvDisabled(key string) bool {
+	val := strings.ToLower(os.Getenv(key))
+	return val == "true" || val == "1" || val == "yes"
+}
+
 var (
 	pool     *ProxyPool
 	poolOnce sync.Once
@@ -45,6 +62,23 @@ func GetPool() *ProxyPool {
 		pool.LoadFromDB()
 	})
 	return pool
+}
+
+// GetOptimizedOrLegacyPool returns the appropriate pool based on configuration
+// This allows gradual migration to the optimized pool
+func GetOptimizedOrLegacyPool() interface {
+	SelectProxy() (*Proxy, error)
+	SelectProxyWithKey() (*Proxy, string, error)
+	SelectProxyWithKeyByClient(string) (*Proxy, string, error)
+	CreateHTTPClientWithProxy(*Proxy) (*http.Client, error)
+	GetProxyCount() int
+	HasProxies() bool
+	Reload() error
+} {
+	if UseOptimizedPool {
+		return GetOptimizedPool()
+	}
+	return GetPool()
 }
 
 func (p *ProxyPool) LoadFromDB() error {

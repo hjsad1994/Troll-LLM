@@ -42,6 +42,13 @@ type RequestLogParams struct {
 }
 
 func UpdateUsage(apiKey string, tokensUsed int64) error {
+	// Use batched writes if enabled
+	if UseBatchedWrites {
+		GetBatcher().QueueUsageUpdate(apiKey, tokensUsed)
+		return nil
+	}
+
+	// Fallback to synchronous write
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -76,13 +83,6 @@ func LogRequest(userKeyID, trollKeyID string, tokensUsed int64, statusCode int, 
 }
 
 func LogRequestDetailed(params RequestLogParams) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Debug: log what we're saving
-	log.Printf("📝 [RequestLog] Saving: userId=%s, model=%s, input=%d, output=%d", 
-		params.UserID, params.Model, params.InputTokens, params.OutputTokens)
-
 	// Determine if request was successful (2xx status code)
 	isSuccess := params.StatusCode >= 200 && params.StatusCode < 300
 
@@ -102,6 +102,23 @@ func LogRequestDetailed(params RequestLogParams) {
 		IsSuccess:        isSuccess,
 		CreatedAt:        time.Now(),
 	}
+
+	// Use batched writes if enabled
+	if UseBatchedWrites {
+		GetBatcher().QueueRequestLog(logEntry)
+		// Update troll key usage (also async)
+		if params.TrollKeyID != "" {
+			go UpdateTrollKeyUsage(params.TrollKeyID, params.TokensUsed)
+		}
+		return
+	}
+
+	// Fallback to synchronous write
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	log.Printf("📝 [RequestLog] Saving: userId=%s, model=%s, input=%d, output=%d", 
+		params.UserID, params.Model, params.InputTokens, params.OutputTokens)
 
 	result, err := db.RequestLogsCollection().InsertOne(ctx, logEntry)
 	if err != nil {
@@ -144,14 +161,21 @@ func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTok
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	// tokensUsed should be the sum of input + output tokens
 	actualTokensUsed := inputTokens + outputTokens
 	if actualTokensUsed == 0 {
 		actualTokensUsed = tokensUsed // fallback to billing tokens if no input/output provided
 	}
+
+	// Use batched writes if enabled
+	if UseBatchedWrites {
+		GetBatcher().QueueCreditUpdate(username, cost, actualTokensUsed, inputTokens, outputTokens)
+		return nil
+	}
+
+	// Fallback to synchronous write
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	incFields := bson.M{
 		"credits":    -cost,
