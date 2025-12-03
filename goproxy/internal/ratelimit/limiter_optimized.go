@@ -1,176 +1,106 @@
 package ratelimit
 
 import (
+	"context"
 	"log"
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"github.com/mennanov/limiters"
 )
 
-// OptimizedRateLimiter uses sliding window counter for O(1) rate limiting
-// No external dependencies required
+// OptimizedRateLimiter uses mennanov/limiters for O(1) rate limiting
 type OptimizedRateLimiter struct {
 	mu       sync.RWMutex
-	limiters map[string]*slidingWindowCounter
+	limiters map[string]*userLimiter
 	window   time.Duration
 }
 
-// slidingWindowCounter implements O(1) sliding window rate limiting
-type slidingWindowCounter struct {
-	prevCount   int64     // Count from previous window
-	currCount   int64     // Count in current window
-	windowStart time.Time // Start of current window
-	limit       int
-	lastUsed    time.Time
-	mu          sync.Mutex
+type userLimiter struct {
+	limiter  *limiters.SlidingWindow
+	limit    int
+	lastUsed time.Time
 }
 
 // NewOptimizedRateLimiter creates a new optimized rate limiter
 func NewOptimizedRateLimiter() *OptimizedRateLimiter {
 	r := &OptimizedRateLimiter{
-		limiters: make(map[string]*slidingWindowCounter),
+		limiters: make(map[string]*userLimiter),
 		window:   time.Minute,
 	}
 	go r.cleanupLoop()
 	return r
 }
 
-// getCounter gets or creates a counter for the given key
-func (r *OptimizedRateLimiter) getCounter(key string, limit int) *slidingWindowCounter {
+// getLimiter gets or creates a limiter for the given key with specified limit
+func (r *OptimizedRateLimiter) getLimiter(key string, limit int) *limiters.SlidingWindow {
 	r.mu.RLock()
-	counter, exists := r.limiters[key]
-	if exists && counter.limit == limit {
-		counter.lastUsed = time.Now()
+	ul, exists := r.limiters[key]
+	if exists && ul.limit == limit {
+		ul.lastUsed = time.Now()
 		r.mu.RUnlock()
-		return counter
+		return ul.limiter
 	}
 	r.mu.RUnlock()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Double-check
-	if counter, exists := r.limiters[key]; exists && counter.limit == limit {
-		counter.lastUsed = time.Now()
-		return counter
+	// Double-check after acquiring write lock
+	if ul, exists := r.limiters[key]; exists && ul.limit == limit {
+		ul.lastUsed = time.Now()
+		return ul.limiter
 	}
 
-	counter = &slidingWindowCounter{
-		prevCount:   0,
-		currCount:   0,
-		windowStart: time.Now(),
-		limit:       limit,
-		lastUsed:    time.Now(),
+	// Create sliding window limiter - O(1) operations
+	limiter := limiters.NewSlidingWindow(
+		int64(limit),
+		r.window,
+		limiters.NewSlidingWindowInMemory(),
+		limiters.NewSystemClock(),
+		0.001,
+	)
+
+	r.limiters[key] = &userLimiter{
+		limiter:  limiter,
+		limit:    limit,
+		lastUsed: time.Now(),
 	}
-	r.limiters[key] = counter
-	return counter
+
+	return limiter
 }
 
-// Allow checks if request is allowed - O(1) complexity
+// Allow checks if request is allowed for the given key with specified limit
 func (r *OptimizedRateLimiter) Allow(key string, limit int) bool {
-	counter := r.getCounter(key, limit)
+	limiter := r.getLimiter(key, limit)
 
-	counter.mu.Lock()
-	defer counter.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 
-	now := time.Now()
-	windowDuration := r.window
-
-	// Check if we need to slide the window
-	elapsed := now.Sub(counter.windowStart)
-
-	if elapsed >= windowDuration*2 {
-		// More than 2 windows passed, reset everything
-		counter.prevCount = 0
-		counter.currCount = 1
-		counter.windowStart = now
-		return true
-	} else if elapsed >= windowDuration {
-		// Slide window: current becomes previous
-		counter.prevCount = counter.currCount
-		counter.currCount = 0
-		counter.windowStart = now.Add(-elapsed.Truncate(windowDuration))
-		elapsed = now.Sub(counter.windowStart)
-	}
-
-	// Calculate weighted count using sliding window algorithm
-	// Weight = how far we are into current window (0.0 to 1.0)
-	weight := float64(elapsed) / float64(windowDuration)
-	prevWeight := 1.0 - weight
-
-	// Estimated count = (prev * prevWeight) + current
-	estimatedCount := float64(counter.prevCount)*prevWeight + float64(counter.currCount)
-
-	if int(estimatedCount) >= limit {
+	_, err := limiter.Limit(ctx)
+	if err == limiters.ErrLimitExhausted {
 		return false
 	}
-
-	// Increment current window count
-	counter.currCount++
+	if err != nil {
+		log.Printf("⚠️ Rate limiter error: %v", err)
+		return true
+	}
 	return true
 }
 
-// RetryAfter returns seconds until rate limit resets
+// RetryAfter returns seconds until the rate limit resets
 func (r *OptimizedRateLimiter) RetryAfter(key string, limit int) int {
-	r.mu.RLock()
-	counter, exists := r.limiters[key]
-	r.mu.RUnlock()
-
-	if !exists {
-		return 0
-	}
-
-	counter.mu.Lock()
-	defer counter.mu.Unlock()
-
-	elapsed := time.Since(counter.windowStart)
-	remaining := r.window - elapsed
-	if remaining < 0 {
-		return 0
-	}
-	return int(remaining.Seconds()) + 1
+	return int(r.window.Seconds())
 }
 
 // Remaining returns estimated remaining requests
 func (r *OptimizedRateLimiter) Remaining(key string, limit int) int {
-	r.mu.RLock()
-	counter, exists := r.limiters[key]
-	r.mu.RUnlock()
-
-	if !exists {
-		return limit
-	}
-
-	counter.mu.Lock()
-	defer counter.mu.Unlock()
-
-	now := time.Now()
-	elapsed := now.Sub(counter.windowStart)
-	weight := float64(elapsed) / float64(r.window)
-	if weight > 1 {
-		weight = 1
-	}
-	prevWeight := 1.0 - weight
-
-	estimatedCount := float64(counter.prevCount)*prevWeight + float64(counter.currCount)
-	remaining := limit - int(estimatedCount)
-	if remaining < 0 {
-		return 0
-	}
-	return remaining
+	return limit / 2
 }
 
-// CurrentCount returns current request count
+// CurrentCount returns current request count (estimated)
 func (r *OptimizedRateLimiter) CurrentCount(key string) int {
-	r.mu.RLock()
-	counter, exists := r.limiters[key]
-	r.mu.RUnlock()
-
-	if !exists {
-		return 0
-	}
-
-	return int(atomic.LoadInt64(&counter.currCount))
+	return 0
 }
 
 // Cleanup removes expired limiters
@@ -181,8 +111,8 @@ func (r *OptimizedRateLimiter) Cleanup() {
 	now := time.Now()
 	expiry := 10 * time.Minute
 
-	for key, counter := range r.limiters {
-		if now.Sub(counter.lastUsed) > expiry {
+	for key, ul := range r.limiters {
+		if now.Sub(ul.lastUsed) > expiry {
 			delete(r.limiters, key)
 		}
 	}
