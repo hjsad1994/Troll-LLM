@@ -83,21 +83,18 @@ const (
 )
 
 // isRetryableError checks if an error should trigger a retry
+// Note: EOF is NOT retryable because it's caused by proxy timeout (15s) - retrying won't help
 func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
 	errStr := err.Error()
-	// Retry on EOF, connection reset, timeout errors
-	return strings.Contains(errStr, "EOF") ||
-		strings.Contains(errStr, "connection reset") ||
+	// Retry on connection errors (but NOT EOF - proxy timeout)
+	return strings.Contains(errStr, "connection reset") ||
 		strings.Contains(errStr, "connection refused") ||
-		strings.Contains(errStr, "i/o timeout") ||
-		strings.Contains(errStr, "timeout") ||
 		strings.Contains(errStr, "no such host") ||
 		strings.Contains(errStr, "TLS handshake") ||
-		strings.Contains(errStr, "broken pipe") ||
-		strings.Contains(errStr, "connection closed")
+		strings.Contains(errStr, "broken pipe")
 }
 
 // doRequestWithRetry executes HTTP request with retry on transient errors (same client)
@@ -2178,85 +2175,30 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("📤 [%s] Headers: content-type=%s, anthropic-version=%s", upstreamConfig.KeyID, headers["content-type"], headers["anthropic-version"])
 	}
 
-	// Send request with proxy rotation on failure
-	// Try up to maxProxyAttempts different proxies if retryable errors occur
-	const maxProxyAttempts = 2
-	var resp *http.Response
-	var lastErr error
-	reqStart := time.Now()
-	
-	currentProxy := selectedProxy
-	currentAuthHeader := authHeader
-	currentTrollKeyID := trollKeyID
-	
-	for proxyAttempt := 0; proxyAttempt < maxProxyAttempts; proxyAttempt++ {
-		if proxyAttempt > 0 {
-			// Select a new proxy for retry
-			if proxyPool != nil && proxyPool.HasProxies() {
-				var newTrollKeyID string
-				var err error
-				currentProxy, newTrollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
-				if err != nil {
-					log.Printf("⚠️ Failed to select new proxy: %v", err)
-					continue
-				}
-				newTrollAPIKey := trollKeyPool.GetAPIKey(newTrollKeyID)
-				if newTrollAPIKey == "" {
-					log.Printf("⚠️ Troll key %s not found", newTrollKeyID)
-					continue
-				}
-				currentAuthHeader = "Bearer " + newTrollAPIKey
-				currentTrollKeyID = newTrollKeyID
-				log.Printf("🔄 Switching to proxy: %s (key: %s)", currentProxy.Name, newTrollKeyID)
-				
-				// Update request headers with new auth
-				proxyReq.Header.Set("Authorization", currentAuthHeader)
-			}
+	// Send request (using proxy client if selected, otherwise global client)
+	client := httpClient
+	if selectedProxy != nil {
+		proxyClient, err := proxyPool.CreateHTTPClientWithProxy(selectedProxy)
+		if err != nil {
+			log.Printf("❌ Failed to create proxy client (no fallback): %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"type":"error","error":{"type":"server_error","message":"Proxy unavailable"}}`))
+			return
 		}
-		
-		// Create client for current proxy
-		client := httpClient
-		if currentProxy != nil {
-			proxyClient, err := proxyPool.CreateHTTPClientWithProxy(currentProxy)
-			if err != nil {
-				log.Printf("⚠️ Failed to create proxy client: %v", err)
-				continue
-			}
-			client = proxyClient
-		}
-		
-		// Log upstream destination
-		if upstreamConfig.KeyID == "main" {
-			log.Printf("📤 Sending request to Main Target Server...")
-		} else {
-			proxyName := "direct"
-			if currentProxy != nil {
-				proxyName = currentProxy.Name
-			}
-			log.Printf("📤 Sending request to Factory API (proxy: %s, attempt %d/%d)...", proxyName, proxyAttempt+1, maxProxyAttempts)
-		}
-		
-		// Reset request body
-		proxyReq.Body = io.NopCloser(bytes.NewReader(reqBody))
-		
-		resp, lastErr = doRequestWithRetry(client, proxyReq, reqBody)
-		if lastErr == nil {
-			// Success
-			trollKeyID = currentTrollKeyID
-			break
-		}
-		
-		log.Printf("⚠️ Proxy %s failed after retries: %v", currentProxy.Name, lastErr)
-		
-		// Only retry with different proxy for retryable errors
-		if !isRetryableError(lastErr) {
-			log.Printf("❌ Non-retryable error, not switching proxy")
-			break
-		}
+		client = proxyClient
 	}
 	
-	if lastErr != nil {
-		log.Printf("❌ Request failed after %v (tried %d proxies): %v", time.Since(reqStart), maxProxyAttempts, lastErr)
+	// Log upstream destination
+	if upstreamConfig.KeyID == "main" {
+		log.Printf("📤 Sending request to Main Target Server...")
+	} else {
+		log.Printf("📤 Sending request to Factory API...")
+	}
+	reqStart := time.Now()
+	resp, err := doRequestWithRetry(client, proxyReq, reqBody)
+	if err != nil {
+		log.Printf("❌ Request failed after %v (with retries): %v", time.Since(reqStart), err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to upstream failed"}}`, http.StatusBadGateway)
 		return
 	}
