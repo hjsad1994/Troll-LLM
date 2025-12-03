@@ -98,8 +98,6 @@ func (b *BatchedUsageTracker) Start() {
 	go b.requestLogWorker()
 	go b.usageWorker()
 	go b.creditWorker()
-	log.Printf("✅ [BatchedUsageTracker] Started with batch_size=%d, interval=%v", 
-		b.config.MaxBatchSize, b.config.FlushInterval)
 }
 
 // Stop stops the background workers
@@ -159,11 +157,9 @@ func (b *BatchedUsageTracker) requestLogWorker() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		result, err := db.RequestLogsCollection().InsertMany(ctx, batch)
+		_, err := db.RequestLogsCollection().InsertMany(ctx, batch)
 		if err != nil {
 			log.Printf("⚠️ [BatchedUsageTracker] Failed to batch insert logs: %v", err)
-		} else {
-			log.Printf("📝 [BatchedUsageTracker] Inserted %d request logs", len(result.InsertedIDs))
 		}
 		batch = batch[:0]
 	}
@@ -221,11 +217,9 @@ func (b *BatchedUsageTracker) usageWorker() {
 			models = append(models, model)
 		}
 
-		result, err := db.UserKeysCollection().BulkWrite(ctx, models)
+		_, err := db.UserKeysCollection().BulkWrite(ctx, models)
 		if err != nil {
 			log.Printf("⚠️ [BatchedUsageTracker] Failed to bulk update usage: %v", err)
-		} else {
-			log.Printf("📊 [BatchedUsageTracker] Updated %d user key usages", result.ModifiedCount)
 		}
 		
 		// Clear map
@@ -289,11 +283,9 @@ func (b *BatchedUsageTracker) creditWorker() {
 			models = append(models, model)
 		}
 
-		result, err := db.UsersCollection().BulkWrite(ctx, models)
+		_, err := db.UsersCollection().BulkWrite(ctx, models)
 		if err != nil {
 			log.Printf("⚠️ [BatchedUsageTracker] Failed to bulk update credits: %v", err)
-		} else {
-			log.Printf("💰 [BatchedUsageTracker] Updated %d user credits", result.ModifiedCount)
 		}
 		
 		// Clear map

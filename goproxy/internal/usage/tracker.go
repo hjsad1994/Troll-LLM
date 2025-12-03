@@ -170,6 +170,7 @@ func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTok
 	// Use batched writes if enabled
 	if UseBatchedWrites {
 		GetBatcher().QueueCreditUpdate(username, cost, actualTokensUsed, inputTokens, outputTokens)
+		log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 		return nil
 	}
 
@@ -199,6 +200,7 @@ func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTok
 		return err
 	}
 
+	log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 	return nil
 }
 
