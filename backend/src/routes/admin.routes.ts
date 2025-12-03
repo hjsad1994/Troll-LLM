@@ -152,6 +152,7 @@ router.get('/backup-keys', requireAdmin, async (req: Request, res: Response) => 
       id: k._id,
       maskedApiKey: k.apiKey ? `${k.apiKey.slice(0, 8)}...${k.apiKey.slice(-4)}` : '***',
       isUsed: k.isUsed,
+      activated: k.activated || false, // Key has been moved to troll_keys, can be deleted
       usedFor: k.usedFor,
       usedAt: k.usedAt,
       createdAt: k.createdAt,

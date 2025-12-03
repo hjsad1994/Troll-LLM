@@ -167,6 +167,21 @@ export default function BindingsPage() {
     }
   }
 
+  async function toggleBinding(binding: Binding) {
+    try {
+      const resp = await fetchWithAuth(`/admin/proxies/${binding.proxyId}/keys/${binding.factoryKeyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !binding.isActive })
+      })
+      if (!resp.ok) throw new Error('Failed to toggle')
+      showToast(binding.isActive ? 'Binding disabled' : 'Binding enabled')
+      loadData()
+    } catch {
+      showToast('Failed to toggle binding', 'error')
+    }
+  }
+
   function openEdit(binding: Binding) {
     setEditingBinding(binding)
     setForm({ proxyId: binding.proxyId, factoryKeyId: binding.factoryKeyId, priority: String(binding.priority) })
@@ -272,11 +287,16 @@ export default function BindingsPage() {
                   <div className="p-4">
                     <div className="grid gap-3">
                       {proxyBindings.sort((a, b) => a.priority - b.priority).map((binding) => (
-                        <div key={binding.id} className="flex items-center justify-between p-4 rounded-lg border border-white/10 bg-neutral-800/60">
+                        <div key={binding.id} className={`flex items-center justify-between p-4 rounded-lg border ${binding.isActive ? 'border-white/10 bg-neutral-800/60' : 'border-red-500/20 bg-red-500/5'}`}>
                           <div className="flex items-center gap-4">
                             {getPriorityBadge(binding.priority)}
-                            <code className="text-sm text-neutral-300">{binding.factoryKeyId}</code>
+                            <code className={`text-sm ${binding.isActive ? 'text-neutral-300' : 'text-neutral-500 line-through'}`}>{binding.factoryKeyId}</code>
                             {getStatusBadge(binding.factoryKeyStatus)}
+                            {!binding.isActive && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                                Disabled
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -284,6 +304,16 @@ export default function BindingsPage() {
                               className="px-3 py-1 rounded-lg border border-white/10 text-neutral-400 text-sm hover:bg-white/5 transition-colors"
                             >
                               Edit
+                            </button>
+                            <button
+                              onClick={() => toggleBinding(binding)}
+                              className={`px-3 py-1 rounded-lg border text-sm transition-colors ${
+                                binding.isActive 
+                                  ? 'border-amber-500/20 text-amber-400 hover:bg-amber-500/10' 
+                                  : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'
+                              }`}
+                            >
+                              {binding.isActive ? 'Disable' : 'Enable'}
                             </button>
                             <button
                               onClick={() => confirm('Delete this binding?', () => deleteBinding(binding))}

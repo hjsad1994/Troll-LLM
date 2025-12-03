@@ -214,25 +214,39 @@ export default function TrollKeysPage() {
               ) : (
                 keys.map((key) => {
                   const keyId = key.id || key._id || ''
+                  const isDisabled = key.status === 'exhausted' || key.status === 'error' || key.status === 'rate_limited'
                   return (
-                    <tr key={keyId} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <tr key={keyId} className={`border-b border-slate-100 dark:border-white/5 transition-colors ${
+                      isDisabled 
+                        ? 'bg-red-50/50 dark:bg-red-500/5 hover:bg-red-50 dark:hover:bg-red-500/10' 
+                        : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                    }`}>
                       <td className="px-4 py-3">
-                        <code className="text-sm text-slate-700 dark:text-slate-300">{keyId}</code>
+                        <code className={`text-sm ${isDisabled ? 'text-slate-500 dark:text-slate-500 line-through' : 'text-slate-700 dark:text-slate-300'}`}>{keyId}</code>
                       </td>
                       <td className="px-4 py-3">
                         <code className="text-sm text-slate-500 dark:text-slate-500">{key.maskedApiKey || '***'}</code>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
-                          key.status === 'healthy'
-                            ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                            : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            key.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'
-                          }`} />
-                          {key.status}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
+                            key.status === 'healthy'
+                              ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                              : key.status === 'rate_limited'
+                              ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                              : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              key.status === 'healthy' ? 'bg-emerald-500' : key.status === 'rate_limited' ? 'bg-amber-500' : 'bg-red-500'
+                            }`} />
+                            {key.status}
+                          </span>
+                          {isDisabled && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-red-500 text-white">
+                              🚫 DISABLED
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                         {formatNumber(key.tokensUsed || 0)}
@@ -285,8 +299,13 @@ export default function TrollKeysPage() {
           ) : (
             keys.map((key) => {
               const keyId = key.id || key._id || ''
+              const isDisabled = key.status === 'exhausted' || key.status === 'error' || key.status === 'rate_limited'
               return (
-                <div key={keyId} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black/40 backdrop-blur-sm">
+                <div key={keyId} className={`p-4 rounded-xl border backdrop-blur-sm ${
+                  isDisabled 
+                    ? 'border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10' 
+                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black/40'
+                }`}>
                   {/* Card Header */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -304,22 +323,31 @@ export default function TrollKeysPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="text-slate-900 dark:text-white font-medium text-sm">{keyId}</p>
+                        <p className={`font-medium text-sm ${isDisabled ? 'text-slate-500 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>{keyId}</p>
                         <p className="text-slate-500 dark:text-slate-500 text-xs font-mono truncate max-w-[150px]">
                           {key.maskedApiKey || '***'}
                         </p>
                       </div>
                     </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
-                      key.status === 'healthy'
-                        ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                        : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        key.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'
-                      }`} />
-                      {key.status}
-                    </span>
+                    <div className="flex flex-col gap-1 items-end">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
+                        key.status === 'healthy'
+                          ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                          : key.status === 'rate_limited'
+                          ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                          : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          key.status === 'healthy' ? 'bg-emerald-500' : key.status === 'rate_limited' ? 'bg-amber-500' : 'bg-red-500'
+                        }`} />
+                        {key.status}
+                      </span>
+                      {isDisabled && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-red-500 text-white">
+                          🚫 DISABLED
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Card Stats */}

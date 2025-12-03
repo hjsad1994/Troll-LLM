@@ -130,9 +130,19 @@ export async function bindKeyToProxy(proxyId: string, factoryKeyId: string, prio
 }
 
 export async function updateBindingPriority(proxyId: string, factoryKeyId: string, priority: number) {
+  return updateBinding(proxyId, factoryKeyId, { priority });
+}
+
+export async function updateBinding(proxyId: string, factoryKeyId: string, updates: { priority?: number; isActive?: boolean }) {
+  const updateData: Record<string, unknown> = {};
+  if (updates.priority !== undefined) updateData.priority = updates.priority;
+  if (updates.isActive !== undefined) updateData.isActive = updates.isActive;
+
+  if (Object.keys(updateData).length === 0) return null;
+
   const binding = await ProxyKeyBinding.findOneAndUpdate(
     { proxyId, factoryKeyId },
-    { $set: { priority } },
+    { $set: updateData },
     { new: true }
   );
 
@@ -150,8 +160,9 @@ export async function updateBindingPriority(proxyId: string, factoryKeyId: strin
 
 // Get all bindings across all proxies (for overview page)
 export async function getAllBindings() {
-  const bindings = await ProxyKeyBinding.find({ isActive: true }).sort({ proxyId: 1, priority: 1 });
-  const proxies = await Proxy.find({ isActive: true });
+  // Show ALL bindings (including disabled) so admin can re-enable them
+  const bindings = await ProxyKeyBinding.find().sort({ proxyId: 1, priority: 1 });
+  const proxies = await Proxy.find();
   const factoryKeys = await FactoryKey.find();
 
   const proxyMap = new Map(proxies.map(p => [p._id, p]));

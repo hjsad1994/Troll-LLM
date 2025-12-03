@@ -29,7 +29,8 @@ const bindKeySchema = z.object({
 });
 
 const updateBindingSchema = z.object({
-  priority: z.number().int().min(1).max(10),
+  priority: z.number().int().min(1).max(10).optional(),
+  isActive: z.boolean().optional(),
 });
 
 // GET /admin/proxies - List all proxies
@@ -194,14 +195,14 @@ router.post('/:id/keys', async (req: Request, res: Response) => {
   }
 });
 
-// PATCH /admin/proxies/:id/keys/:keyId - Update binding priority
+// PATCH /admin/proxies/:id/keys/:keyId - Update binding (priority or isActive)
 router.patch('/:id/keys/:keyId', async (req: Request, res: Response) => {
   try {
     const input = updateBindingSchema.parse(req.body);
-    const binding = await proxyService.updateBindingPriority(
+    const binding = await proxyService.updateBinding(
       req.params.id,
       req.params.keyId,
-      input.priority
+      { priority: input.priority, isActive: input.isActive }
     );
 
     if (!binding) {

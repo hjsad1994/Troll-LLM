@@ -3,10 +3,12 @@ package keypool
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"goproxy/db"
+	"goproxy/internal/proxy"
 )
 
 // BackupKey represents a backup factory key stored in MongoDB
@@ -19,8 +21,11 @@ type BackupKey struct {
 	UsedFor   string    `bson:"usedFor,omitempty" json:"used_for,omitempty"` // Which key it replaced
 }
 
-// RotateKey swaps a failed key's API key with a backup key
-// Keeps all bindings intact - just updates the API key value
+// RotateKey replaces a failed key completely:
+// 1. Delete failed key from proxy_key_bindings
+// 2. Delete failed key from troll_keys
+// 3. Insert backup key into troll_keys
+// 4. Create new binding in proxy_key_bindings
 func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -36,124 +41,188 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 		return "", err
 	}
 
-	// 2. Get the failed key
-	failedKey := p.GetKeyByID(failedKeyID)
-	if failedKey == nil {
-		log.Printf("❌ [KeyRotation] Failed key not found in pool: %s", failedKeyID)
-		return "", nil
-	}
-
-	// 3. Store old API key info for logging
-	oldKeyMasked := failedKey.APIKey
-	if len(oldKeyMasked) > 12 {
-		oldKeyMasked = oldKeyMasked[:8] + "..." + oldKeyMasked[len(oldKeyMasked)-4:]
-	}
 	newKeyMasked := backupKey.APIKey
 	if len(newKeyMasked) > 12 {
 		newKeyMasked = newKeyMasked[:8] + "..." + newKeyMasked[len(newKeyMasked)-4:]
 	}
 
-	// 4. Update factory key with new API key (keep same ID, keep all bindings)
-	now := time.Now()
-	trollKeysCol := db.TrollKeysCollection()
-	_, err = trollKeysCol.UpdateByID(ctx, failedKeyID, bson.M{
-		"$set": bson.M{
-			"apiKey":    backupKey.APIKey,
-			"status":    StatusHealthy,
-			"lastError": "",
-			"rotatedAt": now,
-			"rotatedFrom": oldKeyMasked,
-		},
-	})
+	// 2. Get the proxy ID from bindings (to recreate binding later)
+	bindingsCol := db.GetCollection("proxy_key_bindings")
+	var oldBinding struct {
+		ProxyID  string `bson:"proxyId"`
+		Priority int    `bson:"priority"`
+	}
+	err = bindingsCol.FindOne(ctx, bson.M{"factoryKeyId": failedKeyID}).Decode(&oldBinding)
 	if err != nil {
-		log.Printf("❌ [KeyRotation] Failed to update factory key: %v", err)
-		return "", err
+		log.Printf("⚠️ [KeyRotation] No binding found for key %s: %v", failedKeyID, err)
 	}
 
-	// 5. Mark backup key as used
+	// 3. Delete failed key from proxy_key_bindings
+	deleteResult, err := bindingsCol.DeleteMany(ctx, bson.M{"factoryKeyId": failedKeyID})
+	if err != nil {
+		log.Printf("⚠️ [KeyRotation] Failed to delete bindings: %v", err)
+	} else {
+		log.Printf("🗑️ [KeyRotation] Deleted %d bindings for key %s", deleteResult.DeletedCount, failedKeyID)
+	}
+
+	// 4. Delete failed key from troll_keys
+	trollKeysCol := db.TrollKeysCollection()
+	_, err = trollKeysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
+	if err != nil {
+		log.Printf("⚠️ [KeyRotation] Failed to delete troll key: %v", err)
+	} else {
+		log.Printf("🗑️ [KeyRotation] Deleted troll key: %s", failedKeyID)
+	}
+
+	// 5. Insert backup key as new troll key (with reset stats)
+	now := time.Now()
+	newTrollKeyDoc := bson.M{
+		"_id":           backupKey.ID,
+		"apiKey":        backupKey.APIKey,
+		"status":        StatusHealthy,
+		"tokensUsed":    int64(0),
+		"requestsCount": int64(0),
+		"createdAt":     now,
+	}
+	_, err = trollKeysCol.InsertOne(ctx, newTrollKeyDoc)
+	
+	// Also create in-memory struct
+	newTrollKey := TrollKey{
+		ID:            backupKey.ID,
+		APIKey:        backupKey.APIKey,
+		Status:        StatusHealthy,
+		TokensUsed:    0,
+		RequestsCount: 0,
+		CreatedAt:     now,
+	}
+	if err != nil {
+		log.Printf("❌ [KeyRotation] Failed to insert new troll key: %v", err)
+		return "", err
+	}
+	log.Printf("✅ [KeyRotation] Inserted new troll key: %s (%s)", backupKey.ID, newKeyMasked)
+
+	// 6. Create new binding for the backup key (use same proxy as failed key)
+	if oldBinding.ProxyID != "" {
+		newBinding := bson.M{
+			"proxyId":      oldBinding.ProxyID,
+			"factoryKeyId": backupKey.ID,
+			"priority":     oldBinding.Priority,
+			"isActive":     true,
+			"createdAt":    now,
+		}
+		_, err = bindingsCol.InsertOne(ctx, newBinding)
+		if err != nil {
+			log.Printf("⚠️ [KeyRotation] Failed to create new binding: %v", err)
+		} else {
+			log.Printf("✅ [KeyRotation] Created binding: proxy %s -> key %s", oldBinding.ProxyID, backupKey.ID)
+		}
+	}
+
+	// 7. Mark backup key as used (activated)
 	_, err = backupKeysCol.UpdateByID(ctx, backupKey.ID, bson.M{
 		"$set": bson.M{
-			"isUsed":  true,
-			"usedAt":  now,
-			"usedFor": failedKeyID,
+			"isUsed":    true,
+			"usedAt":    now,
+			"usedFor":   failedKeyID,
+			"activated": true,
 		},
 	})
 	if err != nil {
 		log.Printf("⚠️ [KeyRotation] Failed to mark backup key as used: %v", err)
 	}
 
-	// 6. Update in-memory pool
+	// 8. Update in-memory pool - remove old key, add new key
 	p.mu.Lock()
+	newKeys := make([]*TrollKey, 0)
 	for _, key := range p.keys {
-		if key.ID == failedKeyID {
-			key.APIKey = backupKey.APIKey
-			key.Status = StatusHealthy
-			key.LastError = ""
-			break
+		if key.ID != failedKeyID {
+			newKeys = append(newKeys, key)
 		}
 	}
+	newKeys = append(newKeys, &newTrollKey)
+	p.keys = newKeys
 	p.mu.Unlock()
 
-	log.Printf("✅ [KeyRotation] Swapped API key for %s: %s -> %s", failedKeyID, oldKeyMasked, newKeyMasked)
-	log.Printf("✅ [KeyRotation] All bindings preserved - no changes needed")
+	// 9. Reload proxy pool to pick up new bindings
+	if err := proxy.GetPool().Reload(); err != nil {
+		log.Printf("⚠️ [KeyRotation] Failed to reload proxy pool: %v", err)
+	} else {
+		log.Printf("🔄 [KeyRotation] Proxy pool reloaded")
+	}
+
+	log.Printf("✅ [KeyRotation] Rotation complete: %s (dead) -> %s (active)", failedKeyID, backupKey.ID)
+	log.Printf("📝 [KeyRotation] Admin can delete backup key %s from backup_keys (marked as activated)", backupKey.ID)
 	
-	return failedKeyID, nil
+	return backupKey.ID, nil
 }
 
 // CheckAndRotateOnError checks if the error warrants key rotation and performs it
 func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody string) {
 	shouldRotate := false
 	reason := ""
+	bodyLower := strings.ToLower(errorBody)
 
-	switch statusCode {
-	case 429:
-		// Rate limited - might be temporary, don't rotate immediately
-		p.MarkRateLimited(keyID)
-		log.Printf("⚠️ [KeyRotation] Key %s rate limited, marked for cooldown", keyID)
-		return
-	case 401, 403:
-		// Authentication error - key might be invalid/revoked
+	// Check for Factory AI specific billing/subscription messages (PRIORITY)
+	if strings.Contains(bodyLower, "ready for more? reload your tokens") ||
+		strings.Contains(bodyLower, "ready to get started? subscribe") ||
+		strings.Contains(errorBody, "app.factory.ai/settings/billing") {
 		shouldRotate = true
-		reason = "authentication_error"
-	case 402:
-		// Payment required - quota exhausted
-		shouldRotate = true
-		reason = "quota_exhausted"
+		reason = "factory_quota_exhausted"
+		log.Printf("🚨 [KeyRotation] Factory AI quota exhausted for key %s", keyID)
 	}
 
-	// Check for Factory AI specific subscription/billing messages
-	if contains(errorBody, "Ready to get started? Subscribe at") ||
-		contains(errorBody, "Ready for more? Reload your tokens at") ||
-		contains(errorBody, "app.factory.ai/settings/billing") {
-		shouldRotate = true
-		reason = "factory_subscription_expired"
-		log.Printf("🔔 [KeyRotation] Factory AI subscription/token issue detected for key %s", keyID)
-	}
-
-	// Check error body for other specific messages
-	if contains(errorBody, "quota") || contains(errorBody, "exceeded") || contains(errorBody, "limit") {
-		if contains(errorBody, "credit") || contains(errorBody, "billing") || contains(errorBody, "payment") {
+	// Check status codes
+	if !shouldRotate {
+		switch statusCode {
+		case 429:
+			// Rate limited - temporary, don't rotate
+			p.MarkRateLimited(keyID)
+			log.Printf("⚠️ [KeyRotation] Key %s rate limited, marked for cooldown", keyID)
+			return
+		case 401, 403:
 			shouldRotate = true
-			reason = "billing_error"
+			reason = "authentication_error"
+		case 402:
+			shouldRotate = true
+			reason = "payment_required"
 		}
 	}
 
-	if contains(errorBody, "invalid_api_key") || contains(errorBody, "revoked") {
+	// Check for invalid/revoked key
+	if !shouldRotate && (strings.Contains(bodyLower, "invalid_api_key") || strings.Contains(bodyLower, "revoked")) {
 		shouldRotate = true
 		reason = "invalid_key"
 	}
 
 	if shouldRotate {
-		log.Printf("🔄 [KeyRotation] Detected rotation trigger for key %s: %s", keyID, reason)
-		go func() {
+		log.Printf("🚫 [KeyRotation] Key %s needs rotation (reason: %s)", keyID, reason)
+		
+		// Check if backup keys available
+		backupCount := GetBackupKeyCount()
+		
+		if backupCount > 0 {
+			// Backup available - rotate to new key
+			log.Printf("🔄 [KeyRotation] Found %d backup keys, rotating key %s", backupCount, keyID)
 			newKeyID, err := p.RotateKey(keyID, reason)
 			if err != nil {
+				// Rotation failed - mark as exhausted
 				log.Printf("❌ [KeyRotation] Rotation failed: %v", err)
-				log.Printf("🚨 [ALERT] No backup keys available! Manual intervention required.")
+				p.MarkExhausted(keyID)
+				log.Printf("🚨 [KeyRotation] Key %s marked as exhausted (disabled)", keyID)
 			} else if newKeyID != "" {
-				log.Printf("✅ [KeyRotation] Key rotated successfully: %s", keyID)
+				log.Printf("✅ [KeyRotation] Key %s replaced with backup key %s", keyID, newKeyID)
 			}
-		}()
+		} else {
+			// No backup - mark as exhausted and keep disabled
+			log.Printf("⚠️ [KeyRotation] No backup keys available")
+			p.MarkExhausted(keyID)
+			log.Printf("🚨 [KeyRotation] Key %s marked as exhausted (disabled) - add backup keys to restore service", keyID)
+		}
+		
+		// Reload proxy pool to apply changes
+		if err := proxy.GetPool().Reload(); err != nil {
+			log.Printf("⚠️ [KeyRotation] Failed to reload proxy pool: %v", err)
+		}
 	}
 }
 
@@ -167,21 +236,4 @@ func GetBackupKeyCount() int {
 		return 0
 	}
 	return int(count)
-}
-
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && 
-		(len(s) >= len(substr)) && 
-		(s == substr || len(s) > len(substr) && 
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
-		containsMiddle(s, substr)))
-}
-
-func containsMiddle(s, substr string) bool {
-	for i := 1; i < len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

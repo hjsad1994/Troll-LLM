@@ -392,6 +392,16 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Keys status endpoint - shows all troll keys and their status
+func keysStatusHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"stats":              trollKeyPool.GetStats(),
+		"backup_keys_available": keypool.GetBackupKeyCount(),
+		"keys":               trollKeyPool.GetAllKeysStatus(),
+	})
+}
+
 // Model list endpoint
 func modelsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -1943,8 +1953,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if debugMode {
-		log.Printf("📥 /v1/messages request received")
-		log.Printf("📥 Body: %s", string(bodyBytes))
+		log.Printf("📥 /v1/messages request received (body: %d bytes)", len(bodyBytes))
 	}
 
 	// Parse Anthropic request
@@ -2124,10 +2133,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if debugMode {
-		log.Printf("📤 /v1/messages request body:")
-		log.Printf("📤 %s", string(reqBody))
-	}
+
 
 	// Create request to upstream (Factory AI or Main Target Server)
 	// OLD CODE: proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
@@ -2611,6 +2617,7 @@ func main() {
 
 	// Setup routes with CORS middleware
 	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	http.HandleFunc("/keys/status", corsMiddleware(keysStatusHandler))
 	http.HandleFunc("/v1/models", corsMiddleware(modelsHandler))
 	http.HandleFunc("/v1/chat/completions", corsMiddleware(chatCompletionsHandler))
 	http.HandleFunc("/v1/messages", corsMiddleware(handleAnthropicMessagesEndpoint))

@@ -171,6 +171,29 @@ func (p *KeyPool) GetStats() map[string]int {
 	return stats
 }
 
+// GetAllKeysStatus returns all keys with their status (for debugging)
+func (p *KeyPool) GetAllKeysStatus() []map[string]interface{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	result := make([]map[string]interface{}, 0, len(p.keys))
+	for _, key := range p.keys {
+		keyInfo := map[string]interface{}{
+			"id":        key.ID,
+			"status":    key.Status,
+			"available": key.IsAvailable(),
+		}
+		if key.LastError != "" {
+			keyInfo["last_error"] = key.LastError
+		}
+		if key.CooldownUntil != nil {
+			keyInfo["cooldown_until"] = key.CooldownUntil.Format(time.RFC3339)
+		}
+		result = append(result, keyInfo)
+	}
+	return result
+}
+
 func (p *KeyPool) GetKeyCount() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
