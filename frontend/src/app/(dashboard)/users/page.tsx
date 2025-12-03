@@ -105,6 +105,7 @@ export default function UsersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [editCredits, setEditCredits] = useState<number>(0)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Calculate role stats
   const roleStats = useMemo(() => {
@@ -191,26 +192,190 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="relative max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen px-4 sm:px-6">
+      <div className="relative max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
         <header className="pt-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-white/5 border border-indigo-300 dark:border-white/10 flex items-center justify-center shadow-sm dark:shadow-none">
-              <svg className="w-5 h-5 text-indigo-600 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-white/5 border border-indigo-300 dark:border-white/10 flex items-center justify-center shadow-sm dark:shadow-none">
+                <svg className="w-5 h-5 text-indigo-600 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Users</h1>
+                <p className="text-slate-600 dark:text-slate-500 text-xs sm:text-sm">Manage user plans and permissions</p>
+              </div>
+            </div>
+            {/* Mobile Filter Button */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-700 dark:text-slate-300 text-sm font-medium shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Users</h1>
-              <p className="text-slate-600 dark:text-slate-500 text-sm">Manage user plans and permissions</p>
-            </div>
+              Filters
+              {(planFilter !== 'all' || roleFilter !== 'all') && (
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              )}
+            </button>
           </div>
         </header>
 
-        {/* Stats Cards - Clickable to filter */}
+        {/* Mobile Filter Sidebar Overlay */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
+              onClick={() => setSidebarOpen(false)}
+            />
+            {/* Sidebar */}
+            <div className="absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-white dark:bg-[#0a0a0a] border-l border-slate-200 dark:border-white/10 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
+              {/* Sidebar Header */}
+              <div className="sticky top-0 bg-white dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-white/10 px-4 py-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Filters</h2>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="p-4 space-y-6">
+                {/* Plan Filter in Sidebar */}
+                {stats && (
+                  <div>
+                    <p className="text-slate-600 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-3">Filter by Plan</p>
+                    <div className="space-y-2">
+                      {/* All Users */}
+                      <button
+                        onClick={() => { setPlanFilter('all'); setSidebarOpen(false); }}
+                        className={`w-full p-3 rounded-xl border transition-all text-left ${
+                          planFilter === 'all'
+                            ? 'border-indigo-300 dark:border-white/20 bg-indigo-50 dark:bg-white/5 ring-1 ring-indigo-200 dark:ring-white/10'
+                            : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 hover:border-indigo-300 dark:hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${planFilter === 'all' ? 'bg-indigo-100 dark:bg-white/10' : 'bg-slate-100 dark:bg-white/5'}`}>
+                              {Icons.users(`w-4 h-4 ${planFilter === 'all' ? 'text-indigo-600 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`)}
+                            </div>
+                            <span className={`font-medium ${planFilter === 'all' ? 'text-indigo-700 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>All Users</span>
+                          </div>
+                          <span className={`text-lg font-bold ${planFilter === 'all' ? 'text-indigo-600 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>{stats.total}</span>
+                        </div>
+                      </button>
+
+                      {/* Plan Buttons */}
+                      {PLAN_ORDER.map((plan) => {
+                        const config = PLAN_CONFIG[plan]
+                        const count = stats.byPlan[plan] || 0
+                        const isActive = planFilter === plan
+                        const IconComponent = Icons[config.iconKey]
+
+                        return (
+                          <button
+                            key={plan}
+                            onClick={() => { setPlanFilter(plan); setSidebarOpen(false); }}
+                            className={`w-full p-3 rounded-xl border transition-all text-left ${
+                              isActive
+                                ? `${config.border} bg-gradient-to-br ${config.gradient} ring-1 ${config.border}`
+                                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 hover:border-slate-300 dark:hover:border-white/20'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? config.bg : 'bg-slate-100 dark:bg-white/5'}`}>
+                                  {IconComponent(`w-4 h-4 ${isActive ? config.text : 'text-slate-500 dark:text-slate-400'}`)}
+                                </div>
+                                <span className={`font-medium capitalize ${isActive ? config.text : 'text-slate-700 dark:text-slate-300'}`}>{plan}</span>
+                              </div>
+                              <span className={`text-lg font-bold ${isActive ? config.text : 'text-slate-600 dark:text-slate-400'}`}>{count}</span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Role Filter in Sidebar */}
+                <div>
+                  <p className="text-slate-600 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-3">Filter by Role</p>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => { setRoleFilter('all'); setSidebarOpen(false); }}
+                      className={`w-full p-3 rounded-xl border transition-all text-left ${
+                        roleFilter === 'all'
+                          ? 'border-indigo-300 dark:border-white/20 bg-indigo-50 dark:bg-white/5'
+                          : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 hover:border-slate-300 dark:hover:border-white/20'
+                      }`}
+                    >
+                      <span className={`font-medium ${roleFilter === 'all' ? 'text-indigo-700 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>All Roles</span>
+                    </button>
+                    <button
+                      onClick={() => { setRoleFilter('admin'); setSidebarOpen(false); }}
+                      className={`w-full p-3 rounded-xl border transition-all text-left flex items-center justify-between ${
+                        roleFilter === 'admin'
+                          ? 'border-rose-300 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10'
+                          : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 hover:border-slate-300 dark:hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {Icons.admin(`w-4 h-4 ${roleFilter === 'admin' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`)}
+                        <span className={`font-medium ${roleFilter === 'admin' ? 'text-rose-700 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>Admin</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${roleFilter === 'admin' ? 'bg-rose-200 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400'}`}>
+                        {roleStats.admin}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => { setRoleFilter('user'); setSidebarOpen(false); }}
+                      className={`w-full p-3 rounded-xl border transition-all text-left flex items-center justify-between ${
+                        roleFilter === 'user'
+                          ? 'border-sky-300 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10'
+                          : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 hover:border-slate-300 dark:hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {Icons.user(`w-4 h-4 ${roleFilter === 'user' ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400'}`)}
+                        <span className={`font-medium ${roleFilter === 'user' ? 'text-sky-700 dark:text-sky-400' : 'text-slate-700 dark:text-slate-300'}`}>User</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${roleFilter === 'user' ? 'bg-sky-200 dark:bg-sky-500/20 text-sky-700 dark:text-sky-400' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400'}`}>
+                        {roleStats.user}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Clear Filters */}
+                {(planFilter !== 'all' || roleFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setPlanFilter('all')
+                      setRoleFilter('all')
+                      setSidebarOpen(false)
+                    }}
+                    className="w-full py-3 rounded-xl border border-slate-300 dark:border-white/10 text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Cards - Hidden on mobile, shown on lg+ */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="hidden lg:grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* Total Card */}
             <button
               onClick={() => setPlanFilter('all')}
@@ -267,8 +432,8 @@ export default function UsersPage() {
           </div>
         )}
 
-        {/* Role Filter */}
-        <div className="flex gap-2">
+        {/* Role Filter - Hidden on mobile, shown on lg+ */}
+        <div className="hidden lg:flex gap-2">
           <button
             onClick={() => setRoleFilter('all')}
             className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all backdrop-blur-sm ${
@@ -324,7 +489,51 @@ export default function UsersPage() {
             />
           </div>
 
-          {/* Active Filter Badge */}
+          {/* Active Filter Badges - Mobile */}
+          <div className="flex flex-wrap gap-2 lg:hidden">
+            {planFilter !== 'all' && (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border backdrop-blur-sm ${PLAN_CONFIG[planFilter].border} ${PLAN_CONFIG[planFilter].bg} dark:bg-black/40 shadow-sm`}>
+                {Icons[PLAN_CONFIG[planFilter].iconKey](`w-4 h-4 ${PLAN_CONFIG[planFilter].text}`)}
+                <span className={`text-sm font-medium ${PLAN_CONFIG[planFilter].text}`}>
+                  {planFilter.charAt(0).toUpperCase() + planFilter.slice(1)}
+                </span>
+                <button
+                  onClick={() => setPlanFilter('all')}
+                  className="ml-1 p-0.5 rounded hover:bg-slate-300/50 dark:hover:bg-white/10 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {roleFilter !== 'all' && (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border backdrop-blur-sm shadow-sm ${
+                roleFilter === 'admin'
+                  ? 'border-rose-300 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10'
+                  : 'border-sky-300 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10'
+              }`}>
+                {roleFilter === 'admin'
+                  ? Icons.admin(`w-4 h-4 text-rose-600 dark:text-rose-400`)
+                  : Icons.user(`w-4 h-4 text-sky-600 dark:text-sky-400`)
+                }
+                <span className={`text-sm font-medium ${roleFilter === 'admin' ? 'text-rose-700 dark:text-rose-400' : 'text-sky-700 dark:text-sky-400'}`}>
+                  {roleFilter.charAt(0).toUpperCase() + roleFilter.slice(1)}
+                </span>
+                <button
+                  onClick={() => setRoleFilter('all')}
+                  className="ml-1 p-0.5 rounded hover:bg-slate-300/50 dark:hover:bg-white/10 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Active Filter Badge - Desktop */}
+          <div className="hidden lg:flex gap-2">
           {planFilter !== 'all' && (
             <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border backdrop-blur-sm ${PLAN_CONFIG[planFilter].border} ${PLAN_CONFIG[planFilter].bg} dark:bg-black/40 shadow-sm`}>
               {Icons[PLAN_CONFIG[planFilter].iconKey](`w-4 h-4 ${PLAN_CONFIG[planFilter].text}`)}
@@ -341,10 +550,11 @@ export default function UsersPage() {
               </button>
             </div>
           )}
+          </div>
         </div>
 
         {/* Results Count */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <p className="text-slate-600 dark:text-slate-500 text-sm">
             {loading ? 'Loading...' : (
               <>
@@ -378,8 +588,8 @@ export default function UsersPage() {
           )}
         </div>
 
-        {/* Users Table */}
-        <div className="rounded-xl border border-slate-300 dark:border-white/10 overflow-hidden shadow-md backdrop-blur-sm">
+        {/* Users Table - Desktop */}
+        <div className="hidden lg:block rounded-xl border border-slate-300 dark:border-white/10 overflow-hidden shadow-md backdrop-blur-sm">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/60">
@@ -497,11 +707,99 @@ export default function UsersPage() {
           </table>
         </div>
 
+        {/* Users Cards - Mobile */}
+        <div className="lg:hidden space-y-3">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-indigo-200 dark:border-white/20 border-t-indigo-600 dark:border-t-white rounded-full animate-spin" />
+                <span className="text-slate-600 dark:text-slate-500 text-sm">Loading...</span>
+              </div>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="flex flex-col items-center py-12">
+              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-slate-500 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+              <p className="text-slate-700 dark:text-slate-400 text-sm font-medium">No users found</p>
+              <p className="text-slate-500 dark:text-slate-600 text-xs mt-1">
+                {planFilter !== 'all'
+                  ? `No ${planFilter} users${search ? ` matching "${search}"` : ''}`
+                  : search ? 'Try a different search term' : 'No users in the system'
+                }
+              </p>
+            </div>
+          ) : (
+            filteredUsers.map((u) => {
+              const plan = u.plan || 'free'
+              const tokensUsed = u.tokensUsed ?? 0
+              const inputTokens = u.totalInputTokens ?? 0
+              const outputTokens = u.totalOutputTokens ?? 0
+              const username = u._id || 'unknown'
+
+              return (
+                <div key={username} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black/40 backdrop-blur-sm shadow-sm">
+                  {/* User Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-white/10 flex items-center justify-center text-indigo-700 dark:text-white text-sm font-semibold">
+                        {username.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-slate-900 dark:text-white text-sm font-medium">{username}</p>
+                        <p className="text-slate-500 dark:text-slate-600 text-xs">{u.role || 'user'}</p>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded text-xs font-semibold border ${getPlanStyle(plan)}`}>
+                      {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                    </span>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-slate-500 dark:text-slate-600 text-xs mb-0.5">Credits</p>
+                      <p className="text-emerald-700 dark:text-emerald-400 font-semibold text-sm">${(u.credits || 0).toFixed(2)}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-slate-500 dark:text-slate-600 text-xs mb-0.5">Burned</p>
+                      <p className="text-orange-700 dark:text-orange-400 font-semibold text-sm">${(u.creditsBurned || 0).toFixed(2)}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-slate-500 dark:text-slate-600 text-xs mb-0.5">Input Tokens</p>
+                      <p className="text-cyan-700 dark:text-cyan-400 font-medium text-sm">{formatNumber(inputTokens)}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-slate-500 dark:text-slate-600 text-xs mb-0.5">Output Tokens</p>
+                      <p className="text-purple-700 dark:text-purple-400 font-medium text-sm">{formatNumber(outputTokens)}</p>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-white/5">
+                    <p className="text-slate-500 dark:text-slate-600 text-xs">
+                      Created {formatDateTime(u.createdAt)}
+                    </p>
+                    <button
+                      onClick={() => openEditModal(u)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-indigo-50 dark:hover:bg-white/5 hover:text-indigo-700 dark:hover:text-white hover:border-indigo-300 dark:hover:border-white/20 transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
         {/* Plan Reference */}
         {planLimits && (
-          <div className="rounded-xl border border-slate-300 dark:border-white/10 p-5 bg-white dark:bg-black/40 backdrop-blur-sm shadow-md">
-            <p className="text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold mb-4">Plan Limits</p>
-            <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-xl border border-slate-300 dark:border-white/10 p-4 sm:p-5 bg-white dark:bg-black/40 backdrop-blur-sm shadow-md">
+            <p className="text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold mb-3 sm:mb-4">Plan Limits</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               {PLAN_ORDER.map((plan) => {
                 const textColors: Record<string, string> = {
                   free: 'text-slate-700 dark:text-slate-400',
@@ -509,16 +807,16 @@ export default function UsersPage() {
                   pro: 'text-amber-700 dark:text-amber-400',
                 }
                 return (
-                  <div key={plan} className="text-center p-3 rounded-lg bg-slate-50 dark:bg-transparent">
-                    <p className={`font-semibold text-sm mb-1 ${textColors[plan] || 'text-slate-900 dark:text-white'}`}>
+                  <div key={plan} className="text-center p-2 sm:p-3 rounded-lg bg-slate-50 dark:bg-transparent">
+                    <p className={`font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1 ${textColors[plan] || 'text-slate-900 dark:text-white'}`}>
                       {plan.charAt(0).toUpperCase() + plan.slice(1)}
                     </p>
-                    <p className="text-slate-600 dark:text-slate-400 text-xs">
+                    <p className="text-slate-600 dark:text-slate-400 text-[10px] sm:text-xs">
                       {planLimits[plan].valueUsd === 0
                         ? 'No access'
                         : planLimits[plan].valueUsd + ' credits/mo'}
                     </p>
-                    <p className="text-slate-500 dark:text-slate-600 text-xs">{planLimits[plan].rpm} RPM</p>
+                    <p className="text-slate-500 dark:text-slate-600 text-[10px] sm:text-xs">{planLimits[plan].rpm} RPM</p>
                   </div>
                 )
               })}
@@ -530,15 +828,15 @@ export default function UsersPage() {
       {/* Edit User Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="max-w-sm w-full rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-5 shadow-2xl dark:shadow-none">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-slate-900 dark:text-white font-semibold">Edit User</h3>
-                <p className="text-slate-600 dark:text-slate-500 text-sm">{selectedUser._id}</p>
+          <div className="max-w-sm w-full rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4 sm:p-5 shadow-2xl dark:shadow-none max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-5">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-slate-900 dark:text-white font-semibold truncate">Edit User</h3>
+                <p className="text-slate-600 dark:text-slate-500 text-sm truncate">{selectedUser._id}</p>
               </div>
               <button
                 onClick={() => setSelectedUser(null)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors ml-2 shrink-0"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -547,9 +845,9 @@ export default function UsersPage() {
             </div>
 
             {/* Credits Section */}
-            <div className="mb-5 p-3 rounded-lg border border-slate-300 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02]">
+            <div className="mb-4 sm:mb-5 p-3 rounded-lg border border-slate-300 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02]">
               <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">Credits ($)</label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="number"
                   min="0"
@@ -569,10 +867,10 @@ export default function UsersPage() {
             </div>
 
             {/* Plan Section */}
-            <div className="mb-3">
+            <div className="mb-2 sm:mb-3">
               <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">Plan</label>
             </div>
-            <div className="space-y-2 mb-5">
+            <div className="space-y-2 mb-4 sm:mb-5">
               {PLAN_ORDER.map((plan) => {
                 const isCurrentPlan = (selectedUser.plan || 'free') === plan
                 const planColors: Record<string, { text: string; textLight: string; border: string; borderLight: string; bg: string; bgLight: string }> = {

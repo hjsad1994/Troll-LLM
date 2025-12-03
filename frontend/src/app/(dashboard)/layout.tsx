@@ -30,7 +30,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="relative z-20">
         <Sidebar />
       </div>
-      <main className="flex-1 p-8 overflow-y-auto relative z-10">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto relative z-10 pt-[72px] lg:pt-8">
         {children}
       </main>
     </div>

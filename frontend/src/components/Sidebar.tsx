@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { useAuth } from './AuthProvider'
 import { useLanguage } from './LanguageProvider'
 import { ThemeToggle } from './ThemeToggle'
@@ -109,32 +110,27 @@ const userNavItems: NavItem[] = [
       </svg>
     )
   },
-  // TEMPORARILY DISABLED - request history
-  // {
-  //   href: '/request-history',
-  //   label: 'Request History',
-  //   icon: (
-  //     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  //     </svg>
-  //   )
-  // },
 ]
 
-export default function Sidebar() {
+// Sidebar Content Component (shared between desktop and mobile)
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const { logout, user } = useAuth()
   const { t } = useLanguage()
   const isAdmin = user?.role === 'admin'
-
   const navItems = isAdmin ? adminNavItems : userNavItems
 
+  const handleLogout = () => {
+    if (onNavigate) onNavigate()
+    logout()
+  }
+
   return (
-    <nav className="w-64 bg-white dark:bg-[var(--theme-bg)] flex flex-col border-r border-slate-200 dark:border-[var(--theme-border)] h-screen sticky top-0 shadow-sm dark:shadow-none">
-      {/* Header Section - Fixed */}
-      <div className="flex-shrink-0 p-5 border-b border-slate-200 dark:border-[var(--theme-border)]">
+    <>
+      {/* Header Section */}
+      <div className="flex-shrink-0 p-4 sm:p-5 border-b border-slate-200 dark:border-[var(--theme-border)]">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 mb-5 group">
+        <Link href="/" className="flex items-center gap-3 mb-4 sm:mb-5 group" onClick={onNavigate}>
           <div className="relative w-9 h-9">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg rotate-6 group-hover:rotate-12 transition-transform duration-300" />
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -154,10 +150,10 @@ export default function Sidebar() {
         {/* User Profile */}
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-base shadow-md">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-md">
               {user?.username?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[var(--theme-bg)]" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[var(--theme-bg)]" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-slate-900 dark:text-white text-sm font-semibold truncate">{user?.username || 'User'}</p>
@@ -176,7 +172,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4">
         <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 mb-2 px-3 font-semibold">Navigation</p>
         <ul className="space-y-1">
           {navItems.map((item) => {
@@ -189,6 +185,7 @@ export default function Sidebar() {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={onNavigate}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-all text-sm font-medium"
                   >
                     <span className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center">
@@ -207,6 +204,7 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={onNavigate}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                     isActive
                       ? 'bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white border border-slate-300 dark:border-white/10 shadow-sm'
@@ -228,8 +226,8 @@ export default function Sidebar() {
         </ul>
       </div>
 
-      {/* Footer Section - Fixed at bottom */}
-      <div className="flex-shrink-0 p-4 border-t border-slate-200 dark:border-[var(--theme-border)] bg-white dark:bg-[var(--theme-bg)]">
+      {/* Footer Section */}
+      <div className="flex-shrink-0 p-3 sm:p-4 border-t border-slate-200 dark:border-[var(--theme-border)] bg-white dark:bg-[var(--theme-bg)]">
         {/* Settings */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 font-semibold">Settings</span>
@@ -241,7 +239,7 @@ export default function Sidebar() {
 
         {/* Logout Button */}
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-500/50 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-sm font-medium"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -250,6 +248,93 @@ export default function Sidebar() {
           {t.nav.signOut}
         </button>
       </div>
-    </nav>
+    </>
+  )
+}
+
+export default function Sidebar() {
+  const [isOpen, setIsOpen] = useState(false)
+  const pathname = usePathname()
+
+  // Close sidebar on route change
+  useEffect(() => {
+    setIsOpen(false)
+  }, [pathname])
+
+  // Prevent body scroll when sidebar is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
+  return (
+    <>
+      {/* Mobile Header Bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white dark:bg-[var(--theme-bg)] border-b border-slate-200 dark:border-[var(--theme-border)] px-4 py-3 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2">
+          <div className="relative w-8 h-8">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg rotate-6" />
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3C7 3 3 7 3 12s4 9 9 9 9-4 9-9" />
+                <path d="M12 3c2.5 0 5 4 5 9" />
+                <circle cx="19" cy="5" r="2" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+          </div>
+          <span className="text-base font-bold text-slate-900 dark:text-white tracking-tight">Troll<span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">LLM</span></span>
+        </Link>
+
+        {/* Hamburger Menu Button */}
+        <button
+          onClick={() => setIsOpen(true)}
+          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 transition-colors"
+          aria-label="Open menu"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {isOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsOpen(false)}
+          />
+
+          {/* Sidebar Drawer */}
+          <div className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white dark:bg-[var(--theme-bg)] border-r border-slate-200 dark:border-[var(--theme-border)] shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+            {/* Close Button */}
+            <button
+              onClick={() => setIsOpen(false)}
+              className="absolute top-3 right-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 transition-colors z-10"
+              aria-label="Close menu"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <SidebarContent onNavigate={() => setIsOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <nav className="hidden lg:flex w-64 bg-white dark:bg-[var(--theme-bg)] flex-col border-r border-slate-200 dark:border-[var(--theme-border)] h-screen sticky top-0 shadow-sm dark:shadow-none">
+        <SidebarContent />
+      </nav>
+    </>
   )
 }

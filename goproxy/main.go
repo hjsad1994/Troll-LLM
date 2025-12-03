@@ -76,6 +76,71 @@ func init() {
 	}
 }
 
+// Retry configuration
+const (
+	maxRetries     = 3
+	retryBaseDelay = 1 * time.Second
+)
+
+// isRetryableError checks if an error should trigger a retry
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	// Retry on EOF, connection reset, timeout errors
+	return strings.Contains(errStr, "EOF") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "i/o timeout") ||
+		strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "no such host") ||
+		strings.Contains(errStr, "TLS handshake") ||
+		strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "connection closed")
+}
+
+// doRequestWithRetry executes HTTP request with retry on transient errors
+func doRequestWithRetry(client *http.Client, req *http.Request, bodyBytes []byte) (*http.Response, error) {
+	var lastErr error
+	url := req.URL.String()
+	
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff with jitter
+			delay := retryBaseDelay * time.Duration(1<<(attempt-1))
+			log.Printf("🔄 Retry attempt %d/%d after %v", attempt, maxRetries, delay)
+			log.Printf("   URL: %s", url)
+			log.Printf("   Last error: %v", lastErr)
+			time.Sleep(delay)
+			
+			// Reset request body for retry
+			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		}
+		
+		startTime := time.Now()
+		resp, err := client.Do(req)
+		elapsed := time.Since(startTime)
+		
+		if err == nil {
+			if attempt > 0 {
+				log.Printf("✅ Request succeeded on attempt %d after %v", attempt+1, elapsed)
+			}
+			return resp, nil
+		}
+		
+		lastErr = err
+		log.Printf("⚠️ Request failed (attempt %d/%d) after %v: %v", attempt+1, maxRetries+1, elapsed, err)
+		
+		if !isRetryableError(err) {
+			// Non-retryable error, return immediately
+			log.Printf("❌ Non-retryable error, giving up")
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("request failed after %d retries: %w", maxRetries+1, lastErr)
+}
+
 // Initialize HTTP client with HTTP/2 support and browser-like characteristics
 func initHTTPClient() {
 	// Configure TLS to mimic modern browsers
@@ -95,14 +160,18 @@ func initHTTPClient() {
 		InsecureSkipVerify: false,
 	}
 
-	// Create HTTP/2 capable Transport
+	// Create HTTP/2 capable Transport with improved settings
 	transport := &http.Transport{
 		TLSClientConfig:       tlsConfig,
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		MaxConnsPerHost:       20,
 		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
+		TLSHandshakeTimeout:   15 * time.Second,
+		ExpectContinueTimeout: 2 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+		DisableKeepAlives:     false,
 	}
 
 	// Configure HTTP/2
@@ -595,6 +664,42 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	// For "troll" upstream: use Factory AI with full transformation
 	anthropicReq := transformers.TransformToAnthropic(openaiReq)
 	
+	// Determine thinking state based on assistant messages in conversation history
+	// Rules:
+	//   - If ANY assistant has thinking blocks → MUST enable thinking
+	//   - If ANY assistant lacks thinking blocks → MUST disable thinking
+	//   - Mixed state is invalid (shouldn't happen in normal flow)
+	//   - No assistant messages → can enable thinking (new conversation)
+	hasThinking, hasNonThinking := detectAssistantThinkingState(anthropicReq.Messages)
+	
+	if hasThinking && hasNonThinking {
+		// Mixed state - shouldn't happen, but prefer enabling thinking
+		log.Printf("⚠️ [/v1/chat/completions] Mixed thinking state detected - enabling thinking")
+	}
+	
+	if hasThinking {
+		// Conversation has thinking blocks - MUST enable thinking
+		if anthropicReq.Thinking == nil || anthropicReq.Thinking.Type != "enabled" {
+			budgetTokens := config.GetModelThinkingBudget(openaiReq.Model)
+			anthropicReq.Thinking = &transformers.ThinkingConfig{
+				Type:         "enabled",
+				BudgetTokens: budgetTokens,
+			}
+		}
+		log.Printf("🧠 [/v1/chat/completions] Thinking: ENABLED (conversation has thinking blocks, budget=%d)", anthropicReq.Thinking.BudgetTokens)
+	} else if hasNonThinking {
+		// Conversation has assistant messages without thinking - MUST disable
+		anthropicReq.Thinking = nil
+		log.Printf("🧠 [/v1/chat/completions] Thinking: DISABLED (conversation lacks thinking blocks)")
+	} else {
+		// No assistant messages - new conversation, use config
+		if anthropicReq.Thinking != nil && anthropicReq.Thinking.Type == "enabled" {
+			log.Printf("🧠 [/v1/chat/completions] Thinking: ENABLED (new conversation, budget=%d)", anthropicReq.Thinking.BudgetTokens)
+		} else {
+			log.Printf("🧠 [/v1/chat/completions] Thinking: DISABLED (model config)")
+		}
+	}
+	
 	endpointURL := upstreamConfig.EndpointURL
 
 	reqBody, err := json.Marshal(anthropicReq)
@@ -636,9 +741,9 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	
 	requestStartTime := time.Now()
 	
-	resp, err := client.Do(proxyReq)
+	resp, err := doRequestWithRetry(client, proxyReq, reqBody)
 	if err != nil {
-		log.Printf("Error: request failed: %v", err)
+		log.Printf("Error: request failed after retries: %v", err)
 		http.Error(w, `{"error": {"message": "Request to upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
@@ -952,9 +1057,9 @@ func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq 
 	// Track request start time for latency measurement
 	requestStartTime := time.Now()
 	
-	resp, err := client.Do(proxyReq)
+	resp, err := doRequestWithRetry(client, proxyReq, reqBody)
 	if err != nil {
-		log.Printf("Error: request failed: %v", err)
+		log.Printf("Error: request failed after retries: %v", err)
 		http.Error(w, `{"error": {"message": "Request to upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
@@ -1598,6 +1703,59 @@ func sanitizeBlockedContent(text string) string {
 	return result
 }
 
+// detectAssistantThinkingState analyzes assistant messages to determine thinking state.
+// Returns:
+//   - hasThinking: true if ANY assistant message has thinking/redacted_thinking blocks
+//   - hasNonThinking: true if ANY assistant message lacks thinking blocks
+// Anthropic API rules:
+//   - If thinking enabled: ALL assistant messages MUST have thinking blocks
+//   - If thinking disabled: NO assistant message can have thinking blocks
+func detectAssistantThinkingState(messages []transformers.AnthropicMessage) (hasThinking, hasNonThinking bool) {
+	for i := range messages {
+		if messages[i].Role != "assistant" {
+			continue
+		}
+
+		// Check if content is array
+		var contentArray []interface{}
+		switch content := messages[i].Content.(type) {
+		case []interface{}:
+			contentArray = content
+		case []map[string]interface{}:
+			contentArray = make([]interface{}, len(content))
+			for j, item := range content {
+				contentArray[j] = item
+			}
+		case string:
+			// String content means no thinking block
+			hasNonThinking = true
+			continue
+		default:
+			continue
+		}
+
+		if len(contentArray) == 0 {
+			continue
+		}
+
+		// Check if first block is thinking or redacted_thinking
+		hasThinkingBlock := false
+		if firstBlock, ok := contentArray[0].(map[string]interface{}); ok {
+			blockType, _ := firstBlock["type"].(string)
+			if blockType == "thinking" || blockType == "redacted_thinking" {
+				hasThinkingBlock = true
+			}
+		}
+
+		if hasThinkingBlock {
+			hasThinking = true
+		} else {
+			hasNonThinking = true
+		}
+	}
+	return hasThinking, hasNonThinking
+}
+
 // sanitizeAnthropicMessages sanitizes all messages to remove blocked content
 func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []transformers.AnthropicMessage {
 	for i := range messages {
@@ -1863,36 +2021,68 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	endpointURL := upstreamConfig.EndpointURL
 
 	// Add system prompt if not present (Factory AI requires this)
-	if debugMode {
-		log.Printf("🔍 System prompt check: len(System)=%d", len(anthropicReq.System))
-	}
-	userSystemCount := len(anthropicReq.System)
 	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.System))
+	// Combine proxy system prompt + user system prompt (sanitized)
 	systemPrompt := config.GetSystemPrompt()
+	var systemEntries []map[string]interface{}
+	
+	// Add proxy system prompt first (higher priority)
 	if systemPrompt != "" {
-		if debugMode {
-			log.Printf("🔍 System prompt from config: %q", systemPrompt)
-		}
-		anthropicReq.System = []map[string]interface{}{
-			{
+		systemEntries = append(systemEntries, map[string]interface{}{
+			"type": "text",
+			"text": systemPrompt,
+		})
+	}
+	
+	// Add user system prompt (sanitized to remove blocked content)
+	if userSystemText != "" {
+		sanitizedUserSystem := sanitizeBlockedContent(userSystemText)
+		if sanitizedUserSystem != "" {
+			systemEntries = append(systemEntries, map[string]interface{}{
 				"type": "text",
-				"text": systemPrompt,
-			},
+				"text": sanitizedUserSystem,
+			})
 		}
-		if debugMode {
-			log.Printf("✅ Enforced proxy system prompt")
-		}
+	}
+	
+	if len(systemEntries) > 0 {
+		anthropicReq.System = systemEntries
 	} else {
 		anthropicReq.System = nil
 	}
-	// DISABLED: Don't include user system prompt - Factory AI blocks certain content
-	if userSystemText != "" && userSystemCount > 0 {
-		log.Printf("🚫 [/v1/messages] Discarded %d user system messages (len=%d) - Factory AI bypass", userSystemCount, len(userSystemText))
-	}
 
-	// Disable thinking - let client control it directly
-	anthropicReq.Thinking = nil
-	log.Printf("🧠 Thinking: DISABLED (server policy)")
+	// Determine thinking state based on assistant messages in conversation history
+	hasThinking, hasNonThinking := detectAssistantThinkingState(anthropicReq.Messages)
+	reasoning := config.GetModelReasoning(anthropicReq.Model)
+	
+	if hasThinking && hasNonThinking {
+		log.Printf("⚠️ [/v1/messages] Mixed thinking state detected - enabling thinking")
+	}
+	
+	if hasThinking {
+		// Conversation has thinking blocks - MUST enable thinking
+		budgetTokens := config.GetModelThinkingBudget(anthropicReq.Model)
+		anthropicReq.Thinking = &transformers.ThinkingConfig{
+			Type:         "enabled",
+			BudgetTokens: budgetTokens,
+		}
+		log.Printf("🧠 [/v1/messages] Thinking: ENABLED (conversation has thinking blocks, budget=%d)", budgetTokens)
+	} else if hasNonThinking {
+		// Conversation has assistant messages without thinking - MUST disable
+		anthropicReq.Thinking = nil
+		log.Printf("🧠 [/v1/messages] Thinking: DISABLED (conversation lacks thinking blocks)")
+	} else if reasoning != "" {
+		// No assistant messages - new conversation, enable based on config
+		budgetTokens := config.GetModelThinkingBudget(anthropicReq.Model)
+		anthropicReq.Thinking = &transformers.ThinkingConfig{
+			Type:         "enabled",
+			BudgetTokens: budgetTokens,
+		}
+		log.Printf("🧠 [/v1/messages] Thinking: ENABLED (new conversation, budget=%d)", budgetTokens)
+	} else {
+		anthropicReq.Thinking = nil
+		log.Printf("🧠 [/v1/messages] Thinking: DISABLED (model has no reasoning config)")
+	}
 
 	// Ensure max_tokens is always large enough for thinking + response
 	if anthropicReq.MaxTokens <= 0 {
@@ -1985,24 +2175,14 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	
 	// Log upstream destination
 	if upstreamConfig.KeyID == "main" {
-		log.Printf("📤 Sending request to Main Target Server (%s)...", mainTargetServer)
-		log.Printf("📤 [main] URL: %s", endpointURL)
-		log.Printf("📤 [main] Headers: x-api-key=%s, anthropic-version=%s", 
-			headers["x-api-key"][:min(8, len(headers["x-api-key"]))]+"...", 
-			headers["anthropic-version"])
-		// Log request body (truncated)
-		if len(reqBody) < 500 {
-			log.Printf("📤 [main] Body: %s", string(reqBody))
-		} else {
-			log.Printf("📤 [main] Body (truncated): %s...", string(reqBody[:500]))
-		}
+		log.Printf("📤 Sending request to Main Target Server...")
 	} else {
 		log.Printf("📤 Sending request to Factory API...")
 	}
 	reqStart := time.Now()
-	resp, err := client.Do(proxyReq)
+	resp, err := doRequestWithRetry(client, proxyReq, reqBody)
 	if err != nil {
-		log.Printf("❌ Request failed after %v: %v", time.Since(reqStart), err)
+		log.Printf("❌ Request failed after %v (with retries): %v", time.Since(reqStart), err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to upstream failed"}}`, http.StatusBadGateway)
 		return
 	}

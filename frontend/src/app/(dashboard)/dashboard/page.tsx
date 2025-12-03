@@ -162,11 +162,11 @@ export default function UserDashboard() {
   const usagePercentage = billingInfo?.usagePercentage || 0
 
   return (
-    <div className="min-h-screen">
-      <div className="relative max-w-5xl mx-auto space-y-12">
+    <div className="min-h-screen px-4 sm:px-6">
+      <div className="relative max-w-5xl mx-auto space-y-8 sm:space-y-12">
         {/* Header */}
-        <header className="pt-8 opacity-0 animate-fade-in-up">
-          <div className="flex items-center justify-between mb-4">
+        <header className="pt-6 md:pt-8 opacity-0 animate-fade-in-up">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
@@ -177,7 +177,7 @@ export default function UserDashboard() {
             {/* Plan Badge */}
             {userProfile && (
               userProfile.plan === 'free' ? (
-                <div className="inline-flex items-center gap-3">
+                <div className="inline-flex items-center gap-2 sm:gap-3 flex-wrap">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
                     <span className="text-sm font-medium text-slate-500 dark:text-[var(--theme-text-muted)]">Free Tier</span>
                   </div>
@@ -185,7 +185,7 @@ export default function UserDashboard() {
                     href="https://discord.gg/Prs3RxwnyQ"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-sm bg-gradient-to-r from-[#5865F2]/10 to-indigo-500/10 border-[#5865F2]/30 hover:border-[#5865F2]/50 hover:bg-[#5865F2]/20 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border backdrop-blur-sm bg-gradient-to-r from-[#5865F2]/10 to-indigo-500/10 border-[#5865F2]/30 hover:border-[#5865F2]/50 hover:bg-[#5865F2]/20 transition-colors"
                   >
                     <svg className="w-4 h-4 text-[#5865F2]" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
@@ -194,7 +194,7 @@ export default function UserDashboard() {
                   </a>
                 </div>
               ) : (
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-sm ${
+                <div className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border backdrop-blur-sm ${
                   userProfile.plan === 'enterprise'
                     ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30'
                     : userProfile.plan === 'pro'
@@ -237,31 +237,31 @@ export default function UserDashboard() {
               )
             )}
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-2">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-2">
             {user?.username || 'User'}
           </h1>
-          <p className="text-[var(--theme-text-subtle)] text-lg">
+          <p className="text-[var(--theme-text-subtle)] text-base sm:text-lg">
             {t.dashboard.welcome}
           </p>
         </header>
 
         {/* Main Grid */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* API Key Card */}
-          <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-200">
-            <div className="flex items-center justify-between mb-6">
+          <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
                   <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.apiKey.title}</h3>
-                  <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.apiKey.subtitle}</p>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.apiKey.title}</h3>
+                  <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm truncate">{t.dashboard.apiKey.subtitle}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 self-start sm:self-auto">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
@@ -271,11 +271,11 @@ export default function UserDashboard() {
             </div>
 
             {userProfile ? (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* API Key Display */}
-                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-sm font-mono break-all">
+                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-2 sm:gap-4">
+                    <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-xs sm:text-sm font-mono break-all min-w-0">
                       {showFullApiKey && fullApiKey ? fullApiKey : userProfile.apiKey}
                     </code>
                     <button
@@ -308,7 +308,7 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={handleCopyApiKey}
                     className="flex-1 py-2.5 rounded-lg bg-indigo-600 dark:bg-[var(--theme-text)] text-white dark:text-[var(--theme-bg)] font-medium text-sm hover:bg-indigo-700 dark:hover:opacity-90 transition-colors"
@@ -328,22 +328,22 @@ export default function UserDashboard() {
                 </p>
 
                 {/* AI Provider Section */}
-                <div className="pt-4 mt-4 border-t border-slate-200 dark:border-white/10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-slate-200 dark:border-white/10">
+                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                    <svg className="w-4 h-4 text-violet-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
                     </svg>
                     <span className="text-sm font-medium text-[var(--theme-text)]">{t.dashboard.aiProvider.title}</span>
-                    <span className="text-xs text-[var(--theme-text-subtle)]">({t.dashboard.aiProvider.subtitle})</span>
+                    <span className="text-xs text-[var(--theme-text-subtle)] hidden sm:inline">({t.dashboard.aiProvider.subtitle})</span>
                   </div>
-                  <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-sm font-mono">
+                  <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-2.5 sm:p-3">
+                    <div className="flex items-center justify-between gap-2 sm:gap-3">
+                      <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-xs sm:text-sm font-mono truncate">
                         https://chat.trollllm.xyz
                       </code>
                       <button
                         onClick={handleCopyProvider}
-                        className="shrink-0 px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--theme-text)] text-slate-700 dark:text-[var(--theme-bg)] border border-slate-300 dark:border-transparent text-xs font-medium hover:bg-slate-50 dark:hover:opacity-90 transition-colors"
+                        className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--theme-text)] text-slate-700 dark:text-[var(--theme-bg)] border border-slate-300 dark:border-transparent text-xs font-medium hover:bg-slate-50 dark:hover:opacity-90 transition-colors"
                       >
                         {providerCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
                       </button>
@@ -363,21 +363,21 @@ export default function UserDashboard() {
           </div>
 
           {/* Credits Card */}
-          <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-300">
-            <div className="flex items-center justify-between mb-6">
+          <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
                   <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.credits.title}</h3>
-                  <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.credits.subtitle}</p>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.credits.title}</h3>
+                  <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">{t.dashboard.credits.subtitle}</p>
                 </div>
               </div>
               {billingInfo && (
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
                   billingInfo.plan === 'enterprise' ? 'bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400' :
                   billingInfo.plan === 'pro' ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400' :
                   'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
@@ -388,23 +388,23 @@ export default function UserDashboard() {
             </div>
 
             {userProfile ? (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Credits Display */}
-                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-5">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
                     <div>
                       <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">{t.dashboard.credits.available}</p>
-                      <p className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
+                      <p className="text-3xl sm:text-4xl font-bold text-emerald-600 dark:text-emerald-400">
                         ${(userProfile.credits || 0).toFixed(2)}
                       </p>
                     </div>
-                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                      <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
                   </div>
-                  <div className="pt-4 border-t border-slate-300 dark:border-white/10">
+                  <div className="pt-3 sm:pt-4 border-t border-slate-300 dark:border-white/10">
                     <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs">{t.dashboard.credits.used}</p>
                     <p className="text-slate-800 dark:text-[var(--theme-text)] font-medium">{formatLargeNumber((userProfile.totalInputTokens || 0) + (userProfile.totalOutputTokens || 0))}</p>
                   </div>
@@ -425,32 +425,32 @@ export default function UserDashboard() {
 
                 {/* Plan Period Section - for paid plans */}
                 {userProfile.plan !== 'free' && (
-                  <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="p-3 sm:p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                      <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">{t.dashboard.planPeriod.title}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.planPeriod.started}</p>
-                        <p className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">
+                        <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">
                           {billingInfo?.planStartDate ? formatDateDMY(billingInfo.planStartDate) : t.dashboard.planPeriod.notSet}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.planPeriod.expires}</p>
-                        <p className={`text-sm font-medium ${
-                          billingInfo?.isExpiringSoon 
-                            ? 'text-amber-600 dark:text-amber-400' 
+                        <p className={`text-xs sm:text-sm font-medium ${
+                          billingInfo?.isExpiringSoon
+                            ? 'text-amber-600 dark:text-amber-400'
                             : 'text-slate-700 dark:text-[var(--theme-text)]'
                         }`}>
                           {billingInfo?.planExpiresAt ? formatDateDMY(billingInfo.planExpiresAt) : t.dashboard.planPeriod.notSet}
                           {billingInfo?.daysUntilExpiration !== null && billingInfo?.daysUntilExpiration !== undefined && (
-                            <span className={`ml-2 text-xs ${
-                              billingInfo.isExpiringSoon 
-                                ? 'text-amber-500 dark:text-amber-400' 
+                            <span className={`ml-1 sm:ml-2 text-xs ${
+                              billingInfo.isExpiringSoon
+                                ? 'text-amber-500 dark:text-amber-400'
                                 : 'text-slate-500 dark:text-[var(--theme-text-subtle)]'
                             }`}>
                               ({billingInfo.daysUntilExpiration} {t.dashboard.planPeriod.days})
@@ -473,25 +473,25 @@ export default function UserDashboard() {
         </div>
 
         {/* Credits Usage Card */}
-        <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-400">
-          <div className="flex items-center justify-between mb-6">
+        <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-400">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
                 <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.creditsUsage.title}</h3>
-                <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.creditsUsage.subtitle}</p>
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.creditsUsage.title}</h3>
+                <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">{t.dashboard.creditsUsage.subtitle}</p>
               </div>
             </div>
-            <div className="flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10">
+            <div className="flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 self-start sm:self-auto overflow-x-auto">
               {(['1h', '24h', '7d', '30d'] as const).map((period) => (
                 <button
                   key={period}
                   onClick={() => setUsagePeriod(period)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                     usagePeriod === period
                       ? 'bg-orange-500 text-white'
                       : 'text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10'
@@ -503,35 +503,35 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          <div className="p-6 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-center">
-            <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-sm mb-2">
+          <div className="p-4 sm:p-6 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-center">
+            <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs sm:text-sm mb-2">
               {usagePeriod === '1h' ? t.dashboard.creditsUsage.last1h : usagePeriod === '24h' ? t.dashboard.creditsUsage.last24h : usagePeriod === '7d' ? t.dashboard.creditsUsage.last7d : t.dashboard.creditsUsage.last30d}
             </p>
-            <p className="text-4xl font-bold text-orange-600 dark:text-orange-400">
+            <p className="text-3xl sm:text-4xl font-bold text-orange-600 dark:text-orange-400">
               ${(creditsUsage ? creditsUsage[`last${usagePeriod}`] : 0).toFixed(2)}
             </p>
           </div>
         </div>
 
         {/* Quick Links */}
-        <section className="pb-8 opacity-0 animate-fade-in-up animation-delay-500">
-          <div className="flex flex-wrap gap-4">
+        <section className="pb-6 sm:pb-8 opacity-0 animate-fade-in-up animation-delay-500">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
             <a
               href="/status"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2 shadow-sm dark:shadow-none"
+              className="px-4 sm:px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center justify-center sm:justify-start gap-2 shadow-sm dark:shadow-none"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               {t.dashboard.quickLinks.statusPage}
             </a>
             <a
               href="/models"
-              className="px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center gap-2 shadow-sm dark:shadow-none"
+              className="px-4 sm:px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center justify-center sm:justify-start gap-2 shadow-sm dark:shadow-none"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
               {t.dashboard.quickLinks.viewModels}
@@ -543,45 +543,45 @@ export default function UserDashboard() {
       {/* Rotate API Key Modal */}
       {showRotateConfirm && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="max-w-md w-full rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[var(--theme-card)] p-6 shadow-xl dark:shadow-none">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+          <div className="max-w-md w-full rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[var(--theme-card)] p-4 sm:p-6 shadow-xl dark:shadow-none">
+            <div className="flex items-start sm:items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
                 <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.rotateModal.title}</h3>
-                <p className="text-[var(--theme-text-subtle)] text-sm">{t.dashboard.rotateModal.warning}</p>
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.rotateModal.title}</h3>
+                <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">{t.dashboard.rotateModal.warning}</p>
               </div>
             </div>
 
-            <div className="space-y-2 mb-6">
+            <div className="space-y-2 mb-4 sm:mb-6">
               {[
                 'Current key will be invalidated immediately',
                 'All applications using this key will stop working',
                 'You\'ll need to update the key everywhere'
               ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
-                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div key={item} className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-xs sm:text-sm">
+                  <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  {item}
+                  <span>{item}</span>
                 </div>
               ))}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => setShowRotateConfirm(false)}
-                className="flex-1 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                className="flex-1 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors order-2 sm:order-1"
               >
                 {t.dashboard.rotateModal.cancel}
               </button>
               <button
                 onClick={handleRotateApiKey}
                 disabled={rotating}
-                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black font-medium text-sm hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black font-medium text-sm hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 order-1 sm:order-2"
               >
                 {rotating ? (
                   <>
