@@ -100,42 +100,25 @@ func isRetryableError(err error) bool {
 // doRequestWithRetry executes HTTP request with retry on transient errors (same client)
 func doRequestWithRetry(client *http.Client, req *http.Request, bodyBytes []byte) (*http.Response, error) {
 	var lastErr error
-	url := req.URL.String()
 	
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff
 			delay := retryBaseDelay * time.Duration(1<<(attempt-1))
-			log.Printf("🔄 Retry attempt %d/%d after %v", attempt, maxRetries, delay)
-			log.Printf("   URL: %s", url)
-			log.Printf("   Last error: %v", lastErr)
 			time.Sleep(delay)
-			
-			// Reset request body for retry
 			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		}
 		
-		startTime := time.Now()
 		resp, err := client.Do(req)
-		elapsed := time.Since(startTime)
-		
 		if err == nil {
-			if attempt > 0 {
-				log.Printf("✅ Request succeeded on attempt %d after %v", attempt+1, elapsed)
-			}
 			return resp, nil
 		}
 		
 		lastErr = err
-		log.Printf("⚠️ Request failed (attempt %d/%d) after %v: %v", attempt+1, maxRetries+1, elapsed, err)
-		
 		if !isRetryableError(err) {
-			// Non-retryable error, return immediately
-			log.Printf("❌ Non-retryable error, giving up")
 			return nil, err
 		}
 	}
-	return nil, fmt.Errorf("request failed after %d retries: %w", maxRetries+1, lastErr)
+	return nil, lastErr
 }
 
 // Initialize HTTP client with HTTP/2 support and browser-like characteristics
