@@ -46,6 +46,56 @@ func sanitizeBlockedContent(text string) string {
 	return result
 }
 
+// convertImageURLToAnthropic converts OpenAI image_url format to Anthropic image format
+// OpenAI: {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..." or "https://..."}}
+// Anthropic: {"type": "image", "source": {"type": "base64", "media_type": "...", "data": "..."}}
+// or: {"type": "image", "source": {"type": "url", "url": "..."}}
+func convertImageURLToAnthropic(url string) map[string]interface{} {
+	if url == "" {
+		return nil
+	}
+
+	// Check if it's a base64 data URL
+	if strings.HasPrefix(url, "data:") {
+		// Parse data URL: data:image/jpeg;base64,<data>
+		parts := strings.SplitN(url, ",", 2)
+		if len(parts) != 2 {
+			return nil
+		}
+
+		// Extract media type from "data:image/jpeg;base64"
+		header := parts[0]
+		data := parts[1]
+
+		// Parse media type
+		mediaType := "image/jpeg" // default
+		if strings.HasPrefix(header, "data:") {
+			headerParts := strings.Split(strings.TrimPrefix(header, "data:"), ";")
+			if len(headerParts) > 0 && headerParts[0] != "" {
+				mediaType = headerParts[0]
+			}
+		}
+
+		return map[string]interface{}{
+			"type": "image",
+			"source": map[string]interface{}{
+				"type":       "base64",
+				"media_type": mediaType,
+				"data":       data,
+			},
+		}
+	}
+
+	// Regular URL - use URL source type
+	return map[string]interface{}{
+		"type": "image",
+		"source": map[string]interface{}{
+			"type": "url",
+			"url":  url,
+		},
+	}
+}
+
 // OpenAIMessage represents an OpenAI format message
 type OpenAIMessage struct {
 	Role    string      `json:"role"`
@@ -187,7 +237,19 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 		} else if parts, ok := msg.Content.([]interface{}); ok {
 			for _, part := range parts {
 				if partMap, ok := part.(map[string]interface{}); ok {
-					contentArray = append(contentArray, partMap)
+					partType, _ := partMap["type"].(string)
+					if partType == "image_url" {
+						// Convert OpenAI image_url format to Anthropic image format
+						if imageURLData, ok := partMap["image_url"].(map[string]interface{}); ok {
+							url, _ := imageURLData["url"].(string)
+							anthropicImage := convertImageURLToAnthropic(url)
+							if anthropicImage != nil {
+								contentArray = append(contentArray, anthropicImage)
+							}
+						}
+					} else {
+						contentArray = append(contentArray, partMap)
+					}
 				}
 			}
 		}
