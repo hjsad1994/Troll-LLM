@@ -127,8 +127,23 @@ func (b *BatchedUsageTracker) QueueUsageUpdate(apiKey string, tokensUsed int64) 
 }
 
 // QueueCreditUpdate queues a credit update for batch processing
+// It automatically checks user's current credits to determine if refCredits should be used
 func (b *BatchedUsageTracker) QueueCreditUpdate(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) {
-	b.QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, false)
+	// Check user's current credits to determine where to deduct from
+	useRefCredits := false
+	credits, refCredits, err := getUserCreditsForBatcher(username)
+	if err == nil {
+		if credits <= 0 && refCredits > 0 {
+			// Main credits exhausted, use refCredits
+			useRefCredits = true
+		} else if credits > 0 && credits < cost && refCredits > 0 {
+			// Main credits insufficient for full cost, will need partial refCredits
+			// For simplicity in batching, if credits can't cover the cost, use refCredits
+			// The actual split will be handled in flush
+			useRefCredits = credits < cost
+		}
+	}
+	b.QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, useRefCredits)
 }
 
 // QueueCreditUpdateWithRef queues a credit update with optional refCredits flag
@@ -286,12 +301,41 @@ func (b *BatchedUsageTracker) creditWorker() {
 				"tokensUsed": agg.tokensUsed,
 			}
 			
-			// Deduct from appropriate credit field
-			if agg.creditsCost > 0 {
-				incFields["credits"] = -agg.creditsCost
-			}
-			if agg.refCreditsCost > 0 {
-				incFields["refCredits"] = -agg.refCreditsCost
+			// Get current credits to properly split deduction
+			totalCost := agg.creditsCost + agg.refCreditsCost
+			currentCredits, currentRefCredits, err := getUserCreditsForBatcher(username)
+			
+			if err == nil && totalCost > 0 {
+				// Smart deduction: use credits first, then refCredits
+				if currentCredits >= totalCost {
+					// Enough credits, deduct all from credits
+					incFields["credits"] = -totalCost
+				} else if currentCredits > 0 {
+					// Partial credits available, split between credits and refCredits
+					incFields["credits"] = -currentCredits
+					remainingCost := totalCost - currentCredits
+					if currentRefCredits > 0 {
+						incFields["refCredits"] = -remainingCost
+					}
+					log.Printf("💰 [%s] Split deduct: $%.6f from credits + $%.6f from refCredits", username, currentCredits, remainingCost)
+				} else if currentRefCredits > 0 {
+					// No credits, deduct all from refCredits
+					incFields["refCredits"] = -totalCost
+					log.Printf("💰 [%s] Deduct $%.6f from refCredits only", username, totalCost)
+				} else {
+					// No credits available at all - this shouldn't happen as requests should be blocked
+					// But to prevent negative credits, deduct from refCredits anyway
+					incFields["refCredits"] = -totalCost
+					log.Printf("⚠️ [%s] No credits available, deducting $%.6f from refCredits", username, totalCost)
+				}
+			} else {
+				// Fallback to original behavior if error getting credits
+				if agg.creditsCost > 0 {
+					incFields["credits"] = -agg.creditsCost
+				}
+				if agg.refCreditsCost > 0 {
+					incFields["refCredits"] = -agg.refCreditsCost
+				}
 			}
 			
 			if agg.inputTokens > 0 {
@@ -347,4 +391,25 @@ func (b *BatchedUsageTracker) creditWorker() {
 			return
 		}
 	}
+}
+
+// getUserCreditsForBatcher retrieves user's current credits for batching decisions
+func getUserCreditsForBatcher(username string) (credits float64, refCredits float64, err error) {
+	if username == "" {
+		return 0, 0, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var user struct {
+		Credits    float64 `bson:"credits"`
+		RefCredits float64 `bson:"refCredits"`
+	}
+	err = db.UsersCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return user.Credits, user.RefCredits, nil
 }
