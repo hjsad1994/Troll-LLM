@@ -528,3 +528,14 @@
   0%, 100% { opacity: 0.5; filter: blur(8px); }
   50% { opacity: 0.8; filter: blur(12px); }
 }
+
+/* PayPal button container - hide white background */
+.paypal-button-container,
+div[class*="paypal-button"] {
+  background: transparent !important;
+}
+
+/* Dark mode: hide PayPal white flash during animation */
+.dark .paypal-buttons-context-iframe {
+  background: rgb(10, 10, 15) !important;
+}

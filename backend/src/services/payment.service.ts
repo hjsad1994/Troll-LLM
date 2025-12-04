@@ -3,11 +3,16 @@ import { userRepository, calculatePlanExpiration } from '../repositories/user.re
 import { 
   IPayment, 
   PaymentPlan, 
-  PLAN_PRICES, 
+  PLAN_PRICES,
+  PAYPAL_PRO_PRICE_USD,
   generateOrderCode, 
   generateQRCodeUrl 
 } from '../models/payment.model.js';
 import { UserKey } from '../models/user-key.model.js';
+
+const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live' 
+  ? 'https://api-m.paypal.com' 
+  : 'https://api-m.sandbox.paypal.com';
 
 export interface CheckoutResult {
   paymentId: string;
@@ -47,6 +52,35 @@ export interface SepayWebhookPayload {
   subAccount: string | null;
   referenceCode: string;
   description: string;
+}
+
+export interface PayPalOrderResult {
+  orderId: string;
+  paymentId: string;
+}
+
+export interface PayPalCaptureResult {
+  success: boolean;
+  plan: string;
+  captureId?: string;
+}
+
+export interface PayPalWebhookPayload {
+  id: string;
+  event_type: string;
+  resource: {
+    id: string;
+    status: string;
+    amount?: {
+      value: string;
+      currency_code: string;
+    };
+    supplementary_data?: {
+      related_ids?: {
+        order_id?: string;
+      };
+    };
+  };
 }
 
 function extractOrderCode(text: string): string | null {
@@ -144,17 +178,21 @@ export class PaymentService {
     const payment = await paymentRepository.findByOrderCode(orderCode);
 
     if (!payment) {
-      console.log(`[Payment Webhook] Order code not found: ${orderCode}`);
+      console.log(`[Payment Webhook] Order code not found in DB: ${orderCode}`);
       return { processed: false, message: 'Payment not found' };
     }
 
+    console.log(`[Payment Webhook] Payment found: userId=${payment.userId}, status=${payment.status}, amount=${payment.amount}`);
+
     // Check if already processed
     if (payment.status === 'success') {
+      console.log(`[Payment Webhook] Already processed: ${orderCode}`);
       return { processed: false, message: 'Already processed' };
     }
 
     // Check if expired
     if (payment.status === 'expired') {
+      console.log(`[Payment Webhook] Payment expired: ${orderCode}`);
       return { processed: false, message: 'Payment expired' };
     }
 
@@ -164,6 +202,8 @@ export class PaymentService {
       return { processed: false, message: 'Amount mismatch - logged for review' };
     }
 
+    console.log(`[Payment Webhook] Updating payment status to success...`);
+    
     // Process successful payment
     await paymentRepository.updateStatus(
       payment._id.toString(),
@@ -171,6 +211,8 @@ export class PaymentService {
       payload.id.toString()
     );
 
+    console.log(`[Payment Webhook] Calling upgradePlan for ${payment.userId}...`);
+    
     // Upgrade user plan
     await this.upgradePlan(payment.userId, payment.plan);
 
@@ -180,7 +222,7 @@ export class PaymentService {
         discordId: payment.discordId,
         plan: payment.plan,
         username: payment.userId,
-        orderCode: payment.orderCode,
+        orderCode: payment.orderCode || orderCode,
         amount: payment.amount,
         transactionId: payload.id.toString(),
       });
@@ -222,8 +264,11 @@ export class PaymentService {
   }
 
   private async upgradePlan(userId: string, plan: PaymentPlan): Promise<void> {
+    console.log(`[Payment] Upgrading plan for user: ${userId} to ${plan}`);
+    
     const user = await userRepository.getFullUser(userId);
     if (!user) {
+      console.log(`[Payment] User not found: ${userId}`);
       throw new Error('User not found');
     }
 
@@ -239,6 +284,9 @@ export class PaymentService {
       planExpiresAt,
       $inc: { credits: planConfig.credits },
     });
+
+    // Award referral bonus if this is first payment and user was referred
+    await this.awardReferralBonus(userId, plan);
 
     // Sync to user_keys collection for GoProxy
     if (user.apiKey) {
@@ -266,8 +314,324 @@ export class PaymentService {
     }
   }
 
+  private async awardReferralBonus(userId: string, plan: PaymentPlan): Promise<void> {
+    console.log(`[Referral] Checking referral bonus for user: ${userId}`);
+    
+    const user = await userRepository.getFullUser(userId);
+    if (!user) {
+      console.log(`[Referral] User not found: ${userId}`);
+      return;
+    }
+
+    console.log(`[Referral] User ${userId}: referredBy=${user.referredBy}, referralBonusAwarded=${user.referralBonusAwarded}`);
+
+    // Check if user was referred and hasn't received bonus yet
+    if (!user.referredBy) {
+      console.log(`[Referral] User ${userId} was not referred by anyone`);
+      return;
+    }
+    
+    if (user.referralBonusAwarded) {
+      console.log(`[Referral] User ${userId} already received referral bonus`);
+      return;
+    }
+
+    // Determine bonus amount based on plan
+    const bonusAmount = plan === 'pro' ? 50 : 25;
+
+    // Award refCredits to the referred user (new user)
+    await userRepository.addRefCredits(userId, bonusAmount);
+    await userRepository.markReferralBonusAwarded(userId);
+
+    // Award refCredits to the referrer
+    await userRepository.addRefCredits(user.referredBy, bonusAmount);
+
+    console.log(`[Referral] ✅ Awarded ${bonusAmount} refCredits to ${userId} and ${user.referredBy} for ${plan} plan`);
+  }
+
   async getPaymentHistory(userId: string): Promise<IPayment[]> {
     return paymentRepository.findByUserId(userId);
+  }
+
+  // PayPal Methods
+  private async getPayPalAccessToken(): Promise<string> {
+    const clientId = process.env.PAYPAL_CLIENT_ID;
+    const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new Error('PayPal credentials not configured');
+    }
+
+    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    
+    const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[PayPal] Failed to get access token:', error);
+      throw new Error('Failed to authenticate with PayPal');
+    }
+
+    const data = await response.json() as { access_token: string };
+    return data.access_token;
+  }
+
+  async createPayPalOrder(userId: string, plan: PaymentPlan, discordId?: string): Promise<PayPalOrderResult> {
+    if (plan !== 'pro') {
+      throw new Error('PayPal only supports Pro plan');
+    }
+
+    if (discordId && !/^\d{17,19}$/.test(discordId)) {
+      throw new Error('Invalid Discord ID format');
+    }
+
+    const accessToken = await this.getPayPalAccessToken();
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes for PayPal
+
+    const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [{
+          amount: {
+            currency_code: 'USD',
+            value: PAYPAL_PRO_PRICE_USD.toFixed(2),
+          },
+          description: 'TrollLLM Pro Plan',
+        }],
+        application_context: {
+          brand_name: 'TrollLLM',
+          landing_page: 'LOGIN',
+          user_action: 'PAY_NOW',
+          return_url: 'https://trollllm.xyz/checkout/success',
+          cancel_url: 'https://trollllm.xyz/checkout/cancel',
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[PayPal] Failed to create order:', error);
+      throw new Error('Failed to create PayPal order');
+    }
+
+    const order = await response.json() as { id: string };
+    console.log(`[PayPal] Created order: ${order.id} for user: ${userId}`);
+
+    const payment = await paymentRepository.createPayPal({
+      userId,
+      discordId,
+      plan: 'pro',
+      amount: PAYPAL_PRO_PRICE_USD,
+      paypalOrderId: order.id,
+      expiresAt,
+    });
+
+    return {
+      orderId: order.id,
+      paymentId: payment._id.toString(),
+    };
+  }
+
+  async capturePayPalOrder(orderId: string, userId: string): Promise<PayPalCaptureResult> {
+    const payment = await paymentRepository.findByPayPalOrderId(orderId);
+    
+    if (!payment) {
+      throw new Error('Payment not found');
+    }
+
+    if (payment.userId !== userId) {
+      throw new Error('Unauthorized');
+    }
+
+    if (payment.status === 'success') {
+      return { success: true, plan: payment.plan, captureId: payment.paypalCaptureId };
+    }
+
+    if (payment.status === 'expired') {
+      throw new Error('Payment expired');
+    }
+
+    const accessToken = await this.getPayPalAccessToken();
+
+    const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[PayPal] Failed to capture order:', error);
+      throw new Error('Failed to capture PayPal payment');
+    }
+
+    const captureData = await response.json() as { 
+      id: string; 
+      status: string;
+      purchase_units?: Array<{
+        payments?: {
+          captures?: Array<{ 
+            id: string;
+            amount?: { value: string; currency_code: string };
+          }>;
+        };
+      }>;
+    };
+
+    if (captureData.status !== 'COMPLETED') {
+      throw new Error(`Payment not completed. Status: ${captureData.status}`);
+    }
+
+    // Verify amount
+    const capturedAmount = parseFloat(
+      captureData.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.value || '0'
+    );
+    if (capturedAmount < PAYPAL_PRO_PRICE_USD) {
+      console.error(`[PayPal] Amount mismatch: expected ${PAYPAL_PRO_PRICE_USD}, got ${capturedAmount}`);
+      throw new Error('Payment amount mismatch');
+    }
+
+    const captureId = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id || captureData.id;
+
+    await paymentRepository.updateStatus(
+      payment._id.toString(),
+      'success',
+      captureId,
+      'paypal'
+    );
+
+    await this.upgradePlan(payment.userId, payment.plan);
+
+    if (payment.discordId) {
+      await this.notifyDiscordBot({
+        discordId: payment.discordId,
+        plan: payment.plan,
+        username: payment.userId,
+        orderCode: `PAYPAL-${orderId}`,
+        amount: PAYPAL_PRO_PRICE_USD,
+        transactionId: captureId,
+      });
+    }
+
+    console.log(`[PayPal] Captured order: ${orderId} - User: ${userId} - Plan: ${payment.plan}`);
+    return { success: true, plan: payment.plan, captureId };
+  }
+
+  async verifyPayPalWebhookSignature(headers: Record<string, string>, body: string): Promise<boolean> {
+    const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+    if (!webhookId) {
+      console.error('[PayPal Webhook] PAYPAL_WEBHOOK_ID not configured');
+      return false;
+    }
+
+    const accessToken = await this.getPayPalAccessToken();
+    
+    const verifyPayload = {
+      auth_algo: headers['paypal-auth-algo'],
+      cert_url: headers['paypal-cert-url'],
+      transmission_id: headers['paypal-transmission-id'],
+      transmission_sig: headers['paypal-transmission-sig'],
+      transmission_time: headers['paypal-transmission-time'],
+      webhook_id: webhookId,
+      webhook_event: JSON.parse(body),
+    };
+
+    const response = await fetch(`${PAYPAL_API_BASE}/v1/notifications/verify-webhook-signature`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(verifyPayload),
+    });
+
+    if (!response.ok) {
+      console.error('[PayPal Webhook] Signature verification request failed');
+      return false;
+    }
+
+    const result = await response.json() as { verification_status: string };
+    return result.verification_status === 'SUCCESS';
+  }
+
+  async processPayPalWebhook(
+    payload: PayPalWebhookPayload, 
+    headers: Record<string, string>, 
+    rawBody: string
+  ): Promise<{ processed: boolean; message: string }> {
+    console.log('[PayPal Webhook] Received:', JSON.stringify(payload));
+
+    // Verify webhook signature
+    const isValid = await this.verifyPayPalWebhookSignature(headers, rawBody);
+    if (!isValid) {
+      console.error('[PayPal Webhook] Invalid signature - possible fraud attempt!');
+      return { processed: false, message: 'Invalid webhook signature' };
+    }
+
+    if (payload.event_type !== 'PAYMENT.CAPTURE.COMPLETED') {
+      return { processed: false, message: `Ignored event type: ${payload.event_type}` };
+    }
+
+    const orderId = payload.resource?.supplementary_data?.related_ids?.order_id;
+    if (!orderId) {
+      console.log('[PayPal Webhook] No order ID in payload');
+      return { processed: false, message: 'No order ID found' };
+    }
+
+    // Verify amount
+    const paidAmount = parseFloat(payload.resource?.amount?.value || '0');
+    if (paidAmount < PAYPAL_PRO_PRICE_USD) {
+      console.error(`[PayPal Webhook] Amount mismatch: expected ${PAYPAL_PRO_PRICE_USD}, got ${paidAmount}`);
+      return { processed: false, message: 'Amount mismatch' };
+    }
+
+    const payment = await paymentRepository.findByPayPalOrderId(orderId);
+    if (!payment) {
+      console.log(`[PayPal Webhook] Payment not found for order: ${orderId}`);
+      return { processed: false, message: 'Payment not found' };
+    }
+
+    if (payment.status === 'success') {
+      return { processed: false, message: 'Already processed' };
+    }
+
+    const captureId = payload.resource.id;
+    await paymentRepository.updateStatus(
+      payment._id.toString(),
+      'success',
+      captureId,
+      'paypal'
+    );
+
+    await this.upgradePlan(payment.userId, payment.plan);
+
+    if (payment.discordId) {
+      await this.notifyDiscordBot({
+        discordId: payment.discordId,
+        plan: payment.plan,
+        username: payment.userId,
+        orderCode: `PAYPAL-${orderId}`,
+        amount: PAYPAL_PRO_PRICE_USD,
+        transactionId: captureId,
+      });
+    }
+
+    console.log(`[PayPal Webhook] Success: ${orderId} - User: ${payment.userId}`);
+    return { processed: true, message: 'Payment processed successfully' };
   }
 }
 

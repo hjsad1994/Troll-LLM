@@ -1,4 +1,4 @@
-import { User, IUser, hashPassword, generateApiKey, PLAN_LIMITS, UserPlan } from '../models/user.model.js';
+import { User, IUser, hashPassword, generateApiKey, generateReferralCode, PLAN_LIMITS, UserPlan } from '../models/user.model.js';
 import { UserKey } from '../models/user-key.model.js';
 import { RequestLog } from '../models/request-log.model.js';
 
@@ -7,6 +7,7 @@ export interface CreateUserData {
   password: string;
   role: 'admin' | 'user';
   plan?: UserPlan;
+  referredBy?: string;
 }
 
 function planToTier(plan: UserPlan): 'dev' | 'pro' {
@@ -41,20 +42,65 @@ export class UserRepository {
     const now = new Date();
     const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     
-    const user = await User.create({
-      _id: data.username,
-      passwordHash: hash,
-      passwordSalt: salt,
-      role: data.role,
-      isActive: true,
-      apiKey,
-      apiKeyCreatedAt: now,
-      plan,
-      tokensUsed: 0,
-      monthlyTokensUsed: 0,
-      monthlyResetDate: firstDayOfMonth,
-      credits: 0,
-    });
+    // Validate referredBy if provided
+    let validReferredBy: string | null = null;
+    if (data.referredBy) {
+      const referrer = await User.findOne({ referralCode: data.referredBy }).lean();
+      if (referrer) {
+        validReferredBy = referrer._id;
+      }
+    }
+    
+    // Create user with retry for referral code collision
+    let user;
+    let createAttempts = 0;
+    const maxCreateAttempts = 3;
+    
+    while (createAttempts < maxCreateAttempts) {
+      // Generate unique referral code
+      let referralCode = generateReferralCode();
+      let codeAttempts = 0;
+      while (await User.exists({ referralCode }) && codeAttempts < 10) {
+        referralCode = generateReferralCode();
+        codeAttempts++;
+      }
+
+      try {
+        user = await User.create({
+          _id: data.username,
+          passwordHash: hash,
+          passwordSalt: salt,
+          role: data.role,
+          isActive: true,
+          apiKey,
+          apiKeyCreatedAt: now,
+          plan,
+          tokensUsed: 0,
+          monthlyTokensUsed: 0,
+          monthlyResetDate: firstDayOfMonth,
+          credits: 0,
+          referralCode,
+          referredBy: validReferredBy,
+          refCredits: 0,
+          referralBonusAwarded: false,
+        });
+        break; // Success, exit loop
+      } catch (err: any) {
+        // Check if error is duplicate key on referralCode
+        if (err.code === 11000 && err.keyPattern?.referralCode) {
+          createAttempts++;
+          if (createAttempts >= maxCreateAttempts) {
+            throw new Error('Failed to generate unique referral code after multiple attempts');
+          }
+          continue; // Retry with new code
+        }
+        throw err; // Re-throw other errors
+      }
+    }
+
+    if (!user) {
+      throw new Error('Failed to create user');
+    }
 
     // Sync API key to user_keys collection for GoProxy (only for non-free plans)
     if (plan !== 'free') {
@@ -359,6 +405,119 @@ export class UserRepository {
     }
     
     return { wasExpired: false, user };
+  }
+
+  // Referral methods
+  async findByReferralCode(referralCode: string): Promise<IUser | null> {
+    return User.findOne({ referralCode }).lean();
+  }
+
+  async addRefCredits(username: string, amount: number): Promise<IUser | null> {
+    return User.findByIdAndUpdate(
+      username,
+      { $inc: { refCredits: amount } },
+      { new: true }
+    ).lean();
+  }
+
+  async markReferralBonusAwarded(username: string): Promise<void> {
+    await User.updateOne(
+      { _id: username },
+      { referralBonusAwarded: true }
+    );
+  }
+
+  async getReferralStats(username: string): Promise<{
+    totalReferrals: number;
+    successfulReferrals: number;
+    totalRefCreditsEarned: number;
+    currentRefCredits: number;
+  }> {
+    const user = await User.findById(username).lean();
+    if (!user) {
+      return { totalReferrals: 0, successfulReferrals: 0, totalRefCreditsEarned: 0, currentRefCredits: 0 };
+    }
+
+    // Count all users referred by this user
+    const totalReferrals = await User.countDocuments({ referredBy: username });
+    
+    // Count users who have paid (referralBonusAwarded = true means they completed payment)
+    const successfulReferrals = await User.countDocuments({ 
+      referredBy: username, 
+      referralBonusAwarded: true 
+    });
+
+    // Calculate total refCredits earned (25 per dev, 50 per pro)
+    const paidUsers = await User.find({ 
+      referredBy: username, 
+      referralBonusAwarded: true 
+    }).select('plan').lean();
+    
+    let totalRefCreditsEarned = 0;
+    for (const u of paidUsers) {
+      totalRefCreditsEarned += u.plan === 'pro' ? 50 : 25;
+    }
+
+    return {
+      totalReferrals,
+      successfulReferrals,
+      totalRefCreditsEarned,
+      currentRefCredits: user.refCredits || 0,
+    };
+  }
+
+  async getReferredUsers(username: string): Promise<Array<{
+    username: string;
+    status: 'registered' | 'paid';
+    plan: string | null;
+    bonusEarned: number;
+    createdAt: Date;
+  }>> {
+    const referredUsers = await User.find({ referredBy: username })
+      .select('_id plan referralBonusAwarded createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return referredUsers.map(u => ({
+      username: u._id,
+      status: u.referralBonusAwarded ? 'paid' : 'registered',
+      plan: u.referralBonusAwarded ? u.plan : null,
+      bonusEarned: u.referralBonusAwarded ? (u.plan === 'pro' ? 50 : 25) : 0,
+      createdAt: u.createdAt,
+    }));
+  }
+
+  async generateReferralCodeForExistingUsers(): Promise<number> {
+    const usersWithoutCode = await User.find({ 
+      $or: [
+        { referralCode: { $exists: false } },
+        { referralCode: null },
+        { referralCode: '' },
+        { referralCode: 'undefined' }
+      ]
+    }).lean();
+
+    let updated = 0;
+    for (const user of usersWithoutCode) {
+      let referralCode = generateReferralCode();
+      let attempts = 0;
+      while (await User.exists({ referralCode }) && attempts < 10) {
+        referralCode = generateReferralCode();
+        attempts++;
+      }
+      await User.updateOne(
+        { _id: user._id }, 
+        { 
+          $set: {
+            referralCode,
+            refCredits: (user as any).refCredits ?? 0,
+            referralBonusAwarded: (user as any).referralBonusAwarded ?? false
+          }
+        }
+      );
+      updated++;
+    }
+    return updated;
   }
 }
 

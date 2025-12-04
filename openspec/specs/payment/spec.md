@@ -223,16 +223,18 @@ The system SHALL store payment transactions with the following schema.
 - **THEN** it SHALL contain:
   - `userId`: string (reference to user)
   - `plan`: 'dev' | 'pro'
-  - `amount`: number (35000 or 79000 VND)
-  - `currency`: 'VND'
-  - `orderCode`: string (unique, used in QR des field)
+  - `amount`: number (35000 or 79000 VND for SePay, 4.00 USD for PayPal Pro)
+  - `currency`: 'VND' | 'USD'
+  - `orderCode`: string (unique, used in QR des field) - for SePay
+  - `paypalOrderId`: string (PayPal order ID) - for PayPal
+  - `paymentMethod`: 'sepay' | 'paypal'
   - `status`: 'pending' | 'success' | 'failed' | 'expired'
-  - `sepayTransactionId`: string (optional, from webhook)
+  - `sepayTransactionId`: string (optional, from SePay webhook)
+  - `paypalCaptureId`: string (optional, from PayPal capture)
+  - `referralBonusAwarded`: boolean (default: false, true if referral bonus was given)
   - `createdAt`: Date
   - `expiresAt`: Date (15 minutes from creation)
   - `completedAt`: Date (optional, when payment confirmed)
-
----
 
 ### Requirement: SePay Configuration
 The system SHALL use environment variables for SePay integration.
@@ -253,4 +255,316 @@ The system SHALL use environment variables for SePay integration.
 #### Scenario: Verify webhook API key
 - **WHEN** processing webhook request
 - **THEN** the system SHALL verify header `Authorization` equals `Apikey {SEPAY_API_KEY}`
+
+### Requirement: PayPal Checkout Integration
+The system SHALL allow authenticated users to pay via PayPal for Pro plan only.
+
+#### Scenario: Create PayPal order for Pro plan
+- **WHEN** authenticated user calls `POST /api/payment/paypal/create` with `{ "plan": "pro" }`
+- **THEN** the system SHALL create a pending payment record with `paymentMethod: 'paypal'`
+- **AND** call PayPal Orders API v2 to create order with amount $4.00 USD
+- **AND** return `{ orderId: "<paypal_order_id>" }` for frontend PayPal SDK
+
+#### Scenario: Reject PayPal order for Dev plan
+- **WHEN** authenticated user calls `POST /api/payment/paypal/create` with `{ "plan": "dev" }`
+- **THEN** the system SHALL return 400 error with message "PayPal only supports Pro plan"
+
+#### Scenario: Capture PayPal order after approval
+- **WHEN** user approves payment in PayPal popup
+- **AND** frontend calls `POST /api/payment/paypal/capture` with `{ "orderID": "<paypal_order_id>" }`
+- **THEN** the system SHALL call PayPal Capture API
+- **AND** update payment status to 'success'
+- **AND** upgrade user plan to Pro and add 500 credits
+- **AND** return `{ success: true, plan: "pro" }`
+
+#### Scenario: PayPal order creation without authentication
+- **WHEN** unauthenticated user calls `POST /api/payment/paypal/create`
+- **THEN** the system SHALL return 401 Unauthorized
+
+---
+
+### Requirement: PayPal Webhook Handling
+The system SHALL process PayPal webhooks for payment confirmation as a backup to capture flow.
+
+**PayPal Webhook Payload (PAYMENT.CAPTURE.COMPLETED):**
+```json
+{
+  "id": "WH-XXX",
+  "event_type": "PAYMENT.CAPTURE.COMPLETED",
+  "resource": {
+    "id": "capture_id",
+    "status": "COMPLETED",
+    "amount": {
+      "value": "1.50",
+      "currency_code": "USD"
+    },
+    "supplementary_data": {
+      "related_ids": {
+        "order_id": "paypal_order_id"
+      }
+    }
+  }
+}
+```
+
+#### Scenario: Verify PayPal webhook signature
+- **WHEN** PayPal sends POST to `/api/payment/paypal/webhook`
+- **THEN** the system SHALL verify webhook signature using PayPal Webhook ID
+- **AND** if signature is invalid, return 401 Unauthorized
+
+#### Scenario: Process PAYMENT.CAPTURE.COMPLETED webhook
+- **WHEN** PayPal sends webhook with `event_type: "PAYMENT.CAPTURE.COMPLETED"`
+- **AND** signature is valid
+- **AND** `resource.status` is "COMPLETED"
+- **THEN** the system SHALL find payment by `paypalOrderId`
+- **AND** if payment is still pending, update status to 'success'
+- **AND** upgrade user plan if not already upgraded
+- **AND** return 200 OK
+
+#### Scenario: Duplicate webhook handling
+- **WHEN** PayPal sends webhook for already processed payment
+- **THEN** the system SHALL ignore the webhook (idempotent)
+- **AND** return 200 OK
+
+---
+
+### Requirement: PayPal Frontend Integration
+The system SHALL display dual payment methods on checkout page: VN (QR) and International (PayPal).
+
+#### Scenario: Display dual payment methods on Pro plan checkout
+- **WHEN** authenticated user navigates to `/checkout?plan=pro`
+- **THEN** the system SHALL display two payment method tabs/options:
+  - **VN (Vietnam)**: SePay QR code (79,000 VND)
+  - **International**: PayPal button ($4.00 USD)
+- **AND** configure PayPalScriptProvider with client ID and USD currency
+
+#### Scenario: Display QR only on Dev plan checkout
+- **WHEN** authenticated user navigates to `/checkout?plan=dev`
+- **THEN** the system SHALL display only VN payment method
+- **AND** show SePay QR code (35,000 VND)
+- **AND** NOT display PayPal option or International tab
+
+#### Scenario: User selects VN payment on Pro plan
+- **WHEN** user selects "VN" payment method on Pro plan checkout
+- **THEN** the system SHALL display SePay QR code
+- **AND** show amount 79,000 VND
+- **AND** start polling for payment status
+
+#### Scenario: User selects International payment on Pro plan
+- **WHEN** user selects "International" payment method on Pro plan checkout
+- **THEN** the system SHALL display PayPal button
+- **AND** show amount $4.00 USD
+
+#### Scenario: PayPal button click flow
+- **WHEN** user clicks PayPal button on Pro plan
+- **THEN** the system SHALL call backend `/api/payment/paypal/create` with `{ "plan": "pro" }`
+- **AND** open PayPal popup with order ID
+- **AND** on approval, call `/api/payment/paypal/capture`
+- **AND** display success message on completion
+
+#### Scenario: PayPal payment cancellation
+- **WHEN** user cancels PayPal popup
+- **THEN** the system SHALL display "Payment cancelled" message
+- **AND** allow user to retry
+
+#### Scenario: PayPal payment error
+- **WHEN** PayPal returns error during checkout
+- **THEN** the system SHALL display error message
+- **AND** log error for debugging
+
+---
+
+### Requirement: PayPal Configuration
+The system SHALL use environment variables for PayPal integration.
+
+#### Scenario: Load PayPal configuration
+- **WHEN** payment service initializes
+- **THEN** it SHALL read from environment:
+  - `PAYPAL_CLIENT_ID`: PayPal app client ID
+  - `PAYPAL_CLIENT_SECRET`: PayPal app secret
+  - `PAYPAL_WEBHOOK_ID`: Webhook ID for signature verification
+  - `PAYPAL_MODE`: 'sandbox' or 'live'
+- **AND** use sandbox API URL for sandbox mode
+- **AND** use live API URL for live mode
+
+#### Scenario: PayPal API endpoints
+- **WHEN** `PAYPAL_MODE` is 'sandbox'
+- **THEN** use `https://api-m.sandbox.paypal.com` as base URL
+- **WHEN** `PAYPAL_MODE` is 'live'
+- **THEN** use `https://api-m.paypal.com` as base URL
+
+---
+
+### Requirement: Referral Code Generation
+The system SHALL generate a unique referral code for each user.
+
+#### Scenario: Auto-generate referral code on user creation
+- **WHEN** a new user is registered
+- **THEN** the system SHALL generate a unique referral code
+- **AND** store it in the user's `referralCode` field
+- **AND** the code SHALL be 8 characters alphanumeric
+
+#### Scenario: Get user referral link
+- **WHEN** authenticated user calls `GET /api/user/referral`
+- **THEN** the system SHALL return:
+  - `referralCode`: user's unique referral code
+  - `referralLink`: full URL with ref parameter (e.g., `https://domain.com/register?ref={code}`)
+
+---
+
+### Requirement: Referral Registration Tracking
+The system SHALL track referral relationships during registration.
+
+#### Scenario: Register with valid referral code
+- **WHEN** user registers with URL parameter `?ref={referralCode}`
+- **AND** the referral code exists and belongs to another user
+- **THEN** the system SHALL store the referrer's userId in new user's `referredBy` field
+- **AND** complete registration normally
+
+#### Scenario: Register with invalid referral code
+- **WHEN** user registers with URL parameter `?ref={invalidCode}`
+- **AND** the referral code does not exist
+- **THEN** the system SHALL ignore the invalid referral code
+- **AND** complete registration normally without referral relationship
+
+#### Scenario: Register without referral code
+- **WHEN** user registers without `ref` parameter
+- **THEN** the system SHALL complete registration normally
+- **AND** leave `referredBy` field empty
+
+---
+
+### Requirement: Referral Credits (Separate Balance)
+The system SHALL maintain referral credits as a separate balance from main credits.
+
+#### Scenario: Dev plan payment with referral
+- **WHEN** a referred user (has `referredBy` set) completes payment for Dev plan
+- **AND** this is the user's first successful payment
+- **THEN** the system SHALL add 25 to the referred user's `refCredits` field
+- **AND** add 25 to the referrer's `refCredits` field
+- **AND** log the bonus transaction for both users
+
+#### Scenario: Pro plan payment with referral
+- **WHEN** a referred user (has `referredBy` set) completes payment for Pro plan
+- **AND** this is the user's first successful payment
+- **THEN** the system SHALL add 50 to the referred user's `refCredits` field
+- **AND** add 50 to the referrer's `refCredits` field
+- **AND** log the bonus transaction for both users
+
+#### Scenario: Payment without referral
+- **WHEN** a user without `referredBy` completes payment
+- **THEN** the system SHALL NOT award any referral credits
+- **AND** process payment normally
+
+#### Scenario: Subsequent payment with referral
+- **WHEN** a referred user completes a second or subsequent payment
+- **THEN** the system SHALL NOT award referral credits again for this user
+- **AND** process payment normally
+
+#### Scenario: Multiple successful referrals
+- **WHEN** User A refers both User B and User C
+- **AND** User B completes payment for Dev plan
+- **AND** User C completes payment for Pro plan
+- **THEN** User A SHALL receive 25 refCredits (from User B) + 50 refCredits (from User C) = 75 total refCredits
+- **AND** each referral bonus is independent and cumulative
+
+---
+
+### Requirement: Referral Credits Usage Priority
+The system SHALL use main credits first, then referral credits when main credits are exhausted.
+
+#### Scenario: API request with sufficient main credits
+- **WHEN** user makes API request costing X credits
+- **AND** user has sufficient main `credits` balance
+- **THEN** the system SHALL deduct X from main `credits`
+- **AND** NOT touch `refCredits`
+- **AND** apply user's plan RPM limit
+
+#### Scenario: API request with exhausted main credits
+- **WHEN** user makes API request costing X credits
+- **AND** user's main `credits` balance is 0 or insufficient
+- **AND** user has sufficient `refCredits` balance
+- **THEN** the system SHALL deduct X from `refCredits`
+- **AND** apply **Pro-level RPM (1000 RPM)** for this request
+
+#### Scenario: API request with partial main credits
+- **WHEN** user makes API request costing X credits
+- **AND** user has Y main credits where Y < X
+- **AND** user has sufficient `refCredits` to cover (X - Y)
+- **THEN** the system SHALL deduct Y from main `credits` (to 0)
+- **AND** deduct (X - Y) from `refCredits`
+- **AND** apply **Pro-level RPM (1000 RPM)** for this request
+
+#### Scenario: API request with no credits available
+- **WHEN** user makes API request
+- **AND** user has 0 main `credits` AND 0 `refCredits`
+- **THEN** the system SHALL reject the request with insufficient credits error
+
+---
+
+### Requirement: Referral Statistics
+The system SHALL provide referral statistics for users.
+
+#### Scenario: Get referral statistics
+- **WHEN** authenticated user calls `GET /api/user/referral/stats`
+- **THEN** the system SHALL return:
+  - `totalReferrals`: number of users who registered with this user's referral code
+  - `successfulReferrals`: number of referred users who completed payment
+  - `totalRefCreditsEarned`: total referral credits earned from referrals
+  - `currentRefCredits`: current referral credits balance
+
+#### Scenario: Empty referral statistics
+- **WHEN** user has no referrals
+- **THEN** the system SHALL return all statistics as 0
+
+---
+
+### Requirement: Referred Users List
+The system SHALL provide a list of users referred by the current user.
+
+#### Scenario: Get referred users list
+- **WHEN** authenticated user calls `GET /api/user/referral/list`
+- **THEN** the system SHALL return list of referred users with:
+  - `username`: masked username (format: `abc***xyz`)
+  - `status`: 'registered' | 'paid'
+  - `plan`: plan purchased (null if not paid, 'dev' | 'pro' if paid)
+  - `bonusEarned`: refCredits earned from this referral (0 if not paid)
+  - `createdAt`: registration date
+
+#### Scenario: Empty referred users list
+- **WHEN** user has no referrals
+- **THEN** the system SHALL return empty array
+
+#### Scenario: Referred users sorted by date
+- **WHEN** user has multiple referrals
+- **THEN** the list SHALL be sorted by most recent first
+
+---
+
+### Requirement: Referral Dashboard Page
+The system SHALL provide a referral management page in the user dashboard.
+
+#### Scenario: Display referral page
+- **WHEN** authenticated user navigates to `/dashboard/referral`
+- **THEN** the system SHALL display:
+  - User's referral link with copy button
+  - Statistics cards (total referrals, successful referrals, refCredits earned, current balance)
+  - Table of referred users
+
+#### Scenario: Copy referral link
+- **WHEN** user clicks copy button on referral link
+- **THEN** the system SHALL copy the full referral URL to clipboard
+- **AND** show success notification
+
+#### Scenario: Referral menu in sidebar
+- **WHEN** user views dashboard sidebar
+- **THEN** the sidebar SHALL include "Referral" menu item
+- **AND** clicking it navigates to `/dashboard/referral`
+
+#### Scenario: Display refCredits in dashboard
+- **WHEN** user views any dashboard page
+- **THEN** the system SHALL display current `refCredits` balance
+- **AND** display it separately from main `credits` balance
+
+---
 

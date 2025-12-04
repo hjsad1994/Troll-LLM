@@ -350,6 +350,12 @@ func (r *responseRecorder) WriteHeader(code int) {
 // checkRateLimit checks if request is within rate limit for the given API key
 // Returns true if allowed, false if rate limited (response already sent)
 func checkRateLimit(w http.ResponseWriter, apiKey string) bool {
+	return checkRateLimitWithUsername(w, apiKey, "")
+}
+
+// checkRateLimitWithUsername checks rate limit with refCredits support
+// When user's main credits are exhausted and using refCredits, Pro-level RPM (1000) is applied
+func checkRateLimitWithUsername(w http.ResponseWriter, apiKey string, username string) bool {
 	// Default limit for unknown users
 	limit := ratelimit.DefaultRPM
 
@@ -357,6 +363,15 @@ func checkRateLimit(w http.ResponseWriter, apiKey string) bool {
 	user, err := userkey.GetKeyByID(apiKey)
 	if err == nil && user != nil {
 		limit = user.GetRPMLimit()
+	}
+
+	// Check if user is using refCredits (main credits exhausted) - apply Pro RPM
+	if username != "" {
+		creditResult, err := userkey.CheckUserCreditsDetailed(username)
+		if err == nil && creditResult != nil && creditResult.UseRefCredits {
+			limit = 1000 // Pro-level RPM when using refCredits
+			log.Printf("🎁 [RefCredits] Applying Pro RPM (1000) for user %s using refCredits", username)
+		}
 	}
 
 	// Check rate limit
@@ -505,10 +520,22 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`{"error": {"message": "Free Tier users cannot access this API. Please upgrade your plan.", "type": "free_tier_restricted"}}`))
 			return
 		}
+
+		// Check if user has sufficient credits
+		if err := userkey.CheckUserCredits(username); err != nil {
+			if err == userkey.ErrInsufficientCredits {
+				log.Printf("💸 Insufficient credits for user: %s", username)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"error": {"message": "Insufficient credits. Please purchase a plan to continue using the service.", "type": "insufficient_credits"}}`))
+				return
+			}
+			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+		}
 	}
 
-	// Check rate limit
-	if !checkRateLimit(w, clientAPIKey) {
+	// Check rate limit (with refCredits support for Pro RPM)
+	if !checkRateLimitWithUsername(w, clientAPIKey, username) {
 		return
 	}
 
@@ -1901,47 +1928,33 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
 		username = userKey.Name // Store username for credit deduction
+
+		// Check if Free Tier user - block access
+		if userKey.IsFreeUser() {
+			log.Printf("🚫 Free Tier user blocked: %s", clientKeyMask)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"type":"error","error":{"type":"free_tier_restricted","message":"Free Tier users cannot access this API. Please upgrade your plan."}}`))
+			return
+		}
+
+		// Check if user has sufficient credits
+		if err := userkey.CheckUserCredits(username); err != nil {
+			if err == userkey.ErrInsufficientCredits {
+				log.Printf("💸 Insufficient credits for user: %s", username)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Please purchase a plan to continue using the service."}}`))
+				return
+			}
+			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+		}
 	}
 
-	// Check rate limit
-	if !checkRateLimit(w, clientAPIKey) {
+	// Check rate limit (with refCredits support for Pro RPM)
+	if !checkRateLimitWithUsername(w, clientAPIKey, username) {
 		return
 	}
-
-	// OLD CODE - BEGIN (proxy/key selection moved after model parsing for model-based routing)
-	// // Get factory key from proxy pool or environment
-	// var selectedProxy *proxy.Proxy
-	// var trollAPIKey string
-	// var trollKeyID string
-	// 
-	// if proxyPool != nil && proxyPool.HasProxies() {
-	// 	// Use proxy pool - sticky routing based on client API key
-	// 	var err error
-	// 	selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
-	// 	if err != nil {
-	// 		log.Printf("❌ Failed to select proxy: %v", err)
-	// 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"No available proxies"}}`, http.StatusServiceUnavailable)
-	// 		return
-	// 	}
-	// 	trollAPIKey = trollKeyPool.GetAPIKey(trollKeyID)
-	// 	if trollAPIKey == "" {
-	// 		log.Printf("❌ Troll key %s not found in pool", trollKeyID)
-	// 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// 	log.Printf("🔄 [Anthropic] Using proxy %s with key %s", selectedProxy.Name, trollKeyID)
-	// } else {
-	// 	// Fallback to environment variable
-	// 	trollAPIKey = getEnv("TROLL_API_KEY", "")
-	// 	trollKeyID = "env"
-	// 	if trollAPIKey == "" {
-	// 		log.Printf("❌ No proxies configured and TROLL_API_KEY not set")
-	// 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// }
-	// authHeader = "Bearer " + trollAPIKey
-	// OLD CODE - END
 
 	// Read request body (no parsing - direct pass-through)
 	bodyBytes, err := io.ReadAll(r.Body)

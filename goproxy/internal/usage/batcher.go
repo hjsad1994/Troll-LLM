@@ -60,11 +60,12 @@ type usageUpdate struct {
 }
 
 type creditUpdate struct {
-	username     string
-	cost         float64
-	tokensUsed   int64
-	inputTokens  int64
-	outputTokens int64
+	username      string
+	cost          float64
+	tokensUsed    int64
+	inputTokens   int64
+	outputTokens  int64
+	useRefCredits bool // true if deducting from refCredits
 }
 
 var (
@@ -127,13 +128,19 @@ func (b *BatchedUsageTracker) QueueUsageUpdate(apiKey string, tokensUsed int64) 
 
 // QueueCreditUpdate queues a credit update for batch processing
 func (b *BatchedUsageTracker) QueueCreditUpdate(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) {
+	b.QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, false)
+}
+
+// QueueCreditUpdateWithRef queues a credit update with optional refCredits flag
+func (b *BatchedUsageTracker) QueueCreditUpdateWithRef(username string, cost float64, tokensUsed, inputTokens, outputTokens int64, useRefCredits bool) {
 	select {
 	case b.creditChan <- creditUpdate{
-		username:     username,
-		cost:         cost,
-		tokensUsed:   tokensUsed,
-		inputTokens:  inputTokens,
-		outputTokens: outputTokens,
+		username:      username,
+		cost:          cost,
+		tokensUsed:    tokensUsed,
+		inputTokens:   inputTokens,
+		outputTokens:  outputTokens,
+		useRefCredits: useRefCredits,
 	}:
 	default:
 		log.Printf("⚠️ [BatchedUsageTracker] Credit channel full, dropping update")
@@ -244,6 +251,15 @@ func (b *BatchedUsageTracker) usageWorker() {
 	}
 }
 
+// creditAggregation tracks aggregated credit updates for a user
+type creditAggregation struct {
+	creditsCost    float64
+	refCreditsCost float64
+	tokensUsed     int64
+	inputTokens    int64
+	outputTokens   int64
+}
+
 // creditWorker processes credit updates in batches using bulk write
 func (b *BatchedUsageTracker) creditWorker() {
 	defer b.wg.Done()
@@ -251,8 +267,8 @@ func (b *BatchedUsageTracker) creditWorker() {
 	ticker := time.NewTicker(b.config.FlushInterval)
 	defer ticker.Stop()
 	
-	// Aggregate updates by username
-	updates := make(map[string]*creditUpdate)
+	// Aggregate updates by username (track credits and refCredits separately)
+	updates := make(map[string]*creditAggregation)
 
 	flush := func() {
 		if len(updates) == 0 {
@@ -265,16 +281,24 @@ func (b *BatchedUsageTracker) creditWorker() {
 		// Build bulk write operations
 		models := make([]mongo.WriteModel, 0, len(updates))
 		
-		for username, cu := range updates {
+		for username, agg := range updates {
 			incFields := bson.M{
-				"credits":    -cu.cost,
-				"tokensUsed": cu.tokensUsed,
+				"tokensUsed": agg.tokensUsed,
 			}
-			if cu.inputTokens > 0 {
-				incFields["totalInputTokens"] = cu.inputTokens
+			
+			// Deduct from appropriate credit field
+			if agg.creditsCost > 0 {
+				incFields["credits"] = -agg.creditsCost
 			}
-			if cu.outputTokens > 0 {
-				incFields["totalOutputTokens"] = cu.outputTokens
+			if agg.refCreditsCost > 0 {
+				incFields["refCredits"] = -agg.refCreditsCost
+			}
+			
+			if agg.inputTokens > 0 {
+				incFields["totalInputTokens"] = agg.inputTokens
+			}
+			if agg.outputTokens > 0 {
+				incFields["totalOutputTokens"] = agg.outputTokens
 			}
 
 			model := mongo.NewUpdateOneModel().
@@ -297,14 +321,22 @@ func (b *BatchedUsageTracker) creditWorker() {
 	for {
 		select {
 		case update := <-b.creditChan:
-			if existing, ok := updates[update.username]; ok {
-				existing.cost += update.cost
-				existing.tokensUsed += update.tokensUsed
-				existing.inputTokens += update.inputTokens
-				existing.outputTokens += update.outputTokens
-			} else {
-				updates[update.username] = &update
+			existing, ok := updates[update.username]
+			if !ok {
+				existing = &creditAggregation{}
+				updates[update.username] = existing
 			}
+			
+			// Track cost in appropriate bucket
+			if update.useRefCredits {
+				existing.refCreditsCost += update.cost
+			} else {
+				existing.creditsCost += update.cost
+			}
+			existing.tokensUsed += update.tokensUsed
+			existing.inputTokens += update.inputTokens
+			existing.outputTokens += update.outputTokens
+			
 			if len(updates) >= b.config.MaxBatchSize {
 				flush()
 			}

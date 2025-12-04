@@ -155,7 +155,35 @@ func DeductCredits(username string, cost float64, tokensUsed int64) error {
 	return DeductCreditsWithTokens(username, cost, tokensUsed, 0, 0)
 }
 
+// DeductCreditsWithRefCheck deducts credits with refCredits support
+// useRefCredits should be true if the user's main credits are exhausted
+func DeductCreditsWithRefCheck(username string, cost float64, tokensUsed, inputTokens, outputTokens int64, useRefCredits bool) error {
+	if username == "" {
+		return nil
+	}
+
+	actualTokensUsed := inputTokens + outputTokens
+	if actualTokensUsed == 0 {
+		actualTokensUsed = tokensUsed
+	}
+
+	// Use batched writes if enabled
+	if UseBatchedWrites {
+		GetBatcher().QueueCreditUpdateWithRef(username, cost, actualTokensUsed, inputTokens, outputTokens, useRefCredits)
+		if useRefCredits {
+			log.Printf("💰 [%s] Deducted $%.6f from refCredits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+		} else {
+			log.Printf("💰 [%s] Deducted $%.6f from credits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+		}
+		return nil
+	}
+
+	// For non-batched mode, fall back to the existing function
+	return DeductCreditsWithTokens(username, cost, tokensUsed, inputTokens, outputTokens)
+}
+
 // DeductCreditsWithTokens deducts credits and updates token counts (total, input, output)
+// Deducts from main credits first, then from refCredits if main credits are insufficient
 func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
 	if username == "" {
 		return nil
@@ -174,12 +202,22 @@ func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTok
 		return nil
 	}
 
-	// Fallback to synchronous write
+	// Fallback to synchronous write with refCredits support
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// First, get current credits to determine where to deduct from
+	var user struct {
+		Credits    float64 `bson:"credits"`
+		RefCredits float64 `bson:"refCredits"`
+	}
+	err := db.UsersCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		log.Printf("❌ Failed to get user %s credits: %v", username, err)
+		return err
+	}
+
 	incFields := bson.M{
-		"credits":    -cost,
 		"tokensUsed": actualTokensUsed,
 	}
 	
@@ -190,17 +228,33 @@ func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTok
 		incFields["totalOutputTokens"] = outputTokens
 	}
 
+	// Determine where to deduct credits from
+	if user.Credits >= cost {
+		// Deduct from main credits
+		incFields["credits"] = -cost
+		log.Printf("💰 [%s] Deducted $%.6f from credits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+	} else if user.Credits > 0 {
+		// Partial deduct: use remaining main credits, then refCredits
+		refCost := cost - user.Credits
+		incFields["credits"] = -user.Credits
+		incFields["refCredits"] = -refCost
+		log.Printf("💰 [%s] Deducted $%.6f from credits + $%.6f from refCredits (in=%d, out=%d)", username, user.Credits, refCost, inputTokens, outputTokens)
+	} else {
+		// Deduct from refCredits only
+		incFields["refCredits"] = -cost
+		log.Printf("💰 [%s] Deducted $%.6f from refCredits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+	}
+
 	update := bson.M{
 		"$inc": incFields,
 	}
 
-	_, err := db.UsersCollection().UpdateByID(ctx, username, update)
+	_, err = db.UsersCollection().UpdateByID(ctx, username, update)
 	if err != nil {
 		log.Printf("❌ Failed to update user %s: %v", username, err)
 		return err
 	}
 
-	log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 	return nil
 }
 

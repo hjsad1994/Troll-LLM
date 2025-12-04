@@ -22,6 +22,11 @@ export interface IUser {
   monthlyTokensUsed: number;
   monthlyResetDate: Date;
   credits: number;
+  // Referral fields
+  referralCode: string;
+  referredBy?: string | null;
+  refCredits: number;
+  referralBonusAwarded: boolean;
 }
 
 export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; rpm: number; valueUsd: number }> = {
@@ -49,6 +54,11 @@ const userSchema = new mongoose.Schema({
   monthlyTokensUsed: { type: Number, default: 0 },
   monthlyResetDate: { type: Date, default: () => getFirstDayOfMonth() },
   credits: { type: Number, default: 0 },
+  // Referral fields
+  referralCode: { type: String, unique: true, sparse: true },
+  referredBy: { type: String, default: null },
+  refCredits: { type: Number, default: 0 },
+  referralBonusAwarded: { type: Boolean, default: false },
 });
 
 function getFirstDayOfMonth(): Date {
@@ -78,4 +88,20 @@ export function generateApiKey(): string {
 export function maskApiKey(key: string): string {
   if (!key || key.length < 20) return '****';
   return key.slice(0, 15) + '****' + key.slice(-4);
+}
+
+export function generateReferralCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+export function maskUsername(username: string): string {
+  if (!username || username.length < 4) return '***';
+  const start = username.slice(0, 3);
+  const end = username.slice(-3);
+  return `${start}***${end}`;
 }

@@ -46,6 +46,7 @@ export class AuthService {
       username: input.username,
       password: input.password,
       role: input.role || 'user',
+      referredBy: input.ref,
     });
 
     const payload: JwtPayload = { username: user._id, role: user.role };

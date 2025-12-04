@@ -76,7 +76,7 @@ MAIN_UPSTREAM_KEY=your-key
 nano backend/.env
 ```
 ```env
-# MongoDB
+# MongoDB Atlas connection string
 MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/?appName=TrollLLM
 MONGODB_DB_NAME=trollllm
 
@@ -88,7 +88,27 @@ PROXY_PORT=8003
 
 # Node.js Backend configuration
 BACKEND_PORT=3005
+
+# Frontend URL (for referral links)
+FRONTEND_URL=https://trollllm.xyz
+
+# Optional: Debug mode
 DEBUG=false
+
+# SePay Payment Gateway (Vietnam QR Banking)
+SEPAY_ACCOUNT=your-sepay-account
+SEPAY_BANK=MBBank
+SEPAY_API_KEY=your-sepay-api-key
+
+# Discord Bot Webhook (for role assignment)
+DISCORD_BOT_WEBHOOK_URL=https://your-discord-webhook-url
+DISCORD_BOT_WEBHOOK_SECRET=your-webhook-secret
+
+# PayPal Payment Gateway (Pro plan - $4.00 USD)
+PAYPAL_CLIENT_ID=your-paypal-client-id
+PAYPAL_CLIENT_SECRET=your-paypal-client-secret
+PAYPAL_WEBHOOK_ID=your-paypal-webhook-id
+PAYPAL_MODE=live
 ```
 
 ### 3.3 Frontend `.env.local` (optional - đã set trong docker-compose)

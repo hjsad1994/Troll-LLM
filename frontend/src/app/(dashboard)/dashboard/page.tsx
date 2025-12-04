@@ -391,17 +391,18 @@ export default function UserDashboard() {
               <div className="space-y-4 sm:space-y-6">
                 {/* Credits Display */}
                 <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <div className="grid grid-cols-2 gap-4 mb-3 sm:mb-4">
                     <div>
                       <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">{t.dashboard.credits.available}</p>
-                      <p className="text-3xl sm:text-4xl font-bold text-emerald-600 dark:text-emerald-400">
+                      <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                         ${(userProfile.credits || 0).toFixed(2)}
                       </p>
                     </div>
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                    <div>
+                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">{t.dashboard.credits.refCredits}</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-violet-600 dark:text-violet-400">
+                        ${(userProfile.refCredits || 0).toFixed(2)}
+                      </p>
                     </div>
                   </div>
                   <div className="pt-3 sm:pt-4 border-t border-slate-300 dark:border-white/10">

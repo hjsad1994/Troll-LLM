@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { paymentService, SepayWebhookPayload } from '../services/payment.service.js';
+import { paymentService, SepayWebhookPayload, PayPalWebhookPayload } from '../services/payment.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
-import { PLAN_PRICES, PaymentPlan } from '../models/payment.model.js';
+import { PLAN_PRICES, PAYPAL_PRO_PRICE_USD, PaymentPlan } from '../models/payment.model.js';
 
 const router = Router();
 
@@ -131,17 +131,104 @@ router.get('/plans', (_req: Request, res: Response) => {
         credits: PLAN_PRICES.dev.credits,
         currency: 'VND',
         features: ['225 credits/month', '300 requests/minute', 'All Claude models'],
+        paypalEnabled: false,
       },
       {
         id: 'pro',
         name: 'Pro',
         price: PLAN_PRICES.pro.amount,
+        priceUSD: PAYPAL_PRO_PRICE_USD,
         credits: PLAN_PRICES.pro.credits,
         currency: 'VND',
         features: ['500 credits/month', '1000 requests/minute', 'All Claude models', 'Priority support'],
+        paypalEnabled: true,
       },
     ],
   });
+});
+
+// ============== PayPal Routes ==============
+
+// POST /api/payment/paypal/create - Create PayPal order (Pro plan only)
+router.post('/paypal/create', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { plan, discordId } = req.body as { plan: PaymentPlan; discordId?: string };
+    
+    if (plan !== 'pro') {
+      return res.status(400).json({ error: 'PayPal only supports Pro plan' });
+    }
+
+    const result = await paymentService.createPayPalOrder(username, plan, discordId);
+    
+    res.json({
+      orderId: result.orderId,
+      paymentId: result.paymentId,
+    });
+  } catch (error: any) {
+    console.error('[PayPal Create Error]', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// POST /api/payment/paypal/capture - Capture PayPal order after approval
+router.post('/paypal/capture', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { orderID } = req.body as { orderID: string };
+    
+    if (!orderID) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    const result = await paymentService.capturePayPalOrder(orderID, username);
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('[PayPal Capture Error]', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// POST /api/payment/paypal/webhook - Handle PayPal webhook
+router.post('/paypal/webhook', async (req: Request, res: Response) => {
+  try {
+    const payload = req.body as PayPalWebhookPayload;
+    const headers: Record<string, string> = {
+      'paypal-auth-algo': req.headers['paypal-auth-algo'] as string || '',
+      'paypal-cert-url': req.headers['paypal-cert-url'] as string || '',
+      'paypal-transmission-id': req.headers['paypal-transmission-id'] as string || '',
+      'paypal-transmission-sig': req.headers['paypal-transmission-sig'] as string || '',
+      'paypal-transmission-time': req.headers['paypal-transmission-time'] as string || '',
+    };
+    const rawBody = JSON.stringify(req.body);
+    
+    console.log('[PayPal Webhook] Received:', rawBody);
+    
+    const result = await paymentService.processPayPalWebhook(payload, headers, rawBody);
+    
+    res.status(200).json(result);
+  } catch (error: any) {
+    console.error('[PayPal Webhook Error]', error);
+    res.status(200).json({ processed: false, message: error.message });
+  }
+});
+
+// GET /api/payment/paypal/client-id - Get PayPal client ID for frontend
+router.get('/paypal/client-id', (_req: Request, res: Response) => {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  if (!clientId) {
+    return res.status(500).json({ error: 'PayPal not configured' });
+  }
+  res.json({ clientId });
 });
 
 export default router;

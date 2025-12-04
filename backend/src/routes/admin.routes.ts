@@ -215,4 +215,19 @@ router.post('/backup-keys/:id/restore', requireAdmin, async (req: Request, res: 
   }
 });
 
+// Generate referral codes for existing users without one
+router.post('/generate-referral-codes', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const count = await userRepository.generateReferralCodeForExistingUsers();
+    res.json({ 
+      success: true, 
+      message: `Generated referral codes for ${count} users`,
+      updatedCount: count 
+    });
+  } catch (error) {
+    console.error('Failed to generate referral codes:', error);
+    res.status(500).json({ error: 'Failed to generate referral codes' });
+  }
+});
+
 export default router;

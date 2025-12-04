@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { userService } from '../services/user.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
+import { maskUsername } from '../models/user.model.js';
 
 const router = Router();
 
@@ -121,6 +123,67 @@ router.get('/credits-usage', jwtAuth, async (req: Request, res: Response) => {
       last7d: usage.last7d,
       last30d: usage.last30d,
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Referral endpoints
+router.get('/referral', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await userRepository.getFullUser(username);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const baseUrl = process.env.FRONTEND_URL || 'https://trollllm.xyz';
+    const referralLink = `${baseUrl}/register?ref=${user.referralCode}`;
+
+    res.json({
+      referralCode: user.referralCode,
+      referralLink,
+      refCredits: user.refCredits || 0,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/referral/stats', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const stats = await userRepository.getReferralStats(username);
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/referral/list', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const referredUsers = await userRepository.getReferredUsers(username);
+    
+    // Mask usernames for privacy
+    const maskedUsers = referredUsers.map(u => ({
+      ...u,
+      username: maskUsername(u.username),
+    }));
+
+    res.json({ users: maskedUsers });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

@@ -417,6 +417,9 @@ export default function LandingPage() {
                     <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/month</span>
                   </div>
                   <p className="text-emerald-500 dark:text-emerald-400 text-xs sm:text-sm font-medium mt-2">{t.pricing.dev.save}</p>
+                  {t.pricing.dev.note && (
+                    <p className="text-amber-600 dark:text-amber-400 text-[10px] sm:text-xs mt-1">{t.pricing.dev.note}</p>
+                  )}
                 </div>
 
                 {/* Divider */}
@@ -493,6 +496,9 @@ export default function LandingPage() {
                     <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/month</span>
                   </div>
                   <p className="text-emerald-500 dark:text-emerald-400 text-xs sm:text-sm font-medium mt-2">{t.pricing.pro.save}</p>
+                  {t.pricing.pro.note && (
+                    <p className="text-indigo-600 dark:text-indigo-400 text-[10px] sm:text-xs mt-1">{t.pricing.pro.note}</p>
+                  )}
                 </div>
 
                 {/* Divider */}

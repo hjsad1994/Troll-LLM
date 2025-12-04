@@ -37,11 +37,16 @@ export function logout() {
   localStorage.removeItem('adminToken')
 }
 
-export async function register(username: string, password: string, role: string = 'user') {
+export async function register(username: string, password: string, role: string = 'user', ref?: string) {
+  const body: { username: string; password: string; role: string; ref?: string } = { username, password, role }
+  if (ref) {
+    body.ref = ref
+  }
+  
   const resp = await fetch('/api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, role })
+    body: JSON.stringify(body)
   })
   
   if (!resp.ok) {
@@ -87,6 +92,7 @@ export interface UserProfile {
   monthlyResetDate: string
   role: string
   credits: number
+  refCredits: number
   totalInputTokens: number
   totalOutputTokens: number
 }
@@ -306,6 +312,53 @@ export async function getPaymentHistory(): Promise<{ payments: PaymentHistoryIte
   return resp.json()
 }
 
+// PayPal Payment
+export interface PayPalCreateResponse {
+  orderId: string
+  paymentId: string
+}
+
+export interface PayPalCaptureResponse {
+  success: boolean
+  plan: string
+  captureId?: string
+}
+
+export async function getPayPalClientId(): Promise<string> {
+  const resp = await fetch('/api/payment/paypal/client-id')
+  if (!resp.ok) {
+    throw new Error('PayPal not configured')
+  }
+  const data = await resp.json()
+  return data.clientId
+}
+
+export async function createPayPalOrder(plan: 'pro', discordId?: string): Promise<PayPalCreateResponse> {
+  const resp = await fetchWithAuth('/api/payment/paypal/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan, discordId })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to create PayPal order')
+  }
+  return resp.json()
+}
+
+export async function capturePayPalOrder(orderID: string): Promise<PayPalCaptureResponse> {
+  const resp = await fetchWithAuth('/api/payment/paypal/capture', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderID })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to capture PayPal payment')
+  }
+  return resp.json()
+}
+
 // Request History
 export interface RequestLogEntry {
   _id: string
@@ -350,6 +403,55 @@ export async function getRequestHistory(params?: {
   if (!resp.ok) {
     const data = await resp.json()
     throw new Error(data.error || 'Failed to get request history')
+  }
+  return resp.json()
+}
+
+// Referral API
+export interface ReferralInfo {
+  referralCode: string
+  referralLink: string
+  refCredits: number
+}
+
+export interface ReferralStats {
+  totalReferrals: number
+  successfulReferrals: number
+  totalRefCreditsEarned: number
+  currentRefCredits: number
+}
+
+export interface ReferredUser {
+  username: string
+  status: 'registered' | 'paid'
+  plan: string | null
+  bonusEarned: number
+  createdAt: string
+}
+
+export async function getReferralInfo(): Promise<ReferralInfo> {
+  const resp = await fetchWithAuth('/api/user/referral')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get referral info')
+  }
+  return resp.json()
+}
+
+export async function getReferralStats(): Promise<ReferralStats> {
+  const resp = await fetchWithAuth('/api/user/referral/stats')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get referral stats')
+  }
+  return resp.json()
+}
+
+export async function getReferredUsers(): Promise<{ users: ReferredUser[] }> {
+  const resp = await fetchWithAuth('/api/user/referral/list')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get referred users')
   }
   return resp.json()
 }

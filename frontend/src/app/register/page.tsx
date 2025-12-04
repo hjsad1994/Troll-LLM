@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { register } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
@@ -17,8 +17,17 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [refCode, setRefCode] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { checkAuth } = useAuth()
+
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref) {
+      setRefCode(ref)
+    }
+  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -37,7 +46,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      await register(username, password)
+      await register(username, password, 'user', refCode || undefined)
       checkAuth()
       router.push('/')
     } catch (err) {
