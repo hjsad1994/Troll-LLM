@@ -2238,7 +2238,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 		}
 	}
 
-	// Log failed request for analytics
+	// Handle error responses
 	if resp.StatusCode != http.StatusOK {
 		if userApiKey != "" {
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -2248,6 +2248,11 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 		if trollKeyID != "" && trollKeyID != "env" && trollKeyID != "main" {
 			trollKeyPool.CheckAndRotateOnError(trollKeyID, resp.StatusCode, string(body))
 		}
+		// Sanitize and return error response (hide upstream details)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		w.Write(sanitizeAnthropicError(resp.StatusCode, body))
+		return
 	}
 
 	// Filter Droid identity from response content and track usage
