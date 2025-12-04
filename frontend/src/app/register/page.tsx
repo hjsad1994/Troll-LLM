@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { register } from '@/lib/api'
@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const { t } = useLanguage()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -225,5 +225,17 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+        <div className="text-gray-500 dark:text-slate-400">Loading...</div>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   )
 }
