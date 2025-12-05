@@ -49,7 +49,8 @@
       "cache_write_price_per_mtok": 1.25,
       "cache_hit_price_per_mtok": 0.10,
       "billing_multiplier": 1.35,
-      "upstream": "troll"
+      "upstream": "main",
+      "upstream_model_id": "claude-haiku-4.5"
     },
     {
       "name": "GPT-5.1",
