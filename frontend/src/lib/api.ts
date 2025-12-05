@@ -13,7 +13,17 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     ...options.headers,
   }
   
-  return fetch(url, { ...options, headers })
+  const response = await fetch(url, { ...options, headers })
+  
+  // Auto logout and redirect if token expired (401)
+  if (response.status === 401) {
+    localStorage.removeItem('adminToken')
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+  }
+  
+  return response
 }
 
 export async function login(username: string, password: string) {

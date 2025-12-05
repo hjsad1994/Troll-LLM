@@ -4,7 +4,7 @@ import { verifyPassword } from '../models/user.model.js';
 import { LoginInput, RegisterInput, AuthResponse, JwtPayload } from '../dtos/auth.dto.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_SECRET_KEY || 'change-this-secret';
-const JWT_EXPIRES_IN = '24h';
+const JWT_EXPIRES_IN = '7d';
 
 export class AuthService {
   async login(input: LoginInput): Promise<AuthResponse> {
