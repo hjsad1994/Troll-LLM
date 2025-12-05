@@ -307,26 +307,47 @@ func (b *BatchedUsageTracker) creditWorker() {
 			
 			if err == nil && totalCost > 0 {
 				// Smart deduction: use credits first, then refCredits
+				// Never allow negative credits or refCredits
 				if currentCredits >= totalCost {
 					// Enough credits, deduct all from credits
 					incFields["credits"] = -totalCost
-				} else if currentCredits > 0 {
-					// Partial credits available, split between credits and refCredits
+				} else if currentCredits > 0 && currentRefCredits > 0 {
+					// Partial credits available and has refCredits, split between both
 					incFields["credits"] = -currentCredits
 					remainingCost := totalCost - currentCredits
-					if currentRefCredits > 0 {
+					// Only deduct what's available from refCredits
+					if remainingCost > currentRefCredits {
+						incFields["refCredits"] = -currentRefCredits
+						log.Printf("⚠️ [%s] Split deduct capped: $%.6f from credits + $%.6f from refCredits (wanted $%.6f more)", username, currentCredits, currentRefCredits, remainingCost-currentRefCredits)
+					} else {
 						incFields["refCredits"] = -remainingCost
+						log.Printf("💰 [%s] Split deduct: $%.6f from credits + $%.6f from refCredits", username, currentCredits, remainingCost)
 					}
-					log.Printf("💰 [%s] Split deduct: $%.6f from credits + $%.6f from refCredits", username, currentCredits, remainingCost)
+				} else if currentCredits > 0 {
+					// Has some credits but no refCredits, deduct only available credits
+					deductAmount := currentCredits
+					if deductAmount > totalCost {
+						deductAmount = totalCost
+					}
+					incFields["credits"] = -deductAmount
+					if deductAmount < totalCost {
+						log.Printf("⚠️ [%s] Deduct capped at $%.6f from credits (no refCredits, wanted $%.6f)", username, deductAmount, totalCost)
+					}
 				} else if currentRefCredits > 0 {
-					// No credits, deduct all from refCredits
-					incFields["refCredits"] = -totalCost
-					log.Printf("💰 [%s] Deduct $%.6f from refCredits only", username, totalCost)
+					// No credits, deduct from refCredits only (capped at available)
+					deductAmount := currentRefCredits
+					if deductAmount > totalCost {
+						deductAmount = totalCost
+					}
+					incFields["refCredits"] = -deductAmount
+					if deductAmount < totalCost {
+						log.Printf("⚠️ [%s] Deduct capped at $%.6f from refCredits (wanted $%.6f)", username, deductAmount, totalCost)
+					} else {
+						log.Printf("💰 [%s] Deduct $%.6f from refCredits only", username, deductAmount)
+					}
 				} else {
-					// No credits available at all - this shouldn't happen as requests should be blocked
-					// But to prevent negative credits, deduct from refCredits anyway
-					incFields["refCredits"] = -totalCost
-					log.Printf("⚠️ [%s] No credits available, deducting $%.6f from refCredits", username, totalCost)
+					// No credits available at all - don't deduct anything to prevent negative
+					log.Printf("⚠️ [%s] No credits available, skipping deduction of $%.6f", username, totalCost)
 				}
 			} else {
 				// Fallback to original behavior if error getting credits
