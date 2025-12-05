@@ -1,4 +1,4 @@
-import { Payment, IPayment, PaymentPlan, PaymentStatus, PaymentMethod } from '../models/payment.model.js';
+import { Payment, IPayment, PaymentPlan, PaymentStatus } from '../models/payment.model.js';
 
 export class PaymentRepository {
   async create(data: {
@@ -23,40 +23,12 @@ export class PaymentRepository {
     return payment.toObject();
   }
 
-  async createPayPal(data: {
-    userId: string;
-    discordId?: string;
-    plan: PaymentPlan;
-    amount: number;
-    paypalOrderId: string;
-    expiresAt: Date;
-  }): Promise<IPayment> {
-    const orderCode = `PAYPAL${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-    const payment = await Payment.create({
-      userId: data.userId,
-      discordId: data.discordId,
-      plan: data.plan,
-      amount: data.amount,
-      currency: 'USD',
-      orderCode,
-      paypalOrderId: data.paypalOrderId,
-      paymentMethod: 'paypal',
-      status: 'pending',
-      expiresAt: data.expiresAt,
-    });
-    return payment.toObject();
-  }
-
   async findById(id: string): Promise<IPayment | null> {
     return Payment.findById(id).lean();
   }
 
   async findByOrderCode(orderCode: string): Promise<IPayment | null> {
     return Payment.findOne({ orderCode }).lean();
-  }
-
-  async findByPayPalOrderId(paypalOrderId: string): Promise<IPayment | null> {
-    return Payment.findOne({ paypalOrderId }).lean();
   }
 
   async findPendingByOrderCodePattern(pattern: string): Promise<IPayment | null> {
@@ -69,19 +41,14 @@ export class PaymentRepository {
   async updateStatus(
     id: string,
     status: PaymentStatus,
-    transactionId?: string,
-    paymentMethod: PaymentMethod = 'sepay'
+    transactionId?: string
   ): Promise<IPayment | null> {
     const update: any = { status };
     if (status === 'success') {
       update.completedAt = new Date();
     }
     if (transactionId) {
-      if (paymentMethod === 'paypal') {
-        update.paypalCaptureId = transactionId;
-      } else {
-        update.sepayTransactionId = transactionId;
-      }
+      update.sepayTransactionId = transactionId;
     }
     return Payment.findByIdAndUpdate(id, update, { new: true }).lean();
   }

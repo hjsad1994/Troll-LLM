@@ -103,12 +103,6 @@ SEPAY_API_KEY=your-sepay-api-key
 # Discord Bot Webhook (for role assignment)
 DISCORD_BOT_WEBHOOK_URL=https://your-discord-webhook-url
 DISCORD_BOT_WEBHOOK_SECRET=your-webhook-secret
-
-# PayPal Payment Gateway (Pro plan - $4.00 USD)
-PAYPAL_CLIENT_ID=your-paypal-client-id
-PAYPAL_CLIENT_SECRET=your-paypal-client-secret
-PAYPAL_WEBHOOK_ID=your-paypal-webhook-id
-PAYPAL_MODE=live
 ```
 
 ### 3.3 Frontend `.env.local` (optional - đã set trong docker-compose)

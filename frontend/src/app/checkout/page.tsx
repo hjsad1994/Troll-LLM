@@ -3,10 +3,9 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createCheckout, getPaymentStatus, isAuthenticated, createPayPalOrder, capturePayPalOrder, getPayPalClientId } from '@/lib/api'
+import { createCheckout, getPaymentStatus, isAuthenticated } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import { useTheme } from '@/components/ThemeProvider'
-import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer, FUNDING } from '@paypal/react-paypal-js'
 
 const PLANS = {
   dev: {
@@ -29,52 +28,6 @@ const PLANS = {
 
 type PlanType = 'dev' | 'pro'
 
-// PayPal Button Wrapper with loading skeleton
-function PayPalButtonWrapper({ 
-  onCreateOrder, 
-  onApprove, 
-  onError, 
-  onCancel, 
-  disabled,
-  language 
-}: {
-  onCreateOrder: () => Promise<string>
-  onApprove: (data: { orderID: string }) => Promise<void>
-  onError: (err: any) => void
-  onCancel: () => void
-  disabled: boolean
-  language: string
-}) {
-  const [{ isPending, isResolved }] = usePayPalScriptReducer()
-
-  if (isPending) {
-    return (
-      <div className="animate-pulse">
-        <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-      </div>
-    )
-  }
-
-  return (
-    <PayPalButtons
-      fundingSource={FUNDING.PAYPAL}
-      style={{ 
-        layout: 'horizontal', 
-        shape: 'pill', 
-        color: 'gold',
-        height: 48,
-        label: 'paypal',
-        tagline: false,
-      }}
-      disabled={disabled}
-      createOrder={onCreateOrder}
-      onApprove={onApprove}
-      onError={onError}
-      onCancel={onCancel}
-    />
-  )
-}
-
 function CheckoutContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -95,13 +48,9 @@ function CheckoutContent() {
   } | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [discordRoleAssigned, setDiscordRoleAssigned] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<'vn' | 'international'>('vn')
-  const [paypalClientId, setPaypalClientId] = useState<string | null>(null)
-  const [paypalLoading, setPaypalLoading] = useState(false)
 
   const plan = PLANS[selectedPlan]
   
-  // Generate translated features
   const getFeatures = (planKey: PlanType) => {
     const p = PLANS[planKey]
     if (planKey === 'dev') {
@@ -127,15 +76,6 @@ function CheckoutContent() {
       router.push('/login?redirect=/checkout' + (planParam ? `?plan=${planParam}` : ''))
     }
   }, [router, planParam])
-
-  // Fetch PayPal client ID for Pro plan
-  useEffect(() => {
-    if (selectedPlan === 'pro') {
-      getPayPalClientId()
-        .then(setPaypalClientId)
-        .catch(() => setPaypalClientId(null))
-    }
-  }, [selectedPlan])
 
   const handleCheckout = async () => {
     if (discordId && !/^\d{17,19}$/.test(discordId)) {
@@ -164,7 +104,6 @@ function CheckoutContent() {
     }
   }
 
-  // Poll payment status
   useEffect(() => {
     if (step !== 'payment' || !paymentData) return
 
@@ -190,7 +129,6 @@ function CheckoutContent() {
     return () => clearInterval(pollInterval)
   }, [step, paymentData, discordId, router])
 
-  // Countdown timer
   useEffect(() => {
     if (step !== 'payment' || remainingSeconds <= 0) return
 
@@ -239,7 +177,6 @@ function CheckoutContent() {
             </span>
           </Link>
           <div className="flex items-center gap-3">
-            {/* Language Switch */}
             <button
               onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-sm bg-white dark:bg-transparent shadow-sm dark:shadow-none"
@@ -248,7 +185,6 @@ function CheckoutContent() {
               <span className="text-gray-300 dark:text-gray-400">/</span>
               <span className={language === 'en' ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-400 dark:text-gray-400'}>EN</span>
             </button>
-            {/* Theme Switch */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg border border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 transition-all bg-white dark:bg-transparent shadow-sm dark:shadow-none"
@@ -264,7 +200,6 @@ function CheckoutContent() {
                 </svg>
               )}
             </button>
-            {/* Close */}
             <Link href="/" className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-transparent transition-colors">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -278,7 +213,6 @@ function CheckoutContent() {
         {/* Step: Select Plan */}
         {step === 'select' && (
           <div className="space-y-8">
-            {/* Title */}
             <div className="text-center">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3">
                 {t.checkout.title}
@@ -290,7 +224,6 @@ function CheckoutContent() {
 
             {/* Selected Plan Info */}
             <div className="relative group">
-              {/* Animated LED Border - Glow */}
               <div
                 className="absolute -inset-1 rounded-2xl opacity-60 dark:opacity-75 blur-md"
                 style={{
@@ -299,7 +232,6 @@ function CheckoutContent() {
                   animation: 'ledBorder 3s linear infinite',
                 }}
               />
-              {/* Animated LED Border - Sharp */}
               <div
                 className="absolute -inset-[2px] rounded-2xl"
                 style={{
@@ -309,7 +241,6 @@ function CheckoutContent() {
                 }}
               />
 
-              {/* Card Content */}
               <div className="relative p-6 rounded-[14px] bg-white dark:bg-gray-900 shadow-sm dark:shadow-none">
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
@@ -402,110 +333,11 @@ function CheckoutContent() {
 
             {/* Summary & Pay Button */}
             <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-sm dark:shadow-none">
-              {/* Payment Method Tabs - Only for Pro plan */}
-              {selectedPlan === 'pro' && (
-                <div className="mb-6">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 font-medium">{t.checkout.paymentMethod.title}</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Vietnam QR Option */}
-                    <button
-                      onClick={() => setPaymentMethod('vn')}
-                      className={`relative group p-4 rounded-2xl border-2 transition-all duration-300 ${
-                        paymentMethod === 'vn'
-                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-500/15 dark:to-green-500/10 shadow-lg shadow-emerald-500/20'
-                          : 'border-gray-200 dark:border-white/10 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:bg-gray-50 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      {paymentMethod === 'vn' && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="flex flex-col items-center gap-1.5">
-                        <p className={`font-semibold text-lg transition-colors ${
-                          paymentMethod === 'vn' ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'
-                        }`}>{t.checkout.paymentMethod.vn}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{t.checkout.paymentMethod.vnSubtitle}</p>
-                        <div className={`mt-1 px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                          paymentMethod === 'vn'
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400'
-                        }`}>
-                          79.000 VND
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* International PayPal Option */}
-                    <button
-                      onClick={() => setPaymentMethod('international')}
-                      className={`relative group p-4 rounded-2xl border-2 transition-all duration-300 ${
-                        paymentMethod === 'international'
-                          ? 'border-[#0070ba] bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-[#0070ba]/15 dark:to-indigo-500/10 shadow-lg shadow-[#0070ba]/20'
-                          : 'border-gray-200 dark:border-white/10 hover:border-[#0070ba]/50 dark:hover:border-[#0070ba]/50 hover:bg-gray-50 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      {paymentMethod === 'international' && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#0070ba] rounded-full flex items-center justify-center shadow-lg">
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="flex flex-col items-center gap-1.5">
-                        <p className={`font-semibold text-lg transition-colors ${
-                          paymentMethod === 'international' ? 'text-[#0070ba]' : 'text-gray-700 dark:text-gray-300'
-                        }`}>{t.checkout.paymentMethod.international}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{t.checkout.paymentMethod.internationalSubtitle}</p>
-                        <div className={`mt-1 px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                          paymentMethod === 'international'
-                            ? 'bg-[#0070ba] text-white'
-                            : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400'
-                        }`}>
-                          $4.00 USD
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-
-                  {/* Payment method description */}
-                  <div className={`mt-4 p-3 rounded-xl text-sm transition-all duration-300 ${
-                    paymentMethod === 'vn'
-                      ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20'
-                      : 'bg-blue-50 dark:bg-[#0070ba]/10 text-[#0070ba] dark:text-blue-300 border border-blue-200 dark:border-[#0070ba]/20'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      {paymentMethod === 'vn' ? (
-                        <>
-                          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                          </svg>
-                          <span>{t.checkout.paymentMethod.vnDesc}</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>{t.checkout.paymentMethod.internationalDesc}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.summary.total}</p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {selectedPlan === 'pro' && paymentMethod === 'international' ? (
-                      <>$4.00 <span className="text-lg font-normal text-gray-400">USD</span></>
-                    ) : (
-                      <>{formatPrice(plan.price)} <span className="text-lg font-normal text-gray-400">VND</span></>
-                    )}
+                    {formatPrice(plan.price)} <span className="text-lg font-normal text-gray-400">VND</span>
                   </p>
                 </div>
                 <div className="text-right">
@@ -514,76 +346,25 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              {/* PayPal Button for International payment */}
-              {selectedPlan === 'pro' && paymentMethod === 'international' && paypalClientId ? (
-                <PayPalScriptProvider 
-                  options={{ 
-                    clientId: paypalClientId, 
-                    currency: 'USD',
-                    intent: 'capture',
-                    locale: 'en_US',
-                  }}
-                >
-                  <PayPalButtonWrapper
-                    disabled={paypalLoading}
-                    language={language}
-                    onCreateOrder={async () => {
-                      setPaypalLoading(true)
-                      setError(null)
-                      try {
-                        const result = await createPayPalOrder('pro', discordId || undefined)
-                        return result.orderId
-                      } catch (err: any) {
-                        setError(err.message)
-                        throw err
-                      } finally {
-                        setPaypalLoading(false)
-                      }
-                    }}
-                    onApprove={async (data) => {
-                      setPaypalLoading(true)
-                      try {
-                        const result = await capturePayPalOrder(data.orderID)
-                        if (result.success) {
-                          setDiscordRoleAssigned(!!discordId)
-                          setStep('success')
-                        }
-                      } catch (err: any) {
-                        setError(err.message)
-                      } finally {
-                        setPaypalLoading(false)
-                      }
-                    }}
-                    onError={(err) => {
-                      console.error('PayPal error:', err)
-                      setError(language === 'vi' ? 'Lỗi PayPal. Vui lòng thử lại.' : 'PayPal error. Please try again.')
-                    }}
-                    onCancel={() => {
-                      setError(language === 'vi' ? 'Thanh toán đã bị hủy.' : 'Payment cancelled.')
-                    }}
-                  />
-                </PayPalScriptProvider>
-              ) : (
-                <button
-                  onClick={handleCheckout}
-                  disabled={loading}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/20"
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      {t.checkout.payment.processing}
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                      {t.checkout.payment.payNow}
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/20"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t.checkout.payment.processing}
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    {t.checkout.payment.payNow}
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
@@ -592,7 +373,6 @@ function CheckoutContent() {
         {step === 'payment' && paymentData && (
           <div className="max-w-2xl mx-auto min-h-[60vh] flex items-center pt-[10vh]">
             <div className="flex flex-col md:flex-row gap-8 items-start">
-              {/* Left: QR + Amount + Notes */}
               <div className="flex-shrink-0 text-center">
                 <div className="bg-white p-4 rounded-2xl shadow-xl dark:shadow-lg border border-gray-100 dark:border-transparent inline-block mb-4">
                   <img src={paymentData.qrCodeUrl} alt="QR" className="w-52 h-52" />
@@ -607,7 +387,6 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              {/* Right: Info */}
               <div className="flex-1 space-y-4">
                 <div>
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.checkout.payment.scanToPay}</h1>
@@ -645,14 +424,12 @@ function CheckoutContent() {
         {/* Step: Success */}
         {step === 'success' && (
           <div className="max-w-md mx-auto text-center space-y-6">
-            {/* Success Icon */}
             <div className="w-24 h-24 mx-auto rounded-full bg-emerald-100 dark:bg-green-500/20 flex items-center justify-center shadow-lg shadow-emerald-200/50 dark:shadow-none">
               <svg className="w-12 h-12 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
 
-            {/* Title */}
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {t.checkout.success.title}
@@ -662,7 +439,6 @@ function CheckoutContent() {
               </p>
             </div>
 
-            {/* Details */}
             <div className="bg-white dark:bg-white/5 rounded-xl p-6 space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 dark:text-gray-400">{t.checkout.summary.plan}</span>
@@ -678,7 +454,6 @@ function CheckoutContent() {
               </div>
             </div>
 
-            {/* Discord Role Status */}
             {discordRoleAssigned && (
               <div className="bg-indigo-50 dark:bg-[#5865F2]/10 rounded-xl p-4 flex items-center gap-3 border border-indigo-200 dark:border-transparent">
                 <svg className="w-6 h-6 text-[#5865F2]" fill="currentColor" viewBox="0 0 24 24">
@@ -691,7 +466,6 @@ function CheckoutContent() {
               </div>
             )}
 
-            {/* Go to Dashboard Button */}
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-indigo-500 text-white font-semibold text-lg hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/20 hover:shadow-xl"

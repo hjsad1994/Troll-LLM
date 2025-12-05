@@ -75,7 +75,7 @@ export const translations = {
         name: 'Pro',
         description: 'Best for teams & production',
         save: 'Save 36,000 VND',
-        note: 'International supported ($4 via PayPal)',
+        note: 'Vietnam only (QR Banking)',
         features: {
           requests: '1000 requests/minute',
           credits: '500 credits/month',
@@ -86,6 +86,7 @@ export const translations = {
       },
       compareAll: 'Compare all features',
       buyNow: 'Buy Now',
+      internationalNote: 'International users: Please contact us via Discord for payment options.',
     },
     // FAQ
     faq: {
@@ -718,8 +719,8 @@ export const translations = {
         vnSubtitle: 'QR Banking',
         vnDesc: 'Scan QR code with Vietnamese banking app',
         international: 'International',
-        internationalSubtitle: 'PayPal',
-        internationalDesc: 'Secure payment via PayPal for international customers',
+        internationalSubtitle: 'Coming Soon',
+        internationalDesc: 'International payment options coming soon',
       },
       features: {
         creditsMonth: 'credits/month',
@@ -918,6 +919,7 @@ export const translations = {
       },
       compareAll: 'So sánh tất cả tính năng',
       buyNow: 'Mua ngay',
+      internationalNote: 'Người dùng quốc tế: Vui lòng liên hệ qua Discord để được hỗ trợ thanh toán.',
     },
     // FAQ
     faq: {
@@ -1550,8 +1552,8 @@ export const translations = {
         vnSubtitle: 'QR Banking',
         vnDesc: 'Quét mã QR bằng app ngân hàng Việt Nam',
         international: 'Quốc tế',
-        internationalSubtitle: 'PayPal',
-        internationalDesc: 'Thanh toán an toàn qua PayPal cho khách quốc tế',
+        internationalSubtitle: 'Sắp ra mắt',
+        internationalDesc: 'Thanh toán quốc tế sẽ sớm được hỗ trợ',
       },
       features: {
         creditsMonth: 'credits/tháng',

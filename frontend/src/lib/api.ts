@@ -312,53 +312,6 @@ export async function getPaymentHistory(): Promise<{ payments: PaymentHistoryIte
   return resp.json()
 }
 
-// PayPal Payment
-export interface PayPalCreateResponse {
-  orderId: string
-  paymentId: string
-}
-
-export interface PayPalCaptureResponse {
-  success: boolean
-  plan: string
-  captureId?: string
-}
-
-export async function getPayPalClientId(): Promise<string> {
-  const resp = await fetch('/api/payment/paypal/client-id')
-  if (!resp.ok) {
-    throw new Error('PayPal not configured')
-  }
-  const data = await resp.json()
-  return data.clientId
-}
-
-export async function createPayPalOrder(plan: 'pro', discordId?: string): Promise<PayPalCreateResponse> {
-  const resp = await fetchWithAuth('/api/payment/paypal/create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plan, discordId })
-  })
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to create PayPal order')
-  }
-  return resp.json()
-}
-
-export async function capturePayPalOrder(orderID: string): Promise<PayPalCaptureResponse> {
-  const resp = await fetchWithAuth('/api/payment/paypal/capture', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderID })
-  })
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to capture PayPal payment')
-  }
-  return resp.json()
-}
-
 // Request History
 export interface RequestLogEntry {
   _id: string
