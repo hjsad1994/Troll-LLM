@@ -1218,7 +1218,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
-				if err := usage.DeductCreditsWithTokens(username, billingCost, billingTokens, inputTokens, outputTokens); err != nil {
+				if err := usage.DeductCreditsWithCache(username, billingCost, billingTokens, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens); err != nil {
 					log.Printf("⚠️ Failed to update user: %v", err)
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
@@ -1399,7 +1399,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
-				if err := usage.DeductCreditsWithTokens(username, billingCost, billingTokens, totalInputTokens, totalOutputTokens); err != nil {
+				if err := usage.DeductCreditsWithCache(username, billingCost, billingTokens, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens); err != nil {
 					log.Printf("⚠️ Failed to update user: %v", err)
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
@@ -1530,7 +1530,7 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
-				if err := usage.DeductCreditsWithTokens(username, billingCost, billingTokens, inputTokens, outputTokens); err != nil {
+				if err := usage.DeductCreditsWithCache(username, billingCost, billingTokens, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens); err != nil {
 					log.Printf("⚠️ Failed to update user: %v", err)
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
@@ -2292,7 +2292,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 					}
 					// Deduct credits and update tokensUsed for user
 					if username != "" {
-						if err := usage.DeductCreditsWithTokens(username, billingCost, billingTokens, inputTokens, outputTokens); err != nil {
+						if err := usage.DeductCreditsWithCache(username, billingCost, billingTokens, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens); err != nil {
 							log.Printf("⚠️ Failed to update user: %v", err)
 						} else if debugMode {
 							log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
@@ -2503,7 +2503,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
-				if err := usage.DeductCreditsWithTokens(username, billingCost, billingTokens, totalInputTokens, totalOutputTokens); err != nil {
+				if err := usage.DeductCreditsWithCache(username, billingCost, billingTokens, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens); err != nil {
 					log.Printf("⚠️ Failed to update user: %v", err)
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)

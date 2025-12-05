@@ -185,6 +185,12 @@ func DeductCreditsWithRefCheck(username string, cost float64, tokensUsed, inputT
 // DeductCreditsWithTokens deducts credits and updates token counts (total, input, output)
 // Deducts from main credits first, then from refCredits if main credits are insufficient
 func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
+	return DeductCreditsWithCache(username, cost, tokensUsed, inputTokens, outputTokens, 0, 0)
+}
+
+// DeductCreditsWithCache deducts credits and updates token counts including cache tokens
+// Deducts from main credits first, then from refCredits if main credits are insufficient
+func DeductCreditsWithCache(username string, cost float64, tokensUsed, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) error {
 	if username == "" {
 		return nil
 	}
@@ -198,7 +204,11 @@ func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTok
 	// Use batched writes if enabled
 	if UseBatchedWrites {
 		GetBatcher().QueueCreditUpdate(username, cost, actualTokensUsed, inputTokens, outputTokens)
-		log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+		if cacheWriteTokens > 0 || cacheHitTokens > 0 {
+			log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d, cache_write=%d, cache_hit=%d)", username, cost, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
+		} else {
+			log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+		}
 		return nil
 	}
 
