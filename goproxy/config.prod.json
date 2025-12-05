@@ -71,8 +71,8 @@
       "reasoning": "high",
       "input_price_per_mtok": 2.0,
       "output_price_per_mtok": 12.0,
-      "cache_write_price_per_mtok": 0,
-      "cache_hit_price_per_mtok": 0,
+      "cache_write_price_per_mtok": 1.4625,
+      "cache_hit_price_per_mtok": 0.125,
       "billing_multiplier": 1.4,
       "upstream": "main"
     }
