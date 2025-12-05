@@ -69,6 +69,8 @@ func sanitizeError(statusCode int, originalError []byte) []byte {
 		return []byte(`{"error":{"message":"Bad request","type":"invalid_request_error"}}`)
 	case 401:
 		return []byte(`{"error":{"message":"Authentication failed","type":"authentication_error"}}`)
+	case 402:
+		return []byte(`{"error":{"message":"Service temporarily unavailable. Please contact admin.","type":"service_error"}}`)
 	case 403:
 		return []byte(`{"error":{"message":"Access denied","type":"permission_error"}}`)
 	case 404:
@@ -90,6 +92,8 @@ func sanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 		return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Bad request"}}`)
 	case 401:
 		return []byte(`{"type":"error","error":{"type":"authentication_error","message":"Authentication failed"}}`)
+	case 402:
+		return []byte(`{"type":"error","error":{"type":"service_error","message":"Service temporarily unavailable. Please contact admin."}}`)
 	case 403:
 		return []byte(`{"type":"error","error":{"type":"permission_error","message":"Access denied"}}`)
 	case 404:
