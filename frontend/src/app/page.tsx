@@ -558,7 +558,7 @@ export default function LandingPage() {
                 {/* Features */}
                 <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
                   {[
-                    { text: t.pricing.pro.features.requests, highlight: true, badge: '3.3x' },
+                    { text: t.pricing.pro.features.requests, highlight: true, badge: '2x' },
                     { text: t.pricing.pro.features.credits, highlight: true, badge: '2.2x' },
                     { text: t.pricing.pro.features.models, highlight: true },
                     { text: t.pricing.pro.features.support, highlight: true },
@@ -646,8 +646,8 @@ export default function LandingPage() {
                 {/* Features */}
                 <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
                   {[
-                    { text: t.pricing.proTroll.features.requests, highlight: true, badge: '2x' },
-                    { text: t.pricing.proTroll.features.credits, highlight: true, badge: '2.5x' },
+                    { text: t.pricing.proTroll.features.requests, highlight: true, badge: '4x' },
+                    { text: t.pricing.proTroll.features.credits, highlight: true, badge: '5.5x' },
                     { text: t.pricing.proTroll.features.models, highlight: true },
                     { text: t.pricing.proTroll.features.support, highlight: true },
                   ].map((item, idx) => (
