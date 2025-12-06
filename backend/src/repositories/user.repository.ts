@@ -27,11 +27,19 @@ export function isPlanExpired(user: IUser): boolean {
 
 export class UserRepository {
   async findById(id: string): Promise<IUser | null> {
-    return User.findById(id).lean();
+    // Try exact match first
+    let user = await User.findById(id).lean();
+    if (user) return user;
+    
+    // Try case-insensitive match with trimmed spaces (for legacy accounts)
+    user = await User.findOne({ 
+      _id: { $regex: new RegExp(`^\\s*${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i') }
+    }).lean();
+    return user;
   }
 
   async findByUsername(username: string): Promise<IUser | null> {
-    return User.findById(username).lean();
+    return this.findById(username);
   }
 
   async create(data: CreateUserData): Promise<IUser> {
