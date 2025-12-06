@@ -256,6 +256,32 @@ export async function updateUserRefCredits(username: string, refCredits: number)
   return resp.json()
 }
 
+export async function addUserCredits(username: string, amount: number): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/credits/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to add user credits')
+  }
+  return resp.json()
+}
+
+export async function addUserRefCredits(username: string, amount: number): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/refCredits/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to add user refCredits')
+  }
+  return resp.json()
+}
+
 export interface ModelStats {
   model: string
   inputTokens: number

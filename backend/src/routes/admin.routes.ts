@@ -169,6 +169,62 @@ router.patch('/users/:username/refCredits', requireAdmin, async (req: Request, r
   }
 });
 
+// Add credits (increment) - admin only
+router.post('/users/:username/credits/add', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { amount } = req.body;
+    
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+    
+    const user = await userRepository.addCredits(req.params.username, amount);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Added $${amount} credits to ${req.params.username}`,
+      user: {
+        username: user._id,
+        credits: user.credits,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to add user credits:', error);
+    res.status(500).json({ error: 'Failed to add user credits' });
+  }
+});
+
+// Add refCredits (increment) - admin only
+router.post('/users/:username/refCredits/add', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { amount } = req.body;
+    
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+    
+    const user = await userRepository.addRefCredits(req.params.username, amount);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Added $${amount} refCredits to ${req.params.username}`,
+      user: {
+        username: user._id,
+        refCredits: user.refCredits,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to add user refCredits:', error);
+    res.status(500).json({ error: 'Failed to add user refCredits' });
+  }
+});
+
 // Backup Keys - admin only (for auto key rotation)
 router.get('/backup-keys', requireAdmin, async (req: Request, res: Response) => {
   try {

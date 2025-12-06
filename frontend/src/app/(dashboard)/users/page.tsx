@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { getAdminUsers, updateUserPlan, updateUserCredits, updateUserRefCredits, AdminUser, UserPlan, PlanLimits, formatNumber } from '@/lib/api'
+import { getAdminUsers, updateUserPlan, updateUserCredits, updateUserRefCredits, addUserCredits, addUserRefCredits, AdminUser, UserPlan, PlanLimits, formatNumber } from '@/lib/api'
 
 const PLAN_ORDER: UserPlan[] = ['free', 'dev', 'pro', 'pro-troll']
 
@@ -123,7 +123,11 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [editCredits, setEditCredits] = useState<number>(0)
   const [editRefCredits, setEditRefCredits] = useState<number>(0)
+  const [addCreditsAmount, setAddCreditsAmount] = useState<number>(0)
+  const [addRefCreditsAmount, setAddRefCreditsAmount] = useState<number>(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [quickAction, setQuickAction] = useState<{ user: AdminUser; type: 'add' | 'set' } | null>(null)
+  const [quickAmount, setQuickAmount] = useState<number>(0)
 
   // Calculate role stats
   const roleStats = useMemo(() => {
@@ -192,6 +196,9 @@ export default function UsersPage() {
     try {
       await updateUserCredits(username, editCredits)
       await loadUsers(search || undefined)
+      if (selectedUser) {
+        setSelectedUser({ ...selectedUser, credits: editCredits })
+      }
     } catch (err) {
       console.error('Failed to update credits:', err)
       alert('Failed to update credits')
@@ -205,9 +212,58 @@ export default function UsersPage() {
     try {
       await updateUserRefCredits(username, editRefCredits)
       await loadUsers(search || undefined)
+      if (selectedUser) {
+        setSelectedUser({ ...selectedUser, refCredits: editRefCredits })
+      }
     } catch (err) {
       console.error('Failed to update refCredits:', err)
       alert('Failed to update refCredits')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleAddCredits = async (username: string) => {
+    if (addCreditsAmount <= 0) {
+      alert('Amount must be greater than 0')
+      return
+    }
+    setUpdating(username)
+    try {
+      await addUserCredits(username, addCreditsAmount)
+      await loadUsers(search || undefined)
+      const newCredits = (selectedUser?.credits || 0) + addCreditsAmount
+      setEditCredits(newCredits)
+      if (selectedUser) {
+        setSelectedUser({ ...selectedUser, credits: newCredits })
+      }
+      setAddCreditsAmount(0)
+    } catch (err) {
+      console.error('Failed to add credits:', err)
+      alert('Failed to add credits')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleAddRefCredits = async (username: string) => {
+    if (addRefCreditsAmount <= 0) {
+      alert('Amount must be greater than 0')
+      return
+    }
+    setUpdating(username)
+    try {
+      await addUserRefCredits(username, addRefCreditsAmount)
+      await loadUsers(search || undefined)
+      const newRefCredits = (selectedUser?.refCredits || 0) + addRefCreditsAmount
+      setEditRefCredits(newRefCredits)
+      if (selectedUser) {
+        setSelectedUser({ ...selectedUser, refCredits: newRefCredits })
+      }
+      setAddRefCreditsAmount(0)
+    } catch (err) {
+      console.error('Failed to add refCredits:', err)
+      alert('Failed to add refCredits')
     } finally {
       setUpdating(null)
     }
@@ -217,6 +273,36 @@ export default function UsersPage() {
     setSelectedUser(u)
     setEditCredits(u.credits || 0)
     setEditRefCredits(u.refCredits || 0)
+  }
+
+  const openQuickAction = (u: AdminUser, type: 'add' | 'set') => {
+    setQuickAction({ user: u, type })
+    setQuickAmount(type === 'set' ? (u.credits || 0) : 0)
+  }
+
+  const handleQuickAction = async () => {
+    if (!quickAction) return
+    const { user: u, type } = quickAction
+    setUpdating(u._id)
+    try {
+      if (type === 'add') {
+        if (quickAmount <= 0) {
+          alert('Amount must be greater than 0')
+          return
+        }
+        await addUserCredits(u._id, quickAmount)
+      } else {
+        await updateUserCredits(u._id, quickAmount)
+      }
+      await loadUsers(search || undefined)
+      setQuickAction(null)
+      setQuickAmount(0)
+    } catch (err) {
+      console.error(`Failed to ${type} credits:`, err)
+      alert(`Failed to ${type} credits`)
+    } finally {
+      setUpdating(null)
+    }
   }
 
   if (user?.role !== 'admin') {
@@ -728,12 +814,26 @@ export default function UsersPage() {
                         {formatDateTime(u.createdAt)}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <button
-                          onClick={() => openEditModal(u)}
-                          className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-indigo-50 dark:hover:bg-white/5 hover:text-indigo-700 dark:hover:text-white hover:border-indigo-300 dark:hover:border-white/20 transition-colors"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openQuickAction(u, 'add')}
+                            className="px-2 py-1 rounded border border-cyan-300 dark:border-cyan-500/30 text-cyan-700 dark:text-cyan-400 text-xs font-medium hover:bg-cyan-50 dark:hover:bg-cyan-500/10 transition-colors"
+                          >
+                            Add
+                          </button>
+                          <button
+                            onClick={() => openQuickAction(u, 'set')}
+                            className="px-2 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                          >
+                            Set
+                          </button>
+                          <button
+                            onClick={() => openEditModal(u)}
+                            className="px-2 py-1 rounded border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-indigo-50 dark:hover:bg-white/5 hover:text-indigo-700 dark:hover:text-white hover:border-indigo-300 dark:hover:border-white/20 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -822,12 +922,26 @@ export default function UsersPage() {
                     <p className="text-slate-500 dark:text-slate-600 text-xs">
                       Created {formatDateTime(u.createdAt)}
                     </p>
-                    <button
-                      onClick={() => openEditModal(u)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-indigo-50 dark:hover:bg-white/5 hover:text-indigo-700 dark:hover:text-white hover:border-indigo-300 dark:hover:border-white/20 transition-colors"
-                    >
-                      Edit
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openQuickAction(u, 'add')}
+                        className="px-2 py-1 rounded border border-cyan-300 dark:border-cyan-500/30 text-cyan-700 dark:text-cyan-400 text-xs font-medium hover:bg-cyan-50 dark:hover:bg-cyan-500/10 transition-colors"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={() => openQuickAction(u, 'set')}
+                        className="px-2 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                      >
+                        Set
+                      </button>
+                      <button
+                        onClick={() => openEditModal(u)}
+                        className="px-2 py-1 rounded border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-indigo-50 dark:hover:bg-white/5 hover:text-indigo-700 dark:hover:text-white hover:border-indigo-300 dark:hover:border-white/20 transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
@@ -884,9 +998,11 @@ export default function UsersPage() {
               </button>
             </div>
 
-            {/* Credits Section */}
-            <div className="mb-4 sm:mb-5 p-3 rounded-lg border border-slate-300 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02]">
-              <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">Credits ($)</label>
+            {/* Credits */}
+            <div className="mb-3 p-3 rounded-lg border border-slate-300 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02]">
+              <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">
+                Credits (${(selectedUser.credits || 0).toFixed(2)})
+              </label>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="number"
@@ -894,7 +1010,7 @@ export default function UsersPage() {
                   step="0.01"
                   value={editCredits}
                   onChange={(e) => setEditCredits(parseFloat(e.target.value) || 0)}
-                  className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-400 dark:focus:border-white/20 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-transparent"
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-400 dark:focus:border-white/20 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-transparent"
                 />
                 <button
                   onClick={() => handleUpdateCredits(selectedUser._id)}
@@ -906,9 +1022,11 @@ export default function UsersPage() {
               </div>
             </div>
 
-            {/* Ref Credits Section */}
+            {/* Ref Credits */}
             <div className="mb-4 sm:mb-5 p-3 rounded-lg border border-slate-300 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02]">
-              <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">Ref Credits ($)</label>
+              <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">
+                Ref Credits (${(selectedUser.refCredits || 0).toFixed(2)})
+              </label>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="number"
@@ -982,6 +1100,83 @@ export default function UsersPage() {
             <p className="text-slate-500 dark:text-slate-600 text-xs text-center">
               Changes take effect immediately
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Action Modal */}
+      {quickAction && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="max-w-xs w-full rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-5 shadow-2xl dark:shadow-none">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className={`font-semibold ${quickAction.type === 'add' ? 'text-cyan-700 dark:text-cyan-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                  {quickAction.type === 'add' ? 'Add Credits' : 'Set Credits'}
+                </h3>
+                <p className="text-slate-600 dark:text-slate-500 text-sm">{quickAction.user._id}</p>
+              </div>
+              <button
+                onClick={() => { setQuickAction(null); setQuickAmount(0) }}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 rounded-lg bg-slate-50 dark:bg-white/5 text-center">
+              <p className="text-slate-500 dark:text-slate-500 text-xs mb-1">Current Credits</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">${(quickAction.user.credits || 0).toFixed(2)}</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-slate-700 dark:text-slate-400 text-xs font-medium mb-2">
+                {quickAction.type === 'add' ? 'Amount to Add' : 'New Value'}
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-500">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={quickAmount}
+                  onChange={(e) => setQuickAmount(parseFloat(e.target.value) || 0)}
+                  autoFocus
+                  style={{ MozAppearance: 'textfield' }}
+                  className={`w-full pl-7 pr-4 py-3 rounded-lg border text-lg font-semibold text-slate-900 dark:text-white bg-white dark:bg-white/[0.02] focus:outline-none focus:ring-2 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    quickAction.type === 'add'
+                      ? 'border-cyan-300 dark:border-cyan-500/30 focus:border-cyan-400 focus:ring-cyan-100 dark:focus:ring-cyan-500/10'
+                      : 'border-emerald-300 dark:border-emerald-500/30 focus:border-emerald-400 focus:ring-emerald-100 dark:focus:ring-emerald-500/10'
+                  }`}
+                />
+              </div>
+              {quickAction.type === 'add' && quickAmount > 0 && (
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 text-center">
+                  New total: <span className="font-semibold text-cyan-700 dark:text-cyan-400">${((quickAction.user.credits || 0) + quickAmount).toFixed(2)}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setQuickAction(null); setQuickAmount(0) }}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleQuickAction}
+                disabled={updating === quickAction.user._id || (quickAction.type === 'add' && quickAmount <= 0)}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 ${
+                  quickAction.type === 'add'
+                    ? 'bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-500/20 dark:hover:bg-cyan-500/30 dark:text-cyan-400 border border-cyan-600 dark:border-cyan-500/30'
+                    : 'bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-500/20 dark:hover:bg-emerald-500/30 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-500/30'
+                }`}
+              >
+                {updating === quickAction.user._id ? 'Saving...' : quickAction.type === 'add' ? 'Add' : 'Set'}
+              </button>
+            </div>
           </div>
         </div>
       )}

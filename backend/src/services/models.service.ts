@@ -38,11 +38,17 @@ function loadGoproxyConfig(): GoproxyConfig | null {
 
   // Try multiple possible paths for goproxy config
   const possiblePaths = [
+    // Environment variable path (highest priority)
+    process.env.GOPROXY_CONFIG_PATH,
+    // Production paths
+    '/app/goproxy/config.json',
+    '/app/goproxy/config.prod.json',
+    // Development paths
     path.resolve(__dirname, '../../../goproxy/config.json'),
     path.resolve(__dirname, '../../goproxy/config.json'),
     path.resolve(process.cwd(), '../goproxy/config.json'),
     path.resolve(process.cwd(), 'goproxy/config.json'),
-  ];
+  ].filter(Boolean) as string[];
 
   for (const configPath of possiblePaths) {
     try {
