@@ -4,6 +4,7 @@ export class PaymentRepository {
   async create(data: {
     userId: string;
     discordId?: string;
+    username?: string;
     plan: PaymentPlan;
     amount: number;
     orderCode: string;
@@ -12,6 +13,7 @@ export class PaymentRepository {
     const payment = await Payment.create({
       userId: data.userId,
       discordId: data.discordId,
+      username: data.username,
       plan: data.plan,
       amount: data.amount,
       currency: 'VND',

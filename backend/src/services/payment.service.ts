@@ -58,7 +58,7 @@ function extractOrderCode(text: string): string | null {
 }
 
 export class PaymentService {
-  async createCheckout(userId: string, plan: PaymentPlan, discordId?: string): Promise<CheckoutResult> {
+  async createCheckout(userId: string, plan: PaymentPlan, discordId?: string, username?: string): Promise<CheckoutResult> {
     const planConfig = PLAN_PRICES[plan];
     if (!planConfig) {
       throw new Error('Invalid plan');
@@ -75,13 +75,14 @@ export class PaymentService {
     const payment = await paymentRepository.create({
       userId,
       discordId,
+      username,
       plan,
       amount: planConfig.amount,
       orderCode,
       expiresAt,
     });
 
-    const qrCodeUrl = generateQRCodeUrl(orderCode, planConfig.amount);
+    const qrCodeUrl = generateQRCodeUrl(orderCode, planConfig.amount, username);
 
     return {
       paymentId: payment._id.toString(),

@@ -442,9 +442,6 @@ export default function LandingPage() {
                     <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/month</span>
                   </div>
                   <div className="h-8 sm:h-10"></div>
-                  {t.pricing.dev.note && (
-                    <p className="text-amber-600 dark:text-amber-400 text-[10px] sm:text-xs mt-1">{t.pricing.dev.note}</p>
-                  )}
                 </div>
 
                 {/* Sale Countdown */}

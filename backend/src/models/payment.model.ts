@@ -8,6 +8,7 @@ export interface IPayment {
   _id: mongoose.Types.ObjectId;
   userId: string;
   discordId?: string;
+  username?: string;
   plan: PaymentPlan;
   amount: number;
   currency: 'VND';
@@ -29,6 +30,7 @@ export const PLAN_PRICES: Record<PaymentPlan, { amount: number; credits: number;
 const paymentSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
   discordId: { type: String },
+  username: { type: String },
   plan: { type: String, enum: ['dev', 'pro', 'pro-troll'], required: true },
   amount: { type: Number, required: true },
   currency: { type: String, enum: ['VND'], default: 'VND' },
@@ -52,8 +54,9 @@ export function generateOrderCode(plan: PaymentPlan): string {
   return `TROLL${planCode}${timestamp}${random}`;
 }
 
-export function generateQRCodeUrl(orderCode: string, amount: number): string {
+export function generateQRCodeUrl(orderCode: string, amount: number, username?: string): string {
   const account = process.env.SEPAY_ACCOUNT || 'VQRQAFRBD3142';
   const bank = process.env.SEPAY_BANK || 'MBBank';
-  return `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${amount}&des=${orderCode}`;
+  const description = username ? `${orderCode} ${username}` : orderCode;
+  return `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${amount}&des=${encodeURIComponent(description)}`;
 }

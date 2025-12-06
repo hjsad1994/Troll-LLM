@@ -767,6 +767,12 @@ export const translations = {
         prioritySupport: 'Priority support',
         vipSupport: 'VIP support',
       },
+      username: {
+        title: 'Username',
+        desc: 'Will be used as transfer content',
+        placeholder: 'Enter your username',
+        required: 'Username is required',
+      },
       discord: {
         title: 'Discord Integration',
         optional: 'Optional',
@@ -812,6 +818,16 @@ export const translations = {
         checkDiscord: 'Check your Discord for the {plan} role',
         redirecting: 'Redirecting to dashboard in a few seconds...',
         goToDashboard: 'Go to Dashboard',
+      },
+      confirm: {
+        title: 'Confirm Payment',
+        subtitle: 'Please review before proceeding',
+        currentPlan: 'Current Plan',
+        newPlan: 'New Plan',
+        warning: 'Warning',
+        message: 'Your current plan will be replaced with the new plan after payment. Credits will be added to your account.',
+        cancel: 'Cancel',
+        proceed: 'Proceed',
       },
     },
     // Backup Keys Page
@@ -1638,6 +1654,12 @@ export const translations = {
         prioritySupport: 'Hỗ trợ ưu tiên',
         vipSupport: 'Hỗ trợ VIP',
       },
+      username: {
+        title: 'Tên người dùng',
+        desc: 'Sẽ được dùng làm nội dung chuyển tiền',
+        placeholder: 'Nhập tên người dùng',
+        required: 'Vui lòng nhập tên người dùng',
+      },
       discord: {
         title: 'Tích hợp Discord',
         optional: 'Tùy chọn',
@@ -1683,6 +1705,16 @@ export const translations = {
         checkDiscord: 'Kiểm tra Discord để nhận role {plan}',
         redirecting: 'Đang chuyển hướng đến bảng điều khiển...',
         goToDashboard: 'Đi đến Bảng điều khiển',
+      },
+      confirm: {
+        title: 'Xác nhận thanh toán',
+        subtitle: 'Vui lòng kiểm tra trước khi tiếp tục',
+        currentPlan: 'Gói hiện tại',
+        newPlan: 'Gói mới',
+        warning: 'Cảnh báo',
+        message: 'Gói hiện tại của bạn sẽ được thay thế bằng gói mới sau khi thanh toán. Credits sẽ được cộng vào tài khoản.',
+        cancel: 'Hủy',
+        proceed: 'Tiếp tục',
       },
     },
     // Backup Keys Page

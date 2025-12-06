@@ -37,7 +37,8 @@ router.post('/checkout', jwtAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid plan. Must be "dev" or "pro"' });
     }
 
-    const result = await paymentService.createCheckout(username, plan, discordId);
+    // Use the logged-in username as transfer content
+    const result = await paymentService.createCheckout(username, plan, discordId, username);
     
     res.json({
       paymentId: result.paymentId,
