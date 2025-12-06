@@ -6,7 +6,9 @@ import { allowReadOnly, requireAdmin } from '../middleware/role.middleware.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
 import { backupKeyRepository } from '../repositories/backup-key.repository.js';
+import { paymentRepository } from '../repositories/payment.repository.js';
 import { PLAN_LIMITS, UserPlan } from '../models/user.model.js';
+import { PaymentStatus } from '../models/payment.model.js';
 
 const router = Router();
 
@@ -289,6 +291,66 @@ router.get('/model-stats', requireAdmin, async (req: Request, res: Response) => 
   } catch (error) {
     console.error('Failed to get model stats:', error);
     res.status(500).json({ error: 'Failed to get model stats' });
+  }
+});
+
+// Payments - admin only (for billing dashboard)
+router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const status = req.query.status as PaymentStatus | undefined;
+    const period = (req.query.period as string) || 'all';
+    
+    let since: Date | undefined;
+    const now = new Date();
+    switch (period) {
+      case '1h':
+        since = new Date(now.getTime() - 60 * 60 * 1000);
+        break;
+      case '24h':
+        since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        since = undefined;
+    }
+    
+    const [result, stats] = await Promise.all([
+      paymentRepository.getAllPayments({ page, limit, status, since }),
+      paymentRepository.getPaymentStats(since),
+    ]);
+    
+    res.json({
+      payments: result.payments.map(p => ({
+        id: p._id,
+        userId: p.userId,
+        username: p.username,
+        plan: p.plan,
+        amount: p.amount,
+        currency: p.currency,
+        status: p.status,
+        orderCode: p.orderCode,
+        createdAt: p.createdAt,
+        completedAt: p.completedAt,
+      })),
+      pagination: {
+        page: result.page,
+        totalPages: result.totalPages,
+        total: result.total,
+        limit,
+      },
+      stats,
+      period,
+    });
+  } catch (error) {
+    console.error('Failed to get payments:', error);
+    res.status(500).json({ error: 'Failed to get payments' });
   }
 });
 

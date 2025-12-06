@@ -79,6 +79,75 @@ export class PaymentRepository {
     }
     return payment;
   }
+
+  async getAllPayments(options: {
+    page?: number;
+    limit?: number;
+    status?: PaymentStatus;
+    since?: Date;
+  } = {}): Promise<{ payments: IPayment[]; total: number; page: number; totalPages: number }> {
+    const { page = 1, limit = 20, status, since } = options;
+    const skip = (page - 1) * limit;
+
+    const query: any = {};
+    if (status) {
+      query.status = status;
+    }
+    if (since) {
+      query.createdAt = { $gte: since };
+    }
+
+    const [payments, total] = await Promise.all([
+      Payment.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Payment.countDocuments(query),
+    ]);
+
+    return {
+      payments,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getPaymentStats(since?: Date): Promise<{
+    totalAmount: number;
+    successCount: number;
+    pendingCount: number;
+    failedCount: number;
+  }> {
+    const query: any = {};
+    if (since) {
+      query.createdAt = { $gte: since };
+    }
+
+    const [stats] = await Payment.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalAmount: {
+            $sum: { $cond: [{ $eq: ['$status', 'success'] }, '$amount', 0] }
+          },
+          successCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] }
+          },
+          pendingCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+          },
+          failedCount: {
+            $sum: { $cond: [{ $in: ['$status', ['failed', 'expired']] }, 1, 0] }
+          },
+        },
+      },
+    ]);
+
+    return stats || { totalAmount: 0, successCount: 0, pendingCount: 0, failedCount: 0 };
+  }
 }
 
 export const paymentRepository = new PaymentRepository();

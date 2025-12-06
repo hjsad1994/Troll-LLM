@@ -185,17 +185,15 @@ export class PaymentService {
     // Upgrade user plan
     await this.upgradePlan(payment.userId, payment.plan);
 
-    // Send webhook to Discord bot if discordId exists
-    if (payment.discordId) {
-      await this.notifyDiscordBot({
-        discordId: payment.discordId,
-        plan: payment.plan,
-        username: payment.userId,
-        orderCode: payment.orderCode || orderCode,
-        amount: payment.amount,
-        transactionId: payload.id.toString(),
-      });
-    }
+    // Send webhook to Discord bot
+    await this.notifyDiscordBot({
+      discordId: payment.discordId || '',
+      plan: payment.plan,
+      username: payment.userId,
+      orderCode: payment.orderCode || orderCode,
+      amount: payment.amount,
+      transactionId: payload.id.toString(),
+    });
 
     console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Plan: ${payment.plan}`);
     return { processed: true, message: 'Payment processed successfully' };
