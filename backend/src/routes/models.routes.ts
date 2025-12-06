@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getModels, getAllModelsHealth } from '../services/models.service.js';
+import { getModels } from '../services/models.service.js';
 
 const router = Router();
 
@@ -21,29 +21,6 @@ router.get('/', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('Error getting models:', error);
     res.status(500).json({ error: 'Failed to get models' });
-  }
-});
-
-// GET /api/models/health - Get models with health status
-router.get('/health', async (_req: Request, res: Response) => {
-  try {
-    const modelsHealth = await getAllModelsHealth();
-    
-    const healthyCount = modelsHealth.filter(m => m.isHealthy).length;
-    const unhealthyCount = modelsHealth.length - healthyCount;
-
-    res.json({
-      models: modelsHealth,
-      summary: {
-        total: modelsHealth.length,
-        healthy: healthyCount,
-        unhealthy: unhealthyCount,
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error getting models health:', error);
-    res.status(500).json({ error: 'Failed to get models health' });
   }
 });
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { fetchWithAuth, getModelStats, getModelsHealth, ModelStats, ModelHealth } from '@/lib/api'
+import { fetchWithAuth, getModelStats, ModelStats } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 
 interface Stats {
@@ -145,8 +145,6 @@ export default function AdminDashboard() {
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
   const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0, total_input_tokens: 0, total_output_tokens: 0, total_credits_burned: 0 })
   const [modelStats, setModelStats] = useState<ModelStats[]>([])
-  const [modelsHealth, setModelsHealth] = useState<ModelHealth[]>([])
-  const [modelsHealthLoading, setModelsHealthLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [metricsPeriod, setMetricsPeriod] = useState<'1h' | '3h' | '8h' | '24h' | '7d' | 'all'>('all')
@@ -157,18 +155,6 @@ export default function AdminDashboard() {
       router.replace('/dashboard')
     }
   }, [user, isAdmin, router])
-
-  const loadModelsHealth = useCallback(async () => {
-    try {
-      setModelsHealthLoading(true)
-      const data = await getModelsHealth()
-      setModelsHealth(data.models)
-    } catch (err) {
-      console.error('Failed to load models health:', err)
-    } finally {
-      setModelsHealthLoading(false)
-    }
-  }, [])
 
   const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
     try {
@@ -236,15 +222,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAdmin) {
       loadDashboard()
-      loadModelsHealth()
       const interval = setInterval(loadDashboard, 30000)
-      const healthInterval = setInterval(loadModelsHealth, 30000)
       return () => {
         clearInterval(interval)
-        clearInterval(healthInterval)
       }
     }
-  }, [loadDashboard, loadModelsHealth, isAdmin])
+  }, [loadDashboard, isAdmin])
 
   // Calculate some derived metrics
   const activeKeys = userKeys.filter(k => k.isActive).length
@@ -289,51 +272,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         </header>
-
-        {/* Models Health Status - Compact */}
-        <div className="p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/50">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">Models</span>
-              <span className="text-xs text-gray-500 dark:text-neutral-500">
-                (<span className="text-emerald-600 dark:text-emerald-400">{modelsHealth.filter(m => m.isHealthy).length}</span>/<span className="text-gray-600 dark:text-gray-400">{modelsHealth.length}</span>)
-              </span>
-            </div>
-            <button
-              onClick={loadModelsHealth}
-              disabled={modelsHealthLoading}
-              className="px-2 py-1 text-xs text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-white transition-colors disabled:opacity-50"
-            >
-              {modelsHealthLoading ? '...' : '↻'}
-            </button>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {modelsHealthLoading && modelsHealth.length === 0 ? (
-              <span className="text-xs text-gray-500 dark:text-neutral-500">Loading...</span>
-            ) : (
-              modelsHealth.map((model) => (
-                <div
-                  key={model.id}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs ${
-                    model.isHealthy
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                      : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
-                  }`}
-                  title={`${model.name} - ${model.isHealthy ? 'Up' : 'Down'}${model.latencyMs ? ` (${model.latencyMs}ms)` : ''}`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${model.isHealthy ? 'bg-emerald-400' : 'bg-red-500'}`}></span>
-                  <span>{model.name}</span>
-                  <span className={`text-[10px] font-medium ${model.isHealthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                    ({model.isHealthy ? 'Up' : 'Down'})
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
 
         {/* Stats Grid - 3 columns */}
         <section className="py-8 border-y border-gray-300 dark:border-white/10">

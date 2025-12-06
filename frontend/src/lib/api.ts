@@ -477,32 +477,4 @@ export async function getReferredUsers(): Promise<{ users: ReferredUser[] }> {
   return resp.json()
 }
 
-// Models Health API
-export interface ModelHealth {
-  id: string
-  name: string
-  type: string
-  isHealthy: boolean
-  lastCheckedAt: string
-  latencyMs?: number
-  error?: string
-}
 
-export interface ModelsHealthResponse {
-  models: ModelHealth[]
-  summary: {
-    total: number
-    healthy: number
-    unhealthy: number
-  }
-  timestamp: string
-}
-
-export async function getModelsHealth(): Promise<ModelsHealthResponse> {
-  const resp = await fetch('/api/models/health')
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to get models health')
-  }
-  return resp.json()
-}

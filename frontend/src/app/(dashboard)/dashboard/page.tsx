@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getCreditsUsage, getModelsHealth, UserProfile, BillingInfo, CreditsUsage, ModelHealth } from '@/lib/api'
+import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getCreditsUsage, UserProfile, BillingInfo, CreditsUsage } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 
@@ -56,8 +56,6 @@ export default function UserDashboard() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
   const [creditsUsage, setCreditsUsage] = useState<CreditsUsage | null>(null)
-  const [modelsHealth, setModelsHealth] = useState<ModelHealth[]>([])
-  const [modelsLoading, setModelsLoading] = useState(true)
   const [usagePeriod, setUsagePeriod] = useState<'1h' | '24h' | '7d' | '30d'>('24h')
   const [showFullApiKey, setShowFullApiKey] = useState(false)
   const [fullApiKey, setFullApiKey] = useState<string | null>(null)
@@ -94,30 +92,9 @@ export default function UserDashboard() {
     }
   }, [])
 
-  const loadModelsHealth = useCallback(async () => {
-    try {
-      setModelsLoading(true)
-      const data = await getModelsHealth()
-      setModelsHealth(data.models)
-    } catch (err) {
-      console.error('Failed to load models health:', err)
-    } finally {
-      setModelsLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
     loadUserData()
-    loadModelsHealth()
-  }, [loadUserData, loadModelsHealth])
-
-  // Auto-refresh models health every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadModelsHealth()
-    }, 30000)
-    return () => clearInterval(interval)
-  }, [loadModelsHealth])
+  }, [loadUserData])
 
   const handleShowApiKey = async () => {
     if (showFullApiKey) {
@@ -435,51 +412,6 @@ export default function UserDashboard() {
               <div className="space-y-4">
                 <div className="h-32 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Models Health Status - Compact */}
-        <div className="p-3 rounded-lg border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] opacity-0 animate-fade-in-up animation-delay-400">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span className="text-sm font-medium text-slate-700 dark:text-white">{t.dashboard.modelsHealth.title}</span>
-              <span className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)]">
-                (<span className="text-emerald-600 dark:text-emerald-400">{modelsHealth.filter(m => m.isHealthy).length}</span>/<span className="text-slate-600 dark:text-slate-400">{modelsHealth.length}</span>)
-              </span>
-            </div>
-            <button
-              onClick={loadModelsHealth}
-              disabled={modelsLoading}
-              className="px-2 py-1 text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] hover:text-slate-700 dark:hover:text-white transition-colors disabled:opacity-50"
-            >
-              {modelsLoading ? '...' : '↻'}
-            </button>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {modelsLoading && modelsHealth.length === 0 ? (
-              <span className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)]">{t.dashboard.modelsHealth.loading}</span>
-            ) : (
-              modelsHealth.map((model) => (
-                <div
-                  key={model.id}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs ${
-                    model.isHealthy
-                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                      : 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'
-                  }`}
-                  title={`${model.name} - ${model.isHealthy ? t.dashboard.modelsHealth.healthy : t.dashboard.modelsHealth.unhealthy}${model.latencyMs ? ` (${model.latencyMs}ms)` : ''}`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${model.isHealthy ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                  <span>{model.name}</span>
-                  <span className={`text-[10px] font-medium ${model.isHealthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                    ({model.isHealthy ? t.dashboard.modelsHealth.healthy : t.dashboard.modelsHealth.unhealthy})
-                  </span>
-                </div>
-              ))
             )}
           </div>
         </div>
