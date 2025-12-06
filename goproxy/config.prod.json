@@ -19,7 +19,7 @@
       "thinking_budget": 10000,
       "input_price_per_mtok": 5.5,
       "output_price_per_mtok": 25.5,
-      "cache_write_price_per_mtok": 6.25,
+      "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.5,
       "upstream": "troll"
@@ -32,8 +32,8 @@
       "thinking_budget": 10000,
       "input_price_per_mtok": 3.5,
       "output_price_per_mtok": 15.5,
-      "cache_write_price_per_mtok": 3.75,
-      "cache_hit_price_per_mtok": 0.30,
+      "cache_write_price_per_mtok": 4,
+      "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.5,
       "upstream": "troll"
     },
@@ -45,7 +45,7 @@
       "thinking_budget": 6000,
       "input_price_per_mtok": 2.5,
       "output_price_per_mtok": 5.5,
-      "cache_write_price_per_mtok": 1.25,
+      "cache_write_price_per_mtok": 1.5,
       "cache_hit_price_per_mtok": 0.10,
       "billing_multiplier": 1.5,
       "upstream": "main",
