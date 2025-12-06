@@ -304,7 +304,7 @@ export class PaymentService {
     }
 
     // Determine bonus amount based on plan
-    const bonusAmount = plan === 'pro' ? 50 : 25;
+    const bonusAmount = plan === 'pro-troll' ? 100 : plan === 'pro' ? 50 : 25;
 
     // Award refCredits to the referred user (new user)
     await userRepository.addRefCredits(userId, bonusAmount);
