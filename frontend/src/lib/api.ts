@@ -109,12 +109,8 @@ export interface UserProfile {
 
 export interface BillingInfo {
   plan: string
-  planLimits: { monthlyTokens: number; rpm: number }
+  planLimits: { rpm: number }
   tokensUsed: number
-  monthlyTokensUsed: number
-  monthlyTokensLimit: number
-  monthlyResetDate: string
-  usagePercentage: number
   planStartDate: string | null
   planExpiresAt: string | null
   daysUntilExpiration: number | null
@@ -176,7 +172,7 @@ export async function getCreditsUsage(): Promise<CreditsUsage> {
 }
 
 // Admin User Management
-export type UserPlan = 'free' | 'dev' | 'pro'
+export type UserPlan = 'free' | 'dev' | 'pro' | 'pro-troll'
 
 export interface AdminUser {
   _id: string
@@ -193,11 +189,11 @@ export interface AdminUser {
   monthlyTokensUsed: number
   monthlyResetDate?: string
   credits: number
+  refCredits: number
   creditsBurned: number
 }
 
 export interface PlanLimits {
-  monthlyTokens: number
   rpm: number
   valueUsd: number
 }
@@ -247,6 +243,42 @@ export async function updateUserCredits(username: string, credits: number): Prom
   return resp.json()
 }
 
+export async function updateUserRefCredits(username: string, refCredits: number): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/refCredits`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refCredits })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update user refCredits')
+  }
+  return resp.json()
+}
+
+export interface ModelStats {
+  model: string
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  creditsBurned: number
+  requestCount: number
+}
+
+export interface ModelStatsResponse {
+  models: ModelStats[]
+  period: string
+}
+
+export async function getModelStats(period: string = 'all'): Promise<ModelStatsResponse> {
+  const resp = await fetchWithAuth(`/admin/model-stats?period=${period}`)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get model stats')
+  }
+  return resp.json()
+}
+
 // Payment
 export interface PaymentPlan {
   id: string
@@ -291,7 +323,7 @@ export async function getPaymentPlans(): Promise<{ plans: PaymentPlan[] }> {
   return resp.json()
 }
 
-export async function createCheckout(plan: 'dev' | 'pro', discordId?: string): Promise<CheckoutResponse> {
+export async function createCheckout(plan: 'dev' | 'pro' | 'pro-troll', discordId?: string): Promise<CheckoutResponse> {
   const resp = await fetchWithAuth('/api/payment/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -415,6 +447,36 @@ export async function getReferredUsers(): Promise<{ users: ReferredUser[] }> {
   if (!resp.ok) {
     const data = await resp.json()
     throw new Error(data.error || 'Failed to get referred users')
+  }
+  return resp.json()
+}
+
+// Models Health API
+export interface ModelHealth {
+  id: string
+  name: string
+  type: string
+  isHealthy: boolean
+  lastCheckedAt: string
+  latencyMs?: number
+  error?: string
+}
+
+export interface ModelsHealthResponse {
+  models: ModelHealth[]
+  summary: {
+    total: number
+    healthy: number
+    unhealthy: number
+  }
+  timestamp: string
+}
+
+export async function getModelsHealth(): Promise<ModelsHealthResponse> {
+  const resp = await fetch('/api/models/health')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get models health')
   }
   return resp.json()
 }

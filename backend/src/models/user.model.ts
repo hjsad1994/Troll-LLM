@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-export type UserPlan = 'free' | 'dev' | 'pro';
+export type UserPlan = 'free' | 'dev' | 'pro' | 'pro-troll';
 
 export interface IUser {
   _id: string;
@@ -29,10 +29,11 @@ export interface IUser {
   referralBonusAwarded: boolean;
 }
 
-export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; rpm: number; valueUsd: number }> = {
-  free: { monthlyTokens: 0, rpm: 0, valueUsd: 0 },
-  dev: { monthlyTokens: 15_000_000, rpm: 300, valueUsd: 225 },
-  pro: { monthlyTokens: 40_000_000, rpm: 1000, valueUsd: 500 },
+export const PLAN_LIMITS: Record<UserPlan, { rpm: number; valueUsd: number }> = {
+  free: { rpm: 0, valueUsd: 0 },
+  dev: { rpm: 150, valueUsd: 225 },
+  pro: { rpm: 300, valueUsd: 500 },
+  'pro-troll': { rpm: 600, valueUsd: 1250 },
 };
 
 const userSchema = new mongoose.Schema({
@@ -45,7 +46,7 @@ const userSchema = new mongoose.Schema({
   lastLoginAt: { type: Date },
   apiKey: { type: String, unique: true, sparse: true },
   apiKeyCreatedAt: { type: Date },
-  plan: { type: String, enum: ['free', 'dev', 'pro'], default: 'free' },
+  plan: { type: String, enum: ['free', 'dev', 'pro', 'pro-troll'], default: 'free' },
   planStartDate: { type: Date, default: null },
   planExpiresAt: { type: Date, default: null },
   tokensUsed: { type: Number, default: 0 },

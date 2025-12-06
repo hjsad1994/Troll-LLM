@@ -10,6 +10,7 @@ import proxyRoutes from './routes/proxy.js';
 import statusRoutes from './routes/status.js';
 import userRoutes from './routes/user.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
+import modelsRoutes from './routes/models.routes.js';
 
 const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
@@ -42,6 +43,7 @@ app.get('/health', (_req, res) => {
 // Public API routes
 app.use('/api', usageRoutes);
 app.use('/api/status', statusRoutes);
+app.use('/api/models', modelsRoutes);
 
 // Auth routes (public)
 app.use('/api', authRoutes);

@@ -3,9 +3,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { getAdminUsers, updateUserPlan, updateUserCredits, AdminUser, UserPlan, PlanLimits, formatNumber } from '@/lib/api'
+import { getAdminUsers, updateUserPlan, updateUserCredits, updateUserRefCredits, AdminUser, UserPlan, PlanLimits, formatNumber } from '@/lib/api'
 
-const PLAN_ORDER: UserPlan[] = ['free', 'dev', 'pro']
+const PLAN_ORDER: UserPlan[] = ['free', 'dev', 'pro', 'pro-troll']
 
 function formatDateTime(dateStr: string | undefined): string {
   if (!dateStr) return '-'
@@ -40,6 +40,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
     </svg>
   ),
+  'pro-troll': (className: string) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+    </svg>
+  ),
   admin: (className: string) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
@@ -52,7 +57,7 @@ const Icons = {
   ),
 }
 
-type PlanIconKey = 'free' | 'dev' | 'pro'
+type PlanIconKey = 'free' | 'dev' | 'pro' | 'pro-troll'
 
 const PLAN_CONFIG: Record<string, {
   bg: string;
@@ -76,10 +81,17 @@ const PLAN_CONFIG: Record<string, {
     gradient: 'from-violet-200/80 dark:from-violet-500/20 to-violet-100/50 dark:to-violet-600/5'
   },
   pro: {
+    bg: 'bg-indigo-100 dark:bg-indigo-500/10',
+    text: 'text-indigo-700 dark:text-indigo-400',
+    border: 'border-indigo-300 dark:border-indigo-500/20',
+    iconKey: 'pro',
+    gradient: 'from-indigo-200/80 dark:from-indigo-500/20 to-indigo-100/50 dark:to-indigo-600/5'
+  },
+  'pro-troll': {
     bg: 'bg-amber-100 dark:bg-amber-500/10',
     text: 'text-amber-700 dark:text-amber-400',
     border: 'border-amber-300 dark:border-amber-500/20',
-    iconKey: 'pro',
+    iconKey: 'pro-troll',
     gradient: 'from-amber-200/80 dark:from-amber-500/20 to-amber-100/50 dark:to-amber-600/5'
   },
 }
@@ -87,6 +99,11 @@ const PLAN_CONFIG: Record<string, {
 function getPlanStyle(plan: string) {
   const config = PLAN_CONFIG[plan] || PLAN_CONFIG.free
   return `${config.bg} ${config.text} ${config.border}`
+}
+
+function formatPlanName(plan: string): string {
+  if (plan === 'pro-troll') return 'Pro Troll'
+  return plan.charAt(0).toUpperCase() + plan.slice(1)
 }
 
 type PlanFilter = 'all' | UserPlan
@@ -105,6 +122,7 @@ export default function UsersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [editCredits, setEditCredits] = useState<number>(0)
+  const [editRefCredits, setEditRefCredits] = useState<number>(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Calculate role stats
@@ -182,9 +200,23 @@ export default function UsersPage() {
     }
   }
 
+  const handleUpdateRefCredits = async (username: string) => {
+    setUpdating(username)
+    try {
+      await updateUserRefCredits(username, editRefCredits)
+      await loadUsers(search || undefined)
+    } catch (err) {
+      console.error('Failed to update refCredits:', err)
+      alert('Failed to update refCredits')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   const openEditModal = (u: AdminUser) => {
     setSelectedUser(u)
     setEditCredits(u.credits || 0)
+    setEditRefCredits(u.refCredits || 0)
   }
 
   if (user?.role !== 'admin') {
@@ -295,7 +327,7 @@ export default function UsersPage() {
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? config.bg : 'bg-slate-100 dark:bg-white/5'}`}>
                                   {IconComponent(`w-4 h-4 ${isActive ? config.text : 'text-slate-500 dark:text-slate-400'}`)}
                                 </div>
-                                <span className={`font-medium capitalize ${isActive ? config.text : 'text-slate-700 dark:text-slate-300'}`}>{plan}</span>
+                                <span className={`font-medium ${isActive ? config.text : 'text-slate-700 dark:text-slate-300'}`}>{formatPlanName(plan)}</span>
                               </div>
                               <span className={`text-lg font-bold ${isActive ? config.text : 'text-slate-600 dark:text-slate-400'}`}>{count}</span>
                             </div>
@@ -375,7 +407,7 @@ export default function UsersPage() {
 
         {/* Stats Cards - Hidden on mobile, shown on lg+ */}
         {stats && (
-          <div className="hidden lg:grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="hidden lg:grid grid-cols-5 gap-3">
             {/* Total Card */}
             <button
               onClick={() => setPlanFilter('all')}
@@ -422,7 +454,7 @@ export default function UsersPage() {
                       <span className={`w-2 h-2 rounded-full ${config.bg} animate-pulse`} />
                     )}
                   </div>
-                  <p className="text-slate-600 dark:text-slate-500 text-xs uppercase tracking-wider mb-0.5">{plan}</p>
+                  <p className="text-slate-600 dark:text-slate-500 text-xs uppercase tracking-wider mb-0.5">{formatPlanName(plan)}</p>
                   <p className={`text-2xl font-bold ${isActive ? config.text : 'text-slate-900 dark:text-white'}`}>
                     {count}
                   </p>
@@ -596,6 +628,7 @@ export default function UsersPage() {
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">User</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Plan</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Credits</th>
+                <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Ref Credits</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Burned</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Input Tokens</th>
                 <th className="text-left px-5 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Output Tokens</th>
@@ -607,7 +640,7 @@ export default function UsersPage() {
             <tbody className="bg-white dark:bg-black/40">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-12 text-center">
+                  <td colSpan={10} className="px-5 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-indigo-200 dark:border-white/20 border-t-indigo-600 dark:border-t-white rounded-full animate-spin" />
                       <span className="text-slate-600 dark:text-slate-500 text-sm">Loading...</span>
@@ -616,7 +649,7 @@ export default function UsersPage() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-12 text-center">
+                  <td colSpan={10} className="px-5 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
                         <svg className="w-6 h-6 text-slate-500 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -668,13 +701,16 @@ export default function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 whitespace-nowrap">
                         <span className={`px-2.5 py-1 rounded text-xs font-semibold border ${getPlanStyle(plan)}`}>
-                          {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                          {formatPlanName(plan)}
                         </span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-emerald-700 dark:text-emerald-400 font-semibold text-sm">${(u.credits || 0).toFixed(2)}</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-pink-700 dark:text-pink-400 font-semibold text-sm">${(u.refCredits || 0).toFixed(2)}</span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-orange-700 dark:text-orange-400 font-semibold text-sm">${(u.creditsBurned || 0).toFixed(2)}</span>
@@ -753,15 +789,19 @@ export default function UsersPage() {
                       </div>
                     </div>
                     <span className={`px-2.5 py-1 rounded text-xs font-semibold border ${getPlanStyle(plan)}`}>
-                      {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                      {formatPlanName(plan)}
                     </span>
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="grid grid-cols-3 gap-2 mb-3">
                     <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5">
                       <p className="text-slate-500 dark:text-slate-600 text-xs mb-0.5">Credits</p>
                       <p className="text-emerald-700 dark:text-emerald-400 font-semibold text-sm">${(u.credits || 0).toFixed(2)}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-slate-500 dark:text-slate-600 text-xs mb-0.5">Ref Credits</p>
+                      <p className="text-pink-700 dark:text-pink-400 font-semibold text-sm">${(u.refCredits || 0).toFixed(2)}</p>
                     </div>
                     <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5">
                       <p className="text-slate-500 dark:text-slate-600 text-xs mb-0.5">Burned</p>
@@ -809,7 +849,7 @@ export default function UsersPage() {
                 return (
                   <div key={plan} className="text-center p-2 sm:p-3 rounded-lg bg-slate-50 dark:bg-transparent">
                     <p className={`font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1 ${textColors[plan] || 'text-slate-900 dark:text-white'}`}>
-                      {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                      {formatPlanName(plan)}
                     </p>
                     <p className="text-slate-600 dark:text-slate-400 text-[10px] sm:text-xs">
                       {planLimits[plan].valueUsd === 0
@@ -866,6 +906,28 @@ export default function UsersPage() {
               </div>
             </div>
 
+            {/* Ref Credits Section */}
+            <div className="mb-4 sm:mb-5 p-3 rounded-lg border border-slate-300 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02]">
+              <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">Ref Credits ($)</label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editRefCredits}
+                  onChange={(e) => setEditRefCredits(parseFloat(e.target.value) || 0)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] text-slate-900 dark:text-white text-sm focus:outline-none focus:border-pink-400 dark:focus:border-white/20 focus:ring-2 focus:ring-pink-100 dark:focus:ring-transparent"
+                />
+                <button
+                  onClick={() => handleUpdateRefCredits(selectedUser._id)}
+                  disabled={updating === selectedUser._id}
+                  className="px-4 py-2 rounded-lg bg-pink-500 dark:bg-pink-500/20 border border-pink-600 dark:border-pink-500/30 text-white dark:text-pink-400 text-sm font-medium hover:bg-pink-600 dark:hover:bg-pink-500/30 transition-colors disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+
             {/* Plan Section */}
             <div className="mb-2 sm:mb-3">
               <label className="block text-slate-700 dark:text-slate-500 text-xs uppercase tracking-wider font-semibold mb-2">Plan</label>
@@ -876,7 +938,8 @@ export default function UsersPage() {
                 const planColors: Record<string, { text: string; textLight: string; border: string; borderLight: string; bg: string; bgLight: string }> = {
                   free: { text: 'text-slate-400', textLight: 'text-slate-700', border: 'border-slate-500/30', borderLight: 'border-slate-400', bg: 'bg-slate-500/10', bgLight: 'bg-slate-100' },
                   dev: { text: 'text-violet-400', textLight: 'text-violet-700', border: 'border-violet-500/30', borderLight: 'border-violet-400', bg: 'bg-violet-500/10', bgLight: 'bg-violet-100' },
-                  pro: { text: 'text-amber-400', textLight: 'text-amber-700', border: 'border-amber-500/30', borderLight: 'border-amber-400', bg: 'bg-amber-500/10', bgLight: 'bg-amber-100' },
+                  pro: { text: 'text-indigo-400', textLight: 'text-indigo-700', border: 'border-indigo-500/30', borderLight: 'border-indigo-400', bg: 'bg-indigo-500/10', bgLight: 'bg-indigo-100' },
+                  'pro-troll': { text: 'text-amber-400', textLight: 'text-amber-700', border: 'border-amber-500/30', borderLight: 'border-amber-400', bg: 'bg-amber-500/10', bgLight: 'bg-amber-100' },
                 }
                 const c = planColors[plan] || planColors.free
                 return (
@@ -893,7 +956,7 @@ export default function UsersPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className={`font-semibold ${isCurrentPlan ? `${c.textLight} dark:${c.text}` : 'text-slate-700 dark:text-slate-300'}`}>
-                          {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                          {formatPlanName(plan)}
                           {isCurrentPlan && <span className="ml-2 text-slate-500 dark:text-slate-500 text-xs font-normal">(Current)</span>}
                         </p>
                         {planLimits && (

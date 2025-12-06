@@ -326,6 +326,12 @@ export class UserRepository {
         case '1h':
           since = new Date(Date.now() - 60 * 60 * 1000);
           break;
+        case '3h':
+          since = new Date(Date.now() - 3 * 60 * 60 * 1000);
+          break;
+        case '8h':
+          since = new Date(Date.now() - 8 * 60 * 60 * 1000);
+          break;
         case '24h':
           since = new Date(Date.now() - 24 * 60 * 60 * 1000);
           break;
@@ -363,6 +369,14 @@ export class UserRepository {
     return User.findByIdAndUpdate(
       username,
       { credits },
+      { new: true }
+    ).lean();
+  }
+
+  async updateRefCredits(username: string, refCredits: number): Promise<IUser | null> {
+    return User.findByIdAndUpdate(
+      username,
+      { refCredits },
       { new: true }
     ).lean();
   }

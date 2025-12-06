@@ -402,34 +402,14 @@ export default function Dashboard() {
                   <div className="bg-slate-900/50 rounded-lg p-3">
                     <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Credits Balance</p>
                     <p className="text-2xl font-bold text-emerald-400">
-                      ${(billingInfo.credits || 0).toFixed(2)}
+                      {(billingInfo.credits || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-slate-900/50 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Used This Month</p>
-                    <p className="text-2xl font-bold text-cyan-400">{formatLargeNumber(billingInfo.monthlyTokensUsed)}</p>
+                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">RPM Limit</p>
+                    <p className="text-2xl font-bold text-cyan-400">{billingInfo.planLimits.rpm}</p>
                   </div>
                 </div>
-                
-                <div>
-                  <div className="flex justify-between text-xs text-slate-400 mb-1">
-                    <span>Monthly Usage</span>
-                    <span>{billingInfo.usagePercentage.toFixed(1)}% of {formatLargeNumber(billingInfo.monthlyTokensLimit)}</span>
-                  </div>
-                  <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        billingInfo.usagePercentage > 90 ? 'bg-red-500' : 
-                        billingInfo.usagePercentage > 70 ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}
-                      style={{ width: `${Math.min(billingInfo.usagePercentage, 100)}%` }}
-                    />
-                  </div>
-                </div>
-                
-                <p className="text-xs text-slate-500">
-                  Resets: {new Date(billingInfo.monthlyResetDate).toLocaleDateString()} (1st of next month)
-                </p>
               </div>
             ) : (
               <div className="animate-pulse space-y-3">

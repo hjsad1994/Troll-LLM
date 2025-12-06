@@ -1,9 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
+
+// Sale end date: 3 days from December 6, 2025
+const SALE_END_DATE = new Date('2025-12-09T23:59:59')
 
 // ===== SIDEBAR NAVIGATION =====
 const getSidebarNav = (t: any) => [
@@ -79,8 +82,30 @@ function Tip({ children }: { children: React.ReactNode }) {
 // ===== MAIN PAGE =====
 export default function PricingDocsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
   const { t } = useLanguage()
   const sidebarNav = getSidebarNav(t)
+
+  // Countdown timer effect
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime()
+      const distance = SALE_END_DATE.getTime() - now
+
+      if (distance > 0) {
+        setCountdown({
+          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((distance % (1000 * 60)) / 1000),
+        })
+      }
+    }
+
+    calculateTimeLeft()
+    const timer = setInterval(calculateTimeLeft, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const models = [
     {
@@ -231,6 +256,47 @@ export default function PricingDocsPage() {
             <Note>
               {t.docsPricing.note}
             </Note>
+
+            {/* Countdown Sale Banner */}
+            <div className="p-6 rounded-xl bg-gradient-to-r from-rose-500/10 via-orange-500/10 to-amber-500/10 border border-rose-500/20 mb-8">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-lg font-semibold text-rose-600 dark:text-rose-400">{t.docsPricing.saleEndsIn}</span>
+                </div>
+                <div className="flex items-center justify-center gap-3 sm:gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-xl bg-white dark:bg-black/50 border border-rose-500/30 flex items-center justify-center">
+                      <span className="text-2xl sm:text-3xl font-bold text-rose-600 dark:text-rose-400">{countdown.days}</span>
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-2">{t.docsPricing.days}</span>
+                  </div>
+                  <span className="text-2xl font-bold text-rose-400">:</span>
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-xl bg-white dark:bg-black/50 border border-orange-500/30 flex items-center justify-center">
+                      <span className="text-2xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400">{countdown.hours.toString().padStart(2, '0')}</span>
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-2">{t.docsPricing.hours}</span>
+                  </div>
+                  <span className="text-2xl font-bold text-orange-400">:</span>
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-xl bg-white dark:bg-black/50 border border-amber-500/30 flex items-center justify-center">
+                      <span className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">{countdown.minutes.toString().padStart(2, '0')}</span>
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-2">{t.docsPricing.minutes}</span>
+                  </div>
+                  <span className="text-2xl font-bold text-amber-400">:</span>
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-xl bg-white dark:bg-black/50 border border-yellow-500/30 flex items-center justify-center">
+                      <span className="text-2xl sm:text-3xl font-bold text-yellow-600 dark:text-yellow-400">{countdown.seconds.toString().padStart(2, '0')}</span>
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-2">{t.docsPricing.seconds}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Plans */}
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">{t.docsPricing.subscriptionPlans}</h2>

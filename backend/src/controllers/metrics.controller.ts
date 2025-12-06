@@ -5,7 +5,7 @@ export class MetricsController {
   async getSystemMetrics(req: Request, res: Response): Promise<void> {
     try {
       const period = (req.query.period as string) || 'all';
-      const validPeriods = ['1h', '24h', '7d', 'all'];
+      const validPeriods = ['1h', '3h', '8h', '24h', '7d', 'all'];
       
       if (!validPeriods.includes(period)) {
         res.status(400).json({ 

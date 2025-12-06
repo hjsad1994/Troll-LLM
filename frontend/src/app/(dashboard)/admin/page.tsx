@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { fetchWithAuth } from '@/lib/api'
+import { fetchWithAuth, getModelStats, getModelsHealth, ModelStats, ModelHealth } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 
 interface Stats {
@@ -144,9 +144,12 @@ export default function AdminDashboard() {
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
   const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0, total_input_tokens: 0, total_output_tokens: 0, total_credits_burned: 0 })
+  const [modelStats, setModelStats] = useState<ModelStats[]>([])
+  const [modelsHealth, setModelsHealth] = useState<ModelHealth[]>([])
+  const [modelsHealthLoading, setModelsHealthLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
-  const [metricsPeriod, setMetricsPeriod] = useState<'1h' | '24h' | '7d' | 'all'>('all')
+  const [metricsPeriod, setMetricsPeriod] = useState<'1h' | '3h' | '8h' | '24h' | '7d' | 'all'>('all')
 
   // Redirect non-admin users
   useEffect(() => {
@@ -155,15 +158,28 @@ export default function AdminDashboard() {
     }
   }, [user, isAdmin, router])
 
+  const loadModelsHealth = useCallback(async () => {
+    try {
+      setModelsHealthLoading(true)
+      const data = await getModelsHealth()
+      setModelsHealth(data.models)
+    } catch (err) {
+      console.error('Failed to load models health:', err)
+    } finally {
+      setModelsHealthLoading(false)
+    }
+  }, [])
+
   const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
     try {
-      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp] = await Promise.all([
+      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp, modelStatsResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
         fetchWithAuth('/admin/troll-keys').catch(() => null),
         fetchWithAuth('/admin/proxies').catch(() => null),
         fetch('/api/status').catch(() => null),
         fetchWithAuth(`/admin/metrics?period=${period}`).catch(() => null),
         fetchWithAuth(`/admin/user-stats?period=${period}`).catch(() => null),
+        getModelStats(period).catch(() => ({ models: [] })),
       ])
 
       const keysData = keysResp?.ok ? await keysResp.json() : { total: 0, keys: [] }
@@ -194,6 +210,7 @@ export default function AdminDashboard() {
       })
 
       setUserStats(userStatsData)
+      setModelStats(modelStatsResp.models || [])
 
       // Set detailed data for tables
       setUserKeys((keysData.keys || []).slice(0, 5))
@@ -219,10 +236,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAdmin) {
       loadDashboard()
+      loadModelsHealth()
       const interval = setInterval(loadDashboard, 30000)
-      return () => clearInterval(interval)
+      const healthInterval = setInterval(loadModelsHealth, 30000)
+      return () => {
+        clearInterval(interval)
+        clearInterval(healthInterval)
+      }
     }
-  }, [loadDashboard, isAdmin])
+  }, [loadDashboard, loadModelsHealth, isAdmin])
 
   // Calculate some derived metrics
   const activeKeys = userKeys.filter(k => k.isActive).length
@@ -268,6 +290,51 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        {/* Models Health Status - Compact */}
+        <div className="p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/50">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">Models</span>
+              <span className="text-xs text-gray-500 dark:text-neutral-500">
+                (<span className="text-emerald-600 dark:text-emerald-400">{modelsHealth.filter(m => m.isHealthy).length}</span>/<span className="text-gray-600 dark:text-gray-400">{modelsHealth.length}</span>)
+              </span>
+            </div>
+            <button
+              onClick={loadModelsHealth}
+              disabled={modelsHealthLoading}
+              className="px-2 py-1 text-xs text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-white transition-colors disabled:opacity-50"
+            >
+              {modelsHealthLoading ? '...' : '↻'}
+            </button>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {modelsHealthLoading && modelsHealth.length === 0 ? (
+              <span className="text-xs text-gray-500 dark:text-neutral-500">Loading...</span>
+            ) : (
+              modelsHealth.map((model) => (
+                <div
+                  key={model.id}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs ${
+                    model.isHealthy
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                      : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
+                  }`}
+                  title={`${model.name} - ${model.isHealthy ? 'Up' : 'Down'}${model.latencyMs ? ` (${model.latencyMs}ms)` : ''}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${model.isHealthy ? 'bg-emerald-400' : 'bg-red-500'}`}></span>
+                  <span>{model.name}</span>
+                  <span className={`text-[10px] font-medium ${model.isHealthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    ({model.isHealthy ? 'Up' : 'Down'})
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* Stats Grid - 3 columns */}
         <section className="py-8 border-y border-gray-300 dark:border-white/10">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
@@ -298,7 +365,7 @@ export default function AdminDashboard() {
         {/* Period Filter */}
         <div className="flex items-center gap-2">
           <span className="text-gray-500 dark:text-neutral-500 text-sm mr-2">Period:</span>
-          {(['1h', '24h', '7d', 'all'] as const).map((period) => (
+          {(['1h', '3h', '8h', '24h', '7d', 'all'] as const).map((period) => (
             <button
               key={period}
               onClick={() => setMetricsPeriod(period)}
@@ -308,7 +375,7 @@ export default function AdminDashboard() {
                   : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-white/10'
               }`}
             >
-              {period === 'all' ? 'All Time' : period === '1h' ? '1 Hour' : period === '24h' ? '24 Hours' : '7 Days'}
+              {period === 'all' ? 'All Time' : period === '1h' ? '1 Hour' : period === '3h' ? '3 Hours' : period === '8h' ? '8 Hours' : period === '24h' ? '24 Hours' : '7 Days'}
             </button>
           ))}
         </div>
@@ -326,7 +393,7 @@ export default function AdminDashboard() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">API Requests</h3>
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400">
-                  {metricsPeriod === 'all' ? 'All Time' : metricsPeriod === '1h' ? 'Last 1h' : metricsPeriod === '24h' ? 'Last 24h' : 'Last 7d'}
+                  {metricsPeriod === 'all' ? 'All Time' : metricsPeriod === '1h' ? 'Last 1h' : metricsPeriod === '3h' ? 'Last 3h' : metricsPeriod === '8h' ? 'Last 8h' : metricsPeriod === '24h' ? 'Last 24h' : 'Last 7d'}
                 </span>
               </div>
               <div className="flex gap-4 text-xs text-gray-500 dark:text-neutral-500">
@@ -426,147 +493,58 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Data Tables Grid */}
-        <section className="grid md:grid-cols-2 gap-6">
-          {/* Troll-Keys */}
-          <div className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-300 dark:border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Troll-Keys</h3>
-              <Link href="/troll-keys" className="text-sm text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-                View all
-              </Link>
-            </div>
-            <div className="p-4">
-              {factoryKeys.length > 0 ? (
-                <div className="space-y-3">
-                  {factoryKeys.map((key) => (
-                    <div key={key._id || key.id} className="p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm text-neutral-300">{maskApiKey(key.apiKey || '')}</span>
-                          {key.provider && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-neutral-400 border border-white/10">
-                              {key.provider}
-                            </span>
-                          )}
-                        </div>
-                        {getStatusBadge(key.status)}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-neutral-500">
-                        <span>{formatLargeNumber(key.tokensUsed)} tokens</span>
-                        <span>{(key.requestsCount ?? 0).toLocaleString()} requests</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-neutral-500">
-                  <p>No Troll-Keys configured</p>
-                  <Link href="/troll-keys" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
-                    Add your first key
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Proxies Section */}
+        {/* Model Usage Section */}
         <section className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-300 dark:border-white/10 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">Proxy Servers</h3>
-            <Link href="/proxies" className="text-sm text-neutral-400 hover:text-white transition-colors">
-              View all
-            </Link>
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Model Usage</h3>
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400">
+                {metricsPeriod === 'all' ? 'All Time' : metricsPeriod === '1h' ? 'Last 1h' : metricsPeriod === '3h' ? 'Last 3h' : metricsPeriod === '8h' ? 'Last 8h' : metricsPeriod === '24h' ? 'Last 24h' : 'Last 7d'}
+              </span>
+            </div>
+            <span className="text-sm text-gray-500 dark:text-neutral-500">{modelStats.length} models</span>
           </div>
           <div className="p-4">
-            {proxies.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {proxies.map((proxy) => (
-                  <div key={proxy._id} className="p-4 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-white font-medium">{proxy.name}</span>
-                      {getStatusBadge(proxy.status)}
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Type</span>
-                        <span className="text-neutral-300 uppercase">{proxy.type}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Address</span>
-                        <span className="text-neutral-300 font-mono text-xs">{proxy.host}:{proxy.port}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Latency</span>
-                        <span className={getLatencyColor(proxy.lastLatencyMs || 0)}>
-                          {proxy.lastLatencyMs ? `${proxy.lastLatencyMs}ms` : 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-neutral-500">
-                <p>No proxies configured</p>
-                <Link href="/proxies" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
-                  Add your first proxy
-                </Link>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Recent Activity */}
-        <section className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-300 dark:border-white/10">
-            <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
-          </div>
-          <div className="p-4">
-            {recentLogs.length > 0 ? (
+            {modelStats.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider border-b border-gray-300 dark:border-white/10">
-                      <th className="text-left py-3 px-4">Time</th>
                       <th className="text-left py-3 px-4">Model</th>
-                      <th className="text-left py-3 px-4">Latency</th>
-                      <th className="text-left py-3 px-4">Tokens</th>
-                      <th className="text-left py-3 px-4">Status</th>
+                      <th className="text-right py-3 px-4">Input Tokens</th>
+                      <th className="text-right py-3 px-4">Output Tokens</th>
+                      <th className="text-right py-3 px-4">Total Tokens</th>
+                      <th className="text-right py-3 px-4">Credits Burned</th>
+                      <th className="text-right py-3 px-4">Requests</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentLogs.map((log) => (
-                      <tr key={log._id} className="border-b border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-neutral-800/50">
-                        <td className="py-3 px-4 text-neutral-400">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </td>
+                    {modelStats.map((model, index) => (
+                      <tr key={model.model} className={`border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-neutral-800/50 ${index === 0 ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : ''}`}>
                         <td className="py-3 px-4">
-                          <span className="font-mono text-xs bg-gray-100 dark:bg-neutral-800 border border-gray-300 dark:border-white/10 px-2 py-1 rounded text-gray-700 dark:text-neutral-300">{log.model}</span>
-                        </td>
-                        <td className={`py-3 px-4 ${getLatencyColor(log.latencyMs)}`}>
-                          {log.latencyMs}ms
-                        </td>
-                        <td className="py-3 px-4 text-neutral-400">
-                          {log.tokensUsed ? formatLargeNumber(log.tokensUsed) : '-'}
-                        </td>
-                        <td className="py-3 px-4">
-                          {log.success ? (
-                            <span className="text-emerald-400 flex items-center gap-1">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              Success
-                            </span>
-                          ) : (
-                            <span className="text-red-400 flex items-center gap-1">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                              Failed
+                          <span className="font-mono text-xs bg-gray-100 dark:bg-neutral-800 border border-gray-300 dark:border-white/10 px-2 py-1 rounded text-gray-700 dark:text-neutral-300">
+                            {model.model}
+                          </span>
+                          {index === 0 && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                              TOP
                             </span>
                           )}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-cyan-600 dark:text-cyan-400 font-medium">{formatLargeNumber(model.inputTokens)}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-purple-600 dark:text-purple-400 font-medium">{formatLargeNumber(model.outputTokens)}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-gray-900 dark:text-white font-semibold">{formatLargeNumber(model.totalTokens)}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-orange-600 dark:text-orange-400 font-medium">${model.creditsBurned.toFixed(2)}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-gray-600 dark:text-neutral-400">{model.requestCount.toLocaleString()}</span>
                         </td>
                       </tr>
                     ))}
@@ -575,43 +553,10 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="text-center py-8 text-neutral-500">
-                <p>No recent activity</p>
-                <p className="text-xs mt-1">API requests will appear here</p>
+                <p>No model usage data</p>
+                <p className="text-xs mt-1">API requests will appear here grouped by model</p>
               </div>
             )}
-          </div>
-        </section>
-
-        {/* Quick Actions */}
-        <section className="py-8 border-t border-gray-300 dark:border-white/10">
-          <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/keys"
-              className="px-6 py-3 rounded-lg bg-white text-black font-medium text-sm hover:bg-neutral-200 transition-colors"
-            >
-              Create User Key
-            </Link>
-            <Link
-              href="/troll-keys"
-              className="px-6 py-3 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-            >
-              Add Troll-Key
-            </Link>
-            <Link
-              href="/proxies"
-              className="px-6 py-3 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-            >
-              Configure Proxy
-            </Link>
-            <a
-              href="/api/status"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-3 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-            >
-              Health Check API
-            </a>
           </div>
         </section>
       </div>

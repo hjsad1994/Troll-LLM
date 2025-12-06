@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getCreditsUsage, UserProfile, BillingInfo, CreditsUsage } from '@/lib/api'
+import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getCreditsUsage, getModelsHealth, UserProfile, BillingInfo, CreditsUsage, ModelHealth } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 
@@ -56,6 +56,8 @@ export default function UserDashboard() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
   const [creditsUsage, setCreditsUsage] = useState<CreditsUsage | null>(null)
+  const [modelsHealth, setModelsHealth] = useState<ModelHealth[]>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
   const [usagePeriod, setUsagePeriod] = useState<'1h' | '24h' | '7d' | '30d'>('24h')
   const [showFullApiKey, setShowFullApiKey] = useState(false)
   const [fullApiKey, setFullApiKey] = useState<string | null>(null)
@@ -92,9 +94,30 @@ export default function UserDashboard() {
     }
   }, [])
 
+  const loadModelsHealth = useCallback(async () => {
+    try {
+      setModelsLoading(true)
+      const data = await getModelsHealth()
+      setModelsHealth(data.models)
+    } catch (err) {
+      console.error('Failed to load models health:', err)
+    } finally {
+      setModelsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadUserData()
-  }, [loadUserData])
+    loadModelsHealth()
+  }, [loadUserData, loadModelsHealth])
+
+  // Auto-refresh models health every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadModelsHealth()
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [loadModelsHealth])
 
   const handleShowApiKey = async () => {
     if (showFullApiKey) {
@@ -159,90 +182,32 @@ export default function UserDashboard() {
     )
   }
 
-  const usagePercentage = billingInfo?.usagePercentage || 0
-
   return (
     <div className="min-h-screen px-4 sm:px-6">
       <div className="relative max-w-5xl mx-auto space-y-8 sm:space-y-12">
-        {/* Header */}
-        <header className="pt-6 md:pt-8 opacity-0 animate-fade-in-up">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400/75 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-              </span>
-              <span className="text-[var(--theme-text-subtle)] text-sm">{getTimeGreeting()}</span>
-            </div>
-            {/* Plan Badge */}
+        {/* Header - Compact */}
+        <header className="flex items-center justify-between gap-4 opacity-0 animate-fade-in-up">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--theme-text)]">
+              {user?.username || 'User'}
+            </h1>
             {userProfile && (
-              userProfile.plan === 'free' ? (
-                <div className="inline-flex items-center gap-2 sm:gap-3 flex-wrap">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                    <span className="text-sm font-medium text-slate-500 dark:text-[var(--theme-text-muted)]">Free Tier</span>
-                  </div>
-                  <a
-                    href="https://discord.gg/Prs3RxwnyQ"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border backdrop-blur-sm bg-gradient-to-r from-[#5865F2]/10 to-indigo-500/10 border-[#5865F2]/30 hover:border-[#5865F2]/50 hover:bg-[#5865F2]/20 transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-[#5865F2]" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                    </svg>
-                    <span className="text-sm font-semibold text-[#5865F2]">{t.dashboard.upgrade.button}</span>
-                  </a>
-                </div>
-              ) : (
-                <div className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border backdrop-blur-sm ${
-                  userProfile.plan === 'enterprise'
-                    ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30'
+              <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                userProfile.plan === 'enterprise'
+                  ? 'bg-purple-500/10 text-purple-500 dark:text-purple-400 border border-purple-500/20'
+                  : userProfile.plan === 'pro-troll'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                     : userProfile.plan === 'pro'
-                      ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30'
-                      : 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500/30'
-                }`}>
-                  {userProfile.plan === 'enterprise' ? (
-                    <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                    </svg>
-                  ) : userProfile.plan === 'pro' ? (
-                    <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                    </svg>
-                  )}
-                  <span className={`text-sm font-semibold ${
-                    userProfile.plan === 'enterprise'
-                      ? 'text-purple-400'
-                      : userProfile.plan === 'pro'
-                        ? 'text-indigo-400'
-                        : 'text-emerald-400'
-                  }`}>
-                    {userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)} Plan
-                  </span>
-                  {(userProfile.plan === 'pro' || userProfile.plan === 'enterprise') && (
-                    <span className="relative flex h-2 w-2">
-                      <span className={`animate-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                        userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
-                      }`}></span>
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                        userProfile.plan === 'enterprise' ? 'bg-purple-400' : 'bg-indigo-400'
-                      }`}></span>
-                    </span>
-                  )}
-                </div>
-              )
+                      ? 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20'
+                      : userProfile.plan === 'dev'
+                        ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20'
+                        : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-[var(--theme-text-muted)] border border-slate-200 dark:border-white/10'
+              }`}>
+                {userProfile.plan === 'pro-troll' ? 'Pro Troll' : userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)}
+              </span>
             )}
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-2">
-            {user?.username || 'User'}
-          </h1>
-          <p className="text-[var(--theme-text-subtle)] text-base sm:text-lg">
-            {t.dashboard.welcome}
-          </p>
+          <span className="text-[var(--theme-text-subtle)] text-sm hidden sm:block">{getTimeGreeting()}</span>
         </header>
 
         {/* Main Grid */}
@@ -379,10 +344,11 @@ export default function UserDashboard() {
               {billingInfo && (
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
                   billingInfo.plan === 'enterprise' ? 'bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400' :
+                  billingInfo.plan === 'pro-troll' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400' :
                   billingInfo.plan === 'pro' ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400' :
                   'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
                 }`}>
-                  {billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)}
+                  {billingInfo.plan === 'pro-troll' ? 'Pro Troll' : billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)}
                 </span>
               )}
             </div>
@@ -473,6 +439,51 @@ export default function UserDashboard() {
           </div>
         </div>
 
+        {/* Models Health Status - Compact */}
+        <div className="p-3 rounded-lg border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] opacity-0 animate-fade-in-up animation-delay-400">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-medium text-slate-700 dark:text-white">{t.dashboard.modelsHealth.title}</span>
+              <span className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)]">
+                (<span className="text-emerald-600 dark:text-emerald-400">{modelsHealth.filter(m => m.isHealthy).length}</span>/<span className="text-slate-600 dark:text-slate-400">{modelsHealth.length}</span>)
+              </span>
+            </div>
+            <button
+              onClick={loadModelsHealth}
+              disabled={modelsLoading}
+              className="px-2 py-1 text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] hover:text-slate-700 dark:hover:text-white transition-colors disabled:opacity-50"
+            >
+              {modelsLoading ? '...' : '↻'}
+            </button>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {modelsLoading && modelsHealth.length === 0 ? (
+              <span className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)]">{t.dashboard.modelsHealth.loading}</span>
+            ) : (
+              modelsHealth.map((model) => (
+                <div
+                  key={model.id}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs ${
+                    model.isHealthy
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+                      : 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'
+                  }`}
+                  title={`${model.name} - ${model.isHealthy ? t.dashboard.modelsHealth.healthy : t.dashboard.modelsHealth.unhealthy}${model.latencyMs ? ` (${model.latencyMs}ms)` : ''}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${model.isHealthy ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                  <span>{model.name}</span>
+                  <span className={`text-[10px] font-medium ${model.isHealthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    ({model.isHealthy ? t.dashboard.modelsHealth.healthy : t.dashboard.modelsHealth.unhealthy})
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* Credits Usage Card */}
         <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-400">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
@@ -514,32 +525,7 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Quick Links */}
-        <section className="pb-6 sm:pb-8 opacity-0 animate-fade-in-up animation-delay-500">
-          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
-            <a
-              href="/status"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 sm:px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center justify-center sm:justify-start gap-2 shadow-sm dark:shadow-none"
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              {t.dashboard.quickLinks.statusPage}
-            </a>
-            <a
-              href="/models"
-              className="px-4 sm:px-5 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors inline-flex items-center justify-center sm:justify-start gap-2 shadow-sm dark:shadow-none"
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>
-              {t.dashboard.quickLinks.viewModels}
-            </a>
-          </div>
-        </section>
-      </div>
+        </div>
 
       {/* Rotate API Key Modal */}
       {showRotateConfirm && (

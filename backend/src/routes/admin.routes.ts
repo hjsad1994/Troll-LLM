@@ -87,10 +87,10 @@ router.get('/users/:username', requireAdmin, async (req: Request, res: Response)
 router.patch('/users/:username/plan', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { plan } = req.body;
-    const validPlans: UserPlan[] = ['free', 'dev', 'pro'];
+    const validPlans: UserPlan[] = ['free', 'dev', 'pro', 'pro-troll'];
     
     if (!plan || !validPlans.includes(plan)) {
-      return res.status(400).json({ error: 'Invalid plan. Must be: free, dev, or pro' });
+      return res.status(400).json({ error: 'Invalid plan. Must be: free, dev, pro, or pro-troll' });
     }
     
     const user = await userRepository.updatePlan(req.params.username, plan);
@@ -137,6 +137,33 @@ router.patch('/users/:username/credits', requireAdmin, async (req: Request, res:
   } catch (error) {
     console.error('Failed to update user credits:', error);
     res.status(500).json({ error: 'Failed to update user credits' });
+  }
+});
+
+router.patch('/users/:username/refCredits', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { refCredits } = req.body;
+    
+    if (typeof refCredits !== 'number' || refCredits < 0) {
+      return res.status(400).json({ error: 'RefCredits must be a non-negative number' });
+    }
+    
+    const user = await userRepository.updateRefCredits(req.params.username, refCredits);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Updated ${req.params.username} refCredits to $${refCredits}`,
+      user: {
+        username: user._id,
+        refCredits: user.refCredits,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to update user refCredits:', error);
+    res.status(500).json({ error: 'Failed to update user refCredits' });
   }
 });
 
@@ -227,6 +254,41 @@ router.post('/generate-referral-codes', requireAdmin, async (req: Request, res: 
   } catch (error) {
     console.error('Failed to generate referral codes:', error);
     res.status(500).json({ error: 'Failed to generate referral codes' });
+  }
+});
+
+// Model Stats - admin only (for dashboard model usage breakdown)
+router.get('/model-stats', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const period = (req.query.period as string) || 'all';
+    let since: Date | undefined;
+    
+    const now = new Date();
+    switch (period) {
+      case '1h':
+        since = new Date(now.getTime() - 60 * 60 * 1000);
+        break;
+      case '3h':
+        since = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+        break;
+      case '8h':
+        since = new Date(now.getTime() - 8 * 60 * 60 * 1000);
+        break;
+      case '24h':
+        since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        since = undefined;
+    }
+    
+    const stats = await requestLogRepository.getModelStats(since);
+    res.json({ models: stats, period });
+  } catch (error) {
+    console.error('Failed to get model stats:', error);
+    res.status(500).json({ error: 'Failed to get model stats' });
   }
 });
 

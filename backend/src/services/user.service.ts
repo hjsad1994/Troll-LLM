@@ -18,12 +18,8 @@ export interface UserProfile {
 
 export interface BillingInfo {
   plan: string;
-  planLimits: { monthlyTokens: number; rpm: number };
+  planLimits: { rpm: number };
   tokensUsed: number;
-  monthlyTokensUsed: number;
-  monthlyTokensLimit: number;
-  monthlyResetDate: Date;
-  usagePercentage: number;
   planStartDate: Date | null;
   planExpiresAt: Date | null;
   daysUntilExpiration: number | null;
@@ -70,10 +66,6 @@ export class UserService {
     if (!user) return null;
 
     const planLimits = PLAN_LIMITS[user.plan];
-    
-    const monthlyUsagePercent = planLimits.monthlyTokens > 0
-      ? (user.monthlyTokensUsed / planLimits.monthlyTokens) * 100
-      : 0;
 
     // Calculate days until expiration
     let daysUntilExpiration: number | null = null;
@@ -89,12 +81,8 @@ export class UserService {
 
     return {
       plan: user.plan,
-      planLimits: { monthlyTokens: planLimits.monthlyTokens, rpm: planLimits.rpm },
+      planLimits: { rpm: planLimits.rpm },
       tokensUsed: user.tokensUsed,
-      monthlyTokensUsed: user.monthlyTokensUsed,
-      monthlyTokensLimit: planLimits.monthlyTokens,
-      monthlyResetDate: user.monthlyResetDate,
-      usagePercentage: Math.min(100, monthlyUsagePercent),
       planStartDate: user.planStartDate || null,
       planExpiresAt: user.planExpiresAt || null,
       daysUntilExpiration,

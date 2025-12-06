@@ -218,6 +218,48 @@ export class RequestLogRepository {
     });
     return map;
   }
+
+  async getModelStats(since?: Date): Promise<{
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    creditsBurned: number;
+    requestCount: number;
+  }[]> {
+    const match: any = { model: { $exists: true, $ne: null } };
+    if (since) {
+      match.createdAt = { $gte: since };
+    }
+
+    const result = await RequestLog.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$model',
+          inputTokens: { $sum: { $ifNull: ['$inputTokens', 0] } },
+          outputTokens: { $sum: { $ifNull: ['$outputTokens', 0] } },
+          creditsBurned: { $sum: { $ifNull: ['$creditsCost', 0] } },
+          requestCount: { $sum: 1 },
+        },
+      },
+      {
+        $addFields: {
+          totalTokens: { $add: ['$inputTokens', '$outputTokens'] },
+        },
+      },
+      { $sort: { totalTokens: -1 } },
+    ]);
+
+    return result.map((r) => ({
+      model: r._id || 'unknown',
+      inputTokens: r.inputTokens || 0,
+      outputTokens: r.outputTokens || 0,
+      totalTokens: r.totalTokens || 0,
+      creditsBurned: r.creditsBurned || 0,
+      requestCount: r.requestCount || 0,
+    }));
+  }
 }
 
 export const requestLogRepository = new RequestLogRepository();

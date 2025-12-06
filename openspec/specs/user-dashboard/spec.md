@@ -478,3 +478,132 @@ The admin dashboard SHALL display total credits burned filtered by period.
 - **AND** credits burned SHALL be filtered by the selected time period
 - **AND** format as USD with 2 decimal places
 
+### Requirement: Admin Users Table - Referral Credits Column
+The admin users table SHALL display referral credits (refCredits) information for each user.
+
+#### Scenario: Display refCredits column in users table
+- **WHEN** admin views the users table at `/users`
+- **THEN** the table SHALL include a "Ref Credits" column
+- **AND** display the user's `refCredits` balance formatted as USD (e.g., $25.00)
+- **AND** use consistent styling with the existing "Credits" column
+
+#### Scenario: Display refCredits in mobile card view
+- **WHEN** admin views the users list on mobile device
+- **THEN** each user card SHALL display "Ref Credits" in the stats grid
+- **AND** format the value as USD with 2 decimal places
+
+### Requirement: Admin Dashboard - Model Usage Statistics
+The admin dashboard SHALL display usage statistics broken down by AI model.
+
+#### Scenario: Display model usage table
+- **WHEN** admin views the dashboard at `/admin`
+- **THEN** the page SHALL display a "Model Usage" section
+- **AND** show a table/list of all models used in the selected period
+- **AND** for each model display: Input Tokens, Output Tokens, Total Tokens, Credits Burned, Request Count
+- **AND** sort models by total tokens descending (most used first)
+
+#### Scenario: Model usage respects period filter
+- **WHEN** admin selects a time period (1h, 24h, 7d, all)
+- **THEN** the model usage statistics SHALL be filtered to that period
+- **AND** only show models with requests in that period
+
+#### Scenario: Empty model usage
+- **WHEN** no requests exist in the selected period
+- **THEN** the system SHALL display "No model usage data" message
+
+### Requirement: Model Stats API Endpoint
+The system SHALL provide an API endpoint for fetching model usage statistics.
+
+#### Scenario: Get model stats
+- **WHEN** admin calls `GET /admin/model-stats?period=24h`
+- **THEN** response SHALL include array of model stats objects
+- **AND** each object contains: model, inputTokens, outputTokens, totalTokens, creditsBurned, requestCount
+- **AND** results are sorted by totalTokens descending
+
+### Requirement: Admin Edit User Referral Credits
+The admin users page SHALL allow editing of user's referral credits balance.
+
+#### Scenario: Display refCredits input in edit modal
+- **WHEN** admin clicks "Edit" button on a user row
+- **THEN** the edit modal SHALL display a "Ref Credits" input field
+- **AND** the input SHALL be pre-populated with user's current `refCredits` value
+- **AND** the input SHALL accept decimal numbers (min 0)
+
+#### Scenario: Update user refCredits
+- **WHEN** admin enters a new refCredits value and clicks "Save"
+- **THEN** the system SHALL call `PATCH /admin/users/:username/refCredits`
+- **AND** update the user's `refCredits` field in database
+- **AND** refresh the users list to show updated value
+- **AND** display success feedback
+
+### Requirement: Update RefCredits API Endpoint
+The system SHALL provide an API endpoint for updating user referral credits.
+
+#### Scenario: Update refCredits via API
+- **WHEN** admin calls `PATCH /admin/users/:username/refCredits` with `{ refCredits: number }`
+- **THEN** the system SHALL validate refCredits is a non-negative number
+- **AND** update the user's `refCredits` field
+- **AND** return success response with updated user data
+
+### Requirement: Models Health Display on Dashboard
+The system SHALL display a list of available AI models with their health status on the user dashboard.
+
+#### Scenario: View models section on dashboard
+- **WHEN** authenticated user visits `/dashboard`
+- **THEN** the system SHALL display a "Models" section
+- **AND** show all available AI models from the system configuration
+- **AND** for each model display: name, type (anthropic/openai), health status
+
+#### Scenario: Display healthy model indicator
+- **WHEN** a model's upstream endpoint is reachable and responding
+- **THEN** the system SHALL display a green indicator (dot or badge)
+- **AND** show status text "Healthy" or equivalent visual indicator
+
+#### Scenario: Display unhealthy model indicator
+- **WHEN** a model's upstream endpoint is unreachable or returning errors
+- **THEN** the system SHALL display a red indicator (dot or badge)
+- **AND** show status text "Unhealthy" or equivalent visual indicator
+
+#### Scenario: Loading state for models
+- **WHEN** dashboard is loading model health data
+- **THEN** the system SHALL display loading skeleton or spinner
+- **AND** show placeholder cards for models
+
+#### Scenario: Auto-refresh model health
+- **WHEN** user is viewing the dashboard
+- **THEN** the system SHALL refresh model health status every 30 seconds
+- **AND** update UI without full page reload
+
+---
+
+### Requirement: Models Health API Endpoint
+The system SHALL provide an API endpoint for fetching model list with health status.
+
+#### Scenario: Get models with health status
+- **WHEN** user calls `GET /api/models/health`
+- **THEN** response SHALL include array of model objects
+- **AND** each object contains: id, name, type, isHealthy, lastCheckedAt
+
+#### Scenario: Health check implementation
+- **WHEN** health check runs for a model
+- **THEN** the system SHALL attempt to reach the model's upstream endpoint
+- **AND** set isHealthy to true if response received within 5 seconds
+- **AND** set isHealthy to false if timeout or error occurs
+- **AND** update lastCheckedAt timestamp
+
+### Requirement: Pro Troll Plan Display
+The system SHALL display Pro Troll plan badge and styling across dashboard and admin pages.
+
+#### Scenario: User with Pro Troll plan views dashboard
+- **WHEN** user with pro-troll plan views dashboard
+- **THEN** dashboard displays amber/orange Pro Troll badge
+- **AND** credits card shows Pro Troll plan indicator
+
+#### Scenario: Admin filters users by Pro Troll plan
+- **WHEN** admin selects pro-troll filter on users page
+- **THEN** only users with pro-troll plan are displayed
+
+#### Scenario: Admin changes user plan to Pro Troll
+- **WHEN** admin edits user and selects pro-troll plan
+- **THEN** user plan is updated to pro-troll
+

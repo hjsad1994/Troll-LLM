@@ -52,8 +52,8 @@ export interface SepayWebhookPayload {
 
 
 function extractOrderCode(text: string): string | null {
-  // Try to find TROLLDEV or TROLLPRO pattern in the text
-  const match = text.match(/TROLL(DEV|PRO)\d+[A-Z0-9]+/i);
+  // Try to find TROLLDEV, TROLLPRO or TROLLPROTROLL pattern in the text
+  const match = text.match(/TROLL(DEV|PROTROLL|PRO)\d+[A-Z0-9]+/i);
   return match ? match[0].toUpperCase() : null;
 }
 

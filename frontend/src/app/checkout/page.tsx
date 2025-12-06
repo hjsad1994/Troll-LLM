@@ -13,20 +13,28 @@ const PLANS = {
     originalPrice: 49000,
     discount: 29,
     credits: 225,
-    rpm: 300,
+    rpm: 150,
     popular: false,
   },
   pro: {
     price: 79000,
-    originalPrice: 115000,
-    discount: 31,
+    originalPrice: 99000,
+    discount: 20,
     credits: 500,
-    rpm: 1000,
+    rpm: 300,
     popular: true,
+  },
+  'pro-troll': {
+    price: 180000,
+    originalPrice: 199000,
+    discount: 10,
+    credits: 1250,
+    rpm: 600,
+    popular: false,
   },
 }
 
-type PlanType = 'dev' | 'pro'
+type PlanType = 'dev' | 'pro' | 'pro-troll'
 
 function CheckoutContent() {
   const searchParams = useSearchParams()
@@ -35,7 +43,9 @@ function CheckoutContent() {
   const { theme, toggleTheme } = useTheme()
   const planParam = searchParams.get('plan') as PlanType | null
 
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>(planParam === 'pro' ? 'pro' : 'dev')
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>(
+    planParam === 'pro' ? 'pro' : planParam === 'pro-troll' ? 'pro-troll' : 'dev'
+  )
   const [discordId, setDiscordId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,9 +71,17 @@ function CheckoutContent() {
         t.checkout.features.communitySupport,
       ]
     }
+    if (planKey === 'pro-troll') {
+      return [
+        `${p.credits} ${t.checkout.features.creditsMonth}`,
+        `${p.rpm} ${t.checkout.features.requestsMinute}`,
+        t.checkout.features.allModels,
+        t.checkout.features.vipSupport,
+      ]
+    }
     return [
       `${p.credits} ${t.checkout.features.creditsMonth}`,
-      `${p.rpm.toLocaleString()} ${t.checkout.features.requestsMinute}`,
+      `${p.rpm} ${t.checkout.features.requestsMinute}`,
       t.checkout.features.allModels,
       t.checkout.features.prioritySupport,
     ]
@@ -258,8 +276,8 @@ function CheckoutContent() {
                 )}
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan].name}</h3>
-                  <p className="text-gray-500 dark:text-gray-400">{t.checkout.planSelection[selectedPlan].description}</p>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name}</h3>
+                  <p className="text-gray-500 dark:text-gray-400">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].description}</p>
                 </div>
                 <div className="text-right">
                   <div className="flex items-baseline gap-2">
@@ -342,7 +360,7 @@ function CheckoutContent() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.summary.plan}</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan].name}</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name}</p>
                 </div>
               </div>
 
@@ -435,14 +453,14 @@ function CheckoutContent() {
                 {t.checkout.success.title}
               </h1>
               <p className="text-gray-500 dark:text-gray-400">
-                {t.checkout.success.planActivated.replace('{plan}', t.checkout.planSelection[selectedPlan].name)}
+                {t.checkout.success.planActivated.replace('{plan}', t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name)}
               </p>
             </div>
 
             <div className="bg-white dark:bg-white/5 rounded-xl p-6 space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 dark:text-gray-400">{t.checkout.summary.plan}</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan].name}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 dark:text-gray-400">{t.checkout.success.credits}</span>
@@ -461,7 +479,7 @@ function CheckoutContent() {
                 </svg>
                 <div className="text-left">
                   <p className="font-medium text-[#5865F2]">{t.checkout.success.discordRole}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.success.checkDiscord.replace('{plan}', t.checkout.planSelection[selectedPlan].name)}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.success.checkDiscord.replace('{plan}', t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name)}</p>
                 </div>
               </div>
             )}

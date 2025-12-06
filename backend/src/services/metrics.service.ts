@@ -15,6 +15,12 @@ export async function getSystemMetrics(period: string = 'all'): Promise<SystemMe
     case '1h':
       since = new Date(Date.now() - 60 * 60 * 1000);
       break;
+    case '3h':
+      since = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      break;
+    case '8h':
+      since = new Date(Date.now() - 8 * 60 * 60 * 1000);
+      break;
     case '24h':
       since = new Date(Date.now() - 24 * 60 * 60 * 1000);
       break;
