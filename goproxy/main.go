@@ -33,16 +33,16 @@ import (
 )
 
 var (
-	startTime      = time.Now()
+	startTime     = time.Now()
 	httpClient    *http.Client
 	debugMode     = false // Debug mode, disabled by default
 	proxyPool     *proxy.ProxyPool
 	trollKeyPool  *keypool.KeyPool
 	healthChecker *proxy.HealthChecker
-	rateLimiter    *ratelimit.RateLimiter
+	rateLimiter   *ratelimit.RateLimiter
 	// Pre-compiled regex for sanitizeBlockedContent (performance optimization)
 	blockedPatternRegexes []*regexp.Regexp
-	
+
 	// NEW MODEL-BASED ROUTING - BEGIN
 	// Main Target Server configuration (for Sonnet 4.5 and Haiku 4.5)
 	mainTargetServer string
@@ -100,19 +100,19 @@ func isRetryableError(err error) bool {
 // doRequestWithRetry executes HTTP request with retry on transient errors (same client)
 func doRequestWithRetry(client *http.Client, req *http.Request, bodyBytes []byte) (*http.Response, error) {
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			delay := retryBaseDelay * time.Duration(1<<(attempt-1))
 			time.Sleep(delay)
 			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		}
-		
+
 		resp, err := client.Do(req)
 		if err == nil {
 			return resp, nil
 		}
-		
+
 		lastErr = err
 		if !isRetryableError(err) {
 			return nil, err
@@ -188,7 +188,7 @@ type UpstreamConfig struct {
 // Returns endpoint URL, API key, whether to use proxy, and key ID for logging
 func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig, *proxy.Proxy, error) {
 	upstream := config.GetModelUpstream(modelID)
-	
+
 	if upstream == "main" {
 		// Use Main Target Server (for Sonnet 4.5 and Haiku 4.5)
 		if mainTargetServer == "" || mainUpstreamKey == "" {
@@ -207,7 +207,7 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 	var selectedProxy *proxy.Proxy
 	var trollAPIKey string
 	var trollKeyID string
-	
+
 	if proxyPool != nil && proxyPool.HasProxies() {
 		var err error
 		selectedProxy, trollKeyID, err = proxyPool.SelectProxyWithKeyByClient(clientAPIKey)
@@ -227,12 +227,12 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 		}
 		log.Printf("🔀 [Model Routing] %s -> Troll Key (direct, env key)", modelID)
 	}
-	
+
 	endpoint := config.GetEndpointByType("anthropic")
 	if endpoint == nil {
 		return nil, nil, fmt.Errorf("anthropic endpoint not configured")
 	}
-	
+
 	return &UpstreamConfig{
 		EndpointURL: endpoint.BaseURL,
 		APIKey:      trollAPIKey,
@@ -240,6 +240,7 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 		KeyID:       trollKeyID,
 	}, selectedProxy, nil
 }
+
 // NEW MODEL-BASED ROUTING - END
 
 // Read response body and automatically handle compression
@@ -411,9 +412,9 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func keysStatusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"stats":              trollKeyPool.GetStats(),
+		"stats":                 trollKeyPool.GetStats(),
 		"backup_keys_available": keypool.GetBackupKeyCount(),
-		"keys":               trollKeyPool.GetAllKeysStatus(),
+		"keys":                  trollKeyPool.GetAllKeysStatus(),
 	})
 }
 
@@ -426,7 +427,7 @@ func modelsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Base timestamp: 2025-01-01 00:00:00 UTC
 	baseTimestamp := int64(1735689600)
-	
+
 	for i, model := range models {
 		// Each model gets a unique timestamp (1 day apart)
 		openaiModels = append(openaiModels, map[string]interface{}{
@@ -486,9 +487,9 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	if len(clientKeyMask) > 8 {
 		clientKeyMask = clientKeyMask[:4] + "..." + clientKeyMask[len(clientKeyMask)-4:]
 	}
-	
+
 	var username string // Username for credit deduction
-	
+
 	if proxyAPIKey != "" {
 		// Validate with fixed PROXY_API_KEY from env
 		if clientAPIKey != proxyAPIKey {
@@ -543,7 +544,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	// // Get factory key from proxy pool or environment
 	// var selectedProxy *proxy.Proxy
 	// var trollAPIKey string
-	// 
+	//
 	// if proxyPool != nil && proxyPool.HasProxies() {
 	// 	// Use proxy pool - sticky routing based on client API key
 	// 	var trollKeyID string
@@ -680,7 +681,7 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 
 	// For "troll" upstream: use Factory AI with full transformation
 	anthropicReq := transformers.TransformToAnthropic(openaiReq)
-	
+
 	// Determine thinking state based on assistant messages in conversation history
 	// Rules:
 	//   - If ANY assistant has thinking blocks → MUST enable thinking
@@ -688,12 +689,12 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	//   - Mixed state is invalid (shouldn't happen in normal flow)
 	//   - No assistant messages → can enable thinking (new conversation)
 	hasThinking, hasNonThinking := detectAssistantThinkingState(anthropicReq.Messages)
-	
+
 	if hasThinking && hasNonThinking {
 		// Mixed state - shouldn't happen, but prefer enabling thinking
 		log.Printf("⚠️ [/v1/chat/completions] Mixed thinking state detected - enabling thinking")
 	}
-	
+
 	if hasThinking {
 		// Conversation has thinking blocks - MUST enable thinking
 		if anthropicReq.Thinking == nil || anthropicReq.Thinking.Type != "enabled" {
@@ -716,7 +717,7 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 			log.Printf("🧠 [/v1/chat/completions] Thinking: DISABLED (model config)")
 		}
 	}
-	
+
 	endpointURL := upstreamConfig.EndpointURL
 
 	reqBody, err := json.Marshal(anthropicReq)
@@ -755,9 +756,9 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 		}
 		client = proxyClient
 	}
-	
+
 	requestStartTime := time.Now()
-	
+
 	resp, err := doRequestWithRetry(client, proxyReq, reqBody)
 	if err != nil {
 		log.Printf("Error: request failed after retries: %v", err)
@@ -787,7 +788,7 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 
 	// Get upstream model ID (may be different from client-requested model ID)
 	upstreamModelID := config.GetUpstreamModelID(modelID)
-	
+
 	// Prepare request body with mapped model ID
 	var requestBody []byte
 	if upstreamModelID != modelID {
@@ -863,7 +864,7 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 
 	// Get upstream model ID (may be different from client-requested model ID)
 	upstreamModelID := config.GetUpstreamModelID(modelID)
-	
+
 	// Prepare request body with mapped model ID
 	var requestBody []byte
 	if upstreamModelID != modelID {
@@ -901,7 +902,7 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 	onUsage := func(input, output int64) {
 		billingTokens := config.CalculateBillingTokens(modelID, input, output)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, 0, 0)
-		
+
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
@@ -942,7 +943,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 
 	// Get upstream model ID (may be different from client-requested model ID)
 	upstreamModelID := config.GetUpstreamModelID(modelID)
-	
+
 	// Prepare request body with mapped model ID
 	var requestBody []byte
 	if upstreamModelID != modelID {
@@ -979,7 +980,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokens(modelID, input, output)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
-		
+
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
@@ -1070,10 +1071,10 @@ func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq 
 		}
 		client = proxyClient
 	}
-	
+
 	// Track request start time for latency measurement
 	requestStartTime := time.Now()
-	
+
 	resp, err := doRequestWithRetry(client, proxyReq, reqBody)
 	if err != nil {
 		log.Printf("Error: request failed after retries: %v", err)
@@ -1205,7 +1206,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 		}
 		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
 		billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
-		
+
 		// Update user usage in database
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
@@ -1213,7 +1214,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
 					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
@@ -1229,7 +1230,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 			usage.LogRequestDetailed(usage.RequestLogParams{
 				UserID:           username,
 				UserKeyID:        userApiKey,
-				TrollKeyID:     trollKeyID,
+				TrollKeyID:       trollKeyID,
 				Model:            modelID,
 				InputTokens:      inputTokens,
 				OutputTokens:     outputTokens,
@@ -1283,7 +1284,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 		w.Write(sanitizeError(resp.StatusCode, body))
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -1321,7 +1322,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 					hasError = true
 					log.Printf("❌ Error event in stream: %s", dataStr)
 				}
-				
+
 				// Capture usage from message_start event
 				if currentEvent == "message_start" {
 					if message, ok := eventData["message"].(map[string]interface{}); ok {
@@ -1394,7 +1395,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
 					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
@@ -1517,7 +1518,7 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 		}
 		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
 		billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
-		
+
 		// Update user usage in database
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
@@ -1525,7 +1526,7 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
 					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
@@ -1541,7 +1542,7 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 			usage.LogRequestDetailed(usage.RequestLogParams{
 				UserID:           username,
 				UserKeyID:        userApiKey,
-				TrollKeyID:     trollKeyID,
+				TrollKeyID:       trollKeyID,
 				Model:            modelID,
 				InputTokens:      inputTokens,
 				OutputTokens:     outputTokens,
@@ -1618,7 +1619,7 @@ func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response,
 					hasError = true
 					log.Printf("❌ Error in stream response: %s", dataStr)
 				}
-				
+
 				// Check if standard OpenAI format with choices
 				if _, hasChoices := eventData["choices"]; hasChoices {
 					// Extract usage from final chunk (OpenAI format)
@@ -1689,7 +1690,7 @@ func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response,
 				log.Printf("⚠️ Failed to update usage: %v", err)
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
-				log.Printf("📊 Updated usage (stream): in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)", 
+				log.Printf("📊 Updated usage (stream): in=%d out=%d, billing=%d (price: $%.2f/$%.2f/MTok)",
 					totalInputTokens, totalOutputTokens, billingTokens, inputPrice, outputPrice)
 			}
 			// Deduct credits and update tokensUsed for user
@@ -1744,6 +1745,7 @@ func sanitizeBlockedContent(text string) string {
 // Returns:
 //   - hasThinking: true if ANY assistant message has thinking/redacted_thinking blocks
 //   - hasNonThinking: true if ANY assistant message lacks thinking blocks
+//
 // Anthropic API rules:
 //   - If thinking enabled: ALL assistant messages MUST have thinking blocks
 //   - If thinking disabled: NO assistant message can have thinking blocks
@@ -1801,7 +1803,7 @@ func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []trans
 			messages[i].Content = sanitizeBlockedContent(strContent)
 			continue
 		}
-		
+
 		// Handle array content
 		if arrContent, ok := messages[i].Content.([]map[string]interface{}); ok {
 			for j := range arrContent {
@@ -1811,7 +1813,7 @@ func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []trans
 			}
 			messages[i].Content = arrContent
 		}
-		
+
 		// Handle []interface{} content
 		if arrContent, ok := messages[i].Content.([]interface{}); ok {
 			for j := range arrContent {
@@ -1903,9 +1905,9 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	if len(clientKeyMask) > 8 {
 		clientKeyMask = clientKeyMask[:4] + "..." + clientKeyMask[len(clientKeyMask)-4:]
 	}
-	
+
 	var username string // Username for credit deduction
-	
+
 	if proxyAPIKey != "" {
 		// Validate with fixed PROXY_API_KEY from env
 		if clientAPIKey != proxyAPIKey {
@@ -1976,7 +1978,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Invalid JSON"}}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Always log the model being requested for debugging
 	log.Printf("📥 /v1/messages - Model requested: %s, Stream: %v", anthropicReq.Model, anthropicReq.Stream)
 
@@ -2038,7 +2040,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 	// OLD CODE - END
-	
+
 	// NEW MODEL-BASED ROUTING - Use endpoint from upstreamConfig
 	endpointURL := upstreamConfig.EndpointURL
 
@@ -2047,7 +2049,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Combine proxy system prompt + user system prompt (sanitized)
 	systemPrompt := config.GetSystemPrompt()
 	var systemEntries []map[string]interface{}
-	
+
 	// Add proxy system prompt first (higher priority)
 	if systemPrompt != "" {
 		systemEntries = append(systemEntries, map[string]interface{}{
@@ -2055,7 +2057,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			"text": systemPrompt,
 		})
 	}
-	
+
 	// Add user system prompt (sanitized to remove blocked content)
 	if userSystemText != "" {
 		sanitizedUserSystem := sanitizeBlockedContent(userSystemText)
@@ -2066,7 +2068,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	
+
 	if len(systemEntries) > 0 {
 		anthropicReq.System = systemEntries
 	} else {
@@ -2076,11 +2078,11 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Determine thinking state based on assistant messages in conversation history
 	hasThinking, hasNonThinking := detectAssistantThinkingState(anthropicReq.Messages)
 	reasoning := config.GetModelReasoning(anthropicReq.Model)
-	
+
 	if hasThinking && hasNonThinking {
 		log.Printf("⚠️ [/v1/messages] Mixed thinking state detected - enabling thinking")
 	}
-	
+
 	if hasThinking {
 		// Conversation has thinking blocks - MUST enable thinking
 		budgetTokens := config.GetModelThinkingBudget(anthropicReq.Model)
@@ -2146,8 +2148,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
-
 	// Create request to upstream (Factory AI or Main Target Server)
 	// OLD CODE: proxyReq, err := http.NewRequest(http.MethodPost, endpoint.BaseURL, bytes.NewBuffer(reqBody))
 	proxyReq, err := http.NewRequest(http.MethodPost, endpointURL, bytes.NewBuffer(reqBody))
@@ -2170,7 +2170,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	for key, value := range headers {
 		proxyReq.Header.Set(key, value)
 	}
-	
+
 	// Debug: log request details
 	if debugMode {
 		log.Printf("📤 [%s] Endpoint: %s", upstreamConfig.KeyID, endpointURL)
@@ -2190,7 +2190,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 		client = proxyClient
 	}
-	
+
 	// Log upstream destination
 	if upstreamConfig.KeyID == "main" {
 		log.Printf("📤 Sending request to Main Target Server...")
@@ -2279,7 +2279,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 				}
 				billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
 				billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
-				
+
 				// Update user usage in database
 				if userApiKey != "" {
 					if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
@@ -2287,7 +2287,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 					} else if debugMode {
 						inputPrice, outputPrice := config.GetModelPricing(modelID)
 						cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-						log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+						log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
 							inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 					}
 					// Deduct credits and update tokensUsed for user
@@ -2303,7 +2303,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 					usage.LogRequestDetailed(usage.RequestLogParams{
 						UserID:           username,
 						UserKeyID:        userApiKey,
-						TrollKeyID:     trollKeyID,
+						TrollKeyID:       trollKeyID,
 						Model:            modelID,
 						InputTokens:      inputTokens,
 						OutputTokens:     outputTokens,
@@ -2354,7 +2354,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 // Handle streaming response from Factory AI (Anthropic SSE format)
 func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, userApiKey string, trollKeyID string, requestStartTime time.Time, username string) {
 	log.Printf("📥 Stream response status: %d", resp.StatusCode)
-	
+
 	// Handle error responses from upstream
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -2373,7 +2373,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 		w.Write(sanitizeAnthropicError(resp.StatusCode, body))
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -2396,7 +2396,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 	var lastEventTime time.Time
 	var hasError bool // Track if there was an error in the stream
 	log.Printf("📡 Stream started")
-	
+
 	for scanner.Scan() {
 		eventCount++
 		lastEventTime = time.Now()
@@ -2405,7 +2405,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			log.Printf("📡 First event received after %v", firstEventTime.Sub(startTime))
 		}
 		line := scanner.Text()
-		
+
 		// Filter content_block_delta events (both text and thinking)
 		if strings.HasPrefix(line, "data: ") {
 			dataStr := strings.TrimPrefix(line, "data: ")
@@ -2413,16 +2413,16 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			if err := json.Unmarshal([]byte(dataStr), &eventData); err == nil {
 				modified := false
 				eventType, _ := eventData["type"].(string)
-				
+
 				// Track last event type for debugging
 				lastEventType = eventType
-				
+
 				// Check for error events - don't charge if there's an error
 				if eventType == "error" {
 					hasError = true
 					log.Printf("❌ Error event in stream: %s", dataStr)
 				}
-				
+
 				// Filter thinking content to hide system prompt but show thinking process
 				if eventType == "content_block_delta" {
 					if delta, ok := eventData["delta"].(map[string]interface{}); ok {
@@ -2435,7 +2435,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 						}
 					}
 				}
-				
+
 				// Filter content_block_start for thinking blocks
 				if eventType == "content_block_start" {
 					if contentBlock, ok := eventData["content_block"].(map[string]interface{}); ok {
@@ -2448,7 +2448,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 						}
 					}
 				}
-				
+
 				// Capture usage from message_delta event
 				if eventType == "message_delta" {
 					if usageData, ok := eventData["usage"].(map[string]interface{}); ok {
@@ -2457,7 +2457,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 						}
 					}
 				}
-				
+
 				// Capture usage from message_start event
 				if eventType == "message_start" {
 					if message, ok := eventData["message"].(map[string]interface{}); ok {
@@ -2474,7 +2474,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 						}
 					}
 				}
-				
+
 				// Re-serialize if modified
 				if modified {
 					if filtered, err := json.Marshal(eventData); err == nil {
@@ -2483,7 +2483,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				}
 			}
 		}
-		
+
 		fmt.Fprintf(w, "%s\n", line)
 		flusher.Flush()
 	}
@@ -2498,7 +2498,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)", 
+				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
 					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
@@ -2514,7 +2514,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			usage.LogRequestDetailed(usage.RequestLogParams{
 				UserID:           username,
 				UserKeyID:        userApiKey,
-				TrollKeyID:     trollKeyID,
+				TrollKeyID:       trollKeyID,
 				Model:            modelID,
 				InputTokens:      totalInputTokens,
 				OutputTokens:     totalOutputTokens,
@@ -2532,7 +2532,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 
 	if err := scanner.Err(); err != nil {
 		timeSinceLastEvent := time.Since(lastEventTime)
-		log.Printf("❌ Error reading stream after %d events (duration: %v, last_event: %s, time_since_last: %v): %v", 
+		log.Printf("❌ Error reading stream after %d events (duration: %v, last_event: %s, time_since_last: %v): %v",
 			eventCount, time.Since(startTime), lastEventType, timeSinceLastEvent, err)
 		// Send error event to client so they know stream failed
 		errorEvent := fmt.Sprintf("event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"stream_error\",\"message\":\"Stream interrupted: %s\"}}\n\n", err.Error())
@@ -2571,11 +2571,11 @@ func main() {
 	// Initialize proxy pool and factory key pool
 	proxyPool = proxy.GetPool()
 	trollKeyPool = keypool.GetPool()
-	
+
 	// Start health checker
 	healthChecker = proxy.NewHealthChecker(proxyPool)
 	healthChecker.Start()
-	
+
 	// Start auto-reload for proxy bindings (default 30s, configurable via BINDING_RELOAD_INTERVAL)
 	reloadInterval := 30 * time.Second
 	if intervalStr := getEnv("BINDING_RELOAD_INTERVAL", ""); intervalStr != "" {
@@ -2585,7 +2585,7 @@ func main() {
 	}
 	proxyPool.StartAutoReload(reloadInterval)
 	trollKeyPool.StartAutoReload(reloadInterval)
-	
+
 	log.Printf("✅ Proxy pool loaded: %d proxies", proxyPool.GetProxyCount())
 	log.Printf("✅ Troll key pool loaded: %d keys", trollKeyPool.GetKeyCount())
 
@@ -2604,12 +2604,12 @@ func main() {
 
 	// Validate environment variables (TROLL_API_KEY is optional if using key pool from DB)
 	trollAPIKey := getEnv("TROLL_API_KEY", "")
-	
+
 	proxyAPIKey := getEnv("PROXY_API_KEY", "")
 	if proxyAPIKey != "" {
 		log.Printf("🔐 Proxy mode: Enabled (external key required)")
 	}
-	
+
 	if proxyPool.HasProxies() {
 		log.Printf("🔐 Using proxy pool with %d proxies", proxyPool.GetProxyCount())
 	} else if trollAPIKey != "" {
@@ -2662,10 +2662,10 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":      true,
-			"message":      "Proxy bindings reloaded successfully",
-			"proxy_count":  proxyPool.GetProxyCount(),
-			"bindings":     proxyPool.GetBindingsInfo(),
+			"success":     true,
+			"message":     "Proxy bindings reloaded successfully",
+			"proxy_count": proxyPool.GetProxyCount(),
+			"bindings":    proxyPool.GetBindingsInfo(),
 		})
 	}))
 
