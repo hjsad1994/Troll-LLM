@@ -17,7 +17,7 @@
       "type": "anthropic",
       "reasoning": "low",
       "thinking_budget": 10000,
-      "input_price_per_mtok": 5.5,
+      "input_price_per_mtok": 5.0,
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 0.50,
