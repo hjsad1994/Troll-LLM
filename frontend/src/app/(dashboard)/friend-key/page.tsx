@@ -102,10 +102,37 @@ export default function FriendKeyPage() {
     }
   }
 
+  const copyToClipboard = async (text: string) => {
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text)
+        return true
+      } catch {
+        // Fall through to fallback
+      }
+    }
+    // Fallback for older browsers or non-focused document
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      return true
+    } finally {
+      document.body.removeChild(textArea)
+    }
+  }
+
   const handleCopyKey = async () => {
     try {
       const key = fullKey || await getFullFriendKey()
-      await navigator.clipboard.writeText(key)
+      await copyToClipboard(key)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err: any) {
