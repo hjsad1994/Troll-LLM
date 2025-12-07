@@ -45,10 +45,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config.prod.json:/app/goproxy/config.prod.json:ro
     env_file:
       - ./backend/.env
     environment:
       - BACKEND_PORT=3005
+      - GOPROXY_CONFIG_PATH=/app/goproxy/config.prod.json
     restart: unless-stopped
     networks:
       - trollllm-network
