@@ -46,7 +46,7 @@
       "input_price_per_mtok": 2.5,
       "output_price_per_mtok": 5.5,
       "cache_write_price_per_mtok": 1.5,
-      "cache_hit_price_per_mtok": 0.10,
+      "cache_hit_price_per_mtok": 0.5,
       "billing_multiplier": 1.55,
       "upstream": "troll"
     },
