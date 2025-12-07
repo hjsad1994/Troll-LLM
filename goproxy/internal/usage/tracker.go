@@ -274,3 +274,59 @@ func maskKey(key string) string {
 	}
 	return key[:7] + "***" + key[len(key)-3:]
 }
+
+// IsFriendKey checks if an API key is a Friend Key
+func IsFriendKey(apiKey string) bool {
+	return len(apiKey) > 19 && apiKey[:19] == "sk-trollllm-friend-"
+}
+
+// UpdateFriendKeyUsageIfNeeded checks if the API key is a Friend Key and updates usage
+// This is a convenience function that can be called after any request
+func UpdateFriendKeyUsageIfNeeded(userApiKey, modelID string, costUsd float64) {
+	if IsFriendKey(userApiKey) {
+		UpdateFriendKeyUsage(userApiKey, modelID, costUsd)
+	}
+}
+
+// UpdateFriendKeyUsage updates the Friend Key usage for a specific model
+// Should be called after a successful request using a Friend Key
+func UpdateFriendKeyUsage(friendKeyID, modelID string, costUsd float64) error {
+	if friendKeyID == "" || modelID == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	now := time.Now()
+
+	// Update the specific model's usedUsd and overall stats
+	result, err := db.FriendKeysCollection().UpdateOne(
+		ctx,
+		bson.M{
+			"_id":                 friendKeyID,
+			"modelLimits.modelId": modelID,
+		},
+		bson.M{
+			"$inc": bson.M{
+				"modelLimits.$.usedUsd": costUsd,
+				"totalUsedUsd":          costUsd,
+				"requestsCount":         1,
+			},
+			"$set": bson.M{
+				"lastUsedAt": now,
+			},
+		},
+	)
+
+	if err != nil {
+		log.Printf("⚠️ Failed to update Friend Key usage: %v", err)
+		return err
+	}
+
+	if result.ModifiedCount > 0 {
+		log.Printf("🔑 Friend Key usage updated: %s model=%s cost=$%.6f", maskKey(friendKeyID), modelID, costUsd)
+	}
+
+	return nil
+}

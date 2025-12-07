@@ -10,7 +10,7 @@ import LanguageSwitcher from './LanguageSwitcher'
 
 interface NavItem {
   href: string
-  label: string
+  labelKey: string
   icon: React.ReactNode
   external?: boolean
 }
@@ -18,7 +18,7 @@ interface NavItem {
 const adminNavItems: NavItem[] = [
   {
     href: '/dashboard',
-    label: 'Dashboard',
+    labelKey: 'dashboard',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -27,7 +27,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     href: '/admin',
-    label: 'Admin',
+    labelKey: 'admin',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -36,7 +36,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     href: '/users',
-    label: 'Users',
+    labelKey: 'users',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -46,7 +46,7 @@ const adminNavItems: NavItem[] = [
 
   {
     href: '/troll-keys',
-    label: 'Troll-Keys',
+    labelKey: 'trollKeys',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
@@ -55,7 +55,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     href: '/backup-keys',
-    label: 'Backup Keys',
+    labelKey: 'backupKeys',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -64,7 +64,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     href: '/proxies',
-    label: 'Proxies',
+    labelKey: 'proxies',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
@@ -73,7 +73,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     href: '/admin/bindings',
-    label: 'Key Bindings',
+    labelKey: 'keyBindings',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -82,7 +82,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     href: '/dashboard-models',
-    label: 'Models',
+    labelKey: 'models',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -91,7 +91,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     href: '/admin/billing',
-    label: 'Billing',
+    labelKey: 'billing',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -103,7 +103,7 @@ const adminNavItems: NavItem[] = [
 const userNavItems: NavItem[] = [
   {
     href: '/dashboard',
-    label: 'Dashboard',
+    labelKey: 'dashboard',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -111,8 +111,17 @@ const userNavItems: NavItem[] = [
     )
   },
   {
+    href: '/friend-key',
+    labelKey: 'friendKey',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+      </svg>
+    )
+  },
+  {
     href: '/referral',
-    label: 'Referral',
+    labelKey: 'referral',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -121,7 +130,7 @@ const userNavItems: NavItem[] = [
   },
   {
     href: '/dashboard-models',
-    label: 'Models',
+    labelKey: 'models',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -191,7 +200,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Navigation - Scrollable */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-        <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 mb-2 px-3 font-semibold">Navigation</p>
+        <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 mb-2 px-3 font-semibold">{t.sidebar.navigation}</p>
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href
@@ -209,7 +218,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                     <span className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center">
                       {item.icon}
                     </span>
-                    {item.label}
+                    {t.sidebar[item.labelKey as keyof typeof t.sidebar]}
                     <svg className="w-3 h-3 ml-auto opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
@@ -236,7 +245,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   }`}>
                     {item.icon}
                   </span>
-                  {item.label}
+                  {t.sidebar[item.labelKey as keyof typeof t.sidebar]}
                 </Link>
               </li>
             )
@@ -248,7 +257,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex-shrink-0 p-3 sm:p-4 border-t border-slate-200 dark:border-[var(--theme-border)] bg-white dark:bg-[var(--theme-bg)]">
         {/* Settings */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 font-semibold">Settings</span>
+          <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-600 font-semibold">{t.sidebar.settings}</span>
           <div className="flex items-center gap-1">
             <LanguageSwitcher />
             <ThemeToggle />

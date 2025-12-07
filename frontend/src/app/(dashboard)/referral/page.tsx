@@ -235,6 +235,7 @@ export default function ReferralPage() {
               <div className="pl-10 flex flex-wrap gap-2">
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400">Dev: $25</span>
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">Pro: $50</span>
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">Pro Troll: $100</span>
               </div>
             </div>
           </div>
@@ -297,11 +298,13 @@ export default function ReferralPage() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         {user.plan ? (
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            user.plan === 'pro'
+                            user.plan === 'pro-troll'
+                              ? 'bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400'
+                              : user.plan === 'pro'
                               ? 'bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400'
                               : 'bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400'
                           }`}>
-                            {user.plan.toUpperCase()}
+                            {user.plan === 'pro-troll' ? 'PRO TROLL' : user.plan.toUpperCase()}
                           </span>
                         ) : (
                           <span className="text-[var(--theme-text-subtle)]">-</span>

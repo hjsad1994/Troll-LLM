@@ -22,6 +22,7 @@ export interface RequestHistoryQuery {
   limit?: number;
   from?: Date;
   to?: Date;
+  friendKeyOnly?: boolean;
 }
 
 export interface RequestHistoryResult {
@@ -56,7 +57,7 @@ export class RequestLogRepository {
   }
 
   async findByUserId(query: RequestHistoryQuery): Promise<RequestHistoryResult> {
-    const { userId, page = 1, limit = 20, from, to } = query;
+    const { userId, page = 1, limit = 20, from, to, friendKeyOnly } = query;
     const safeLimit = Math.min(Math.max(1, limit), 100);
     const safePage = Math.max(1, page);
     const skip = (safePage - 1) * safeLimit;
@@ -66,6 +67,9 @@ export class RequestLogRepository {
       filter.createdAt = {};
       if (from) filter.createdAt.$gte = from;
       if (to) filter.createdAt.$lte = to;
+    }
+    if (friendKeyOnly) {
+      filter.friendKeyId = { $exists: true, $ne: null };
     }
 
     const [requests, total] = await Promise.all([

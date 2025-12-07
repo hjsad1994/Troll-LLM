@@ -428,6 +428,144 @@ export async function getRequestHistory(params?: {
   return resp.json()
 }
 
+// Friend Key API
+export interface ModelLimit {
+  modelId: string
+  limitUsd: number
+  usedUsd: number
+  enabled: boolean
+}
+
+export interface FriendKeyInfo {
+  friendKey: string
+  isActive: boolean
+  createdAt: string
+  rotatedAt?: string
+  modelLimits: ModelLimit[]
+  totalUsedUsd: number
+  requestsCount: number
+  lastUsedAt?: string
+  hasKey: boolean
+}
+
+export interface ModelUsage {
+  modelId: string
+  modelName: string
+  limitUsd: number
+  usedUsd: number
+  remainingUsd: number
+  usagePercent: number
+  isExhausted: boolean
+  enabled: boolean
+}
+
+export interface CreateFriendKeyResponse {
+  friendKey: string
+  message: string
+}
+
+export async function getFriendKey(): Promise<FriendKeyInfo | null> {
+  const resp = await fetchWithAuth('/api/user/friend-key')
+  if (resp.status === 404) {
+    return null
+  }
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get friend key')
+  }
+  return resp.json()
+}
+
+export async function getFullFriendKey(): Promise<string> {
+  const resp = await fetchWithAuth('/api/user/friend-key/reveal')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get friend key')
+  }
+  const data = await resp.json()
+  return data.friendKey
+}
+
+export async function createFriendKey(): Promise<CreateFriendKeyResponse> {
+  const resp = await fetchWithAuth('/api/user/friend-key', { method: 'POST' })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to create friend key')
+  }
+  return resp.json()
+}
+
+export async function rotateFriendKey(): Promise<CreateFriendKeyResponse> {
+  const resp = await fetchWithAuth('/api/user/friend-key/rotate', { method: 'POST' })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to rotate friend key')
+  }
+  return resp.json()
+}
+
+export async function deleteFriendKey(): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth('/api/user/friend-key', { method: 'DELETE' })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to delete friend key')
+  }
+  return resp.json()
+}
+
+export async function updateFriendKeyLimits(modelLimits: { modelId: string; limitUsd: number; enabled?: boolean }[]): Promise<FriendKeyInfo> {
+  const resp = await fetchWithAuth('/api/user/friend-key/limits', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ modelLimits })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update friend key limits')
+  }
+  return resp.json()
+}
+
+export async function getFriendKeyUsage(): Promise<{ models: ModelUsage[] }> {
+  const resp = await fetchWithAuth('/api/user/friend-key/usage')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get friend key usage')
+  }
+  return resp.json()
+}
+
+export async function getFriendKeyActivity(params?: { page?: number; limit?: number }): Promise<RequestHistoryResponse> {
+  const searchParams = new URLSearchParams()
+  if (params?.page) searchParams.set('page', params.page.toString())
+  if (params?.limit) searchParams.set('limit', params.limit.toString())
+
+  const url = `/api/user/friend-key/activity${searchParams.toString() ? '?' + searchParams.toString() : ''}`
+  const resp = await fetchWithAuth(url)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get friend key activity')
+  }
+  return resp.json()
+}
+
+// Models API
+export interface ModelConfig {
+  id: string
+  name: string
+  type: string
+  inputPricePerMTok: number
+  outputPricePerMTok: number
+}
+
+export async function getAvailableModels(): Promise<{ models: ModelConfig[] }> {
+  const resp = await fetch('/api/models')
+  if (!resp.ok) {
+    throw new Error('Failed to get models')
+  }
+  return resp.json()
+}
+
 // Referral API
 export interface ReferralInfo {
   referralCode: string

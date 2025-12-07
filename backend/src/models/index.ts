@@ -4,3 +4,4 @@ export * from './factory-key.model.js';
 export * from './request-log.model.js';
 export * from './proxy.model.js';
 export * from './model-pricing.model.js';
+export * from './friend-key.model.js';

@@ -489,6 +489,8 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var username string // Username for credit deduction
+	var isFriendKeyRequest bool
+	var friendKeyID string // Store Friend Key ID for model limit check later
 
 	if proxyAPIKey != "" {
 		// Validate with fixed PROXY_API_KEY from env
@@ -498,6 +500,35 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("🔑 Key validated (env): %s", clientKeyMask)
+	} else if userkey.IsFriendKey(clientAPIKey) {
+		// Validate Friend Key (model limit check will be done after model parsing)
+		friendKeyResult, err := userkey.ValidateFriendKeyBasic(clientAPIKey)
+		if err != nil {
+			log.Printf("❌ Friend Key validation failed: %s - %v", clientKeyMask, err)
+			switch err {
+			case userkey.ErrFriendKeyNotFound:
+				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			case userkey.ErrFriendKeyInactive:
+				http.Error(w, `{"error": {"message": "Friend Key has been deactivated", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			case userkey.ErrFriendKeyOwnerInactive:
+				http.Error(w, `{"error": {"message": "Friend Key owner account is inactive", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			case userkey.ErrFriendKeyOwnerFreeTier:
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error": {"message": "Friend Key owner must upgrade plan", "type": "free_tier_restricted"}}`))
+			case userkey.ErrFriendKeyOwnerNoCredits:
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"error": {"message": "Friend Key owner has insufficient credits", "type": "insufficient_credits"}}`))
+			default:
+				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			}
+			return
+		}
+		log.Printf("🔑 Friend Key validated: %s [owner: %s]", clientKeyMask, friendKeyResult.Owner.Username)
+		username = friendKeyResult.Owner.Username
+		isFriendKeyRequest = true
+		friendKeyID = clientAPIKey
 	} else {
 		// Validate from MongoDB user_keys collection
 		userKey, err := userkey.ValidateKey(clientAPIKey)
@@ -534,6 +565,9 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
 		}
 	}
+	// Store Friend Key info for use in response handlers
+	_ = isFriendKeyRequest
+	_ = friendKeyID
 
 	// Check rate limit (with refCredits support for Pro RPM)
 	if !checkRateLimitWithUsername(w, clientAPIKey, username) {
@@ -617,6 +651,30 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("❌ Unsupported model: %s", openaiReq.Model)
 		http.Error(w, fmt.Sprintf(`{"error": {"message": "Model '%s' not found", "type": "invalid_request_error"}}`, openaiReq.Model), http.StatusNotFound)
 		return
+	}
+
+	// Check Friend Key model limit (now that we have the model ID)
+	if isFriendKeyRequest && friendKeyID != "" {
+		if err := userkey.CheckFriendKeyModelLimit(friendKeyID, openaiReq.Model); err != nil {
+			log.Printf("🚫 Friend Key model limit check failed: %s - %v", clientKeyMask, err)
+			w.Header().Set("Content-Type", "application/json")
+			switch err {
+			case userkey.ErrFriendKeyModelNotAllowed:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"error": {"message": "Model '%s' is not configured for this Friend Key", "type": "friend_key_model_not_allowed"}}`, openaiReq.Model)))
+			case userkey.ErrFriendKeyModelDisabled:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"error": {"message": "Model '%s' is disabled for this Friend Key", "type": "friend_key_model_disabled"}}`, openaiReq.Model)))
+			case userkey.ErrFriendKeyModelLimitExceeded:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"error": {"message": "Friend Key spending limit exceeded for model '%s'", "type": "friend_key_model_limit_exceeded"}}`, openaiReq.Model)))
+			default:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"error": {"message": "Friend Key model access denied", "type": "friend_key_error"}}`))
+			}
+			return
+		}
+		log.Printf("✅ Friend Key model limit OK: %s -> %s", clientKeyMask, openaiReq.Model)
 	}
 
 	if debugMode {
@@ -829,6 +887,8 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
 				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequestDetailed(usage.RequestLogParams{
@@ -907,6 +967,8 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
 				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequestDetailed(usage.RequestLogParams{
@@ -985,6 +1047,8 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
 				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequestDetailed(usage.RequestLogParams{
@@ -1224,6 +1288,8 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
 				}
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1405,6 +1471,8 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
 				}
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request for analytics
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1536,6 +1604,8 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
 				}
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1700,6 +1770,8 @@ func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response,
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
 				}
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request for analytics
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1907,6 +1979,8 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var username string // Username for credit deduction
+	var isFriendKeyRequest bool
+	var friendKeyID string // Store Friend Key ID for model limit check later
 
 	if proxyAPIKey != "" {
 		// Validate with fixed PROXY_API_KEY from env
@@ -1916,6 +1990,35 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("🔑 Key validated (env): %s", clientKeyMask)
+	} else if userkey.IsFriendKey(clientAPIKey) {
+		// Validate Friend Key (model limit check will be done after model parsing)
+		friendKeyResult, err := userkey.ValidateFriendKeyBasic(clientAPIKey)
+		if err != nil {
+			log.Printf("❌ Friend Key validation failed: %s - %v", clientKeyMask, err)
+			switch err {
+			case userkey.ErrFriendKeyNotFound:
+				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+			case userkey.ErrFriendKeyInactive:
+				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key has been deactivated"}}`, http.StatusUnauthorized)
+			case userkey.ErrFriendKeyOwnerInactive:
+				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key owner account is inactive"}}`, http.StatusUnauthorized)
+			case userkey.ErrFriendKeyOwnerFreeTier:
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"type":"error","error":{"type":"free_tier_restricted","message":"Friend Key owner must upgrade plan"}}`))
+			case userkey.ErrFriendKeyOwnerNoCredits:
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Friend Key owner has insufficient credits"}}`))
+			default:
+				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+			}
+			return
+		}
+		log.Printf("🔑 Friend Key validated: %s [owner: %s]", clientKeyMask, friendKeyResult.Owner.Username)
+		username = friendKeyResult.Owner.Username
+		isFriendKeyRequest = true
+		friendKeyID = clientAPIKey
 	} else {
 		// Validate from MongoDB user_keys collection
 		userKey, err := userkey.ValidateKey(clientAPIKey)
@@ -1952,6 +2055,9 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
 		}
 	}
+	// Store Friend Key info for use in response handlers
+	_ = isFriendKeyRequest
+	_ = friendKeyID
 
 	// Check rate limit (with refCredits support for Pro RPM)
 	if !checkRateLimitWithUsername(w, clientAPIKey, username) {
@@ -1990,6 +2096,30 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("❌ Unsupported model: %s", anthropicReq.Model)
 		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Model not found"}}`, http.StatusNotFound)
 		return
+	}
+
+	// Check Friend Key model limit (now that we have the model ID)
+	if isFriendKeyRequest && friendKeyID != "" {
+		if err := userkey.CheckFriendKeyModelLimit(friendKeyID, anthropicReq.Model); err != nil {
+			log.Printf("🚫 Friend Key model limit check failed: %s - %v", clientKeyMask, err)
+			w.Header().Set("Content-Type", "application/json")
+			switch err {
+			case userkey.ErrFriendKeyModelNotAllowed:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_not_allowed","message":"Model '%s' is not configured for this Friend Key"}}`, anthropicReq.Model)))
+			case userkey.ErrFriendKeyModelDisabled:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_disabled","message":"Model '%s' is disabled for this Friend Key"}}`, anthropicReq.Model)))
+			case userkey.ErrFriendKeyModelLimitExceeded:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_limit_exceeded","message":"Friend Key spending limit exceeded for model '%s'"}}`, anthropicReq.Model)))
+			default:
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"type":"error","error":{"type":"friend_key_error","message":"Friend Key model access denied"}}`))
+			}
+			return
+		}
+		log.Printf("✅ Friend Key model limit OK: %s -> %s", clientKeyMask, anthropicReq.Model)
 	}
 
 	// NEW MODEL-BASED ROUTING - BEGIN
@@ -2297,6 +2427,8 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 						} else if debugMode {
 							log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
 						}
+						// Update Friend Key usage if applicable
+						usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 					}
 					// Log request for analytics (include latency)
 					latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -2508,6 +2640,8 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				} else if debugMode {
 					log.Printf("💰 Deducted $%.6f, used %d tokens for user %s", billingCost, billingTokens, username)
 				}
+				// Update Friend Key usage if applicable
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request for analytics (include latency)
 			latencyMs := time.Since(requestStartTime).Milliseconds()

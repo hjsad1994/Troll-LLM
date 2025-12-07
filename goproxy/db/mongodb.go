@@ -80,6 +80,10 @@ func RequestLogsCollection() *mongo.Collection {
 	return GetCollection("request_logs")
 }
 
+func FriendKeysCollection() *mongo.Collection {
+	return GetCollection("friend_keys")
+}
+
 func Disconnect() {
 	if client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

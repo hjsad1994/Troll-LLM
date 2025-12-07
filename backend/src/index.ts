@@ -11,6 +11,7 @@ import statusRoutes from './routes/status.js';
 import userRoutes from './routes/user.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import modelsRoutes from './routes/models.routes.js';
+import friendKeyRoutes from './routes/friend-key.routes.js';
 
 const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
@@ -50,6 +51,7 @@ app.use('/api', authRoutes);
 
 // User routes (protected with JWT)
 app.use('/api/user', userRoutes);
+app.use('/api/user/friend-key', friendKeyRoutes);
 
 // Payment routes (mixed: some public, some protected)
 app.use('/api/payment', paymentRoutes);
@@ -76,6 +78,12 @@ app.get('/', (_req, res) => {
         'GET /api/user/api-key',
         'POST /api/user/api-key/rotate',
         'GET /api/user/billing',
+        'GET /api/user/friend-key',
+        'POST /api/user/friend-key',
+        'POST /api/user/friend-key/rotate',
+        'DELETE /api/user/friend-key',
+        'PUT /api/user/friend-key/limits',
+        'GET /api/user/friend-key/usage',
       ],
       admin: [
         'GET /admin/keys',
