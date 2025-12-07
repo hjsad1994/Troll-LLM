@@ -18,10 +18,10 @@
       "reasoning": "high",
       "thinking_budget": 31999,
       "input_price_per_mtok": 5.5,
-      "output_price_per_mtok": 25.5,
+      "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 0.50,
-      "billing_multiplier": 1.55,
+      "billing_multiplier": 1.50,
       "upstream": "troll",
       "upstream_model_id": "claude-opus-4.5"
     },
@@ -32,10 +32,10 @@
       "reasoning": "high",
       "thinking_budget": 31999,
       "input_price_per_mtok": 3.5,
-      "output_price_per_mtok": 15.5,
+      "output_price_per_mtok": 15.0,
       "cache_write_price_per_mtok": 4,
       "cache_hit_price_per_mtok": 0.50,
-      "billing_multiplier": 1.55,
+      "billing_multiplier": 1.50,
       "upstream": "troll",
       "upstream_model_id": "claude-sonnet-4.5"
     },
@@ -46,9 +46,9 @@
       "reasoning": "high",
       "input_price_per_mtok": 2.5,
       "output_price_per_mtok": 5.5,
-      "cache_write_price_per_mtok": 1.55,
+      "cache_write_price_per_mtok": 1.50,
       "cache_hit_price_per_mtok": 0.10,
-      "billing_multiplier": 1.55,
+      "billing_multiplier": 1.50,
       "upstream": "main",
       "upstream_model_id": "claude-haiku-4.5"
     },
@@ -61,7 +61,7 @@
       "output_price_per_mtok": 10.0,
       "cache_write_price_per_mtok": 1.4625,
       "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.55,
+      "billing_multiplier": 1.50,
       "upstream": "main"
     },
 
@@ -74,7 +74,7 @@
       "output_price_per_mtok": 12.5,
       "cache_write_price_per_mtok": 1.4625,
       "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.55,
+      "billing_multiplier": 1.50,
       "upstream": "main"
     }
   ],
