@@ -9,18 +9,32 @@ import {
   deleteFriendKey,
   updateFriendKeyLimits,
   getFriendKeyUsage,
-  getAvailableModels,
   FriendKeyInfo,
   ModelUsage,
-  ModelConfig,
 } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
+
+// Hardcoded models (same as /models page)
+interface ModelConfig {
+  id: string
+  name: string
+  inputPricePerMTok: number
+  outputPricePerMTok: number
+}
+
+const AVAILABLE_MODELS: ModelConfig[] = [
+  { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', inputPricePerMTok: 5, outputPricePerMTok: 25 },
+  { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', inputPricePerMTok: 3, outputPricePerMTok: 15 },
+  { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', inputPricePerMTok: 1, outputPricePerMTok: 5 },
+  { id: 'gpt-5.1', name: 'GPT-5.1', inputPricePerMTok: 1.25, outputPricePerMTok: 10 },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', inputPricePerMTok: 2, outputPricePerMTok: 12 },
+]
 
 export default function FriendKeyPage() {
   const { t } = useLanguage()
   const [friendKey, setFriendKey] = useState<FriendKeyInfo | null>(null)
   const [modelUsage, setModelUsage] = useState<ModelUsage[]>([])
-  const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
+  const availableModels = AVAILABLE_MODELS
   const [loading, setLoading] = useState(true)
   const [showFullKey, setShowFullKey] = useState(false)
   const [fullKey, setFullKey] = useState<string | null>(null)
@@ -40,13 +54,8 @@ export default function FriendKeyPage() {
   const loadData = useCallback(async () => {
     try {
       setError(null)
-      const [keyData, modelsData] = await Promise.all([
-        getFriendKey().catch(() => null),
-        getAvailableModels().catch(() => ({ models: [] })),
-      ])
-
+      const keyData = await getFriendKey().catch(() => null)
       setFriendKey(keyData)
-      setAvailableModels(modelsData.models)
 
       if (keyData?.hasKey) {
         const usageData = await getFriendKeyUsage().catch(() => ({ models: [] }))
@@ -58,7 +67,7 @@ export default function FriendKeyPage() {
           initialLimits[ml.modelId] = ml.limitUsd
           initialEnabled[ml.modelId] = ml.enabled ?? true
         })
-        modelsData.models.forEach(m => {
+        AVAILABLE_MODELS.forEach(m => {
           if (!(m.id in initialLimits)) {
             initialLimits[m.id] = 0
             initialEnabled[m.id] = false
@@ -69,7 +78,7 @@ export default function FriendKeyPage() {
       } else {
         const initialLimits: Record<string, number> = {}
         const initialEnabled: Record<string, boolean> = {}
-        modelsData.models.forEach(m => {
+        AVAILABLE_MODELS.forEach(m => {
           initialLimits[m.id] = 0
           initialEnabled[m.id] = false
         })
