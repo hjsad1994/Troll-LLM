@@ -1939,7 +1939,22 @@ export const paymentDisabled = {
   },
 }
 
-// Feature flag for payment
+// Feature flags
 export const PAYMENT_ENABLED = false
+export const REGISTRATION_ENABLED = false
+
+// Registration disabled translations
+export const registrationDisabled = {
+  en: {
+    title: 'Registration Temporarily Closed',
+    message: 'New user registration is temporarily closed.',
+    backToHome: 'Back to Home',
+  },
+  vi: {
+    title: 'Đăng ký Tạm thời Đóng',
+    message: 'Đăng ký người dùng mới tạm thời đóng.',
+    backToHome: 'Quay lại Trang chủ',
+  },
+}
 
 export type TranslationKey = keyof typeof translations.en
