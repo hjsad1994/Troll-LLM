@@ -3,52 +3,43 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createCheckout, getPaymentStatus, isAuthenticated, getUserProfile } from '@/lib/api'
+import { createCheckout, getPaymentStatus, isAuthenticated } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import { useTheme } from '@/components/ThemeProvider'
 
-const PLANS = {
-  dev: {
-    price: 35000,
-    originalPrice: 49000,
-    discount: 29,
-    credits: 225,
-    rpm: 150,
-    popular: false,
-  },
-  pro: {
-    price: 79000,
-    originalPrice: 99000,
+const PACKAGES = {
+  '6m': {
+    price: 20000,
+    originalPrice: 25000,
     discount: 20,
-    credits: 500,
-    rpm: 300,
-    popular: true,
-  },
-  'pro-troll': {
-    price: 180000,
-    originalPrice: 199000,
-    discount: 10,
-    credits: 1250,
-    rpm: 600,
+    tokens: 6000000,
+    days: 7,
     popular: false,
+  },
+  '12m': {
+    price: 40000,
+    originalPrice: 50000,
+    discount: 20,
+    tokens: 12000000,
+    days: 7,
+    popular: true,
   },
 }
 
-type PlanType = 'dev' | 'pro' | 'pro-troll'
+type PackageType = '6m' | '12m'
 
 function CheckoutContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { t, language, setLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
-  const planParam = searchParams.get('plan') as PlanType | null
+  const packageParam = searchParams.get('package') as PackageType | null
 
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>(
-    planParam === 'pro' ? 'pro' : planParam === 'pro-troll' ? 'pro-troll' : 'dev'
+  const [selectedPackage, setSelectedPackage] = useState<PackageType>(
+    packageParam === '12m' ? '12m' : '6m'
   )
   const [discordId, setDiscordId] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
-  const [currentPlan, setCurrentPlan] = useState<string>('free')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'select' | 'payment' | 'success'>('select')
@@ -56,60 +47,35 @@ function CheckoutContent() {
     paymentId: string
     qrCodeUrl: string
     amount: number
+    tokens: number
     orderCode: string
   } | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [discordRoleAssigned, setDiscordRoleAssigned] = useState(false)
 
-  const plan = PLANS[selectedPlan]
+  const pkg = PACKAGES[selectedPackage]
   
-  const getFeatures = (planKey: PlanType) => {
-    const p = PLANS[planKey]
-    if (planKey === 'dev') {
-      return [
-        `${p.credits} ${t.checkout.features.creditsMonth}`,
-        `${p.rpm} ${t.checkout.features.requestsMinute}`,
-        t.checkout.features.allModels,
-        t.checkout.features.communitySupport,
-      ]
-    }
-    if (planKey === 'pro-troll') {
-      return [
-        `${p.credits} ${t.checkout.features.creditsMonth}`,
-        `${p.rpm} ${t.checkout.features.requestsMinute}`,
-        t.checkout.features.allModels,
-        t.checkout.features.vipSupport,
-      ]
-    }
+  const formatTokens = (tokens: number) => {
+    return `${(tokens / 1000000).toFixed(0)}M`
+  }
+  
+  const getFeatures = (pkgKey: PackageType) => {
+    const p = PACKAGES[pkgKey]
     return [
-      `${p.credits} ${t.checkout.features.creditsMonth}`,
-      `${p.rpm} ${t.checkout.features.requestsMinute}`,
+      `${formatTokens(p.tokens)} tokens`,
+      `Valid for ${p.days} days`,
       t.checkout.features.allModels,
       t.checkout.features.prioritySupport,
     ]
   }
   
-  const features = getFeatures(selectedPlan)
+  const features = getFeatures(selectedPackage)
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.push('/login?redirect=/checkout' + (planParam ? `?plan=${planParam}` : ''))
+      router.push('/login?redirect=/checkout' + (packageParam ? `?package=${packageParam}` : ''))
     }
-  }, [router, planParam])
-
-  useEffect(() => {
-    const fetchUserPlan = async () => {
-      try {
-        const profile = await getUserProfile()
-        setCurrentPlan(profile.plan || 'free')
-      } catch (err) {
-        console.error('Failed to fetch user profile:', err)
-      }
-    }
-    if (isAuthenticated()) {
-      fetchUserPlan()
-    }
-  }, [])
+  }, [router, packageParam])
 
   const handleCheckout = async () => {
     if (discordId && !/^\d{17,19}$/.test(discordId)) {
@@ -121,11 +87,12 @@ function CheckoutContent() {
     setError(null)
 
     try {
-      const data = await createCheckout(selectedPlan, discordId || undefined)
+      const data = await createCheckout(selectedPackage, discordId || undefined)
       setPaymentData({
         paymentId: data.paymentId,
         qrCodeUrl: data.qrCodeUrl,
         amount: data.amount,
+        tokens: data.tokens,
         orderCode: data.orderCode,
       })
       const expiresAt = new Date(data.expiresAt)
@@ -276,7 +243,7 @@ function CheckoutContent() {
               />
 
               <div className="relative p-6 rounded-[14px] bg-white dark:bg-gray-900 shadow-sm dark:shadow-none">
-                {plan.popular && (
+                {pkg.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                     <span
                       className="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-lg"
@@ -286,22 +253,22 @@ function CheckoutContent() {
                         animation: 'ledBorder 3s linear infinite',
                       }}
                     >
-                      {t.checkout.planSelection.popular}
+                      BEST VALUE
                     </span>
                   </div>
                 )}
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name}</h3>
-                  <p className="text-gray-500 dark:text-gray-400">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].description}</p>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{formatTokens(pkg.tokens)} Tokens</h3>
+                  <p className="text-gray-500 dark:text-gray-400">Valid for {pkg.days} days</p>
                 </div>
                 <div className="text-right">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">{formatPrice(plan.price)}</span>
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">{formatPrice(pkg.price)}</span>
                     <span className="text-gray-500">VND</span>
                   </div>
-                  {plan.price < plan.originalPrice && (
-                    <span className="text-sm text-gray-400 line-through">{formatPrice(plan.originalPrice)} VND</span>
+                  {pkg.price < pkg.originalPrice && (
+                    <span className="text-sm text-gray-400 line-through">{formatPrice(pkg.originalPrice)} VND</span>
                   )}
                 </div>
               </div>
@@ -371,23 +338,17 @@ function CheckoutContent() {
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.summary.total}</p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {formatPrice(plan.price)} <span className="text-lg font-normal text-gray-400">VND</span>
+                    {formatPrice(pkg.price)} <span className="text-lg font-normal text-gray-400">VND</span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.summary.plan}</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Package</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{formatTokens(pkg.tokens)} Tokens</p>
                 </div>
               </div>
 
               <button
-                onClick={() => {
-                  if (currentPlan === selectedPlan) {
-                    handleCheckout()
-                  } else {
-                    setShowConfirm(true)
-                  }
-                }}
+                onClick={handleCheckout}
                 disabled={loading}
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/20"
               >
@@ -409,40 +370,40 @@ function CheckoutContent() {
           </div>
         )}
 
-        {/* Confirmation Modal */}
+        {/* Confirmation Modal - simplified for token packages */}
         {showConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-white/10">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{(t.checkout as any).confirm?.title || 'Confirm Payment'}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{(t.checkout as any).confirm?.subtitle || 'Please review before proceeding'}</p>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Confirm Purchase</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Please review before proceeding</p>
                 </div>
               </div>
               
               <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 mb-4 border border-gray-100 dark:border-white/5">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">{(t.checkout as any).confirm?.currentPlan || 'Current Plan'}</span>
-                  <span className="font-semibold text-amber-600 dark:text-amber-400 uppercase">{currentPlan}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Package</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatTokens(pkg.tokens)} Tokens</span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">{(t.checkout as any).confirm?.newPlan || 'New Plan'}</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Valid for</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{pkg.days} days</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">{t.checkout.summary.total}</span>
-                  <span className="font-bold text-lg text-gray-900 dark:text-white">{formatPrice(plan.price)} VND</span>
+                  <span className="font-bold text-lg text-gray-900 dark:text-white">{formatPrice(pkg.price)} VND</span>
                 </div>
               </div>
 
-              <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 mb-6">
-                <p className="text-sm text-amber-800 dark:text-amber-300">
-                  <strong>{(t.checkout as any).confirm?.warning || 'Warning'}:</strong> {(t.checkout as any).confirm?.message || 'Your current plan will be replaced with the new plan after payment. Credits will be added to your account.'}
+              <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl p-4 mb-6">
+                <p className="text-sm text-emerald-800 dark:text-emerald-300">
+                  <strong>Note:</strong> Tokens will be added to your account balance after successful payment.
                 </p>
               </div>
 
@@ -534,22 +495,22 @@ function CheckoutContent() {
                 {t.checkout.success.title}
               </h1>
               <p className="text-gray-500 dark:text-gray-400">
-                {t.checkout.success.planActivated.replace('{plan}', t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name)}
+                You have received {formatTokens(pkg.tokens)} tokens!
               </p>
             </div>
 
             <div className="bg-white dark:bg-white/5 rounded-xl p-6 space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-gray-400">{t.checkout.summary.plan}</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name}</span>
+                <span className="text-gray-500 dark:text-gray-400">Package</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatTokens(pkg.tokens)} Tokens</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-gray-400">{t.checkout.success.credits}</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{plan.credits}{t.checkout.success.perMonth}</span>
+                <span className="text-gray-500 dark:text-gray-400">Valid for</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{pkg.days} days</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-gray-400">{t.checkout.success.rateLimit}</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{plan.rpm} {t.checkout.success.rpm}</span>
+                <span className="text-gray-500 dark:text-gray-400">Amount Paid</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(pkg.price)} VND</span>
               </div>
             </div>
 
@@ -560,7 +521,7 @@ function CheckoutContent() {
                 </svg>
                 <div className="text-left">
                   <p className="font-medium text-[#5865F2]">{t.checkout.success.discordRole}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.success.checkDiscord.replace('{plan}', t.checkout.planSelection[selectedPlan === 'pro-troll' ? 'proTroll' : selectedPlan].name)}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Check Discord for your role!</p>
                 </div>
               </div>
             )}

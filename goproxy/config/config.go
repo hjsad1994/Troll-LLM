@@ -287,14 +287,36 @@ func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, ca
 	return (inputCost + outputCost + cacheWriteCost + cacheHitCost) * multiplier
 }
 
-// CalculateBillingTokens converts cost to equivalent "billing tokens" for quota tracking
-// Uses Sonnet pricing as the base reference ($3 input, $15 output -> avg $9/MTok)
+// CalculateBillingTokens calculates tokens to deduct from user's balance (without cache)
 func CalculateBillingTokens(modelID string, inputTokens, outputTokens int64) int64 {
-	cost := CalculateBillingCost(modelID, inputTokens, outputTokens)
-	// Convert cost to billing tokens using average reference price ($9/MTok)
-	// This normalizes all models to a common billing unit
-	const referenceAvgPricePerMTok = 9.0
-	billingTokens := (cost / referenceAvgPricePerMTok) * 1_000_000
+	return CalculateBillingTokensWithCache(modelID, inputTokens, outputTokens, 0, 0)
+}
+
+// CalculateBillingTokensWithCache calculates tokens to deduct including cache tokens
+// Cache tokens are weighted by their price ratio relative to input price:
+// - cache_write: typically 1.25x input (more expensive to write)
+// - cache_hit: typically 0.1x input (much cheaper to read from cache)
+// Then applies model-specific billing_multiplier (Opus x2.0, Sonnet x1.2, Haiku x0.4)
+func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) int64 {
+	inputPrice, _ := GetModelPricing(modelID)
+	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
+	multiplier := GetModelMultiplier(modelID)
+	
+	// Calculate cache token weights relative to input price
+	cacheWriteWeight := 1.0
+	cacheHitWeight := 0.1
+	if inputPrice > 0 {
+		cacheWriteWeight = cacheWritePrice / inputPrice
+		cacheHitWeight = cacheHitPrice / inputPrice
+	}
+	
+	// Effective tokens = input + output + weighted cache tokens
+	effectiveTokens := float64(inputTokens) + float64(outputTokens) + 
+		float64(cacheWriteTokens)*cacheWriteWeight + 
+		float64(cacheHitTokens)*cacheHitWeight
+	
+	// Apply model multiplier
+	billingTokens := effectiveTokens * multiplier
 	return int64(billingTokens)
 }
 

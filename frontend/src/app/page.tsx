@@ -224,35 +224,10 @@ const statsData = [
   { value: '200', suffix: 'K', labelKey: 'context' },
 ]
 
-// Sale end date: 3 days from December 6, 2025
-const SALE_END_DATE = new Date('2025-12-09T23:59:59')
-
 // ===== MAIN COMPONENT =====
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
   const { t } = useLanguage()
-
-  // Countdown timer effect
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const now = new Date().getTime()
-      const distance = SALE_END_DATE.getTime() - now
-
-      if (distance > 0) {
-        setCountdown({
-          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-          seconds: Math.floor((distance % (1000 * 60)) / 1000),
-        })
-      }
-    }
-
-    calculateTimeLeft()
-    const timer = setInterval(calculateTimeLeft, 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   const features = [
     { title: t.features.feature1.title, description: t.features.feature1.description, icon: featureIcons[0] },
@@ -409,7 +384,7 @@ export default function LandingPage() {
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-4 sm:gap-6 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto">
             {/* Dev Tier */}
             <div className="group relative">
               {/* Card glow on hover */}
@@ -432,28 +407,14 @@ export default function LandingPage() {
 
                 {/* Price */}
                 <div className="mb-5 sm:mb-6">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                    <span className="text-base sm:text-lg text-[var(--theme-text-subtle)] line-through">49K</span>
-                    <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[10px] sm:text-xs font-bold">-29%</span>
-                  </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-bold text-[var(--theme-text)]">35K</span>
+                    <span className="text-4xl sm:text-5xl font-bold text-[var(--theme-text)]">25K</span>
                     <span className="text-[var(--theme-text-subtle)] text-base sm:text-lg">VND</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/month</span>
+                    <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/week</span>
                   </div>
-                  <div className="h-8 sm:h-10"></div>
-                </div>
-
-                {/* Sale Countdown */}
-                <div className="mb-5 sm:mb-6 p-2 rounded-lg bg-gradient-to-r from-rose-500/5 to-orange-500/5 border border-rose-500/20">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] text-rose-500 dark:text-rose-400">{t.pricing.saleEndsIn}</span>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3 h-3 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">{countdown.days}d {countdown.hours.toString().padStart(2, '0')}h {countdown.minutes.toString().padStart(2, '0')}m {countdown.seconds.toString().padStart(2, '0')}s</span>
-                    </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xl sm:text-2xl font-bold text-slate-600 dark:text-slate-400">{t.pricing.dev.usdPrice}</span>
+                    <span className="text-[var(--theme-text-subtle)] text-xs">/week</span>
                   </div>
                 </div>
 
@@ -463,7 +424,6 @@ export default function LandingPage() {
                 {/* Features */}
                 <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
                   {[
-                    { text: t.pricing.dev.features.requests, highlight: true },
                     { text: t.pricing.dev.features.credits, highlight: true },
                     { text: t.pricing.dev.features.models, highlight: true },
                     { text: t.pricing.dev.features.support, highlight: true },
@@ -521,34 +481,14 @@ export default function LandingPage() {
 
                 {/* Price */}
                 <div className="mb-5 sm:mb-6">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                    <span className="text-base sm:text-lg text-[var(--theme-text-subtle)] line-through">99K</span>
-                    <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[10px] sm:text-xs font-bold">-20%</span>
-                  </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-bold text-[var(--theme-text)]">79K</span>
+                    <span className="text-4xl sm:text-5xl font-bold text-[var(--theme-text)]">50K</span>
                     <span className="text-[var(--theme-text-subtle)] text-base sm:text-lg">VND</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/month</span>
+                    <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/week</span>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{t.pricing.pro.usdPrice}</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs">/month</span>
-                  </div>
-                  {t.pricing.pro.note && (
-                    <p className="text-indigo-600 dark:text-indigo-400 text-[10px] sm:text-xs mt-1">{t.pricing.pro.note}</p>
-                  )}
-                </div>
-
-                {/* Sale Countdown */}
-                <div className="mb-5 sm:mb-6 p-2 rounded-lg bg-gradient-to-r from-rose-500/5 to-orange-500/5 border border-rose-500/20">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] text-rose-500 dark:text-rose-400">{t.pricing.saleEndsIn}</span>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3 h-3 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">{countdown.days}d {countdown.hours.toString().padStart(2, '0')}h {countdown.minutes.toString().padStart(2, '0')}m {countdown.seconds.toString().padStart(2, '0')}s</span>
-                    </div>
+                    <span className="text-[var(--theme-text-subtle)] text-xs">/week</span>
                   </div>
                 </div>
 
@@ -558,8 +498,7 @@ export default function LandingPage() {
                 {/* Features */}
                 <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
                   {[
-                    { text: t.pricing.pro.features.requests, highlight: true, badge: '2x' },
-                    { text: t.pricing.pro.features.credits, highlight: true, badge: '2.2x' },
+                    { text: t.pricing.pro.features.credits, highlight: true },
                     { text: t.pricing.pro.features.models, highlight: true },
                     { text: t.pricing.pro.features.support, highlight: true },
                   ].map((item, idx) => (
@@ -570,9 +509,6 @@ export default function LandingPage() {
                         </svg>
                       </div>
                       <span className={`text-sm ${item.highlight ? 'text-[var(--theme-text)] font-medium' : 'text-[var(--theme-text-muted)]'}`}>{item.text}</span>
-                      {item.badge && (
-                        <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 text-[10px] font-bold">{item.badge}</span>
-                      )}
                     </li>
                   ))}
                 </ul>
@@ -587,93 +523,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Pro Troll Tier */}
-            <div className="group relative">
-              {/* Card glow */}
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-orange-500/30 rounded-3xl opacity-30 group-hover:opacity-50 transition-opacity duration-500 blur-xl" />
-
-              <div className="relative p-6 sm:p-8 rounded-2xl border border-amber-300 dark:border-amber-500/30 bg-white dark:bg-slate-900/80 backdrop-blur-sm h-full flex flex-col shadow-md">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-5 sm:mb-6">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30 mb-2 sm:mb-3">
-                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                      </svg>
-                      <span className="text-amber-600 dark:text-amber-400 text-[10px] sm:text-xs font-medium">{t.pricing.proTroll.badge}</span>
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{t.pricing.proTroll.name}</h3>
-                    <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm mt-1">{t.pricing.proTroll.description}</p>
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div className="mb-5 sm:mb-6">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                    <span className="text-base sm:text-lg text-[var(--theme-text-subtle)] line-through">199K</span>
-                    <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[10px] sm:text-xs font-bold">-10%</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-bold text-[var(--theme-text)]">180K</span>
-                    <span className="text-[var(--theme-text-subtle)] text-base sm:text-lg">VND</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/month</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xl sm:text-2xl font-bold text-amber-600 dark:text-amber-400">{t.pricing.proTroll.usdPrice}</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs">/month</span>
-                  </div>
-                  {t.pricing.proTroll.note && (
-                    <p className="text-amber-600 dark:text-amber-400 text-[10px] sm:text-xs mt-1">{t.pricing.proTroll.note}</p>
-                  )}
-                </div>
-
-                {/* Sale Countdown */}
-                <div className="mb-5 sm:mb-6 p-2 rounded-lg bg-gradient-to-r from-rose-500/5 to-orange-500/5 border border-rose-500/20">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] text-rose-500 dark:text-rose-400">{t.pricing.saleEndsIn}</span>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3 h-3 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">{countdown.days}d {countdown.hours.toString().padStart(2, '0')}h {countdown.minutes.toString().padStart(2, '0')}m {countdown.seconds.toString().padStart(2, '0')}s</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent mb-5 sm:mb-6" />
-
-                {/* Features */}
-                <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
-                  {[
-                    { text: t.pricing.proTroll.features.requests, highlight: true, badge: '4x' },
-                    { text: t.pricing.proTroll.features.credits, highlight: true, badge: '5.5x' },
-                    { text: t.pricing.proTroll.features.models, highlight: true },
-                    { text: t.pricing.proTroll.features.support, highlight: true },
-                  ].map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-amber-500/20 text-amber-500 dark:text-amber-400' : 'bg-slate-200 dark:bg-slate-800 text-[var(--theme-text-muted)]'}`}>
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className={`text-sm ${item.highlight ? 'text-[var(--theme-text)] font-medium' : 'text-[var(--theme-text-muted)]'}`}>{item.text}</span>
-                      {item.badge && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 dark:text-amber-400 text-[10px] font-bold">{item.badge}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-
-                {/* CTA */}
-                <Link href="/checkout?plan=pro-troll" className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold text-center hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-md shadow-amber-500/20 text-sm sm:text-base">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  {t.pricing.buyNow}
-                </Link>
-              </div>
-            </div>
           </div>
 
           {/* International users note */}

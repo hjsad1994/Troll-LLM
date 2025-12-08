@@ -1,9 +1,9 @@
 import { paymentRepository } from '../repositories/payment.repository.js';
-import { userRepository, calculatePlanExpiration } from '../repositories/user.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
 import { 
   IPayment, 
-  PaymentPlan, 
-  PLAN_PRICES,
+  CreditPackage, 
+  PACKAGE_CONFIG,
   generateOrderCode, 
   generateQRCodeUrl 
 } from '../models/payment.model.js';
@@ -14,7 +14,8 @@ export interface CheckoutResult {
   orderCode: string;
   qrCodeUrl: string;
   amount: number;
-  plan: PaymentPlan;
+  credits: number;
+  package: CreditPackage;
   expiresAt: Date;
 }
 
@@ -49,19 +50,17 @@ export interface SepayWebhookPayload {
   description: string;
 }
 
-
-
 function extractOrderCode(text: string): string | null {
-  // Try to find TROLLDEV, TROLLPRO or TROLLPROTROLL pattern in the text
-  const match = text.match(/TROLL(DEV|PROTROLL|PRO)\d+[A-Z0-9]+/i);
+  // Try to find TROLL20USD or TROLL40USD pattern in the text
+  const match = text.match(/TROLL(20|40)USD\d+[A-Z0-9]+/i);
   return match ? match[0].toUpperCase() : null;
 }
 
 export class PaymentService {
-  async createCheckout(userId: string, plan: PaymentPlan, discordId?: string, username?: string): Promise<CheckoutResult> {
-    const planConfig = PLAN_PRICES[plan];
-    if (!planConfig) {
-      throw new Error('Invalid plan');
+  async createCheckout(userId: string, pkg: CreditPackage, discordId?: string, username?: string): Promise<CheckoutResult> {
+    const pkgConfig = PACKAGE_CONFIG[pkg];
+    if (!pkgConfig) {
+      throw new Error('Invalid package');
     }
 
     // Validate Discord ID format (should be 17-19 digit number)
@@ -69,28 +68,28 @@ export class PaymentService {
       throw new Error('Invalid Discord ID format. Please enter your Discord User ID (17-19 digits)');
     }
 
-    const orderCode = generateOrderCode(plan);
+    const orderCode = generateOrderCode(pkg);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     const payment = await paymentRepository.create({
       userId,
       discordId,
       username,
-      plan,
-      amount: planConfig.amount,
-      orderCode,
-      expiresAt,
+      package: pkg,
+      credits: pkgConfig.credits,
+      amount: pkgConfig.amount,
     });
 
-    const qrCodeUrl = generateQRCodeUrl(orderCode, planConfig.amount, username);
+    const qrCodeUrl = generateQRCodeUrl(payment.orderCode!, pkgConfig.amount, username);
 
     return {
       paymentId: payment._id.toString(),
-      orderCode,
+      orderCode: payment.orderCode!,
       qrCodeUrl,
-      amount: planConfig.amount,
-      plan,
-      expiresAt,
+      amount: pkgConfig.amount,
+      credits: pkgConfig.credits,
+      package: pkg,
+      expiresAt: payment.expiresAt,
     };
   }
 
@@ -107,7 +106,7 @@ export class PaymentService {
     return {
       status: payment.status,
       remainingSeconds,
-      plan: payment.status === 'success' ? payment.plan : undefined,
+      plan: payment.status === 'success' ? payment.package : undefined,
       completedAt: payment.completedAt,
     };
   }
@@ -122,7 +121,6 @@ export class PaymentService {
 
     // Validate subAccount (virtual account identifier)
     const expectedAccount = process.env.SEPAY_ACCOUNT || 'VQRQAFRBD3142';
-    // Check subAccount field (SePay uses this for virtual account)
     if (payload.subAccount !== expectedAccount) {
       console.log(`[Payment Webhook] Account check: subAccount=${payload.subAccount}, expected=${expectedAccount}`);
       return { processed: false, message: 'Ignored: account mismatch' };
@@ -180,22 +178,22 @@ export class PaymentService {
       payload.id.toString()
     );
 
-    console.log(`[Payment Webhook] Calling upgradePlan for ${payment.userId}...`);
+    console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
     
-    // Upgrade user plan
-    await this.upgradePlan(payment.userId, payment.plan);
+    // Add credits to user
+    await this.addCredits(payment.userId, payment.package as CreditPackage, payment.credits);
 
     // Send webhook to Discord bot
     await this.notifyDiscordBot({
       discordId: payment.discordId || '',
-      plan: payment.plan,
+      plan: payment.package,
       username: payment.userId,
       orderCode: payment.orderCode || orderCode,
       amount: payment.amount,
       transactionId: payload.id.toString(),
     });
 
-    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Plan: ${payment.plan}`);
+    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Package: $${payment.credits}`);
     return { processed: true, message: 'Payment processed successfully' };
   }
 
@@ -230,8 +228,8 @@ export class PaymentService {
     }
   }
 
-  private async upgradePlan(userId: string, plan: PaymentPlan): Promise<void> {
-    console.log(`[Payment] Upgrading plan for user: ${userId} to ${plan}`);
+  private async addCredits(userId: string, pkg: CreditPackage, credits: number): Promise<void> {
+    console.log(`[Payment] Adding $${credits} credits to user: ${userId} (package: ${pkg})`);
     
     const user = await userRepository.getFullUser(userId);
     if (!user) {
@@ -239,49 +237,59 @@ export class PaymentService {
       throw new Error('User not found');
     }
 
-    const planConfig = PLAN_PRICES[plan];
+    const pkgConfig = PACKAGE_CONFIG[pkg];
     const now = new Date();
-    const planExpiresAt = calculatePlanExpiration(now);
+    
+    // Calculate expiration: if user has existing credits, extend from current expiry; else 7 days from now
+    let expiresAt: Date;
+    if (user.expiresAt && user.expiresAt > now && user.credits > 0) {
+      // Extend existing expiration by 7 days
+      expiresAt = new Date(user.expiresAt.getTime() + pkgConfig.days * 24 * 60 * 60 * 1000);
+      console.log(`[Payment] Extending expiration from ${user.expiresAt} to ${expiresAt}`);
+    } else {
+      // New purchase or expired: 7 days from now
+      expiresAt = new Date(now.getTime() + pkgConfig.days * 24 * 60 * 60 * 1000);
+    }
 
-    // Update user with new plan and credits
+    // Update user with new credits
     const { User } = await import('../models/user.model.js');
     await User.findByIdAndUpdate(userId, {
-      plan,
-      planStartDate: now,
-      planExpiresAt,
-      $inc: { credits: planConfig.credits },
+      purchasedAt: now,
+      expiresAt,
+      $inc: { credits },
     });
 
     // Award referral bonus if this is first payment and user was referred
-    await this.awardReferralBonus(userId, plan);
+    await this.awardReferralBonus(userId, pkg);
 
     // Sync to user_keys collection for GoProxy
     if (user.apiKey) {
-      const tier = plan === 'pro' ? 'pro' : 'dev';
-      
-      if (user.plan === 'free') {
+      const existingKey = await UserKey.findById(user.apiKey);
+      if (!existingKey) {
         // Create new user_key entry
         await UserKey.create({
           _id: user.apiKey,
           name: userId,
-          tier,
-          tokensUsed: user.tokensUsed || 0,
+          tier: 'pro',
+          tokensUsed: user.creditsUsed || 0,
           requestsCount: 0,
           isActive: true,
           createdAt: now,
-          planExpiresAt,
+          expiresAt,
         });
       } else {
         // Update existing user_key
         await UserKey.updateOne(
           { _id: user.apiKey },
-          { tier, planExpiresAt }
+          { expiresAt }
         );
       }
     }
+
+    console.log(`[Payment] ✅ Added $${credits} credits to ${userId}, expires: ${expiresAt}`);
   }
 
-  private async awardReferralBonus(userId: string, plan: PaymentPlan): Promise<void> {
+  private async awardReferralBonus(userId: string, pkg: CreditPackage): Promise<void> {
     console.log(`[Referral] Checking referral bonus for user: ${userId}`);
     
     const user = await userRepository.getFullUser(userId);
@@ -303,17 +311,18 @@ export class PaymentService {
       return;
     }
 
-    // Determine bonus amount based on plan
-    const bonusAmount = plan === 'pro-troll' ? 100 : plan === 'pro' ? 50 : 25;
+    // Determine bonus credits based on package
+    const pkgConfig = PACKAGE_CONFIG[pkg];
+    const bonusCredits = pkgConfig.refBonus;
 
     // Award refCredits to the referred user (new user)
-    await userRepository.addRefCredits(userId, bonusAmount);
+    await userRepository.addRefCredits(userId, bonusCredits);
     await userRepository.markReferralBonusAwarded(userId);
 
     // Award refCredits to the referrer
-    await userRepository.addRefCredits(user.referredBy, bonusAmount);
+    await userRepository.addRefCredits(user.referredBy, bonusCredits);
 
-    console.log(`[Referral] ✅ Awarded ${bonusAmount} refCredits to ${userId} and ${user.referredBy} for ${plan} plan`);
+    console.log(`[Referral] ✅ Awarded $${bonusCredits} refCredits to ${userId} and ${user.referredBy} for $${pkg} package`);
   }
 
   async getPaymentHistory(userId: string): Promise<IPayment[]> {

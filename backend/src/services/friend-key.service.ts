@@ -138,8 +138,8 @@ export class FriendKeyService {
       return { valid: false, error: 'API key owner account is inactive', errorType: 'owner_inactive' };
     }
 
-    if (owner.plan === 'free') {
-      return { valid: false, error: 'Friend Key owner must upgrade plan', errorType: 'free_tier_restricted' };
+    if (owner.credits <= 0 && owner.refCredits <= 0) {
+      return { valid: false, error: 'Friend Key owner must have credits', errorType: 'no_credits' };
     }
 
     const limitCheck = await friendKeyRepository.checkModelLimit(apiKey, modelId);

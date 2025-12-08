@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { paymentService, SepayWebhookPayload } from '../services/payment.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
-import { PLAN_PRICES, PaymentPlan } from '../models/payment.model.js';
+import { PACKAGE_CONFIG, CreditPackage } from '../models/payment.model.js';
 
 const router = Router();
 
@@ -31,21 +31,31 @@ router.post('/checkout', jwtAuth, async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { plan, discordId } = req.body as { plan: PaymentPlan; discordId?: string };
+    // Support both 'package' and 'plan' for backward compatibility
+    const { package: pkg, plan, discordId } = req.body as { package?: CreditPackage; plan?: string; discordId?: string };
     
-    if (!plan || !PLAN_PRICES[plan]) {
-      return res.status(400).json({ error: 'Invalid plan. Must be "dev" or "pro"' });
+    // Map old plan names to new package names for backward compatibility
+    let creditPackage: CreditPackage | undefined = pkg;
+    if (!creditPackage && plan) {
+      // Map dev/pro to 20/40 for backward compatibility
+      if (plan === 'dev' || plan === '6m' || plan === '20') creditPackage = '20';
+      else if (plan === 'pro' || plan === 'pro-troll' || plan === '12m' || plan === '40') creditPackage = '40';
+    }
+    
+    if (!creditPackage || !PACKAGE_CONFIG[creditPackage]) {
+      return res.status(400).json({ error: 'Invalid package. Must be "20" or "40"' });
     }
 
     // Use the logged-in username as transfer content
-    const result = await paymentService.createCheckout(username, plan, discordId, username);
+    const result = await paymentService.createCheckout(username, creditPackage, discordId, username);
     
     res.json({
       paymentId: result.paymentId,
       orderCode: result.orderCode,
       qrCodeUrl: result.qrCodeUrl,
       amount: result.amount,
-      plan: result.plan,
+      credits: result.credits,
+      package: result.package,
       expiresAt: result.expiresAt,
     });
   } catch (error: any) {
@@ -108,7 +118,8 @@ router.get('/history', jwtAuth, async (req: Request, res: Response) => {
       payments: payments.map(p => ({
         id: p._id,
         orderCode: p.orderCode,
-        plan: p.plan,
+        package: p.package,
+        credits: p.credits,
         amount: p.amount,
         status: p.status,
         createdAt: p.createdAt,
@@ -121,25 +132,27 @@ router.get('/history', jwtAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/payment/plans - Get available plans (public)
-router.get('/plans', (_req: Request, res: Response) => {
+// GET /api/payment/packages - Get available packages (public)
+router.get('/packages', (_req: Request, res: Response) => {
   res.json({
-    plans: [
+    packages: [
       {
-        id: 'dev',
-        name: 'Dev',
-        price: PLAN_PRICES.dev.amount,
-        credits: PLAN_PRICES.dev.credits,
+        id: '20',
+        name: '$20 Credits',
+        price: PACKAGE_CONFIG['20'].amount,
+        credits: PACKAGE_CONFIG['20'].credits,
+        days: PACKAGE_CONFIG['20'].days,
         currency: 'VND',
-        features: ['225 credits/month', '300 requests/minute', 'All Claude models'],
+        features: ['$20 USD credits', 'Valid for 7 days', 'All AI models'],
       },
       {
-        id: 'pro',
-        name: 'Pro',
-        price: PLAN_PRICES.pro.amount,
-        credits: PLAN_PRICES.pro.credits,
+        id: '40',
+        name: '$40 Credits',
+        price: PACKAGE_CONFIG['40'].amount,
+        credits: PACKAGE_CONFIG['40'].credits,
+        days: PACKAGE_CONFIG['40'].days,
         currency: 'VND',
-        features: ['500 credits/month', '1000 requests/minute', 'All Claude models', 'Priority support'],
+        features: ['$40 USD credits', 'Valid for 7 days', 'All AI models', 'Best value'],
       },
     ],
   });

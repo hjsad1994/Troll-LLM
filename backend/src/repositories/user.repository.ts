@@ -1,4 +1,4 @@
-import { User, IUser, hashPassword, generateApiKey, generateReferralCode, PLAN_LIMITS, UserPlan } from '../models/user.model.js';
+import { User, IUser, hashPassword, generateApiKey, generateReferralCode } from '../models/user.model.js';
 import { UserKey } from '../models/user-key.model.js';
 import { RequestLog } from '../models/request-log.model.js';
 
@@ -6,32 +6,19 @@ export interface CreateUserData {
   username: string;
   password: string;
   role: 'admin' | 'user';
-  plan?: UserPlan;
   referredBy?: string;
 }
 
-function planToTier(plan: UserPlan): 'dev' | 'pro' {
-  return plan === 'pro' ? 'pro' : 'dev';
-}
-
-export function calculatePlanExpiration(startDate: Date): Date {
-  const expiresAt = new Date(startDate);
-  expiresAt.setDate(expiresAt.getDate() + 30); // +30 days, then reset to Free Tier
-  return expiresAt;
-}
-
-export function isPlanExpired(user: IUser): boolean {
-  if (user.plan === 'free' || !user.planExpiresAt) return false;
-  return new Date() > new Date(user.planExpiresAt);
+export function isCreditsExpired(user: IUser): boolean {
+  if (!user.expiresAt) return true;
+  return new Date() > new Date(user.expiresAt);
 }
 
 export class UserRepository {
   async findById(id: string): Promise<IUser | null> {
-    // Try exact match first
     let user = await User.findById(id).lean();
     if (user) return user;
     
-    // Try case-insensitive match with trimmed spaces (for legacy accounts)
     user = await User.findOne({ 
       _id: { $regex: new RegExp(`^\\s*${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i') }
     }).lean();
@@ -44,13 +31,9 @@ export class UserRepository {
 
   async create(data: CreateUserData): Promise<IUser> {
     const { hash, salt } = hashPassword(data.password);
-    const plan = data.plan || 'free';
-    const planLimits = PLAN_LIMITS[plan];
     const apiKey = generateApiKey();
     const now = new Date();
-    const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     
-    // Validate referredBy if provided
     let validReferredBy: string | null = null;
     if (data.referredBy) {
       const referrer = await User.findOne({ referralCode: data.referredBy }).lean();
@@ -59,13 +42,11 @@ export class UserRepository {
       }
     }
     
-    // Create user with retry for referral code collision
     let user;
     let createAttempts = 0;
     const maxCreateAttempts = 3;
     
     while (createAttempts < maxCreateAttempts) {
-      // Generate unique referral code
       let referralCode = generateReferralCode();
       let codeAttempts = 0;
       while (await User.exists({ referralCode }) && codeAttempts < 10) {
@@ -82,45 +63,28 @@ export class UserRepository {
           isActive: true,
           apiKey,
           apiKeyCreatedAt: now,
-          plan,
-          tokensUsed: 0,
-          monthlyTokensUsed: 0,
-          monthlyResetDate: firstDayOfMonth,
           credits: 0,
+          creditsUsed: 0,
           referralCode,
           referredBy: validReferredBy,
           refCredits: 0,
           referralBonusAwarded: false,
         });
-        break; // Success, exit loop
+        break;
       } catch (err: any) {
-        // Check if error is duplicate key on referralCode
         if (err.code === 11000 && err.keyPattern?.referralCode) {
           createAttempts++;
           if (createAttempts >= maxCreateAttempts) {
             throw new Error('Failed to generate unique referral code after multiple attempts');
           }
-          continue; // Retry with new code
+          continue;
         }
-        throw err; // Re-throw other errors
+        throw err;
       }
     }
 
     if (!user) {
       throw new Error('Failed to create user');
-    }
-
-    // Sync API key to user_keys collection for GoProxy (only for non-free plans)
-    if (plan !== 'free') {
-      await UserKey.create({
-        _id: apiKey,
-        name: data.username,
-        tier: planToTier(plan),
-        tokensUsed: 0,
-        requestsCount: 0,
-        isActive: true,
-        createdAt: now,
-      });
     }
 
     return user.toObject();
@@ -156,112 +120,39 @@ export class UserRepository {
       { apiKey: newApiKey, apiKeyCreatedAt: now }
     );
 
-    // Sync to user_keys collection for GoProxy
-    if (user.plan !== 'free') {
-      // Delete old key entry
+    if (user.credits > 0 || user.refCredits > 0) {
       if (oldApiKey) {
         await UserKey.deleteOne({ _id: oldApiKey });
       }
-      // Create new key entry
       await UserKey.create({
         _id: newApiKey,
         name: username,
-        tier: planToTier(user.plan),
-        tokensUsed: user.tokensUsed || 0,
+        tier: 'pro',
+        tokensUsed: user.creditsUsed || 0,
         requestsCount: 0,
         isActive: true,
         createdAt: now,
+        expiresAt: user.expiresAt,
       });
     }
 
     return newApiKey;
   }
 
-  async updatePlan(username: string, plan: UserPlan): Promise<IUser | null> {
-    const user = await User.findById(username).lean();
-    if (!user) return null;
-
-    const oldPlan = user.plan || 'free';
-    const planLimits = PLAN_LIMITS[plan];
-    const oldPlanLimits = PLAN_LIMITS[oldPlan] || PLAN_LIMITS.free;
-    
-    // Calculate credits to add (only for upgrades)
-    let creditsToAdd = 0;
-    if (planLimits.valueUsd > oldPlanLimits.valueUsd) {
-      creditsToAdd = planLimits.valueUsd - oldPlanLimits.valueUsd;
-    }
-
-    // Set plan expiration dates
-    const now = new Date();
-    let planStartDate: Date | null = null;
-    let planExpiresAt: Date | null = null;
-    
-    if (plan !== 'free') {
-      planStartDate = now;
-      planExpiresAt = calculatePlanExpiration(now);
-    }
-    
-    const updatedUser = await User.findByIdAndUpdate(
+  async addCredits(username: string, credits: number): Promise<IUser | null> {
+    return User.findByIdAndUpdate(
       username,
-      { 
-        plan, 
-        planStartDate,
-        planExpiresAt,
-        $inc: { credits: creditsToAdd }
-      },
+      { $inc: { credits } },
       { new: true }
     ).lean();
-
-    // Sync to user_keys collection for GoProxy
-    if (user.apiKey) {
-      if (plan === 'free' && oldPlan !== 'free') {
-        // Downgrade to free: delete user_key entry
-        await UserKey.deleteOne({ _id: user.apiKey });
-      } else if (plan !== 'free' && oldPlan === 'free') {
-        // Upgrade from free: create user_key entry
-        await UserKey.create({
-          _id: user.apiKey,
-          name: username,
-          tier: planToTier(plan),
-          tokensUsed: user.tokensUsed || 0,
-          requestsCount: 0,
-          isActive: true,
-          createdAt: new Date(),
-          planExpiresAt,
-        });
-      } else if (plan !== 'free') {
-        // Change between paid plans: update tier and expiration
-        await UserKey.updateOne(
-          { _id: user.apiKey },
-          { tier: planToTier(plan), planExpiresAt }
-        );
-      }
-    }
-
-    return updatedUser;
   }
 
-  async incrementTokensUsed(username: string, tokens: number): Promise<void> {
-    const user = await User.findById(username);
-    if (!user) return;
-
-    const now = new Date();
-    const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    
-    if (!user.monthlyResetDate || user.monthlyResetDate < firstDayOfMonth) {
-      await User.updateOne(
-        { _id: username },
-        {
-          $set: { monthlyTokensUsed: tokens, monthlyResetDate: firstDayOfMonth },
-          $inc: { tokensUsed: tokens }
-        }
-      );
-    } else {
-      await User.updateOne(
-        { _id: username },
-        { $inc: { tokensUsed: tokens, monthlyTokensUsed: tokens } }
-      );
-    }
+  async setCredits(username: string, credits: number): Promise<IUser | null> {
+    return User.findByIdAndUpdate(
+      username,
+      { credits },
+      { new: true }
+    ).lean();
   }
 
   async getFullUser(username: string): Promise<IUser | null> {
@@ -279,106 +170,42 @@ export class UserRepository {
       .lean();
   }
 
-  async getUserStats(period: string = 'all'): Promise<{ total: number; byPlan: Record<string, number>; totalTokensUsed: number; totalCredits: number; totalInputTokens: number; totalOutputTokens: number; totalCreditsBurned: number }> {
+  async getUserStats(period: string = 'all'): Promise<{ 
+    total: number; 
+    totalCreditsUsed: number; 
+    totalCredits: number; 
+    totalRefCredits: number; 
+    totalInputTokens: number; 
+    totalOutputTokens: number; 
+    activeUsers: number 
+  }> {
     const total = await User.countDocuments();
     
-    // Get user counts by plan
     const userAgg = await User.aggregate([
       {
         $group: {
-          _id: '$plan',
-          count: { $sum: 1 },
-          credits: { $sum: '$credits' },
+          _id: null,
+          totalCredits: { $sum: '$credits' },
+          totalRefCredits: { $sum: '$refCredits' },
+          totalCreditsUsed: { $sum: '$creditsUsed' },
+          totalInputTokens: { $sum: '$totalInputTokens' },
+          totalOutputTokens: { $sum: '$totalOutputTokens' },
+          activeUsers: {
+            $sum: { $cond: [{ $or: [{ $gt: ['$credits', 0] }, { $gt: ['$refCredits', 0] }] }, 1, 0] }
+          }
         }
       }
     ]);
-    const byPlan: Record<string, number> = {};
-    let totalCredits = 0;
-    userAgg.forEach((p) => {
-      byPlan[p._id || 'free'] = p.count;
-      totalCredits += p.credits || 0;
-    });
-
-    // Get token stats and credits burned - from request_logs if filtered, from users if 'all'
-    let totalTokensUsed = 0;
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-    let totalCreditsBurned = 0;
-
-    if (period === 'all') {
-      // Use lifetime totals from user collection
-      const tokenAgg = await User.aggregate([
-        {
-          $group: {
-            _id: null,
-            tokensUsed: { $sum: '$tokensUsed' },
-            inputTokens: { $sum: '$totalInputTokens' },
-            outputTokens: { $sum: '$totalOutputTokens' },
-          }
-        }
-      ]);
-      if (tokenAgg.length > 0) {
-        totalTokensUsed = tokenAgg[0].tokensUsed || 0;
-        totalInputTokens = tokenAgg[0].inputTokens || 0;
-        totalOutputTokens = tokenAgg[0].outputTokens || 0;
-      }
-      // Get all-time credits burned from request_logs
-      const creditsAgg = await RequestLog.aggregate([
-        { $group: { _id: null, total: { $sum: '$creditsCost' } } }
-      ]);
-      totalCreditsBurned = creditsAgg[0]?.total || 0;
-    } else {
-      // Aggregate from request_logs for the specified period
-      let since: Date;
-      switch (period) {
-        case '1h':
-          since = new Date(Date.now() - 60 * 60 * 1000);
-          break;
-        case '3h':
-          since = new Date(Date.now() - 3 * 60 * 60 * 1000);
-          break;
-        case '8h':
-          since = new Date(Date.now() - 8 * 60 * 60 * 1000);
-          break;
-        case '24h':
-          since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-          break;
-        case '7d':
-          since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          since = new Date(0);
-      }
-      
-      const logAgg = await RequestLog.aggregate([
-        { $match: { createdAt: { $gte: since } } },
-        {
-          $group: {
-            _id: null,
-            tokensUsed: { $sum: '$tokensUsed' },
-            inputTokens: { $sum: '$inputTokens' },
-            outputTokens: { $sum: '$outputTokens' },
-            creditsBurned: { $sum: '$creditsCost' },
-          }
-        }
-      ]);
-      if (logAgg.length > 0) {
-        totalTokensUsed = logAgg[0].tokensUsed || 0;
-        totalInputTokens = logAgg[0].inputTokens || 0;
-        totalOutputTokens = logAgg[0].outputTokens || 0;
-        totalCreditsBurned = logAgg[0].creditsBurned || 0;
-      }
-    }
-
-    return { total, byPlan, totalTokensUsed, totalCredits, totalInputTokens, totalOutputTokens, totalCreditsBurned };
-  }
-
-  async updateCredits(username: string, credits: number): Promise<IUser | null> {
-    return User.findByIdAndUpdate(
-      username,
-      { credits },
-      { new: true }
-    ).lean();
+    
+    return { 
+      total, 
+      totalCreditsUsed: userAgg[0]?.totalCreditsUsed || 0,
+      totalCredits: userAgg[0]?.totalCredits || 0,
+      totalRefCredits: userAgg[0]?.totalRefCredits || 0,
+      totalInputTokens: userAgg[0]?.totalInputTokens || 0,
+      totalOutputTokens: userAgg[0]?.totalOutputTokens || 0,
+      activeUsers: userAgg[0]?.activeUsers || 0
+    };
   }
 
   async updateRefCredits(username: string, refCredits: number): Promise<IUser | null> {
@@ -389,40 +216,29 @@ export class UserRepository {
     ).lean();
   }
 
-  async addCredits(username: string, amount: number): Promise<IUser | null> {
-    return User.findByIdAndUpdate(
-      username,
-      { $inc: { credits: amount } },
-      { new: true }
-    ).lean();
-  }
-
-  async resetExpiredPlan(username: string): Promise<IUser | null> {
+  async resetExpiredCredits(username: string): Promise<IUser | null> {
     const user = await User.findById(username).lean();
     if (!user || !user.apiKey) return null;
 
-    // Delete user_key entry from GoProxy collection
     await UserKey.deleteOne({ _id: user.apiKey });
 
-    // Reset user to free plan
     return User.findByIdAndUpdate(
       username,
       {
-        plan: 'free',
-        planStartDate: null,
-        planExpiresAt: null,
         credits: 0,
+        purchasedAt: null,
+        expiresAt: null,
       },
       { new: true }
     ).lean();
   }
 
-  async checkAndResetExpiredPlan(username: string): Promise<{ wasExpired: boolean; user: IUser | null }> {
+  async checkAndResetExpiredCredits(username: string): Promise<{ wasExpired: boolean; user: IUser | null }> {
     const user = await User.findById(username).lean();
     if (!user) return { wasExpired: false, user: null };
     
-    if (isPlanExpired(user)) {
-      const resetUser = await this.resetExpiredPlan(username);
+    if (isCreditsExpired(user) && user.credits > 0) {
+      const resetUser = await this.resetExpiredCredits(username);
       return { wasExpired: true, user: resetUser };
     }
     
@@ -438,6 +254,20 @@ export class UserRepository {
     return User.findByIdAndUpdate(
       username,
       { $inc: { refCredits: amount } },
+      { new: true }
+    ).lean();
+  }
+
+  async setCreditPackage(username: string, credits: number, expiresAt: Date): Promise<IUser | null> {
+    return User.findByIdAndUpdate(
+      username,
+      { 
+        $set: { 
+          credits,
+          expiresAt,
+          purchasedAt: new Date()
+        } 
+      },
       { new: true }
     ).lean();
   }
@@ -460,25 +290,14 @@ export class UserRepository {
       return { totalReferrals: 0, successfulReferrals: 0, totalRefCreditsEarned: 0, currentRefCredits: 0 };
     }
 
-    // Count all users referred by this user
     const totalReferrals = await User.countDocuments({ referredBy: username });
-    
-    // Count users who have paid (referralBonusAwarded = true means they completed payment)
     const successfulReferrals = await User.countDocuments({ 
       referredBy: username, 
       referralBonusAwarded: true 
     });
 
-    // Calculate total refCredits earned (25 per dev, 50 per pro)
-    const paidUsers = await User.find({ 
-      referredBy: username, 
-      referralBonusAwarded: true 
-    }).select('plan').lean();
-    
-    let totalRefCreditsEarned = 0;
-    for (const u of paidUsers) {
-      totalRefCreditsEarned += u.plan === 'pro' ? 50 : 25;
-    }
+    // Average bonus is $15 (average of $10 and $20)
+    const totalRefCreditsEarned = successfulReferrals * 15;
 
     return {
       totalReferrals,
@@ -491,20 +310,18 @@ export class UserRepository {
   async getReferredUsers(username: string): Promise<Array<{
     username: string;
     status: 'registered' | 'paid';
-    plan: string | null;
     bonusEarned: number;
     createdAt: Date;
   }>> {
     const referredUsers = await User.find({ referredBy: username })
-      .select('_id plan referralBonusAwarded createdAt')
+      .select('_id referralBonusAwarded createdAt')
       .sort({ createdAt: -1 })
       .lean();
 
     return referredUsers.map(u => ({
       username: u._id,
       status: u.referralBonusAwarded ? 'paid' : 'registered',
-      plan: u.referralBonusAwarded ? u.plan : null,
-      bonusEarned: u.referralBonusAwarded ? (u.plan === 'pro' ? 50 : 25) : 0,
+      bonusEarned: u.referralBonusAwarded ? 15 : 0,
       createdAt: u.createdAt,
     }));
   }

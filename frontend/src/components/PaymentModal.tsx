@@ -7,11 +7,11 @@ import { useRouter } from 'next/navigation'
 interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
-  plan: 'dev' | 'pro'
+  package: '6m' | '12m'
   onSuccess?: () => void
 }
 
-export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, package: pkg, onSuccess }: PaymentModalProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -21,15 +21,16 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
     paymentId: string
     qrCodeUrl: string
     amount: number
+    tokens: number
     orderCode: string
     expiresAt: string
   } | null>(null)
   const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'expired'>('idle')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
 
-  const planInfo = {
-    dev: { name: 'Dev', price: 2000, credits: 225 },
-    pro: { name: 'Pro', price: 2000, credits: 500 },
+  const packageInfo = {
+    '6m': { name: '6M Tokens', price: 20000, tokens: 6000000 },
+    '12m': { name: '12M Tokens', price: 40000, tokens: 12000000 },
   }
 
   const initCheckout = useCallback(async () => {
@@ -47,11 +48,12 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
     setLoading(true)
     setError(null)
     try {
-      const data = await createCheckout(plan, discordId || undefined)
+      const data = await createCheckout(pkg, discordId || undefined)
       setPaymentData({
         paymentId: data.paymentId,
         qrCodeUrl: data.qrCodeUrl,
         amount: data.amount,
+        tokens: data.tokens,
         orderCode: data.orderCode,
         expiresAt: data.expiresAt,
       })
@@ -64,7 +66,7 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
     } finally {
       setLoading(false)
     }
-  }, [plan, discordId, router])
+  }, [pkg, discordId, router])
 
   // Reset state when modal opens
   useEffect(() => {
@@ -164,7 +166,7 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {status === 'success' ? 'Payment Successful!' : `Buy ${planInfo[plan].name} Plan`}
+            {status === 'success' ? 'Payment Successful!' : `Buy ${packageInfo[pkg].name}`}
           </h2>
           <button 
             onClick={handleClose}
@@ -181,18 +183,18 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
           {/* Step 1: Discord ID Input */}
           {!showQR && status === 'idle' && (
             <div>
-              {/* Plan Summary */}
+              {/* Package Summary */}
               <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 mb-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Selected Plan</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{planInfo[plan].name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Selected Package</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{packageInfo[pkg].name}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {formatPrice(planInfo[plan].price)} VND
+                      {formatPrice(packageInfo[pkg].price)} VND
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{planInfo[plan].credits} credits</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{(packageInfo[pkg].tokens / 1000000).toFixed(0)}M tokens / 7 days</p>
                   </div>
                 </div>
               </div>
@@ -270,7 +272,7 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
                   {formatPrice(paymentData.amount)} VND
                 </p>
                 <p className="text-gray-500 dark:text-gray-400">
-                  {planInfo[plan].credits} credits/month
+                  {(paymentData.tokens / 1000000).toFixed(0)}M tokens / 7 days
                 </p>
               </div>
 
@@ -318,7 +320,7 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
                 Payment Successful!
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Your plan has been upgraded to <strong>{planInfo[plan].name}</strong>
+                You have received <strong>{packageInfo[pkg].name}</strong>
               </p>
               <button
                 onClick={() => router.push('/dashboard')}

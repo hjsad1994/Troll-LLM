@@ -1,26 +1,29 @@
-import { Payment, IPayment, PaymentPlan, PaymentStatus } from '../models/payment.model.js';
+import { Payment, IPayment, CreditPackage, PaymentStatus, generateOrderCode } from '../models/payment.model.js';
 
 export class PaymentRepository {
   async create(data: {
     userId: string;
     discordId?: string;
     username?: string;
-    plan: PaymentPlan;
+    package: CreditPackage;
+    credits: number;
     amount: number;
-    orderCode: string;
-    expiresAt: Date;
   }): Promise<IPayment> {
+    const orderCode = generateOrderCode(data.package);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
     const payment = await Payment.create({
       userId: data.userId,
       discordId: data.discordId,
       username: data.username,
-      plan: data.plan,
+      package: data.package,
+      credits: data.credits,
       amount: data.amount,
       currency: 'VND',
-      orderCode: data.orderCode,
+      orderCode,
       paymentMethod: 'sepay',
       status: 'pending',
-      expiresAt: data.expiresAt,
+      expiresAt,
     });
     return payment.toObject();
   }

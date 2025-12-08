@@ -1,7 +1,13 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-export type UserPlan = 'free' | 'dev' | 'pro' | 'pro-troll';
+// Credit packages: $20 or $40 USD
+export type CreditPackage = '20' | '40';
+
+export const CREDIT_PACKAGES: Record<CreditPackage, { credits: number; price: number; days: number; refBonus: number }> = {
+  '20': { credits: 20, price: 20000, days: 7, refBonus: 10 },
+  '40': { credits: 40, price: 40000, days: 7, refBonus: 20 },
+};
 
 export interface IUser {
   _id: string;
@@ -13,28 +19,19 @@ export interface IUser {
   lastLoginAt?: Date;
   apiKey: string;
   apiKeyCreatedAt: Date;
-  plan: UserPlan;
-  planStartDate?: Date | null;
-  planExpiresAt?: Date | null;
-  tokensUsed: number;
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  monthlyTokensUsed: number;
-  monthlyResetDate: Date;
-  credits: number;
+  // Credits-based billing (USD)
+  credits: number;           // Credits remaining (USD)
+  creditsUsed: number;       // Credits used (lifetime, USD)
+  totalInputTokens: number;  // Input tokens used (for analytics)
+  totalOutputTokens: number; // Output tokens used (for analytics)
+  purchasedAt?: Date | null; // When credits were purchased
+  expiresAt?: Date | null;   // When credits expire (7 days from purchase)
   // Referral fields
   referralCode: string;
   referredBy?: string | null;
-  refCredits: number;
+  refCredits: number;        // Referral credits (bonus, USD)
   referralBonusAwarded: boolean;
 }
-
-export const PLAN_LIMITS: Record<UserPlan, { rpm: number; valueUsd: number }> = {
-  free: { rpm: 0, valueUsd: 0 },
-  dev: { rpm: 150, valueUsd: 225 },
-  pro: { rpm: 300, valueUsd: 500 },
-  'pro-troll': { rpm: 600, valueUsd: 1250 },
-};
 
 const userSchema = new mongoose.Schema({
   _id: { type: String, required: true },
@@ -46,26 +43,19 @@ const userSchema = new mongoose.Schema({
   lastLoginAt: { type: Date },
   apiKey: { type: String, unique: true, sparse: true },
   apiKeyCreatedAt: { type: Date },
-  plan: { type: String, enum: ['free', 'dev', 'pro', 'pro-troll'], default: 'free' },
-  planStartDate: { type: Date, default: null },
-  planExpiresAt: { type: Date, default: null },
-  tokensUsed: { type: Number, default: 0 },
+  // Credits-based billing (USD)
+  credits: { type: Number, default: 0 },
+  creditsUsed: { type: Number, default: 0 },
   totalInputTokens: { type: Number, default: 0 },
   totalOutputTokens: { type: Number, default: 0 },
-  monthlyTokensUsed: { type: Number, default: 0 },
-  monthlyResetDate: { type: Date, default: () => getFirstDayOfMonth() },
-  credits: { type: Number, default: 0 },
+  purchasedAt: { type: Date, default: null },
+  expiresAt: { type: Date, default: null },
   // Referral fields
   referralCode: { type: String, unique: true, sparse: true },
   referredBy: { type: String, default: null },
   refCredits: { type: Number, default: 0 },
   referralBonusAwarded: { type: Boolean, default: false },
 });
-
-function getFirstDayOfMonth(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-}
 
 export const User = mongoose.model<IUser>('User', userSchema, 'users');
 

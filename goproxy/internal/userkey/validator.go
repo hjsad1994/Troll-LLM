@@ -65,24 +65,23 @@ func GetKeyByID(apiKey string) (*UserKey, error) {
 	return &userKey, nil
 }
 
-// UserCredits represents the credits info from users collection
+// UserCredits represents the credits balance info from users collection
 type UserCredits struct {
 	Username   string  `bson:"_id"`
 	Credits    float64 `bson:"credits"`
 	RefCredits float64 `bson:"refCredits"`
-	Plan       string  `bson:"plan"`
 }
 
-// CreditCheckResult contains the result of credit check
+// CreditCheckResult contains the result of credits balance check
 type CreditCheckResult struct {
-	HasCredits    bool
-	UseRefCredits bool // true if user will use refCredits (main credits exhausted)
-	Credits       float64
-	RefCredits    float64
+	HasCredits    bool    // true if user has any credits
+	UseRefCredits bool    // true if user will use refCredits (main balance exhausted)
+	Credits       float64 // main credits balance (USD)
+	RefCredits    float64 // referral credits balance (USD)
 }
 
 // CheckUserCredits checks if user has sufficient credits (credits > 0 or refCredits > 0)
-// Returns nil if user has credits, ErrInsufficientCredits if both credits <= 0
+// Returns nil if user has credits, ErrInsufficientCredits if both <= 0
 func CheckUserCredits(username string) error {
 	if username == "" {
 		return nil // No username means env-based auth, skip check
@@ -108,8 +107,8 @@ func CheckUserCredits(username string) error {
 	return nil
 }
 
-// CheckUserCreditsDetailed returns detailed credit check result
-// including whether refCredits will be used (for Pro RPM)
+// CheckUserCreditsDetailed returns detailed credits balance check result
+// including whether refCredits will be used
 func CheckUserCreditsDetailed(username string) (*CreditCheckResult, error) {
 	if username == "" {
 		return &CreditCheckResult{HasCredits: true, UseRefCredits: false}, nil
@@ -139,13 +138,13 @@ func CheckUserCreditsDetailed(username string) (*CreditCheckResult, error) {
 	}
 
 	result.HasCredits = true
-	// User will use refCredits if main credits are exhausted
+	// User will use refCredits if main credits is exhausted
 	result.UseRefCredits = user.Credits <= 0 && user.RefCredits > 0
 
 	return result, nil
 }
 
-// GetUserCredits returns the current credits balance for a user
+// GetUserCredits returns the current credits balance for a user (USD)
 func GetUserCredits(username string) (float64, error) {
 	if username == "" {
 		return 0, nil
@@ -166,7 +165,7 @@ func GetUserCredits(username string) (float64, error) {
 	return user.Credits, nil
 }
 
-// GetUserCreditsWithRef returns both credits and refCredits for a user
+// GetUserCreditsWithRef returns both credits and refCredits for a user (USD)
 func GetUserCreditsWithRef(username string) (credits float64, refCredits float64, err error) {
 	if username == "" {
 		return 0, 0, nil

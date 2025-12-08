@@ -61,8 +61,8 @@ type usageUpdate struct {
 
 type creditUpdate struct {
 	username      string
-	cost          float64
-	tokensUsed    int64
+	cost          float64 // USD cost to deduct
+	tokensUsed    int64   // kept for analytics
 	inputTokens   int64
 	outputTokens  int64
 	useRefCredits bool // true if deducting from refCredits
@@ -126,10 +126,10 @@ func (b *BatchedUsageTracker) QueueUsageUpdate(apiKey string, tokensUsed int64) 
 	}
 }
 
-// QueueCreditUpdate queues a credit update for batch processing
+// QueueCreditUpdate queues a credits (USD) deduction update for batch processing
 // It automatically checks user's current credits to determine if refCredits should be used
 func (b *BatchedUsageTracker) QueueCreditUpdate(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) {
-	// Check user's current credits to determine where to deduct from
+	// Check user's current credits balance to determine where to deduct from
 	useRefCredits := false
 	credits, refCredits, err := getUserCreditsForBatcher(username)
 	if err == nil {
@@ -137,21 +137,19 @@ func (b *BatchedUsageTracker) QueueCreditUpdate(username string, cost float64, t
 			// Main credits exhausted, use refCredits
 			useRefCredits = true
 		} else if credits > 0 && credits < cost && refCredits > 0 {
-			// Main credits insufficient for full cost, will need partial refCredits
-			// For simplicity in batching, if credits can't cover the cost, use refCredits
-			// The actual split will be handled in flush
+			// Main credits insufficient, will need partial refCredits
 			useRefCredits = credits < cost
 		}
 	}
 	b.QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, useRefCredits)
 }
 
-// QueueCreditUpdateWithRef queues a credit update with optional refCredits flag
+// QueueCreditUpdateWithRef queues a credits (USD) deduction update with optional refCredits flag
 func (b *BatchedUsageTracker) QueueCreditUpdateWithRef(username string, cost float64, tokensUsed, inputTokens, outputTokens int64, useRefCredits bool) {
 	select {
 	case b.creditChan <- creditUpdate{
-		username:      username,
-		cost:          cost,
+		username:     username,
+		cost:         cost,
 		tokensUsed:    tokensUsed,
 		inputTokens:   inputTokens,
 		outputTokens:  outputTokens,
@@ -266,16 +264,16 @@ func (b *BatchedUsageTracker) usageWorker() {
 	}
 }
 
-// creditAggregation tracks aggregated credit updates for a user
+// creditAggregation tracks aggregated credits (USD) updates for a user
 type creditAggregation struct {
-	creditsCost    float64
-	refCreditsCost float64
-	tokensUsed     int64
-	inputTokens    int64
-	outputTokens   int64
+	creditsToDeduct    float64
+	refCreditsToDeduct float64
+	creditsUsed        float64
+	inputTokens        int64
+	outputTokens       int64
 }
 
-// creditWorker processes credit updates in batches using bulk write
+// creditWorker processes credits (USD) deduction updates in batches using bulk write
 func (b *BatchedUsageTracker) creditWorker() {
 	defer b.wg.Done()
 	
@@ -298,67 +296,68 @@ func (b *BatchedUsageTracker) creditWorker() {
 		
 		for username, agg := range updates {
 			incFields := bson.M{
-				"tokensUsed": agg.tokensUsed,
+				"creditsUsed": agg.creditsUsed,
 			}
 			
-			// Get current credits to properly split deduction
-			totalCost := agg.creditsCost + agg.refCreditsCost
+			// Get current credits balance to properly split deduction
+			totalCredits := agg.creditsToDeduct + agg.refCreditsToDeduct
 			currentCredits, currentRefCredits, err := getUserCreditsForBatcher(username)
 			
-			if err == nil && totalCost > 0 {
+			if err == nil && totalCredits > 0 {
 				// Smart deduction: use credits first, then refCredits
-				// Never allow negative credits or refCredits
-				if currentCredits >= totalCost {
+				// Never allow negative balances
+				if currentCredits >= totalCredits {
 					// Enough credits, deduct all from credits
-					incFields["credits"] = -totalCost
+					incFields["credits"] = -totalCredits
 				} else if currentCredits > 0 && currentRefCredits > 0 {
 					// Partial credits available and has refCredits, split between both
 					incFields["credits"] = -currentCredits
-					remainingCost := totalCost - currentCredits
+					remainingCredits := totalCredits - currentCredits
 					// Only deduct what's available from refCredits
-					if remainingCost > currentRefCredits {
+					if remainingCredits > currentRefCredits {
 						incFields["refCredits"] = -currentRefCredits
-						log.Printf("⚠️ [%s] Split deduct capped: $%.6f from credits + $%.6f from refCredits (wanted $%.6f more)", username, currentCredits, currentRefCredits, remainingCost-currentRefCredits)
+						log.Printf("⚠️ [%s] Split deduct capped: $%.6f from credits + $%.6f from refCredits (wanted $%.6f more)", username, currentCredits, currentRefCredits, remainingCredits-currentRefCredits)
 					} else {
-						incFields["refCredits"] = -remainingCost
-						log.Printf("💰 [%s] Split deduct: $%.6f from credits + $%.6f from refCredits", username, currentCredits, remainingCost)
+						incFields["refCredits"] = -remainingCredits
+						log.Printf("💰 [%s] Split deduct: $%.6f from credits + $%.6f from refCredits", username, currentCredits, remainingCredits)
 					}
 				} else if currentCredits > 0 {
-					// Has some credits but no refCredits, deduct only available credits
+					// Has some credits but no refCredits, deduct only available
 					deductAmount := currentCredits
-					if deductAmount > totalCost {
-						deductAmount = totalCost
+					if deductAmount > totalCredits {
+						deductAmount = totalCredits
 					}
 					incFields["credits"] = -deductAmount
-					if deductAmount < totalCost {
-						log.Printf("⚠️ [%s] Deduct capped at $%.6f from credits (no refCredits, wanted $%.6f)", username, deductAmount, totalCost)
+					if deductAmount < totalCredits {
+						log.Printf("⚠️ [%s] Deduct capped at $%.6f from credits (no refCredits, wanted $%.6f)", username, deductAmount, totalCredits)
 					}
 				} else if currentRefCredits > 0 {
 					// No credits, deduct from refCredits only (capped at available)
 					deductAmount := currentRefCredits
-					if deductAmount > totalCost {
-						deductAmount = totalCost
+					if deductAmount > totalCredits {
+						deductAmount = totalCredits
 					}
 					incFields["refCredits"] = -deductAmount
-					if deductAmount < totalCost {
-						log.Printf("⚠️ [%s] Deduct capped at $%.6f from refCredits (wanted $%.6f)", username, deductAmount, totalCost)
+					if deductAmount < totalCredits {
+						log.Printf("⚠️ [%s] Deduct capped at $%.6f from refCredits (wanted $%.6f)", username, deductAmount, totalCredits)
 					} else {
 						log.Printf("💰 [%s] Deduct $%.6f from refCredits only", username, deductAmount)
 					}
 				} else {
 					// No credits available at all - don't deduct anything to prevent negative
-					log.Printf("⚠️ [%s] No credits available, skipping deduction of $%.6f", username, totalCost)
+					log.Printf("⚠️ [%s] No credits available, skipping deduction of $%.6f", username, totalCredits)
 				}
 			} else {
-				// Fallback to original behavior if error getting credits
-				if agg.creditsCost > 0 {
-					incFields["credits"] = -agg.creditsCost
+				// Fallback to original behavior if error getting credits balance
+				if agg.creditsToDeduct > 0 {
+					incFields["credits"] = -agg.creditsToDeduct
 				}
-				if agg.refCreditsCost > 0 {
-					incFields["refCredits"] = -agg.refCreditsCost
+				if agg.refCreditsToDeduct > 0 {
+					incFields["refCredits"] = -agg.refCreditsToDeduct
 				}
 			}
 			
+			// Track tokens for analytics
 			if agg.inputTokens > 0 {
 				incFields["totalInputTokens"] = agg.inputTokens
 			}
@@ -392,13 +391,13 @@ func (b *BatchedUsageTracker) creditWorker() {
 				updates[update.username] = existing
 			}
 			
-			// Track cost in appropriate bucket
+			// Track credits in appropriate bucket
 			if update.useRefCredits {
-				existing.refCreditsCost += update.cost
+				existing.refCreditsToDeduct += update.cost
 			} else {
-				existing.creditsCost += update.cost
+				existing.creditsToDeduct += update.cost
 			}
-			existing.tokensUsed += update.tokensUsed
+			existing.creditsUsed += update.cost
 			existing.inputTokens += update.inputTokens
 			existing.outputTokens += update.outputTokens
 			
@@ -414,7 +413,7 @@ func (b *BatchedUsageTracker) creditWorker() {
 	}
 }
 
-// getUserCreditsForBatcher retrieves user's current credits for batching decisions
+// getUserCreditsForBatcher retrieves user's current credits balance for batching decisions
 func getUserCreditsForBatcher(username string) (credits float64, refCredits float64, err error) {
 	if username == "" {
 		return 0, 0, nil

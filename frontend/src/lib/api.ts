@@ -96,26 +96,24 @@ export interface UserProfile {
   username: string
   apiKey: string
   apiKeyCreatedAt: string
-  plan: string
-  tokensUsed: number
-  monthlyTokensUsed: number
-  monthlyResetDate: string
-  role: string
+  creditsUsed: number
   credits: number
   refCredits: number
+  role: string
   totalInputTokens: number
   totalOutputTokens: number
+  purchasedAt: string | null
+  expiresAt: string | null
 }
 
 export interface BillingInfo {
-  plan: string
-  planLimits: { rpm: number }
-  tokensUsed: number
-  planStartDate: string | null
-  planExpiresAt: string | null
+  creditsUsed: number
+  credits: number
+  refCredits: number
+  purchasedAt: string | null
+  expiresAt: string | null
   daysUntilExpiration: number | null
   isExpiringSoon: boolean
-  credits: number
 }
 
 export async function getUserProfile(): Promise<UserProfile> {
@@ -182,15 +180,13 @@ export interface AdminUser {
   lastLoginAt?: string
   apiKey?: string
   apiKeyCreatedAt?: string
-  plan: UserPlan
-  tokensUsed: number
+  creditsUsed: number
   totalInputTokens: number
   totalOutputTokens: number
-  monthlyTokensUsed: number
-  monthlyResetDate?: string
   credits: number
   refCredits: number
-  creditsBurned: number
+  purchasedAt?: string
+  expiresAt?: string
 }
 
 export interface PlanLimits {
@@ -282,6 +278,19 @@ export async function addUserRefCredits(username: string, amount: number): Promi
   return resp.json()
 }
 
+export async function setUserCreditPackage(username: string, pkg: '20' | '40'): Promise<{ success: boolean; message: string; user: { username: string; credits: number; expiresAt: string } }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/credit-package`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ package: pkg })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to set token package')
+  }
+  return resp.json()
+}
+
 export interface ModelStats {
   model: string
   inputTokens: number
@@ -306,11 +315,12 @@ export async function getModelStats(period: string = 'all'): Promise<ModelStatsR
 }
 
 // Payment
-export interface PaymentPlan {
+export interface TokenPackage {
   id: string
   name: string
   price: number
-  credits: number
+  tokens: number
+  days: number
   currency: string
   features: string[]
 }
@@ -320,7 +330,8 @@ export interface CheckoutResponse {
   orderCode: string
   qrCodeUrl: string
   amount: number
-  plan: string
+  tokens: number
+  package: string
   expiresAt: string
 }
 
@@ -341,19 +352,19 @@ export interface PaymentHistoryItem {
   completedAt?: string
 }
 
-export async function getPaymentPlans(): Promise<{ plans: PaymentPlan[] }> {
-  const resp = await fetch('/api/payment/plans')
+export async function getTokenPackages(): Promise<{ packages: TokenPackage[] }> {
+  const resp = await fetch('/api/payment/packages')
   if (!resp.ok) {
-    throw new Error('Failed to get payment plans')
+    throw new Error('Failed to get token packages')
   }
   return resp.json()
 }
 
-export async function createCheckout(plan: 'dev' | 'pro' | 'pro-troll', discordId?: string): Promise<CheckoutResponse> {
+export async function createCheckout(pkg: '6m' | '12m', discordId?: string): Promise<CheckoutResponse> {
   const resp = await fetchWithAuth('/api/payment/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plan, discordId })
+    body: JSON.stringify({ package: pkg, discordId })
   })
   if (!resp.ok) {
     const data = await resp.json()

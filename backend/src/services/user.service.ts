@@ -1,30 +1,28 @@
-import { userRepository, isPlanExpired } from '../repositories/user.repository.js';
-import { maskApiKey, PLAN_LIMITS, IUser } from '../models/user.model.js';
+import { userRepository, isCreditsExpired } from '../repositories/user.repository.js';
+import { maskApiKey, IUser } from '../models/user.model.js';
 
 export interface UserProfile {
   username: string;
   apiKey: string;
   apiKeyCreatedAt: Date;
-  plan: string;
-  tokensUsed: number;
-  monthlyTokensUsed: number;
-  monthlyResetDate: Date;
-  role: string;
+  creditsUsed: number;
   credits: number;
   refCredits: number;
+  role: string;
   totalInputTokens: number;
   totalOutputTokens: number;
+  purchasedAt: Date | null;
+  expiresAt: Date | null;
 }
 
 export interface BillingInfo {
-  plan: string;
-  planLimits: { rpm: number };
-  tokensUsed: number;
-  planStartDate: Date | null;
-  planExpiresAt: Date | null;
+  creditsUsed: number;
+  credits: number;
+  refCredits: number;
+  purchasedAt: Date | null;
+  expiresAt: Date | null;
   daysUntilExpiration: number | null;
   isExpiringSoon: boolean;
-  credits: number;
 }
 
 export class UserService {
@@ -36,15 +34,14 @@ export class UserService {
       username: user._id,
       apiKey: maskApiKey(user.apiKey),
       apiKeyCreatedAt: user.apiKeyCreatedAt,
-      plan: user.plan,
-      tokensUsed: user.tokensUsed,
-      monthlyTokensUsed: user.monthlyTokensUsed,
-      monthlyResetDate: user.monthlyResetDate,
-      role: user.role,
+      creditsUsed: user.creditsUsed,
       credits: user.credits || 0,
       refCredits: user.refCredits || 0,
+      role: user.role,
       totalInputTokens: (user as any).totalInputTokens || 0,
       totalOutputTokens: (user as any).totalOutputTokens || 0,
+      purchasedAt: user.purchasedAt || null,
+      expiresAt: user.expiresAt || null,
     };
   }
 
@@ -65,29 +62,26 @@ export class UserService {
     const user = await userRepository.getFullUser(username);
     if (!user) return null;
 
-    const planLimits = PLAN_LIMITS[user.plan];
-
     // Calculate days until expiration
     let daysUntilExpiration: number | null = null;
     let isExpiringSoon = false;
     
-    if (user.planExpiresAt && user.plan !== 'free') {
+    if (user.expiresAt && (user.credits > 0 || user.refCredits > 0)) {
       const now = new Date();
-      const expiresAt = new Date(user.planExpiresAt);
+      const expiresAt = new Date(user.expiresAt);
       const diffTime = expiresAt.getTime() - now.getTime();
       daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      isExpiringSoon = daysUntilExpiration <= 7 && daysUntilExpiration > 0;
+      isExpiringSoon = daysUntilExpiration <= 3 && daysUntilExpiration > 0;
     }
 
     return {
-      plan: user.plan,
-      planLimits: { rpm: planLimits.rpm },
-      tokensUsed: user.tokensUsed,
-      planStartDate: user.planStartDate || null,
-      planExpiresAt: user.planExpiresAt || null,
+      creditsUsed: user.creditsUsed,
+      credits: user.credits || 0,
+      refCredits: user.refCredits || 0,
+      purchasedAt: user.purchasedAt || null,
+      expiresAt: user.expiresAt || null,
       daysUntilExpiration,
       isExpiringSoon,
-      credits: user.credits || 0,
     };
   }
 
@@ -95,12 +89,12 @@ export class UserService {
     return userRepository.findByApiKey(apiKey);
   }
 
-  async checkAndResetExpiredPlan(username: string): Promise<{ wasExpired: boolean; user: IUser | null }> {
-    return userRepository.checkAndResetExpiredPlan(username);
+  async checkAndResetExpiredCredits(username: string): Promise<{ wasExpired: boolean; user: IUser | null }> {
+    return userRepository.checkAndResetExpiredCredits(username);
   }
 
-  isPlanExpired(user: IUser): boolean {
-    return isPlanExpired(user);
+  isCreditsExpired(user: IUser): boolean {
+    return isCreditsExpired(user);
   }
 }
 

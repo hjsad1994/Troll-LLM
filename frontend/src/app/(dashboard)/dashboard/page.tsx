@@ -170,17 +170,11 @@ export default function UserDashboard() {
             </h1>
             {userProfile && (
               <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                userProfile.plan === 'enterprise'
-                  ? 'bg-purple-500/10 text-purple-500 dark:text-purple-400 border border-purple-500/20'
-                  : userProfile.plan === 'pro-troll'
-                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                    : userProfile.plan === 'pro'
-                      ? 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20'
-                      : userProfile.plan === 'dev'
-                        ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20'
-                        : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-[var(--theme-text-muted)] border border-slate-200 dark:border-white/10'
+                (userProfile.credits || 0) + (userProfile.refCredits || 0) > 0
+                  ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20'
+                  : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-[var(--theme-text-muted)] border border-slate-200 dark:border-white/10'
               }`}>
-                {userProfile.plan === 'pro-troll' ? 'Pro Troll' : userProfile.plan.charAt(0).toUpperCase() + userProfile.plan.slice(1)}
+                {(userProfile.credits || 0) + (userProfile.refCredits || 0) > 0 ? 'Active' : 'Free'}
               </span>
             )}
           </div>
@@ -320,12 +314,11 @@ export default function UserDashboard() {
               </div>
               {billingInfo && (
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
-                  billingInfo.plan === 'enterprise' ? 'bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400' :
-                  billingInfo.plan === 'pro-troll' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400' :
-                  billingInfo.plan === 'pro' ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400' :
-                  'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
+                  (billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0
+                    ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
                 }`}>
-                  {billingInfo.plan === 'pro-troll' ? 'Pro Troll' : billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)}
+                  {(billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0 ? 'Active' : 'Free'}
                 </span>
               )}
             </div>
@@ -336,68 +329,68 @@ export default function UserDashboard() {
                 <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-4 sm:p-5">
                   <div className="grid grid-cols-2 gap-4 mb-3 sm:mb-4">
                     <div>
-                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">{t.dashboard.credits.available}</p>
+                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Credits (USD)</p>
                       <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                         ${(userProfile.credits || 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">{t.dashboard.credits.refCredits}</p>
+                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Ref Credits</p>
                       <p className="text-2xl sm:text-3xl font-bold text-violet-600 dark:text-violet-400">
                         ${(userProfile.refCredits || 0).toFixed(2)}
                       </p>
                     </div>
                   </div>
                   <div className="pt-3 sm:pt-4 border-t border-slate-300 dark:border-white/10">
-                    <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs">{t.dashboard.credits.used}</p>
+                    <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs">Tokens Used (Analytics)</p>
                     <p className="text-slate-800 dark:text-[var(--theme-text)] font-medium">{formatLargeNumber((userProfile.totalInputTokens || 0) + (userProfile.totalOutputTokens || 0))}</p>
                   </div>
                 </div>
 
-                {/* Plan Expiration Warning */}
+                {/* Credits Expiration Warning */}
                 {billingInfo?.isExpiringSoon && billingInfo.daysUntilExpiration !== null && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <svg className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div>
-                      <p className="text-amber-400 text-sm font-medium">Plan expires in {billingInfo.daysUntilExpiration} day{billingInfo.daysUntilExpiration > 1 ? 's' : ''}</p>
-                      <p className="text-[var(--theme-text-subtle)] text-xs">Contact admin to renew your plan</p>
+                      <p className="text-amber-400 text-sm font-medium">Credits expire in {billingInfo.daysUntilExpiration} day{billingInfo.daysUntilExpiration > 1 ? 's' : ''}</p>
+                      <p className="text-[var(--theme-text-subtle)] text-xs">Purchase more credits to continue</p>
                     </div>
                   </div>
                 )}
 
-                {/* Plan Period Section - for paid plans */}
-                {userProfile.plan !== 'free' && (
+                {/* Credits Period Section - for users with credits */}
+                {((userProfile.credits || 0) + (userProfile.refCredits || 0) > 0) && billingInfo?.expiresAt && (
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
                     <div className="flex items-center gap-2 mb-2 sm:mb-3">
                       <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">{t.dashboard.planPeriod.title}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">Credits Validity</span>
                     </div>
                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.planPeriod.started}</p>
+                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">Purchased</p>
                         <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">
-                          {billingInfo?.planStartDate ? formatDateDMY(billingInfo.planStartDate) : t.dashboard.planPeriod.notSet}
+                          {billingInfo?.purchasedAt ? formatDateDMY(billingInfo.purchasedAt) : 'N/A'}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.planPeriod.expires}</p>
+                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">Expires</p>
                         <p className={`text-xs sm:text-sm font-medium ${
                           billingInfo?.isExpiringSoon
                             ? 'text-amber-600 dark:text-amber-400'
                             : 'text-slate-700 dark:text-[var(--theme-text)]'
                         }`}>
-                          {billingInfo?.planExpiresAt ? formatDateDMY(billingInfo.planExpiresAt) : t.dashboard.planPeriod.notSet}
+                          {billingInfo?.expiresAt ? formatDateDMY(billingInfo.expiresAt) : 'N/A'}
                           {billingInfo?.daysUntilExpiration !== null && billingInfo?.daysUntilExpiration !== undefined && (
                             <span className={`ml-1 sm:ml-2 text-xs ${
                               billingInfo.isExpiringSoon
                                 ? 'text-amber-500 dark:text-amber-400'
                                 : 'text-slate-500 dark:text-[var(--theme-text-subtle)]'
                             }`}>
-                              ({billingInfo.daysUntilExpiration} {t.dashboard.planPeriod.days})
+                              ({billingInfo.daysUntilExpiration} days)
                             </span>
                           )}
                         </p>

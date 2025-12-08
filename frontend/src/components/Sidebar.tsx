@@ -62,6 +62,7 @@ const adminNavItems: NavItem[] = [
       </svg>
     )
   },
+
   {
     href: '/backup-keys',
     labelKey: 'backupKeys',

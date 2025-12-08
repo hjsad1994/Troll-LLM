@@ -150,30 +150,25 @@ func UpdateTrollKeyUsage(trollKeyID string, tokensUsed int64) {
 	}
 }
 
-// DeductCredits deducts credits (USD) from user's balance and updates tokensUsed
+// DeductCredits deducts tokens from user's tokenBalance (legacy wrapper)
 func DeductCredits(username string, cost float64, tokensUsed int64) error {
 	return DeductCreditsWithTokens(username, cost, tokensUsed, 0, 0)
 }
 
-// DeductCreditsWithRefCheck deducts credits with refCredits support
-// useRefCredits should be true if the user's main credits are exhausted
+// DeductCreditsWithRefCheck deducts credits (USD) with refCredits support
+// useRefCredits should be true if the user's main credits is exhausted
 func DeductCreditsWithRefCheck(username string, cost float64, tokensUsed, inputTokens, outputTokens int64, useRefCredits bool) error {
 	if username == "" {
 		return nil
 	}
 
-	actualTokensUsed := inputTokens + outputTokens
-	if actualTokensUsed == 0 {
-		actualTokensUsed = tokensUsed
-	}
-
 	// Use batched writes if enabled
 	if UseBatchedWrites {
-		GetBatcher().QueueCreditUpdateWithRef(username, cost, actualTokensUsed, inputTokens, outputTokens, useRefCredits)
+		GetBatcher().QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, useRefCredits)
 		if useRefCredits {
 			log.Printf("💰 [%s] Deducted $%.6f from refCredits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 		} else {
-			log.Printf("💰 [%s] Deducted $%.6f from credits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+			log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 		}
 		return nil
 	}
@@ -182,28 +177,22 @@ func DeductCreditsWithRefCheck(username string, cost float64, tokensUsed, inputT
 	return DeductCreditsWithTokens(username, cost, tokensUsed, inputTokens, outputTokens)
 }
 
-// DeductCreditsWithTokens deducts credits and updates token counts (total, input, output)
-// Deducts from main credits first, then from refCredits if main credits are insufficient
+// DeductCreditsWithTokens deducts credits (USD) and updates token counts for analytics
+// Deducts from main credits first, then from refCredits if insufficient
 func DeductCreditsWithTokens(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
 	return DeductCreditsWithCache(username, cost, tokensUsed, inputTokens, outputTokens, 0, 0)
 }
 
-// DeductCreditsWithCache deducts credits and updates token counts including cache tokens
-// Deducts from main credits first, then from refCredits if main credits are insufficient
+// DeductCreditsWithCache deducts credits (USD) from user including cache token tracking
+// Deducts from main credits first, then from refCredits if insufficient
 func DeductCreditsWithCache(username string, cost float64, tokensUsed, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) error {
 	if username == "" {
 		return nil
 	}
 
-	// tokensUsed should be the sum of input + output tokens
-	actualTokensUsed := inputTokens + outputTokens
-	if actualTokensUsed == 0 {
-		actualTokensUsed = tokensUsed // fallback to billing tokens if no input/output provided
-	}
-
 	// Use batched writes if enabled
 	if UseBatchedWrites {
-		GetBatcher().QueueCreditUpdate(username, cost, actualTokensUsed, inputTokens, outputTokens)
+		GetBatcher().QueueCreditUpdate(username, cost, tokensUsed, inputTokens, outputTokens)
 		if cacheWriteTokens > 0 || cacheHitTokens > 0 {
 			log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d, cache_write=%d, cache_hit=%d)", username, cost, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 		} else {
@@ -216,7 +205,7 @@ func DeductCreditsWithCache(username string, cost float64, tokensUsed, inputToke
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// First, get current credits to determine where to deduct from
+	// First, get current credits balance to determine where to deduct from
 	var user struct {
 		Credits    float64 `bson:"credits"`
 		RefCredits float64 `bson:"refCredits"`
@@ -228,9 +217,10 @@ func DeductCreditsWithCache(username string, cost float64, tokensUsed, inputToke
 	}
 
 	incFields := bson.M{
-		"tokensUsed": actualTokensUsed,
+		"creditsUsed": cost,
 	}
 	
+	// Track tokens for analytics
 	if inputTokens > 0 {
 		incFields["totalInputTokens"] = inputTokens
 	}
@@ -238,21 +228,21 @@ func DeductCreditsWithCache(username string, cost float64, tokensUsed, inputToke
 		incFields["totalOutputTokens"] = outputTokens
 	}
 
-	// Determine where to deduct credits from
+	// Determine where to deduct credits from (credits first, then refCredits)
 	if user.Credits >= cost {
 		// Deduct from main credits
 		incFields["credits"] = -cost
-		log.Printf("💰 [%s] Deducted $%.6f from credits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+		log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 	} else if user.Credits > 0 {
-		// Partial deduct: use remaining main credits, then refCredits
-		refCost := cost - user.Credits
+		// Partial deduct: use remaining credits, then refCredits
+		refDeduct := cost - user.Credits
 		incFields["credits"] = -user.Credits
-		incFields["refCredits"] = -refCost
-		log.Printf("💰 [%s] Deducted $%.6f from credits + $%.6f from refCredits (in=%d, out=%d)", username, user.Credits, refCost, inputTokens, outputTokens)
+		incFields["refCredits"] = -refDeduct
+		log.Printf("💰 [%s] Deducted $%.6f + $%.6f refCredits (in=%d, out=%d)", username, user.Credits, refDeduct, inputTokens, outputTokens)
 	} else {
 		// Deduct from refCredits only
 		incFields["refCredits"] = -cost
-		log.Printf("💰 [%s] Deducted $%.6f from refCredits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+		log.Printf("💰 [%s] Deducted $%.6f refCredits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 	}
 
 	update := bson.M{

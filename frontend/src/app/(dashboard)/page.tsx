@@ -387,11 +387,11 @@ export default function Dashboard() {
               </div>
               {billingInfo && (
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  billingInfo.plan === 'enterprise' ? 'bg-purple-500/20 text-purple-400' :
-                  billingInfo.plan === 'pro' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-slate-500/20 text-slate-400'
+                  (billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-slate-500/20 text-slate-400'
                 }`}>
-                  {billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)} Plan
+                  {(billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0 ? 'Active' : 'Free'}
                 </span>
               )}
             </div>
@@ -400,14 +400,14 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-900/50 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Credits Balance</p>
+                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Credits (USD)</p>
                     <p className="text-2xl font-bold text-emerald-400">
-                      {(billingInfo.credits || 0).toFixed(2)}
+                      ${(billingInfo.credits || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-slate-900/50 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">RPM Limit</p>
-                    <p className="text-2xl font-bold text-cyan-400">{billingInfo.planLimits.rpm}</p>
+                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Ref Credits</p>
+                    <p className="text-2xl font-bold text-cyan-400">${(billingInfo.refCredits || 0).toFixed(2)}</p>
                   </div>
                 </div>
               </div>

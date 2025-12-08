@@ -583,7 +583,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			case userkey.ErrFriendKeyOwnerNoCredits:
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"error": {"message": "Friend Key owner has insufficient credits", "type": "insufficient_credits"}}`))
+				w.Write([]byte(`{"error": {"message": "Friend Key owner has insufficient tokens", "type": "insufficient_tokens"}}`))
 			default:
 				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
 			}
@@ -620,10 +620,10 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		// Check if user has sufficient credits
 		if err := userkey.CheckUserCredits(username); err != nil {
 			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient credits for user: %s", username)
+				log.Printf("💸 Insufficient tokens for user: %s", username)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"error": {"message": "Insufficient credits. Please purchase a plan to continue using the service.", "type": "insufficient_credits"}}`))
+				w.Write([]byte(`{"error": {"message": "Insufficient tokens. Please purchase a package to continue using the service.", "type": "insufficient_tokens"}}`))
 				return
 			}
 			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
@@ -959,7 +959,7 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 	defer resp.Body.Close()
 
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
-		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
@@ -1039,7 +1039,7 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 
 	// Usage callback
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
-		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
@@ -1128,7 +1128,7 @@ func handleOhmyGPTRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIR
 
 	// Usage callback for billing (with cache support)
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
-		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		// Update OhmyGPT key usage stats in MongoDB
@@ -1231,7 +1231,7 @@ func handleOhmyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 
 	// Usage callback for billing (with cache support)
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
-		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		// Update OhmyGPT key usage stats in MongoDB
@@ -1317,7 +1317,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 
 	// Usage callback
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
-		billingTokens := config.CalculateBillingTokens(modelID, input, output)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
@@ -1545,7 +1545,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 		if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
 			cacheHitTokens = int64(cht)
 		}
-		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 		billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 
 		// Update user usage in database
@@ -1735,7 +1735,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 
 	// Update usage after stream completes - only if no errors occurred
 	if !hasError && (totalInputTokens > 0 || totalOutputTokens > 0) {
-		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens)
 		billingCost := config.CalculateBillingCostWithCache(modelID, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens)
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
@@ -1866,7 +1866,7 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 		if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
 			cacheHitTokens = int64(cht)
 		}
-		billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 		billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 
 		// Update user usage in database
@@ -2035,7 +2035,7 @@ func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response,
 
 	// Update usage after stream completes - only if no errors occurred
 	if !hasError && (totalInputTokens > 0 || totalOutputTokens > 0) {
-		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, totalInputTokens, totalOutputTokens, 0, 0)
 		billingCost := config.CalculateBillingCostWithCache(modelID, totalInputTokens, totalOutputTokens, 0, 0)
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {
@@ -2291,7 +2291,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			case userkey.ErrFriendKeyOwnerNoCredits:
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Friend Key owner has insufficient credits"}}`))
+				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_tokens","message":"Friend Key owner has insufficient tokens"}}`))
 			default:
 				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
 			}
@@ -2328,10 +2328,10 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		// Check if user has sufficient credits
 		if err := userkey.CheckUserCredits(username); err != nil {
 			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient credits for user: %s", username)
+				log.Printf("💸 Insufficient tokens for user: %s", username)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Please purchase a plan to continue using the service."}}`))
+				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_tokens","message":"Insufficient tokens. Please purchase a package to continue using the service."}}`))
 				return
 			}
 			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
@@ -2695,7 +2695,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 				if cht, ok := usageData["cache_read_input_tokens"].(float64); ok {
 					cacheHitTokens = int64(cht)
 				}
-				billingTokens := config.CalculateBillingTokens(modelID, inputTokens, outputTokens)
+				billingTokens := config.CalculateBillingTokensWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 				billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 
 				// Update user usage in database
@@ -2910,7 +2910,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 
 	// Update usage after stream completes - only if no errors occurred
 	if !hasError && (totalInputTokens > 0 || totalOutputTokens > 0) {
-		billingTokens := config.CalculateBillingTokens(modelID, totalInputTokens, totalOutputTokens)
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens)
 		billingCost := config.CalculateBillingCostWithCache(modelID, totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens)
 		if userApiKey != "" {
 			if err := usage.UpdateUsage(userApiKey, billingTokens); err != nil {

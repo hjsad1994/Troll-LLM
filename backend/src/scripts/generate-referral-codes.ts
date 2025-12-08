@@ -57,8 +57,8 @@ async function generateReferralCodesForExistingUsers() {
         { 
           $set: { 
             referralCode,
-            refCredits: user.refCredits ?? 0,
-            referralBonusAwarded: user.referralBonusAwarded ?? false
+            refCredits: (user as any).refCredits ?? 0,
+            referralBonusAwarded: (user as any).referralBonusAwarded ?? false
           } 
         }
       );

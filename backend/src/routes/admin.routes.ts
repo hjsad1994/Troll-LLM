@@ -7,7 +7,6 @@ import { userRepository } from '../repositories/user.repository.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
 import { backupKeyRepository } from '../repositories/backup-key.repository.js';
 import { paymentRepository } from '../repositories/payment.repository.js';
-import { PLAN_LIMITS, UserPlan } from '../models/user.model.js';
 import { PaymentStatus } from '../models/payment.model.js';
 
 const router = Router();
@@ -38,12 +37,12 @@ router.get('/user-stats', requireAdmin, async (req: Request, res: Response) => {
     const stats = await userRepository.getUserStats(period);
     res.json({
       total_users: stats.total,
-      by_plan: stats.byPlan,
-      total_tokens_used: stats.totalTokensUsed,
+      active_users: stats.activeUsers,
+      total_credits_used: stats.totalCreditsUsed,
       total_credits: stats.totalCredits,
+      total_ref_credits: stats.totalRefCredits,
       total_input_tokens: stats.totalInputTokens,
       total_output_tokens: stats.totalOutputTokens,
-      total_credits_burned: stats.totalCreditsBurned,
       period,
     });
   } catch (error) {
@@ -56,16 +55,17 @@ router.get('/user-stats', requireAdmin, async (req: Request, res: Response) => {
 router.get('/users', requireAdmin, async (req: Request, res: Response) => {
   try {
     const search = req.query.search as string | undefined;
-    const [users, stats, creditsBurnedMap] = await Promise.all([
+    const [users, statsData] = await Promise.all([
       userRepository.listUsers(search),
       userRepository.getUserStats(),
-      requestLogRepository.getCreditsBurnedByUser(),
     ]);
-    const usersWithCredits = users.map((u: any) => ({
-      ...u,
-      creditsBurned: creditsBurnedMap[u._id] || 0,
-    }));
-    res.json({ users: usersWithCredits, stats, planLimits: PLAN_LIMITS });
+    res.json({ 
+      users, 
+      stats: {
+        total: statsData.total,
+        activeUsers: statsData.activeUsers,
+      }
+    });
   } catch (error) {
     console.error('Failed to list users:', error);
     res.status(500).json({ error: 'Failed to list users' });
@@ -86,35 +86,6 @@ router.get('/users/:username', requireAdmin, async (req: Request, res: Response)
   }
 });
 
-router.patch('/users/:username/plan', requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { plan } = req.body;
-    const validPlans: UserPlan[] = ['free', 'dev', 'pro', 'pro-troll'];
-    
-    if (!plan || !validPlans.includes(plan)) {
-      return res.status(400).json({ error: 'Invalid plan. Must be: free, dev, pro, or pro-troll' });
-    }
-    
-    const user = await userRepository.updatePlan(req.params.username, plan);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: `Updated ${req.params.username} to ${plan} plan`,
-      user: {
-        username: user._id,
-        plan: user.plan,
-        credits: user.credits,
-      }
-    });
-  } catch (error) {
-    console.error('Failed to update user plan:', error);
-    res.status(500).json({ error: 'Failed to update user plan' });
-  }
-});
-
 router.patch('/users/:username/credits', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { credits } = req.body;
@@ -123,14 +94,14 @@ router.patch('/users/:username/credits', requireAdmin, async (req: Request, res:
       return res.status(400).json({ error: 'Credits must be a non-negative number' });
     }
     
-    const user = await userRepository.updateCredits(req.params.username, credits);
+    const user = await userRepository.setCredits(req.params.username, credits);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
     res.json({ 
       success: true, 
-      message: `Updated ${req.params.username} credits to $${credits}`,
+      message: `Set credits to $${credits} for ${req.params.username}`,
       user: {
         username: user._id,
         credits: user.credits,
@@ -225,6 +196,38 @@ router.post('/users/:username/refCredits/add', requireAdmin, async (req: Request
   }
 });
 
+// Set credit package ($20 or $40) with 7-day expiry - admin only
+router.post('/users/:username/credit-package', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { package: pkg } = req.body;
+    
+    if (pkg !== '20' && pkg !== '40') {
+      return res.status(400).json({ error: 'Package must be "20" or "40"' });
+    }
+    
+    const credits = pkg === '40' ? 40 : 20;
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    
+    const user = await userRepository.setCreditPackage(req.params.username, credits, expiresAt);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Set $${credits} credit package for ${req.params.username}`,
+      user: {
+        username: user._id,
+        credits: user.credits,
+        expiresAt: user.expiresAt,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to set credit package:', error);
+    res.status(500).json({ error: 'Failed to set credit package' });
+  }
+});
+
 // Backup Keys - admin only (for auto key rotation)
 router.get('/backup-keys', requireAdmin, async (req: Request, res: Response) => {
   try {
@@ -232,12 +235,11 @@ router.get('/backup-keys', requireAdmin, async (req: Request, res: Response) => 
       backupKeyRepository.findAll(),
       backupKeyRepository.getStats(),
     ]);
-    // Mask API keys for security
     const maskedKeys = keys.map((k: any) => ({
       id: k._id,
       maskedApiKey: k.apiKey ? `${k.apiKey.slice(0, 8)}...${k.apiKey.slice(-4)}` : '***',
       isUsed: k.isUsed,
-      activated: k.activated || false, // Key has been moved to troll_keys, can be deleted
+      activated: k.activated || false,
       usedFor: k.usedFor,
       usedAt: k.usedAt,
       createdAt: k.createdAt,
@@ -387,7 +389,8 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
         id: p._id,
         userId: p.userId,
         username: p.username,
-        plan: p.plan,
+        package: p.package,
+        credits: p.credits,
         amount: p.amount,
         currency: p.currency,
         status: p.status,

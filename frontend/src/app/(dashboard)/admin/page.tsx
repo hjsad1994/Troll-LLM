@@ -28,12 +28,13 @@ interface Metrics {
 
 interface UserStats {
   total_users: number
-  by_plan: Record<string, number>
+  active_users: number
   total_tokens_used: number
-  total_credits: number
+  total_token_balance: number
+  total_ref_tokens: number
   total_input_tokens: number
   total_output_tokens: number
-  total_credits_burned: number
+  total_tokens_deducted: number
 }
 
 interface UserKey {
@@ -143,7 +144,7 @@ export default function AdminDashboard() {
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
-  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0, total_input_tokens: 0, total_output_tokens: 0, total_credits_burned: 0 })
+  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_tokens_used: 0, total_token_balance: 0, total_ref_tokens: 0, total_input_tokens: 0, total_output_tokens: 0, total_tokens_deducted: 0 })
   const [modelStats, setModelStats] = useState<ModelStats[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
@@ -173,7 +174,7 @@ export default function AdminDashboard() {
       const proxiesData = proxiesResp?.ok ? await proxiesResp.json() : { total: 0, proxies: [] }
       const statusData = statusResp?.ok ? await statusResp.json() : { status: 'unknown', summary: { healthy: 0, total: 0 } }
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
-      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, by_plan: {}, total_tokens_used: 0, total_credits: 0, total_input_tokens: 0, total_output_tokens: 0, total_credits_burned: 0 }
+      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, active_users: 0, total_tokens_used: 0, total_token_balance: 0, total_ref_tokens: 0, total_input_tokens: 0, total_output_tokens: 0, total_tokens_deducted: 0 }
 
       setStats({
         totalKeys: keysData.total || 0,
@@ -395,16 +396,23 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
-                  Total Credits
+                  Token Balance
                 </span>
-                <span className="text-emerald-500 dark:text-emerald-400 font-medium">${userStats.total_credits.toFixed(2)}</span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-medium">{formatLargeNumber(userStats.total_token_balance || 0)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400"></span>
+                  Ref Tokens
+                </span>
+                <span className="text-blue-500 dark:text-blue-400 font-medium">{formatLargeNumber(userStats.total_ref_tokens || 0)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400"></span>
-                  Credits Burned
+                  Tokens Deducted
                 </span>
-                <span className="text-orange-500 dark:text-orange-400 font-medium">${(userStats.total_credits_burned || 0).toFixed(2)}</span>
+                <span className="text-orange-500 dark:text-orange-400 font-medium">{formatLargeNumber(userStats.total_tokens_deducted || 0)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
@@ -416,16 +424,9 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-violet-500 dark:bg-violet-400"></span>
-                  Dev Plan
+                  Active Users
                 </span>
-                <span className="text-violet-500 dark:text-violet-400 font-medium">{userStats.by_plan?.dev || 0}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400"></span>
-                  Pro Plan
-                </span>
-                <span className="text-amber-500 dark:text-amber-400 font-medium">{userStats.by_plan?.pro || 0}</span>
+                <span className="text-violet-500 dark:text-violet-400 font-medium">{userStats.active_users || 0}</span>
               </div>
             </div>
           </div>
