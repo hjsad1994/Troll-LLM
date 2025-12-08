@@ -15,40 +15,42 @@
       "name": "Claude Opus 4.5",
       "id": "claude-opus-4-5-20251101",
       "type": "anthropic",
-      "reasoning": "low",
-      "thinking_budget": 10000,
-      "input_price_per_mtok": 5.5,
-      "output_price_per_mtok": 27.5,
+      "reasoning": "high",
+      "thinking_budget": 31999,
+      "input_price_per_mtok": 5.0,
+      "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.55,
-      "upstream": "troll"
+      "upstream": "main",
+      "upstream_model_id": "claude-opus-4.5"
     },
     {
       "name": "Claude Sonnet 4.5",
       "id": "claude-sonnet-4-5-20250929",
       "type": "anthropic",
-      "reasoning": "low",
-      "thinking_budget": 10000,
+      "reasoning": "high",
+      "thinking_budget": 31999,
       "input_price_per_mtok": 3.5,
-      "output_price_per_mtok": 16.5,
-      "cache_write_price_per_mtok": 4.0,
+      "output_price_per_mtok": 15.0,
+      "cache_write_price_per_mtok": 4,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.55,
-      "upstream": "troll"
+      "upstream": "main",
+      "upstream_model_id": "claude-sonnet-4.5"
     },
     {
       "name": "Claude Haiku 4.5",
       "id": "claude-haiku-4-5-20251001",
       "type": "anthropic",
-      "reasoning": "low",
-      "thinking_budget": 6000,
+      "reasoning": "high",
       "input_price_per_mtok": 2.5,
       "output_price_per_mtok": 5.5,
-      "cache_write_price_per_mtok": 1.5,
-      "cache_hit_price_per_mtok": 0.3,
+      "cache_write_price_per_mtok": 1.55,
+      "cache_hit_price_per_mtok": 0.10,
       "billing_multiplier": 1.55,
-      "upstream": "troll"
+      "upstream": "main",
+      "upstream_model_id": "claude-haiku-4.5"
     },
     {
       "name": "GPT-5.1",
@@ -62,7 +64,6 @@
       "billing_multiplier": 1.55,
       "upstream": "main"
     },
-
     {
       "name": "Gemini 3 Pro Preview",
       "id": "gemini-3-pro-preview",
