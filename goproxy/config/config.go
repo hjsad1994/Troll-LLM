@@ -167,7 +167,7 @@ func GetModelThinkingBudget(modelID string) int {
 }
 
 // GetModelUpstream gets upstream provider for a model
-// Returns "main" or "troll" (default is "troll" if not specified)
+// Returns "main", "troll", or "ohmygpt" (default is "troll" if not specified)
 func GetModelUpstream(modelID string) string {
 	model := GetModelByID(modelID)
 	if model == nil {
@@ -177,6 +177,16 @@ func GetModelUpstream(modelID string) string {
 		return model.Upstream
 	}
 	return "troll" // default to troll-key
+}
+
+// IsValidUpstream checks if upstream value is valid
+func IsValidUpstream(upstream string) bool {
+	switch upstream {
+	case "troll", "main", "ohmygpt":
+		return true
+	default:
+		return false
+	}
 }
 
 // GetUpstreamModelID gets the model ID to use when sending to upstream

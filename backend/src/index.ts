@@ -12,6 +12,7 @@ import userRoutes from './routes/user.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import modelsRoutes from './routes/models.routes.js';
 import friendKeyRoutes from './routes/friend-key.routes.js';
+import ohmygptRoutes from './routes/ohmygpt.routes.js';
 
 const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
@@ -59,6 +60,7 @@ app.use('/api/payment', paymentRoutes);
 // Admin routes (protected with JWT)
 app.use('/admin', authMiddleware, adminRoutes);
 app.use('/admin/proxies', authMiddleware, proxyRoutes);
+app.use('/admin/ohmygpt', authMiddleware, ohmygptRoutes);
 
 // Root
 app.get('/', (_req, res) => {

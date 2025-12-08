@@ -84,6 +84,10 @@ func FriendKeysCollection() *mongo.Collection {
 	return GetCollection("friend_keys")
 }
 
+func OhmyGPTKeysCollection() *mongo.Collection {
+	return GetCollection("ohmygpt_keys")
+}
+
 func Disconnect() {
 	if client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
