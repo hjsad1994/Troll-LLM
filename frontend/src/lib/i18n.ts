@@ -1928,13 +1928,13 @@ export const paymentDisabled = {
   en: {
     title: 'Payment Temporarily Unavailable',
     message: 'Online payment is temporarily closed for maintenance. Please contact us via Discord for payment assistance.',
-    contactDiscord: 'Temporarily Not Accepting Payments',
+    contactDiscord: 'Unavailable',
     backToHome: 'Back to Home',
   },
   vi: {
     title: 'Thanh toán Tạm thời Ngưng hoạt động',
     message: 'Thanh toán trực tuyến tạm thời đóng để bảo trì. Vui lòng liên hệ qua Discord để được hỗ trợ thanh toán.',
-    contactDiscord: 'Tạm thời không nhận thanh toán',
+    contactDiscord: 'Tạm ngưng thanh toán',
     backToHome: 'Quay lại Trang chủ',
   },
 }
