@@ -21,7 +21,7 @@
       "output_price_per_mtok": 27,
       "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 0.50,
-      "billing_multiplier": 1.1,
+      "billing_multiplier": 1.15,
       "upstream": "main",
       "upstream_model_id": "claude-opus-4.5"
     },
@@ -35,7 +35,7 @@
       "output_price_per_mtok": 16.5,
       "cache_write_price_per_mtok": 4,
       "cache_hit_price_per_mtok": 0.50,
-      "billing_multiplier": 1.1,
+      "billing_multiplier": 1.15,
       "upstream": "main",
       "upstream_model_id": "claude-sonnet-4.5"
     },
