@@ -263,7 +263,7 @@ func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage
 }
 
 // HandleOpenAIStreamResponse handles OpenAI streaming response (passthrough)
-func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output int64)) {
+func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("❌ [MainTarget-OpenAI] Error %d", resp.StatusCode)
@@ -315,12 +315,12 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 
 	log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d", totalInput, totalOutput)
 	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
-		onUsage(totalInput, totalOutput)
+		onUsage(totalInput, totalOutput, 0, 0)  // MainTarget doesn't support cache tokens
 	}
 }
 
 // HandleOpenAINonStreamResponse handles OpenAI non-streaming response (passthrough)
-func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output int64)) {
+func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"error":"failed to read response"}`, http.StatusInternalServerError)
@@ -348,7 +348,7 @@ func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, o
 			}
 			log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d", input, output)
 			if onUsage != nil {
-				onUsage(input, output)
+				onUsage(input, output, 0, 0)  // MainTarget doesn't support cache tokens
 			}
 		}
 	}

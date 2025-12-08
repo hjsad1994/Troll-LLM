@@ -124,8 +124,14 @@ type OpenAIRequest struct {
 
 // AnthropicMessage represents an Anthropic format message
 type AnthropicMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"` // Can be string or []map[string]interface{}
+	Role         string      `json:"role"`
+	Content      interface{} `json:"content"` // Can be string or []map[string]interface{}
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
+}
+
+// CacheControl represents Anthropic prompt caching configuration
+type CacheControl struct {
+	Type string `json:"type"` // "ephemeral"
 }
 
 // AnthropicRequest represents Anthropic request format
@@ -230,12 +236,24 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 		contentArray := []map[string]interface{}{}
 
 		if text, ok := msg.Content.(string); ok {
-			contentArray = append(contentArray, map[string]interface{}{
+			// For long text content (e.g., file contents, conversation history),
+			// enable caching if it's user message (helps with repeated context)
+			textBlock := map[string]interface{}{
 				"type": "text",
 				"text": text,
-			})
+			}
+			
+			// Enable caching for user messages with substantial content (>2000 chars)
+			// This is useful for caching file contents, long contexts, etc.
+			if msg.Role == "user" && len(text) > 2000 {
+				textBlock["cache_control"] = map[string]interface{}{
+					"type": "ephemeral",
+				}
+			}
+			
+			contentArray = append(contentArray, textBlock)
 		} else if parts, ok := msg.Content.([]interface{}); ok {
-			for _, part := range parts {
+			for i, part := range parts {
 				if partMap, ok := part.(map[string]interface{}); ok {
 					partType, _ := partMap["type"].(string)
 					if partType == "image_url" {
@@ -247,6 +265,21 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 								contentArray = append(contentArray, anthropicImage)
 							}
 						}
+					} else if partType == "text" {
+						// For text blocks in multi-part content
+						textBlock := partMap
+						
+						// Enable caching for last text block if it's substantial
+						// (useful for caching the last context block in conversation)
+						if msg.Role == "user" && i == len(parts)-1 {
+							if text, ok := partMap["text"].(string); ok && len(text) > 2000 {
+								textBlock["cache_control"] = map[string]interface{}{
+									"type": "ephemeral",
+								}
+							}
+						}
+						
+						contentArray = append(contentArray, textBlock)
 					} else {
 						contentArray = append(contentArray, partMap)
 					}
@@ -270,6 +303,11 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 		systemEntries = append(systemEntries, map[string]interface{}{
 			"type": "text",
 			"text": systemPrompt,
+			// Enable prompt caching for system prompt (min 1024 tokens for Sonnet 4+)
+			// Cache TTL: 5 minutes, refreshed on each use
+			"cache_control": map[string]interface{}{
+				"type": "ephemeral",
+			},
 		})
 	}
 	
@@ -281,6 +319,10 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 			systemEntries = append(systemEntries, map[string]interface{}{
 				"type": "text",
 				"text": sanitizedUserSystem,
+				// Enable caching for user system prompts too
+				"cache_control": map[string]interface{}{
+					"type": "ephemeral",
+				},
 			})
 		}
 	}

@@ -452,6 +452,36 @@ func keysStatusHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// OhmyGPT backup keys endpoint
+func ohmygptBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	keys, stats := ohmygpt.ListOhmyGPTBackupKeys()
+	
+	// Mask API keys
+	maskedKeys := make([]map[string]interface{}, len(keys))
+	for i, k := range keys {
+		masked := k.APIKey
+		if len(masked) > 12 {
+			masked = masked[:8] + "..." + masked[len(masked)-4:]
+		}
+		maskedKeys[i] = map[string]interface{}{
+			"id":           k.ID,
+			"maskedApiKey": masked,
+			"isUsed":       k.IsUsed,
+			"activated":    k.Activated,
+			"usedFor":      k.UsedFor,
+			"createdAt":    k.CreatedAt,
+		}
+	}
+	
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"keys":      maskedKeys,
+		"total":     stats.Total,
+		"available": stats.Available,
+		"used":      stats.Used,
+	})
+}
+
 // Model list endpoint
 func modelsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -776,11 +806,12 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 		return
 	}
 
-	// For "ohmygpt" upstream: use OhmyGPT OpenAI endpoint (passthrough OpenAI format - like MainTarget)
+	// For "ohmygpt" upstream: use OhmyGPT OpenAI endpoint
+	// NOTE: OhmyGPT only supports OpenAI format (/v1/chat/completions)
+	//       Anthropic endpoint (/v1/messages) returns 503
+	//       Caching NOT available on this endpoint
 	if upstreamConfig.KeyID == "ohmygpt" {
-		// Forward directly with OpenAI format (no transformation needed)
-		// OhmyGPT will handle /v1/chat/completions endpoint and return OpenAI format
-		log.Printf("🔀 [OhmyGPT] Routing Anthropic model to OpenAI endpoint (passthrough)")
+		log.Printf("🔀 [OhmyGPT] Routing to OpenAI chat/completions endpoint (passthrough)")
 		handleOhmyGPTRequest(w, openaiReq, bodyBytes, model.ID, userApiKey, username)
 		return
 	}
@@ -927,9 +958,9 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 	}
 	defer resp.Body.Close()
 
-	onUsage := func(input, output int64) {
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokens(modelID, input, output)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, 0, 0)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
@@ -1007,9 +1038,9 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 	defer resp.Body.Close()
 
 	// Usage callback
-	onUsage := func(input, output int64) {
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokens(modelID, input, output)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, 0, 0)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
@@ -1095,10 +1126,10 @@ func handleOhmyGPTRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIR
 	}
 	defer resp.Body.Close()
 
-	// Usage callback for billing
-	onUsage := func(input, output int64) {
+	// Usage callback for billing (with cache support)
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokens(modelID, input, output)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, 0, 0)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		// Update OhmyGPT key usage stats in MongoDB
 		if keyID := omgProvider.GetLastUsedKeyID(); keyID != "" {
@@ -1113,19 +1144,21 @@ func handleOhmyGPTRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIR
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:       username,
-				UserKeyID:    userApiKey,
-				TrollKeyID:   "ohmygpt",
-				Model:        modelID,
-				InputTokens:  input,
-				OutputTokens: output,
-				CreditsCost:  billingCost,
-				TokensUsed:   billingTokens,
-				StatusCode:   resp.StatusCode,
-				LatencyMs:    latencyMs,
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "ohmygpt",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
 	}
 
 	// Handle response
@@ -1135,8 +1168,6 @@ func handleOhmyGPTRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIR
 		omgProvider.HandleNonStreamResponse(w, resp, onUsage)
 	}
 }
-
-
 
 // handleOhmyGPTMessagesRequest handles /v1/messages requests routed to OhmyGPT
 // Forwards Anthropic format request to OhmyGPT messages endpoint (no transformation)
@@ -1198,10 +1229,10 @@ func handleOhmyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 	}
 	defer resp.Body.Close()
 
-	// Usage callback for billing
-	onUsage := func(input, output int64) {
+	// Usage callback for billing (with cache support)
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokens(modelID, input, output)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, 0, 0)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		// Update OhmyGPT key usage stats in MongoDB
 		if keyID := omgProvider.GetLastUsedKeyID(); keyID != "" {
@@ -1216,19 +1247,21 @@ func handleOhmyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:       username,
-				UserKeyID:    userApiKey,
-				TrollKeyID:   "ohmygpt",
-				Model:        modelID,
-				InputTokens:  input,
-				OutputTokens: output,
-				CreditsCost:  billingCost,
-				TokensUsed:   billingTokens,
-				StatusCode:   resp.StatusCode,
-				LatencyMs:    latencyMs,
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "ohmygpt",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
 	}
 
 	// Handle response
@@ -3044,6 +3077,7 @@ func main() {
 	// Setup routes with CORS middleware
 	http.HandleFunc("/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/keys/status", corsMiddleware(keysStatusHandler))
+	http.HandleFunc("/ohmygpt/backup-keys", corsMiddleware(ohmygptBackupKeysHandler))
 	http.HandleFunc("/v1/models", corsMiddleware(modelsHandler))
 	http.HandleFunc("/v1/chat/completions", corsMiddleware(chatCompletionsHandler))
 	http.HandleFunc("/v1/messages", corsMiddleware(handleAnthropicMessagesEndpoint))

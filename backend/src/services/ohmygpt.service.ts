@@ -141,3 +141,54 @@ export async function getStats() {
   
   return { totalKeys: keys, healthyKeys, totalBindings: bindings, totalProxies: proxies };
 }
+
+// ============ BACKUP KEYS ============
+
+export interface OhmyGPTBackupKey {
+  _id: string;
+  apiKey: string;
+  isUsed: boolean;
+  activated: boolean;
+  usedFor?: string;
+  usedAt?: Date;
+  createdAt: Date;
+}
+
+export async function listBackupKeys(): Promise<OhmyGPTBackupKey[]> {
+  const result = await getCollection('ohmygpt_backup_keys').find({}).sort({ createdAt: -1 }).toArray();
+  return result as any;
+}
+
+export async function getBackupKeyStats() {
+  const [total, available, used] = await Promise.all([
+    getCollection('ohmygpt_backup_keys').countDocuments(),
+    getCollection('ohmygpt_backup_keys').countDocuments({ isUsed: false }),
+    getCollection('ohmygpt_backup_keys').countDocuments({ isUsed: true }),
+  ]);
+  return { total, available, used };
+}
+
+export async function createBackupKey(data: { id: string; apiKey: string }): Promise<OhmyGPTBackupKey> {
+  const key = {
+    _id: data.id,
+    apiKey: data.apiKey,
+    isUsed: false,
+    activated: false,
+    createdAt: new Date(),
+  };
+  await getCollection('ohmygpt_backup_keys').insertOne(key as any);
+  return key as any;
+}
+
+export async function deleteBackupKey(id: string): Promise<boolean> {
+  const result = await getCollection('ohmygpt_backup_keys').deleteOne({ _id: id as any });
+  return result.deletedCount > 0;
+}
+
+export async function restoreBackupKey(id: string): Promise<boolean> {
+  const result = await getCollection('ohmygpt_backup_keys').updateOne(
+    { _id: id as any },
+    { $set: { isUsed: false, activated: false, usedFor: null, usedAt: null } }
+  );
+  return result.modifiedCount > 0;
+}

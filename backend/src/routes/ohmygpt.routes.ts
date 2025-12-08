@@ -215,4 +215,82 @@ router.get('/stats', async (_req: Request, res: Response) => {
   }
 });
 
+// ============ BACKUP KEYS ============
+
+// GET /admin/ohmygpt/backup-keys - List backup keys
+router.get('/backup-keys', async (_req: Request, res: Response) => {
+  try {
+    const [keys, stats] = await Promise.all([
+      ohmygptService.listBackupKeys(),
+      ohmygptService.getBackupKeyStats(),
+    ]);
+    
+    // Mask API keys
+    const maskedKeys = keys.map(k => ({
+      id: k._id,
+      maskedApiKey: k.apiKey ? `${k.apiKey.slice(0, 8)}...${k.apiKey.slice(-4)}` : '***',
+      isUsed: k.isUsed,
+      activated: k.activated,
+      usedFor: k.usedFor,
+      usedAt: k.usedAt,
+      createdAt: k.createdAt,
+    }));
+    
+    res.json({ keys: maskedKeys, ...stats });
+  } catch (error) {
+    console.error('Error listing backup keys:', error);
+    res.status(500).json({ error: 'Failed to list backup keys' });
+  }
+});
+
+// POST /admin/ohmygpt/backup-keys - Create backup key
+router.post('/backup-keys', async (req: Request, res: Response) => {
+  try {
+    const input = createKeySchema.parse(req.body);
+    const key = await ohmygptService.createBackupKey(input);
+    
+    res.status(201).json({
+      id: key._id,
+      maskedApiKey: `${key.apiKey.slice(0, 8)}...${key.apiKey.slice(-4)}`,
+      isUsed: key.isUsed,
+      activated: key.activated,
+      createdAt: key.createdAt,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Error creating backup key:', error);
+    res.status(500).json({ error: 'Failed to create backup key' });
+  }
+});
+
+// DELETE /admin/ohmygpt/backup-keys/:id - Delete backup key
+router.delete('/backup-keys/:id', async (req: Request, res: Response) => {
+  try {
+    const deleted = await ohmygptService.deleteBackupKey(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Backup key not found' });
+    }
+    res.json({ success: true, message: 'Backup key deleted' });
+  } catch (error) {
+    console.error('Error deleting backup key:', error);
+    res.status(500).json({ error: 'Failed to delete backup key' });
+  }
+});
+
+// POST /admin/ohmygpt/backup-keys/:id/restore - Restore backup key
+router.post('/backup-keys/:id/restore', async (req: Request, res: Response) => {
+  try {
+    const restored = await ohmygptService.restoreBackupKey(req.params.id);
+    if (!restored) {
+      return res.status(404).json({ error: 'Backup key not found' });
+    }
+    res.json({ success: true, message: 'Backup key restored' });
+  } catch (error) {
+    console.error('Error restoring backup key:', error);
+    res.status(500).json({ error: 'Failed to restore backup key' });
+  }
+});
+
 export default router;

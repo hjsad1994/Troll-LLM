@@ -285,19 +285,54 @@ func (p *OhmyGPTProvider) MarkError(keyID string, err string) {
 	log.Printf("⚠️ [TrollProxy/OhmyGPT] Key %s error: %s", keyID, err)
 }
 
-// CheckAndRotateOnError checks response and marks key if needed
+// CheckAndRotateOnError checks response and rotates key if needed
 func (p *OhmyGPTProvider) CheckAndRotateOnError(keyID string, statusCode int, body string) {
+	shouldRotate := false
+	reason := ""
+
 	switch statusCode {
 	case 429:
 		if strings.Contains(body, "quota") || strings.Contains(body, "exhausted") {
-			p.MarkExhausted(keyID)
+			shouldRotate = true
+			reason = "quota_exhausted"
 		} else {
 			p.MarkRateLimited(keyID)
+			return
 		}
 	case 402:
-		p.MarkExhausted(keyID)
-	case 401, 403:
-		p.MarkError(keyID, "Authentication failed")
+		shouldRotate = true
+		reason = "payment_required"
+	case 401:
+		shouldRotate = true
+		reason = "invalid_api_key"
+	case 403:
+		if strings.Contains(body, "banned") || strings.Contains(body, "suspended") {
+			shouldRotate = true
+			reason = "account_banned"
+		} else {
+			p.MarkError(keyID, "Access denied")
+			return
+		}
+	}
+
+	if shouldRotate {
+		log.Printf("🚫 [OhmyGPT] Key %s needs rotation (reason: %s)", keyID, reason)
+
+		backupCount := GetOhmyGPTBackupKeyCount()
+		if backupCount > 0 {
+			log.Printf("🔄 [OhmyGPT] Found %d backup keys, rotating...", backupCount)
+			newKeyID, err := p.RotateKey(keyID, reason)
+			if err != nil {
+				log.Printf("❌ [OhmyGPT] Rotation failed: %v", err)
+				p.MarkExhausted(keyID)
+			} else {
+				log.Printf("✅ [OhmyGPT] Key %s replaced with %s", keyID, newKeyID)
+			}
+		} else {
+			log.Printf("⚠️ [OhmyGPT] No backup keys available")
+			p.MarkExhausted(keyID)
+			log.Printf("🚨 [OhmyGPT] Key %s marked as exhausted - add backup keys!", keyID)
+		}
 	}
 }
 
@@ -654,20 +689,12 @@ func (p *OhmyGPTProvider) retryWithNextKeyToEndpoint(endpoint string, body []byt
 	return resp, nil
 }
 
-// HandleStreamResponse handles streaming response from OhmyGPT
-// Synced with Troll proxy pattern: scanner-based approach with proper event parsing
+// HandleStreamResponse handles streaming response from OhmyGPT (pure passthrough)
+// Supports both OpenAI and Anthropic streaming formats
 func (p *OhmyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ [TrollProxy/OhmyGPT] Error %d (key may have failed mid-request)", resp.StatusCode)
-		
-		// Check if this is a rate limit/quota error
-		if resp.StatusCode == 429 {
-			log.Printf("⚠️ [TrollProxy/OhmyGPT] Rate limited - all keys exhausted or in cooldown")
-		} else if resp.StatusCode == 402 {
-			log.Printf("⚠️ [TrollProxy/OhmyGPT] Quota exhausted - all keys depleted")
-		}
-		
+		log.Printf("❌ [OhmyGPT] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))
@@ -684,143 +711,101 @@ func (p *OhmyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http
 		return
 	}
 
-	log.Printf("🔄 [TrollProxy/OhmyGPT] Starting stream relay...")
-	
-	// Scanner-based approach (synced with Troll proxy pattern)
 	scanner := bufio.NewScanner(resp.Body)
-	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024) // 1MB-10MB buffer
-	
-	var totalInput, totalOutput, totalCacheCreation, totalCacheRead int64
-	var currentEvent string
-	var hasError bool
-	eventCount := 0
-	
+	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
+
+	var totalInput, totalOutput, cacheCreation, cacheRead int64
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		
-		if line == "" {
-			// Empty line - write as separator
-			fmt.Fprint(w, "\n")
-			flusher.Flush()
-			continue
-		}
-		
-		// Parse event type
-		if strings.HasPrefix(line, "event: ") {
-			currentEvent = strings.TrimPrefix(line, "event: ")
-			fmt.Fprintf(w, "%s\n", line)
-			flusher.Flush()
-			continue
-		}
-		
-		// Parse data
+
+		// Extract usage from data lines (don't modify response)
 		if strings.HasPrefix(line, "data: ") {
 			dataStr := strings.TrimPrefix(line, "data: ")
-			
-			// Check for [DONE] marker
-			if strings.TrimSpace(dataStr) == "[DONE]" {
-				fmt.Fprint(w, "data: [DONE]\n\n")
-				flusher.Flush()
-				continue
-			}
-			
-			var eventData map[string]interface{}
-			if err := json.Unmarshal([]byte(dataStr), &eventData); err == nil {
-				eventCount++
-				
-				// Check for error events - don't charge if there's an error
-				if currentEvent == "error" {
-					hasError = true
-					log.Printf("❌ [TrollProxy/OhmyGPT] Error event in stream")
-				}
-				
-				// Detect event type for usage extraction
-				if eventType, ok := eventData["type"].(string); ok {
+			if dataStr != "[DONE]" {
+				var event map[string]interface{}
+				if json.Unmarshal([]byte(dataStr), &event) == nil {
+					// Check event type for Anthropic format
+					eventType, _ := event["type"].(string)
 					
-					// Extract usage from message_start event (Anthropic format)
+					// Anthropic format: message_start contains input usage
 					if eventType == "message_start" {
-						if message, ok := eventData["message"].(map[string]interface{}); ok {
+						if message, ok := event["message"].(map[string]interface{}); ok {
 							if usage, ok := message["usage"].(map[string]interface{}); ok {
 								if v, ok := usage["input_tokens"].(float64); ok {
 									totalInput = int64(v)
 								}
 								if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
-									totalCacheCreation = int64(v)
+									cacheCreation = int64(v)
 								}
 								if v, ok := usage["cache_read_input_tokens"].(float64); ok {
-									totalCacheRead = int64(v)
+									cacheRead = int64(v)
 								}
 							}
 						}
 					}
 					
-					// Extract usage from message_delta event (Anthropic format)
+					// Anthropic format: message_delta contains output usage
 					if eventType == "message_delta" {
-						if usage, ok := eventData["usage"].(map[string]interface{}); ok {
+						if usage, ok := event["usage"].(map[string]interface{}); ok {
 							if v, ok := usage["output_tokens"].(float64); ok {
 								totalOutput = int64(v)
 							}
 						}
 					}
-				}
-				
-				// Extract usage from OpenAI format (if present)
-				if usage, ok := eventData["usage"].(map[string]interface{}); ok {
-					// OpenAI format: prompt_tokens, completion_tokens
-					if v, ok := usage["prompt_tokens"].(float64); ok {
-						totalInput = int64(v)
-					}
-					if v, ok := usage["completion_tokens"].(float64); ok {
-						totalOutput = int64(v)
-					}
-					// Also support Anthropic field names
-					if v, ok := usage["input_tokens"].(float64); ok {
-						totalInput = int64(v)
-					}
-					if v, ok := usage["output_tokens"].(float64); ok {
-						totalOutput = int64(v)
-					}
-					if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
-						totalCacheCreation = int64(v)
-					}
-					if v, ok := usage["cache_read_input_tokens"].(float64); ok {
-						totalCacheRead = int64(v)
+					
+					// OpenAI format: usage in final chunk
+					if usage, ok := event["usage"].(map[string]interface{}); ok {
+						if v, ok := usage["prompt_tokens"].(float64); ok {
+							totalInput = int64(v)
+						}
+						if v, ok := usage["completion_tokens"].(float64); ok {
+							totalOutput = int64(v)
+						}
+						// Anthropic format fields (also check at top level)
+						if v, ok := usage["input_tokens"].(float64); ok {
+							totalInput = int64(v)
+						}
+						if v, ok := usage["output_tokens"].(float64); ok {
+							totalOutput = int64(v)
+						}
+						if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
+							cacheCreation = int64(v)
+						}
+						if v, ok := usage["cache_read_input_tokens"].(float64); ok {
+							cacheRead = int64(v)
+						}
+						// OpenAI cached_tokens
+						if details, ok := usage["prompt_tokens_details"].(map[string]interface{}); ok {
+							if v, ok := details["cached_tokens"].(float64); ok {
+								cacheRead = int64(v)
+							}
+						}
 					}
 				}
 			}
-			
-			// Write to client
-			fmt.Fprintf(w, "%s\n", line)
-			flusher.Flush()
-			continue
 		}
-		
-		// Other lines - pass through
+
+		// Pure passthrough - forward line as-is
 		fmt.Fprintf(w, "%s\n", line)
 		flusher.Flush()
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Printf("⚠️ [TrollProxy/OhmyGPT] Scanner error: %v", err)
+		log.Printf("⚠️ [OhmyGPT] Scanner error: %v", err)
 	}
 
-	log.Printf("✅ [TrollProxy/OhmyGPT] Stream completed: %d events", eventCount)
-	log.Printf("📊 [TrollProxy/OhmyGPT] Stream Usage: in=%d out=%d cache_create=%d cache_read=%d", totalInput, totalOutput, totalCacheCreation, totalCacheRead)
-	
-	// Only bill if no errors occurred
-	if !hasError && onUsage != nil {
-		if totalInput > 0 || totalOutput > 0 {
-			log.Printf("💰 [TrollProxy/OhmyGPT] Calling billing callback with in=%d out=%d", totalInput, totalOutput)
-			onUsage(totalInput, totalOutput)
-		} else {
-			log.Printf("⚠️ [TrollProxy/OhmyGPT] No usage data extracted from stream - billing skipped")
-		}
-	} else if hasError {
-		log.Printf("⚠️ [TrollProxy/OhmyGPT] Skipping billing due to error in stream")
+	if cacheCreation > 0 || cacheRead > 0 {
+		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_create=%d cache_read=%d ⚡", totalInput, totalOutput, cacheCreation, cacheRead)
+	} else {
+		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d", totalInput, totalOutput)
+	}
+	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
+		onUsage(totalInput, totalOutput, cacheCreation, cacheRead)
 	}
 }
 
-// HandleNonStreamResponse handles non-streaming response from OhmyGPT
+// HandleNonStreamResponse handles non-streaming response from OhmyGPT (pure passthrough)
 func (p *OhmyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -829,58 +814,38 @@ func (p *OhmyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *h
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("❌ [TrollProxy/OhmyGPT] Error %d", resp.StatusCode)
+		log.Printf("❌ [OhmyGPT] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))
 		return
 	}
 
-	// Debug: log response structure
-	log.Printf("🔍 [TrollProxy/OhmyGPT] Response body (first 500 chars): %s", string(body[:min(500, len(body))]))
-
-	// Extract usage - support both OpenAI and Anthropic formats
+	// Extract usage
 	var response map[string]interface{}
 	if json.Unmarshal(body, &response) == nil {
-		var input, output, cacheCreation, cacheRead int64
-		
 		if usage, ok := response["usage"].(map[string]interface{}); ok {
-			// Log all usage fields for debugging
-			log.Printf("🔍 [TrollProxy/OhmyGPT] Usage fields: %v", getMapKeys(usage))
-			
-			// OpenAI format: prompt_tokens, completion_tokens
+			var input, output, cachedTokens int64
 			if v, ok := usage["prompt_tokens"].(float64); ok {
 				input = int64(v)
 			}
 			if v, ok := usage["completion_tokens"].(float64); ok {
 				output = int64(v)
 			}
-			// Anthropic format: input_tokens, output_tokens
-			if v, ok := usage["input_tokens"].(float64); ok {
-				input = int64(v)
-			}
-			if v, ok := usage["output_tokens"].(float64); ok {
-				output = int64(v)
-			}
-			// Cache tokens (Anthropic format)
-			if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
-				cacheCreation = int64(v)
-			}
-			if v, ok := usage["cache_read_input_tokens"].(float64); ok {
-				cacheRead = int64(v)
-			}
-			
-			log.Printf("📊 [TrollProxy/OhmyGPT] Usage extracted: in=%d out=%d cache_create=%d cache_read=%d", input, output, cacheCreation, cacheRead)
-			if onUsage != nil {
-				if input > 0 || output > 0 {
-					log.Printf("💰 [TrollProxy/OhmyGPT] Calling billing callback with in=%d out=%d", input, output)
-					onUsage(input, output)
-				} else {
-					log.Printf("⚠️ [TrollProxy/OhmyGPT] Usage values are 0 - billing skipped")
+			// Extract cached_tokens from OpenAI format
+			if details, ok := usage["prompt_tokens_details"].(map[string]interface{}); ok {
+				if v, ok := details["cached_tokens"].(float64); ok {
+					cachedTokens = int64(v)
 				}
 			}
-		} else {
-			log.Printf("⚠️ [TrollProxy/OhmyGPT] No usage field found in response. Keys present: %v", getMapKeys(response))
+			if cachedTokens > 0 {
+				log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cached=%d ⚡", input, output, cachedTokens)
+			} else {
+				log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d", input, output)
+			}
+			if onUsage != nil && (input > 0 || output > 0) {
+				onUsage(input, output, 0, cachedTokens)
+			}
 		}
 	}
 
@@ -894,12 +859,4 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-func getMapKeys(m map[string]interface{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
 }

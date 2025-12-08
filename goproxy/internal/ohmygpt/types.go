@@ -5,11 +5,8 @@ import (
 	"net/http"
 )
 
-// UsageCallback is called after a request completes with token usage data
-type UsageCallback func(input, output int64)
-
-// UsageCallbackWithCache includes cache token data
-type UsageCallbackWithCache func(input, output, cacheWrite, cacheHit int64)
+// UsageCallback is called after a request completes with token usage data (with cache support)
+type UsageCallback func(input, output, cacheWrite, cacheHit int64)
 
 // Provider interface for upstream providers
 type Provider interface {
