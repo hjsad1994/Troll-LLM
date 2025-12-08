@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
+import { PAYMENT_ENABLED, paymentDisabled, Language } from '@/lib/i18n'
 
 
 // ===== CODE TEMPLATES WITH DIFFERENT MODELS PER LANGUAGE =====
@@ -231,7 +232,7 @@ const SALE_END_DATE = new Date('2025-12-09T23:59:59')
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   // Countdown timer effect
   useEffect(() => {
@@ -480,12 +481,21 @@ export default function LandingPage() {
                 </ul>
 
                 {/* CTA */}
-                <Link href="/checkout?plan=dev" className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-indigo-500 text-white font-semibold text-center hover:bg-indigo-600 transition-all duration-300 shadow-md shadow-indigo-500/20 text-sm sm:text-base">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  {t.pricing.buyNow}
-                </Link>
+                {PAYMENT_ENABLED ? (
+                  <Link href="/checkout?plan=dev" className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-indigo-500 text-white font-semibold text-center hover:bg-indigo-600 transition-all duration-300 shadow-md shadow-indigo-500/20 text-sm sm:text-base">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    {t.pricing.buyNow}
+                  </Link>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5 w-full py-3 sm:py-3.5 rounded-xl bg-gray-400 dark:bg-gray-600 text-white font-medium text-center cursor-not-allowed text-xs sm:text-sm whitespace-nowrap">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    {paymentDisabled[language as Language].contactDiscord}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -578,12 +588,21 @@ export default function LandingPage() {
                 </ul>
 
                 {/* CTA */}
-                <Link href="/checkout?plan=pro" className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-center hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 shadow-md shadow-indigo-500/20 text-sm sm:text-base">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  {t.pricing.buyNow}
-                </Link>
+                {PAYMENT_ENABLED ? (
+                  <Link href="/checkout?plan=pro" className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-center hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 shadow-md shadow-indigo-500/20 text-sm sm:text-base">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    {t.pricing.buyNow}
+                  </Link>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5 w-full py-3 sm:py-3.5 rounded-xl bg-gray-400 dark:bg-gray-600 text-white font-medium text-center cursor-not-allowed text-xs sm:text-sm whitespace-nowrap">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    {paymentDisabled[language as Language].contactDiscord}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -666,12 +685,21 @@ export default function LandingPage() {
                 </ul>
 
                 {/* CTA */}
-                <Link href="/checkout?plan=pro-troll" className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold text-center hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-md shadow-amber-500/20 text-sm sm:text-base">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  {t.pricing.buyNow}
-                </Link>
+                {PAYMENT_ENABLED ? (
+                  <Link href="/checkout?plan=pro-troll" className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold text-center hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-md shadow-amber-500/20 text-sm sm:text-base">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    {t.pricing.buyNow}
+                  </Link>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5 w-full py-3 sm:py-3.5 rounded-xl bg-gray-400 dark:bg-gray-600 text-white font-medium text-center cursor-not-allowed text-xs sm:text-sm whitespace-nowrap">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    {paymentDisabled[language as Language].contactDiscord}
+                  </div>
+                )}
               </div>
             </div>
           </div>
