@@ -20,7 +20,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/models', '/docs']
+const PUBLIC_PATHS = ['/', '/login', '/register', '/models', '/docs', '/privacy', '/terms', '/status', '/usage', '/checkout']
 const PUBLIC_PREFIXES = ['/docs/']
 
 function isPublicPath(pathname: string): boolean {

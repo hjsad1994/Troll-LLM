@@ -29,12 +29,11 @@ interface Metrics {
 interface UserStats {
   total_users: number
   active_users: number
-  total_tokens_used: number
-  total_token_balance: number
-  total_ref_tokens: number
+  total_credits_used: number
+  total_credits: number
+  total_ref_credits: number
   total_input_tokens: number
   total_output_tokens: number
-  total_tokens_deducted: number
 }
 
 interface UserKey {
@@ -81,6 +80,13 @@ function formatLargeNumber(num: number | undefined | null): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
   return num.toLocaleString()
+}
+
+function formatUSD(num: number | undefined | null): string {
+  if (num == null) return '$0.00'
+  if (num >= 1_000_000) return '$' + (num / 1_000_000).toFixed(2) + 'M'
+  if (num >= 1_000) return '$' + (num / 1_000).toFixed(2) + 'K'
+  return '$' + num.toFixed(2)
 }
 
 function getHealthColor(status: string): string {
@@ -144,7 +150,7 @@ export default function AdminDashboard() {
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
-  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_tokens_used: 0, total_token_balance: 0, total_ref_tokens: 0, total_input_tokens: 0, total_output_tokens: 0, total_tokens_deducted: 0 })
+  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_input_tokens: 0, total_output_tokens: 0 })
   const [modelStats, setModelStats] = useState<ModelStats[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
@@ -174,7 +180,7 @@ export default function AdminDashboard() {
       const proxiesData = proxiesResp?.ok ? await proxiesResp.json() : { total: 0, proxies: [] }
       const statusData = statusResp?.ok ? await statusResp.json() : { status: 'unknown', summary: { healthy: 0, total: 0 } }
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
-      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, active_users: 0, total_tokens_used: 0, total_token_balance: 0, total_ref_tokens: 0, total_input_tokens: 0, total_output_tokens: 0, total_tokens_deducted: 0 }
+      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_input_tokens: 0, total_output_tokens: 0 }
 
       setStats({
         totalKeys: keysData.total || 0,
@@ -368,51 +374,51 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/5 border border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-neutral-400">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Stats</h3>
             </div>
-            <p className="text-4xl font-bold bg-gradient-to-r from-gray-700 to-gray-500 dark:from-neutral-300 dark:to-neutral-500 bg-clip-text text-transparent mb-1">
+            <p className="text-4xl font-bold bg-gradient-to-r from-cyan-600 to-purple-500 dark:from-cyan-400 dark:to-purple-400 bg-clip-text text-transparent mb-1">
               {loading ? '...' : formatLargeNumber(userStats.total_input_tokens + userStats.total_output_tokens)}
             </p>
-            <p className="text-gray-500 dark:text-neutral-500 text-sm mb-4">total tokens used by all users</p>
+            <p className="text-gray-500 dark:text-neutral-500 text-sm mb-4">total tokens (input + output)</p>
 
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                  Total Credits
+                </span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-medium">{formatUSD(userStats.total_credits)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400"></span>
+                  Credits Burned
+                </span>
+                <span className="text-orange-500 dark:text-orange-400 font-medium">{formatUSD(userStats.total_credits_used)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400"></span>
+                  Ref Credits
+                </span>
+                <span className="text-blue-500 dark:text-blue-400 font-medium">{formatUSD(userStats.total_ref_credits)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400"></span>
-                  Input Tokens
+                  Total Input
                 </span>
                 <span className="text-cyan-500 dark:text-cyan-400 font-medium">{formatLargeNumber(userStats.total_input_tokens)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400"></span>
-                  Output Tokens
+                  Total Output
                 </span>
                 <span className="text-purple-500 dark:text-purple-400 font-medium">{formatLargeNumber(userStats.total_output_tokens)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
-                  Token Balance
-                </span>
-                <span className="text-emerald-500 dark:text-emerald-400 font-medium">{formatLargeNumber(userStats.total_token_balance || 0)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400"></span>
-                  Ref Tokens
-                </span>
-                <span className="text-blue-500 dark:text-blue-400 font-medium">{formatLargeNumber(userStats.total_ref_tokens || 0)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400"></span>
-                  Tokens Deducted
-                </span>
-                <span className="text-orange-500 dark:text-orange-400 font-medium">{formatLargeNumber(userStats.total_tokens_deducted || 0)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">

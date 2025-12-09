@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { fetchWithAuth, setUserCreditPackage, AdminUser } from '@/lib/api'
+import { fetchWithAuth, updateUserCredits, addUserCredits, AdminUser } from '@/lib/api'
+import { useLanguage } from '@/components/LanguageProvider'
 
 function formatDateTime(dateStr: string | undefined): string {
   if (!dateStr) return '-'
@@ -16,12 +17,12 @@ function formatDateTime(dateStr: string | undefined): string {
   return `${day}/${month}/${year} ${hours}:${minutes}`
 }
 
-function getDaysRemaining(expiresAt: string | undefined): string {
+function getDaysRemaining(expiresAt: string | undefined, expiredText: string): string {
   if (!expiresAt) return '-'
   const now = new Date()
   const exp = new Date(expiresAt)
   const diff = exp.getTime() - now.getTime()
-  if (diff <= 0) return 'Expired'
+  if (diff <= 0) return expiredText
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
   return `${days}d`
 }
@@ -32,6 +33,7 @@ type StatusFilter = 'all' | 'active' | 'inactive'
 export default function UsersPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const { t } = useLanguage()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [stats, setStats] = useState<{ total: number; activeUsers: number } | null>(null)
   const [search, setSearch] = useState('')
@@ -39,6 +41,14 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [setAmounts, setSetAmounts] = useState<Record<string, string>>({})
+  const [addAmounts, setAddAmounts] = useState<Record<string, string>>({})
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean
+    type: 'set' | 'add'
+    username: string
+    amount: number
+  } | null>(null)
 
   const roleStats = useMemo(() => {
     const adminCount = users.filter(u => u.role === 'admin').length
@@ -92,14 +102,40 @@ export default function UsersPage() {
     return () => clearTimeout(timer)
   }, [search, loadUsers])
 
-  const handleSetPackage = async (username: string, pkg: '20' | '40') => {
-    if (!confirm(`Set $${pkg} credit package for ${username}?`)) return
+  const handleSetCredits = async (username: string) => {
+    const amount = parseFloat(setAmounts[username] || '0')
+    if (isNaN(amount) || amount < 0) {
+      alert(t.users.validation.invalidAmount)
+      return
+    }
+    setConfirmModal({ isOpen: true, type: 'set', username, amount })
+  }
+
+  const handleAddCredits = async (username: string) => {
+    const amount = parseFloat(addAmounts[username] || '0')
+    if (isNaN(amount) || amount < 0) {
+      alert(t.users.validation.invalidAmount)
+      return
+    }
+    setConfirmModal({ isOpen: true, type: 'add', username, amount })
+  }
+
+  const executeCreditsAction = async () => {
+    if (!confirmModal) return
+    const { type, username, amount } = confirmModal
+    setConfirmModal(null)
     setUpdating(username)
     try {
-      await setUserCreditPackage(username, pkg)
+      if (type === 'set') {
+        await updateUserCredits(username, amount)
+        setSetAmounts(prev => ({ ...prev, [username]: '' }))
+      } else {
+        await addUserCredits(username, amount)
+        setAddAmounts(prev => ({ ...prev, [username]: '' }))
+      }
       await loadUsers(search || undefined)
     } catch (err: any) {
-      alert(err.message || 'Failed to set credit package')
+      alert(err.message || (type === 'set' ? t.users.errors.setFailed : t.users.errors.addFailed))
     } finally {
       setUpdating(null)
     }
@@ -118,8 +154,8 @@ export default function UsersPage() {
               </svg>
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Users</h1>
-              <p className="text-slate-600 dark:text-slate-500 text-xs sm:text-sm">Manage users and credit balances</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t.users.title}</h1>
+              <p className="text-slate-600 dark:text-slate-500 text-xs sm:text-sm">{t.users.subtitle}</p>
             </div>
           </div>
         </header>
@@ -127,15 +163,15 @@ export default function UsersPage() {
         {stats && (
           <div className="grid grid-cols-3 gap-4">
             <div className="p-4 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40">
-              <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Users</p>
+              <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">{t.users.totalUsers}</p>
               <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
             </div>
             <div className="p-4 rounded-xl border border-emerald-300 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5">
-              <p className="text-emerald-600 dark:text-emerald-500 text-xs uppercase tracking-wider mb-1">Active Users</p>
+              <p className="text-emerald-600 dark:text-emerald-500 text-xs uppercase tracking-wider mb-1">{t.users.activeUsers}</p>
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{stats.activeUsers || 0}</p>
             </div>
             <div className="p-4 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40">
-              <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Inactive</p>
+              <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">{t.users.inactive}</p>
               <p className="text-2xl font-bold text-slate-600 dark:text-slate-400">{stats.total - (stats.activeUsers || 0)}</p>
             </div>
           </div>
@@ -148,7 +184,7 @@ export default function UsersPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search by username..."
+              placeholder={t.users.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 transition-all text-sm"
@@ -159,35 +195,35 @@ export default function UsersPage() {
             onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
             className="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-900 dark:text-white text-sm"
           >
-            <option value="all">All Roles</option>
-            <option value="admin">Admin ({roleStats.admin})</option>
-            <option value="user">User ({roleStats.user})</option>
+            <option value="all">{t.users.allRoles}</option>
+            <option value="admin">{t.users.admin} ({roleStats.admin})</option>
+            <option value="user">{t.users.user} ({roleStats.user})</option>
           </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
             className="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-900 dark:text-white text-sm"
           >
-            <option value="all">All Status</option>
-            <option value="active">Active (has credits)</option>
-            <option value="inactive">Inactive (no credits)</option>
+            <option value="all">{t.users.allStatus}</option>
+            <option value="active">{t.users.active}</option>
+            <option value="inactive">{t.users.inactiveStatus}</option>
           </select>
         </div>
 
         <p className="text-slate-600 dark:text-slate-500 text-sm">
-          {loading ? 'Loading...' : `${filteredUsers.length} users`}
+          {loading ? t.users.loading : `${filteredUsers.length} users`}
         </p>
 
         <div className="rounded-xl border border-slate-300 dark:border-white/10 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/60">
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">User</th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Credits</th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Ref Credits</th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Expires</th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Created</th>
-                <th className="text-right px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Actions</th>
+                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.user}</th>
+                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.credits}</th>
+                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.refCredits}</th>
+                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.expires}</th>
+                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.created}</th>
+                <th className="text-right px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.actions}</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-black/40">
@@ -196,14 +232,14 @@ export default function UsersPage() {
                   <td colSpan={6} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-indigo-200 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
-                      <span className="text-slate-600 dark:text-slate-500 text-sm">Loading...</span>
+                      <span className="text-slate-600 dark:text-slate-500 text-sm">{t.users.loading}</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
-                    No users found
+                    {t.users.noUsersFound}
                   </td>
                 </tr>
               ) : (
@@ -218,7 +254,7 @@ export default function UsersPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                            u.role === 'admin' 
+                            u.role === 'admin'
                               ? 'bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400'
                               : 'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
                           }`}>
@@ -243,8 +279,8 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-sm ${getDaysRemaining(u.expiresAt) === 'Expired' ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}>
-                          {getDaysRemaining(u.expiresAt)}
+                        <span className={`text-sm ${getDaysRemaining(u.expiresAt, t.users.expired) === t.users.expired ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}>
+                          {getDaysRemaining(u.expiresAt, t.users.expired)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
@@ -252,20 +288,44 @@ export default function UsersPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleSetPackage(username, '20')}
-                            disabled={isUpdating}
-                            className="px-2.5 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
-                          >
-                            +$20
-                          </button>
-                          <button
-                            onClick={() => handleSetPackage(username, '40')}
-                            disabled={isUpdating}
-                            className="px-2.5 py-1 rounded border border-indigo-300 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
-                          >
-                            +$40
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="$"
+                              value={setAmounts[username] || ''}
+                              onChange={(e) => setSetAmounts(prev => ({ ...prev, [username]: e.target.value }))}
+                              className="w-16 px-2 py-1 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs focus:outline-none focus:border-amber-400"
+                              disabled={isUpdating}
+                            />
+                            <button
+                              onClick={() => handleSetCredits(username)}
+                              disabled={isUpdating || !setAmounts[username]}
+                              className="px-2 py-1 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                            >
+                              SET
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="$"
+                              value={addAmounts[username] || ''}
+                              onChange={(e) => setAddAmounts(prev => ({ ...prev, [username]: e.target.value }))}
+                              className="w-16 px-2 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs focus:outline-none focus:border-emerald-400"
+                              disabled={isUpdating}
+                            />
+                            <button
+                              onClick={() => handleAddCredits(username)}
+                              disabled={isUpdating || !addAmounts[username]}
+                              className="px-2 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                            >
+                              ADD
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -276,6 +336,88 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setConfirmModal(null)}
+          />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-4 mb-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                confirmModal.type === 'set'
+                  ? 'bg-amber-100 dark:bg-amber-500/20'
+                  : 'bg-emerald-100 dark:bg-emerald-500/20'
+              }`}>
+                {confirmModal.type === 'set' ? (
+                  <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                )}
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  {confirmModal.type === 'set' ? t.users.confirmModal.setTitle : t.users.confirmModal.addTitle}
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {t.users.confirmModal.confirm}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-600 dark:text-slate-400">{t.users.confirmModal.user}</span>
+                <span className="font-medium text-slate-900 dark:text-white">{confirmModal.username}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600 dark:text-slate-400">
+                  {confirmModal.type === 'set' ? t.users.confirmModal.newBalance : t.users.confirmModal.amountToAdd}
+                </span>
+                <span className={`text-xl font-bold ${
+                  confirmModal.type === 'set'
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  ${confirmModal.amount.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              {confirmModal.type === 'set'
+                ? `${t.users.confirmModal.setDescription} ${confirmModal.username}.`
+                : `${t.users.confirmModal.addDescription} $${confirmModal.amount.toFixed(2)} ${t.users.confirmModal.addDescriptionSuffix} ${confirmModal.username}.`
+              }
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+              >
+                {t.users.confirmModal.cancel}
+              </button>
+              <button
+                onClick={executeCreditsAction}
+                className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-white transition-colors ${
+                  confirmModal.type === 'set'
+                    ? 'bg-amber-500 hover:bg-amber-600'
+                    : 'bg-emerald-500 hover:bg-emerald-600'
+                }`}
+              >
+                {confirmModal.type === 'set' ? t.users.confirmModal.setCredits : t.users.confirmModal.addCredits}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

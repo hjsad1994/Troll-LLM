@@ -940,6 +940,53 @@ export const translations = {
       friendKey: 'Friend Key',
       referral: 'Referral',
     },
+    // Users Page
+    users: {
+      title: 'Users',
+      subtitle: 'Manage users and credit balances',
+      totalUsers: 'Total Users',
+      activeUsers: 'Active Users',
+      inactive: 'Inactive',
+      searchPlaceholder: 'Search by username...',
+      allRoles: 'All Roles',
+      admin: 'Admin',
+      user: 'User',
+      allStatus: 'All Status',
+      active: 'Active (has credits)',
+      inactiveStatus: 'Inactive (no credits)',
+      loading: 'Loading...',
+      noUsersFound: 'No users found',
+      table: {
+        user: 'User',
+        credits: 'Credits',
+        refCredits: 'Ref Credits',
+        expires: 'Expires',
+        created: 'Created',
+        actions: 'Actions',
+      },
+      expired: 'Expired',
+      confirmModal: {
+        setTitle: 'Set Credits',
+        addTitle: 'Add Credits',
+        confirm: 'Confirm this action',
+        user: 'User',
+        newBalance: 'New Balance',
+        amountToAdd: 'Amount to Add',
+        setDescription: 'This will replace the current credits balance for',
+        addDescription: 'This will add',
+        addDescriptionSuffix: 'to the current credits balance for',
+        cancel: 'Cancel',
+        setCredits: 'Set Credits',
+        addCredits: 'Add Credits',
+      },
+      validation: {
+        invalidAmount: 'Please enter a valid amount (>= 0)',
+      },
+      errors: {
+        setFailed: 'Failed to set credits',
+        addFailed: 'Failed to add credits',
+      },
+    },
     // Friend Key Page
     friendKey: {
       title: 'Friend Key',
@@ -996,6 +1043,135 @@ export const translations = {
         confirm: 'Delete Key',
         deleting: 'Deleting...',
       },
+    },
+    // Legal Pages
+    legal: {
+      privacy: {
+        title: 'Privacy Policy',
+        lastUpdated: 'Last updated',
+        backToHome: 'Back to home',
+        intro: 'TrollLLM ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our API proxy service.',
+        dataCollection: {
+          title: 'Information We Collect',
+          description: 'We collect the following types of information:',
+          items: [
+            'Account information: username and hashed password for authentication',
+            'API usage data: request counts, token usage, and timestamps for billing purposes',
+            'Payment information: transaction records (payment details are processed by third-party providers)',
+            'Technical data: IP addresses and request logs for security and debugging'
+          ]
+        },
+        dataUsage: {
+          title: 'How We Use Your Information',
+          description: 'We use your information to:',
+          items: [
+            'Provide and maintain our API proxy service',
+            'Process payments and manage your subscription',
+            'Monitor usage and enforce rate limits',
+            'Improve our services and user experience',
+            'Communicate with you about service updates'
+          ]
+        },
+        dataSecurity: {
+          title: 'Data Security',
+          description: 'We implement industry-standard security measures to protect your data. All API communications are encrypted using TLS. We do not store the content of your API requests - they are proxied directly to upstream AI providers and not logged.'
+        },
+        dataSharing: {
+          title: 'Data Sharing',
+          description: 'We do not sell your personal information. We only share data with upstream AI providers (Anthropic, OpenAI) as necessary to fulfill API requests. These providers have their own privacy policies governing the use of data sent through their APIs.'
+        },
+        yourRights: {
+          title: 'Your Rights',
+          description: 'You have the right to:',
+          items: [
+            'Access your personal data',
+            'Request deletion of your account and associated data',
+            'Export your usage data',
+            'Opt out of non-essential communications'
+          ]
+        },
+        contact: {
+          title: 'Contact Us',
+          description: 'If you have any questions about this Privacy Policy, please contact us via'
+        },
+        changes: {
+          title: 'Changes to This Policy',
+          description: 'We may update this Privacy Policy from time to time. We will notify you of any significant changes by posting a notice on our website or sending you an email.'
+        },
+        seeAlso: {
+          terms: 'Terms of Service'
+        }
+      },
+      terms: {
+        title: 'Terms of Service',
+        lastUpdated: 'Last updated',
+        backToHome: 'Back to home',
+        intro: 'Welcome to TrollLLM. By accessing or using our API proxy service, you agree to be bound by these Terms of Service. Please read them carefully before using our service.',
+        service: {
+          title: 'Service Description',
+          description: 'TrollLLM provides an API proxy service that allows you to access AI models from various providers (including Anthropic and OpenAI) through a unified API endpoint. We act as an intermediary between you and the upstream AI providers.'
+        },
+        account: {
+          title: 'Account Terms',
+          items: [
+            'You must provide accurate information when creating an account',
+            'You are responsible for maintaining the security of your API key',
+            'You must not share your API key with unauthorized parties',
+            'You are responsible for all activity that occurs under your account',
+            'You must be at least 18 years old to use this service'
+          ]
+        },
+        acceptableUse: {
+          title: 'Acceptable Use Policy',
+          description: 'You agree not to use TrollLLM for:',
+          prohibited: [
+            'Any illegal or unauthorized purpose',
+            'Generating content that violates the terms of upstream AI providers',
+            'Attempting to circumvent rate limits or abuse the service',
+            'Reselling or redistributing API access without authorization',
+            'Automated scraping or data harvesting',
+            'Harassment, spam, or malicious activities'
+          ]
+        },
+        payment: {
+          title: 'Payment Terms',
+          items: [
+            'Credits are purchased in advance and deducted based on API usage',
+            'All payments are non-refundable unless required by law',
+            'Credits expire according to the plan terms (typically 7 days)',
+            'Prices are subject to change with notice',
+            'You are responsible for any applicable taxes'
+          ]
+        },
+        apiUsage: {
+          title: 'API Usage',
+          items: [
+            'API access is subject to rate limits based on your subscription tier',
+            'We reserve the right to throttle or suspend access for abuse',
+            'Uptime is not guaranteed; we provide the service "as is"',
+            'API responses depend on upstream providers and may vary'
+          ]
+        },
+        liability: {
+          title: 'Limitation of Liability',
+          description: 'TrollLLM is provided "as is" without warranties of any kind. We are not liable for any indirect, incidental, or consequential damages arising from your use of the service. Our total liability is limited to the amount you paid in the last 30 days.'
+        },
+        termination: {
+          title: 'Termination',
+          description: 'We may suspend or terminate your account at any time for violation of these terms or for any other reason at our discretion. You may close your account at any time by contacting us. Upon termination, your remaining credits will be forfeited.'
+        },
+        changes: {
+          title: 'Changes to Terms',
+          description: 'We may modify these terms at any time. Continued use of the service after changes constitutes acceptance of the new terms. We will notify users of significant changes via email or website notice.'
+        },
+        contact: {
+          title: 'Contact',
+          description: 'For questions about these Terms of Service, please contact us via'
+        },
+        seeAlso: {
+          privacy: 'Privacy Policy'
+        }
+      }
     },
   },
   vi: {
@@ -1937,6 +2113,53 @@ export const translations = {
       friendKey: 'Friend Key',
       referral: 'Giới thiệu',
     },
+    // Users Page
+    users: {
+      title: 'Người dùng',
+      subtitle: 'Quản lý người dùng và số dư credits',
+      totalUsers: 'Tổng người dùng',
+      activeUsers: 'Đang hoạt động',
+      inactive: 'Không hoạt động',
+      searchPlaceholder: 'Tìm theo tên đăng nhập...',
+      allRoles: 'Tất cả vai trò',
+      admin: 'Admin',
+      user: 'User',
+      allStatus: 'Tất cả trạng thái',
+      active: 'Hoạt động (có credits)',
+      inactiveStatus: 'Không hoạt động (hết credits)',
+      loading: 'Đang tải...',
+      noUsersFound: 'Không tìm thấy người dùng',
+      table: {
+        user: 'Người dùng',
+        credits: 'Credits',
+        refCredits: 'Ref Credits',
+        expires: 'Hết hạn',
+        created: 'Ngày tạo',
+        actions: 'Thao tác',
+      },
+      expired: 'Đã hết hạn',
+      confirmModal: {
+        setTitle: 'Đặt Credits',
+        addTitle: 'Thêm Credits',
+        confirm: 'Xác nhận thao tác này',
+        user: 'Người dùng',
+        newBalance: 'Số dư mới',
+        amountToAdd: 'Số tiền thêm',
+        setDescription: 'Thao tác này sẽ thay thế số dư credits hiện tại của',
+        addDescription: 'Thao tác này sẽ thêm',
+        addDescriptionSuffix: 'vào số dư credits hiện tại của',
+        cancel: 'Hủy',
+        setCredits: 'Đặt Credits',
+        addCredits: 'Thêm Credits',
+      },
+      validation: {
+        invalidAmount: 'Vui lòng nhập số tiền hợp lệ (>= 0)',
+      },
+      errors: {
+        setFailed: 'Không thể đặt credits',
+        addFailed: 'Không thể thêm credits',
+      },
+    },
     // Friend Key Page
     friendKey: {
       title: 'Friend Key',
@@ -1993,6 +2216,135 @@ export const translations = {
         confirm: 'Xóa Key',
         deleting: 'Đang xóa...',
       },
+    },
+    // Legal Pages
+    legal: {
+      privacy: {
+        title: 'Chính sách Bảo mật',
+        lastUpdated: 'Cập nhật lần cuối',
+        backToHome: 'Quay lại trang chủ',
+        intro: 'TrollLLM ("chúng tôi") cam kết bảo vệ quyền riêng tư của bạn. Chính sách Bảo mật này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin của bạn khi bạn sử dụng dịch vụ API proxy của chúng tôi.',
+        dataCollection: {
+          title: 'Thông tin Chúng tôi Thu thập',
+          description: 'Chúng tôi thu thập các loại thông tin sau:',
+          items: [
+            'Thông tin tài khoản: tên đăng nhập và mật khẩu đã mã hóa để xác thực',
+            'Dữ liệu sử dụng API: số lượng yêu cầu, mức sử dụng token và thời gian cho mục đích thanh toán',
+            'Thông tin thanh toán: hồ sơ giao dịch (chi tiết thanh toán được xử lý bởi nhà cung cấp bên thứ ba)',
+            'Dữ liệu kỹ thuật: địa chỉ IP và nhật ký yêu cầu để bảo mật và gỡ lỗi'
+          ]
+        },
+        dataUsage: {
+          title: 'Cách Chúng tôi Sử dụng Thông tin',
+          description: 'Chúng tôi sử dụng thông tin của bạn để:',
+          items: [
+            'Cung cấp và duy trì dịch vụ API proxy',
+            'Xử lý thanh toán và quản lý gói đăng ký của bạn',
+            'Giám sát mức sử dụng và thực thi giới hạn tốc độ',
+            'Cải thiện dịch vụ và trải nghiệm người dùng',
+            'Liên lạc với bạn về các cập nhật dịch vụ'
+          ]
+        },
+        dataSecurity: {
+          title: 'Bảo mật Dữ liệu',
+          description: 'Chúng tôi triển khai các biện pháp bảo mật tiêu chuẩn ngành để bảo vệ dữ liệu của bạn. Tất cả thông tin liên lạc API được mã hóa bằng TLS. Chúng tôi không lưu trữ nội dung yêu cầu API của bạn - chúng được chuyển tiếp trực tiếp đến các nhà cung cấp AI và không được ghi lại.'
+        },
+        dataSharing: {
+          title: 'Chia sẻ Dữ liệu',
+          description: 'Chúng tôi không bán thông tin cá nhân của bạn. Chúng tôi chỉ chia sẻ dữ liệu với các nhà cung cấp AI (Anthropic, OpenAI) khi cần thiết để thực hiện yêu cầu API. Các nhà cung cấp này có chính sách bảo mật riêng về việc sử dụng dữ liệu gửi qua API của họ.'
+        },
+        yourRights: {
+          title: 'Quyền của Bạn',
+          description: 'Bạn có quyền:',
+          items: [
+            'Truy cập dữ liệu cá nhân của bạn',
+            'Yêu cầu xóa tài khoản và dữ liệu liên quan',
+            'Xuất dữ liệu sử dụng của bạn',
+            'Từ chối nhận thông tin liên lạc không cần thiết'
+          ]
+        },
+        contact: {
+          title: 'Liên hệ',
+          description: 'Nếu bạn có bất kỳ câu hỏi nào về Chính sách Bảo mật này, vui lòng liên hệ với chúng tôi qua'
+        },
+        changes: {
+          title: 'Thay đổi Chính sách',
+          description: 'Chúng tôi có thể cập nhật Chính sách Bảo mật này theo thời gian. Chúng tôi sẽ thông báo cho bạn về bất kỳ thay đổi đáng kể nào bằng cách đăng thông báo trên trang web hoặc gửi email cho bạn.'
+        },
+        seeAlso: {
+          terms: 'Điều khoản Dịch vụ'
+        }
+      },
+      terms: {
+        title: 'Điều khoản Dịch vụ',
+        lastUpdated: 'Cập nhật lần cuối',
+        backToHome: 'Quay lại trang chủ',
+        intro: 'Chào mừng bạn đến với TrollLLM. Bằng việc truy cập hoặc sử dụng dịch vụ API proxy của chúng tôi, bạn đồng ý bị ràng buộc bởi các Điều khoản Dịch vụ này. Vui lòng đọc kỹ trước khi sử dụng dịch vụ.',
+        service: {
+          title: 'Mô tả Dịch vụ',
+          description: 'TrollLLM cung cấp dịch vụ API proxy cho phép bạn truy cập các mô hình AI từ nhiều nhà cung cấp khác nhau (bao gồm Anthropic và OpenAI) thông qua một endpoint API thống nhất. Chúng tôi đóng vai trò trung gian giữa bạn và các nhà cung cấp AI.'
+        },
+        account: {
+          title: 'Điều khoản Tài khoản',
+          items: [
+            'Bạn phải cung cấp thông tin chính xác khi tạo tài khoản',
+            'Bạn chịu trách nhiệm duy trì bảo mật API key của mình',
+            'Bạn không được chia sẻ API key với các bên không được ủy quyền',
+            'Bạn chịu trách nhiệm cho tất cả hoạt động xảy ra dưới tài khoản của bạn',
+            'Bạn phải từ 18 tuổi trở lên để sử dụng dịch vụ này'
+          ]
+        },
+        acceptableUse: {
+          title: 'Chính sách Sử dụng Chấp nhận được',
+          description: 'Bạn đồng ý không sử dụng TrollLLM cho:',
+          prohibited: [
+            'Bất kỳ mục đích bất hợp pháp hoặc trái phép nào',
+            'Tạo nội dung vi phạm điều khoản của các nhà cung cấp AI',
+            'Cố gắng vượt qua giới hạn tốc độ hoặc lạm dụng dịch vụ',
+            'Bán lại hoặc phân phối lại quyền truy cập API mà không được phép',
+            'Thu thập dữ liệu tự động hoặc scraping',
+            'Quấy rối, spam hoặc các hoạt động độc hại'
+          ]
+        },
+        payment: {
+          title: 'Điều khoản Thanh toán',
+          items: [
+            'Credits được mua trước và trừ dựa trên mức sử dụng API',
+            'Tất cả thanh toán không hoàn lại trừ khi luật pháp yêu cầu',
+            'Credits hết hạn theo điều khoản gói (thường là 7 ngày)',
+            'Giá có thể thay đổi khi có thông báo',
+            'Bạn chịu trách nhiệm về bất kỳ khoản thuế áp dụng nào'
+          ]
+        },
+        apiUsage: {
+          title: 'Sử dụng API',
+          items: [
+            'Quyền truy cập API phải tuân theo giới hạn tốc độ dựa trên gói đăng ký',
+            'Chúng tôi có quyền giới hạn hoặc đình chỉ quyền truy cập khi bị lạm dụng',
+            'Thời gian hoạt động không được đảm bảo; chúng tôi cung cấp dịch vụ "nguyên trạng"',
+            'Phản hồi API phụ thuộc vào các nhà cung cấp và có thể thay đổi'
+          ]
+        },
+        liability: {
+          title: 'Giới hạn Trách nhiệm',
+          description: 'TrollLLM được cung cấp "nguyên trạng" mà không có bất kỳ bảo đảm nào. Chúng tôi không chịu trách nhiệm về bất kỳ thiệt hại gián tiếp, ngẫu nhiên hoặc hậu quả nào phát sinh từ việc bạn sử dụng dịch vụ. Tổng trách nhiệm của chúng tôi được giới hạn ở số tiền bạn đã thanh toán trong 30 ngày qua.'
+        },
+        termination: {
+          title: 'Chấm dứt',
+          description: 'Chúng tôi có thể đình chỉ hoặc chấm dứt tài khoản của bạn bất cứ lúc nào do vi phạm các điều khoản này hoặc vì bất kỳ lý do nào khác theo quyết định của chúng tôi. Bạn có thể đóng tài khoản bất cứ lúc nào bằng cách liên hệ với chúng tôi. Khi chấm dứt, số credits còn lại sẽ bị mất.'
+        },
+        changes: {
+          title: 'Thay đổi Điều khoản',
+          description: 'Chúng tôi có thể sửa đổi các điều khoản này bất cứ lúc nào. Tiếp tục sử dụng dịch vụ sau khi thay đổi có nghĩa là chấp nhận các điều khoản mới. Chúng tôi sẽ thông báo cho người dùng về các thay đổi đáng kể qua email hoặc thông báo trên trang web.'
+        },
+        contact: {
+          title: 'Liên hệ',
+          description: 'Nếu có câu hỏi về Điều khoản Dịch vụ này, vui lòng liên hệ với chúng tôi qua'
+        },
+        seeAlso: {
+          privacy: 'Chính sách Bảo mật'
+        }
+      }
     },
   },
 }

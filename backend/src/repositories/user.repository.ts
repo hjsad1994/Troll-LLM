@@ -170,40 +170,78 @@ export class UserRepository {
       .lean();
   }
 
-  async getUserStats(period: string = 'all'): Promise<{ 
-    total: number; 
-    totalCreditsUsed: number; 
-    totalCredits: number; 
-    totalRefCredits: number; 
-    totalInputTokens: number; 
-    totalOutputTokens: number; 
-    activeUsers: number 
+  async getUserStats(period: string = 'all'): Promise<{
+    total: number;
+    totalCreditsUsed: number;
+    totalCredits: number;
+    totalRefCredits: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    activeUsers: number
   }> {
     const total = await User.countDocuments();
-    
+
+    // Get current credits/refCredits from User collection (always total, not filtered by period)
     const userAgg = await User.aggregate([
       {
         $group: {
           _id: null,
           totalCredits: { $sum: '$credits' },
           totalRefCredits: { $sum: '$refCredits' },
-          totalCreditsUsed: { $sum: '$creditsUsed' },
-          totalInputTokens: { $sum: '$totalInputTokens' },
-          totalOutputTokens: { $sum: '$totalOutputTokens' },
           activeUsers: {
             $sum: { $cond: [{ $or: [{ $gt: ['$credits', 0] }, { $gt: ['$refCredits', 0] }] }, 1, 0] }
           }
         }
       }
     ]);
-    
-    return { 
-      total, 
-      totalCreditsUsed: userAgg[0]?.totalCreditsUsed || 0,
+
+    // Calculate date filter for period-based stats from RequestLog
+    let dateFilter: any = {};
+    if (period !== 'all') {
+      const now = new Date();
+      let startDate: Date;
+      switch (period) {
+        case '1h':
+          startDate = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case '3h':
+          startDate = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+          break;
+        case '8h':
+          startDate = new Date(now.getTime() - 8 * 60 * 60 * 1000);
+          break;
+        case '24h':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0);
+      }
+      dateFilter = { createdAt: { $gte: startDate } };
+    }
+
+    // Get usage stats from RequestLog (filtered by period)
+    const logAgg = await RequestLog.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: null,
+          totalCreditsUsed: { $sum: '$creditsCost' },
+          totalInputTokens: { $sum: '$inputTokens' },
+          totalOutputTokens: { $sum: '$outputTokens' }
+        }
+      }
+    ]);
+
+    return {
+      total,
+      totalCreditsUsed: logAgg[0]?.totalCreditsUsed || 0,
       totalCredits: userAgg[0]?.totalCredits || 0,
       totalRefCredits: userAgg[0]?.totalRefCredits || 0,
-      totalInputTokens: userAgg[0]?.totalInputTokens || 0,
-      totalOutputTokens: userAgg[0]?.totalOutputTokens || 0,
+      totalInputTokens: logAgg[0]?.totalInputTokens || 0,
+      totalOutputTokens: logAgg[0]?.totalOutputTokens || 0,
       activeUsers: userAgg[0]?.activeUsers || 0
     };
   }
