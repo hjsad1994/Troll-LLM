@@ -65,7 +65,7 @@ const models: Model[] = [
     outputPrice: 25,
     cacheWritePrice: 6.25,
     cacheHitPrice: 0.50,
-    billingMultiplier: 1.2,
+    billingMultiplier: 1.25,
     capabilities: ['vision', 'function-calling', 'reasoning', 'code'],
     speed: 'powerful',
   },
@@ -110,7 +110,7 @@ const models: Model[] = [
     outputPrice: 10.0,
     cacheWritePrice: 1.5625,
     cacheHitPrice: 0.125,
-    billingMultiplier: 1.0,
+    billingMultiplier: 1.1,
     capabilities: ['vision', 'function-calling', 'reasoning', 'code'],
     speed: 'balanced',
   },
@@ -125,7 +125,7 @@ const models: Model[] = [
     outputPrice: 12.0,
     cacheWritePrice: 0,
     cacheHitPrice: 0,
-    billingMultiplier: 1.0,
+    billingMultiplier: 1.1,
     capabilities: ['vision', 'function-calling', 'reasoning', 'code', 'multimodal'],
     speed: 'powerful',
   },
@@ -310,6 +310,7 @@ export default function ModelsPage() {
                     <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.context}</th>
                     <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.input}</th>
                     <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.output}</th>
+                    <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">Multiplier</th>
                     <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden md:table-cell">{t.models.table.speed}</th>
                     <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden lg:table-cell">{t.models.table.capabilities}</th>
                     <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden xl:table-cell">{t.models.table.apiId}</th>
@@ -356,6 +357,10 @@ export default function ModelsPage() {
                         {/* Output Price */}
                         <td className="px-4 py-4 text-right">
                           <span className={`font-medium text-sm ${colors.text}`}>{formatPrice(model.outputPrice)}</span>
+                        </td>
+                        {/* Multiplier */}
+                        <td className="px-4 py-4 text-center">
+                          <span className="text-[var(--theme-text)] text-sm font-medium">{model.billingMultiplier}x</span>
                         </td>
                         {/* Speed */}
                         <td className="px-4 py-4 text-center hidden md:table-cell">
@@ -415,24 +420,6 @@ export default function ModelsPage() {
             </div>
           )}
 
-          {/* Launch Promotion Banner */}
-          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-300 dark:border-emerald-500/20 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm2.5 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6.207.293a1 1 0 00-1.414 0l-6 6a1 1 0 101.414 1.414l6-6a1 1 0 000-1.414zM12.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-emerald-600 dark:text-emerald-400 font-medium text-sm mb-1">
-                  {t.models.promotion.title}
-                </p>
-                <p className="text-[var(--theme-text-muted)] text-sm">
-                  {t.models.promotion.description} <strong className="text-[var(--theme-text)]">1x</strong> {t.models.promotion.original}, {t.models.promotion.opus} <strong className="text-[var(--theme-text)]">1.1x</strong>.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 

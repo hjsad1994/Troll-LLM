@@ -395,12 +395,6 @@ export const translations = {
         title: 'No models found',
         description: 'Try a different search term or filter',
       },
-      promotion: {
-        title: 'Launch Promotion',
-        description: 'To celebrate our launch, billing multipliers are significantly reduced! Most models are at',
-        original: '(original price)',
-        opus: 'Opus at only',
-      },
       ctaTitle: 'Ready to start?',
       ctaDescription: 'Get instant access to all AI models from Anthropic, OpenAI, and Google with a single API key.',
       getApiKey: 'Get API Key',
@@ -1570,12 +1564,6 @@ export const translations = {
       empty: {
         title: 'Không tìm thấy mô hình',
         description: 'Thử từ khóa tìm kiếm hoặc bộ lọc khác',
-      },
-      promotion: {
-        title: 'Khuyến mãi Ra mắt',
-        description: 'Để kỷ niệm ra mắt, hệ số thanh toán đã giảm đáng kể! Hầu hết các mô hình ở mức',
-        original: '(giá gốc)',
-        opus: 'Opus chỉ',
       },
       ctaTitle: 'Sẵn sàng bắt đầu?',
       ctaDescription: 'Truy cập ngay tất cả mô hình AI từ Anthropic, OpenAI và Google với một API key duy nhất.',
