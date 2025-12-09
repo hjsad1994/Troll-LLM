@@ -29,7 +29,7 @@ export default function PrivacyPage() {
               {privacy.title}
             </h1>
             <p className="text-[var(--theme-text-subtle)]">
-              {privacy.lastUpdated}: December 10, 2024
+              {privacy.lastUpdated}: December 10, 2025
             </p>
           </div>
 

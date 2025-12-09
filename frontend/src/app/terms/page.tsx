@@ -29,7 +29,7 @@ export default function TermsPage() {
               {terms.title}
             </h1>
             <p className="text-[var(--theme-text-subtle)]">
-              {terms.lastUpdated}: December 10, 2024
+              {terms.lastUpdated}: December 10, 2025
             </p>
           </div>
 

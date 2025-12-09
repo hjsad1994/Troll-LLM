@@ -189,9 +189,9 @@ function RegisterForm() {
             {/* Terms */}
             <p className="text-center mt-6 text-gray-500 dark:text-slate-600 text-xs">
               {t.register.terms}{' '}
-              <a href="#" className="text-gray-600 dark:text-slate-500 hover:text-gray-800 dark:hover:text-slate-400">{t.register.termsLink}</a>
+              <Link href="/terms" className="text-gray-600 dark:text-slate-500 hover:text-gray-800 dark:hover:text-slate-400">{t.register.termsLink}</Link>
               {' '}{t.register.and}{' '}
-              <a href="#" className="text-gray-600 dark:text-slate-500 hover:text-gray-800 dark:hover:text-slate-400">{t.register.privacyLink}</a>
+              <Link href="/privacy" className="text-gray-600 dark:text-slate-500 hover:text-gray-800 dark:hover:text-slate-400">{t.register.privacyLink}</Link>
             </p>
           </div>
 

@@ -1053,7 +1053,7 @@ export const translations = {
         title: 'Privacy Policy',
         lastUpdated: 'Last updated',
         backToHome: 'Back to home',
-        intro: 'TrollLLM ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our API proxy service.',
+        intro: 'TrollLLM ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our API service.',
         dataCollection: {
           title: 'Information We Collect',
           description: 'We collect the following types of information:',
@@ -1068,7 +1068,7 @@ export const translations = {
           title: 'How We Use Your Information',
           description: 'We use your information to:',
           items: [
-            'Provide and maintain our API proxy service',
+            'Provide and maintain our API service',
             'Process payments and manage your subscription',
             'Monitor usage and enforce rate limits',
             'Improve our services and user experience',
@@ -1109,10 +1109,10 @@ export const translations = {
         title: 'Terms of Service',
         lastUpdated: 'Last updated',
         backToHome: 'Back to home',
-        intro: 'Welcome to TrollLLM. By accessing or using our API proxy service, you agree to be bound by these Terms of Service. Please read them carefully before using our service.',
+        intro: 'Welcome to TrollLLM. By accessing or using our API service, you agree to be bound by these Terms of Service. Please read them carefully before using our service.',
         service: {
           title: 'Service Description',
-          description: 'TrollLLM provides an API proxy service that allows you to access AI models from various providers (including Anthropic and OpenAI) through a unified API endpoint. We act as an intermediary between you and the upstream AI providers.'
+          description: 'TrollLLM provides an API service that allows you to access AI models from various providers (including Anthropic and OpenAI) through a unified API endpoint. We act as an intermediary between you and the upstream AI providers.'
         },
         account: {
           title: 'Account Terms',
@@ -2229,7 +2229,7 @@ export const translations = {
         title: 'Chính sách Bảo mật',
         lastUpdated: 'Cập nhật lần cuối',
         backToHome: 'Quay lại trang chủ',
-        intro: 'TrollLLM ("chúng tôi") cam kết bảo vệ quyền riêng tư của bạn. Chính sách Bảo mật này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin của bạn khi bạn sử dụng dịch vụ API proxy của chúng tôi.',
+        intro: 'TrollLLM ("chúng tôi") cam kết bảo vệ quyền riêng tư của bạn. Chính sách Bảo mật này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin của bạn khi bạn sử dụng dịch vụ API của chúng tôi.',
         dataCollection: {
           title: 'Thông tin Chúng tôi Thu thập',
           description: 'Chúng tôi thu thập các loại thông tin sau:',
@@ -2244,7 +2244,7 @@ export const translations = {
           title: 'Cách Chúng tôi Sử dụng Thông tin',
           description: 'Chúng tôi sử dụng thông tin của bạn để:',
           items: [
-            'Cung cấp và duy trì dịch vụ API proxy',
+            'Cung cấp và duy trì dịch vụ API',
             'Xử lý thanh toán và quản lý gói đăng ký của bạn',
             'Giám sát mức sử dụng và thực thi giới hạn tốc độ',
             'Cải thiện dịch vụ và trải nghiệm người dùng',
@@ -2285,10 +2285,10 @@ export const translations = {
         title: 'Điều khoản Dịch vụ',
         lastUpdated: 'Cập nhật lần cuối',
         backToHome: 'Quay lại trang chủ',
-        intro: 'Chào mừng bạn đến với TrollLLM. Bằng việc truy cập hoặc sử dụng dịch vụ API proxy của chúng tôi, bạn đồng ý bị ràng buộc bởi các Điều khoản Dịch vụ này. Vui lòng đọc kỹ trước khi sử dụng dịch vụ.',
+        intro: 'Chào mừng bạn đến với TrollLLM. Bằng việc truy cập hoặc sử dụng dịch vụ API của chúng tôi, bạn đồng ý bị ràng buộc bởi các Điều khoản Dịch vụ này. Vui lòng đọc kỹ trước khi sử dụng dịch vụ.',
         service: {
           title: 'Mô tả Dịch vụ',
-          description: 'TrollLLM cung cấp dịch vụ API proxy cho phép bạn truy cập các mô hình AI từ nhiều nhà cung cấp khác nhau (bao gồm Anthropic và OpenAI) thông qua một endpoint API thống nhất. Chúng tôi đóng vai trò trung gian giữa bạn và các nhà cung cấp AI.'
+          description: 'TrollLLM cung cấp dịch vụ API cho phép bạn truy cập các mô hình AI từ nhiều nhà cung cấp khác nhau (bao gồm Anthropic và OpenAI) thông qua một endpoint API thống nhất. Chúng tôi đóng vai trò trung gian giữa bạn và các nhà cung cấp AI.'
         },
         account: {
           title: 'Điều khoản Tài khoản',
