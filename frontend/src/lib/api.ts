@@ -169,6 +169,58 @@ export async function getCreditsUsage(): Promise<CreditsUsage> {
   return resp.json()
 }
 
+export interface DetailedUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheWriteTokens: number
+  cacheHitTokens: number
+  creditsBurned: number
+  requestCount: number
+}
+
+export async function getDetailedUsage(period: '1h' | '24h' | '7d' | '30d' = '24h'): Promise<DetailedUsage> {
+  const resp = await fetchWithAuth(`/api/user/detailed-usage?period=${period}`)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get detailed usage')
+  }
+  return resp.json()
+}
+
+export interface RequestLogItem {
+  id: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheWriteTokens: number
+  cacheHitTokens: number
+  creditsCost: number
+  latencyMs: number
+  isSuccess: boolean
+  createdAt: string
+}
+
+export interface RequestLogsResponse {
+  requests: RequestLogItem[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export async function getRequestLogs(
+  period: '1h' | '24h' | '7d' | '30d' = '24h',
+  page: number = 1,
+  limit: number = 50
+): Promise<RequestLogsResponse> {
+  const resp = await fetchWithAuth(`/api/user/request-logs?period=${period}&page=${page}&limit=${limit}`)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get request logs')
+  }
+  return resp.json()
+}
+
 // Admin User Management
 export type UserPlan = 'free' | 'dev' | 'pro' | 'pro-troll'
 
@@ -185,6 +237,7 @@ export interface AdminUser {
   totalOutputTokens: number
   credits: number
   refCredits: number
+  creditsBurned: number
   purchasedAt?: string
   expiresAt?: string
 }

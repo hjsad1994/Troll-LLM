@@ -21,7 +21,7 @@
       "output_price_per_mtok": 27.5,
       "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 1.50,
-      "billing_multiplier": 1.4,
+      "billing_multiplier": 1.45,
       "upstream": "ohmygpt",
       "upstream_model_id": "claude-opus-4-5"
     },
@@ -35,7 +35,7 @@
       "output_price_per_mtok": 17,
       "cache_write_price_per_mtok": 4,
       "cache_hit_price_per_mtok": 1.50,
-      "billing_multiplier": 1.4,
+      "billing_multiplier": 1.45,
       "upstream": "ohmygpt",
       "upstream_model_id": "claude-sonnet-4-5"
     },
@@ -61,7 +61,7 @@
       "output_price_per_mtok": 10.0,
       "cache_write_price_per_mtok": 1.4625,
       "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.5,
+      "billing_multiplier": 1.55,
       "upstream": "main"
     },
     {
@@ -73,7 +73,7 @@
       "output_price_per_mtok": 12.5,
       "cache_write_price_per_mtok": 1.4625,
       "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.5,
+      "billing_multiplier": 1.55,
       "upstream": "main"
     }
   ],

@@ -223,6 +223,123 @@ export class RequestLogRepository {
     return map;
   }
 
+  async getDetailedUsageByPeriod(userId: string, period: '1h' | '24h' | '7d' | '30d' = '24h'): Promise<{
+    inputTokens: number;
+    outputTokens: number;
+    cacheWriteTokens: number;
+    cacheHitTokens: number;
+    creditsBurned: number;
+    requestCount: number;
+  }> {
+    const now = new Date();
+    const periodMs: Record<string, number> = {
+      '1h': 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000,
+    };
+    const since = new Date(now.getTime() - periodMs[period]);
+
+    const result = await RequestLog.aggregate([
+      { $match: { userId, createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: null,
+          inputTokens: { $sum: { $ifNull: ['$inputTokens', 0] } },
+          outputTokens: { $sum: { $ifNull: ['$outputTokens', 0] } },
+          cacheWriteTokens: { $sum: { $ifNull: ['$cacheWriteTokens', 0] } },
+          cacheHitTokens: { $sum: { $ifNull: ['$cacheHitTokens', 0] } },
+          creditsBurned: { $sum: { $ifNull: ['$creditsCost', 0] } },
+          requestCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    if (result.length === 0) {
+      return {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheWriteTokens: 0,
+        cacheHitTokens: 0,
+        creditsBurned: 0,
+        requestCount: 0,
+      };
+    }
+
+    return {
+      inputTokens: result[0].inputTokens || 0,
+      outputTokens: result[0].outputTokens || 0,
+      cacheWriteTokens: result[0].cacheWriteTokens || 0,
+      cacheHitTokens: result[0].cacheHitTokens || 0,
+      creditsBurned: result[0].creditsBurned || 0,
+      requestCount: result[0].requestCount || 0,
+    };
+  }
+
+  async getRequestLogsByPeriod(
+    userId: string,
+    period: '1h' | '24h' | '7d' | '30d' = '24h',
+    page: number = 1,
+    limit: number = 50
+  ): Promise<{
+    requests: {
+      id: string;
+      model: string;
+      inputTokens: number;
+      outputTokens: number;
+      cacheWriteTokens: number;
+      cacheHitTokens: number;
+      creditsCost: number;
+      latencyMs: number;
+      isSuccess: boolean;
+      createdAt: Date;
+    }[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const now = new Date();
+    const periodMs: Record<string, number> = {
+      '1h': 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000,
+    };
+    const since = new Date(now.getTime() - periodMs[period]);
+    const skip = (page - 1) * limit;
+
+    const filter = { userId, createdAt: { $gte: since } };
+
+    const [requests, total] = await Promise.all([
+      RequestLog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      RequestLog.countDocuments(filter),
+    ]);
+
+    return {
+      requests: requests.map((r) => ({
+        id: r._id?.toString() || '',
+        model: r.model || 'unknown',
+        inputTokens: r.inputTokens || 0,
+        outputTokens: r.outputTokens || 0,
+        cacheWriteTokens: r.cacheWriteTokens || 0,
+        cacheHitTokens: r.cacheHitTokens || 0,
+        creditsCost: r.creditsCost || 0,
+        latencyMs: r.latencyMs || 0,
+        isSuccess: r.isSuccess,
+        createdAt: r.createdAt,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async getModelStats(since?: Date): Promise<{
     model: string;
     inputTokens: number;

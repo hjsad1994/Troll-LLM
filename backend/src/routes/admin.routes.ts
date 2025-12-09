@@ -55,12 +55,17 @@ router.get('/user-stats', requireAdmin, async (req: Request, res: Response) => {
 router.get('/users', requireAdmin, async (req: Request, res: Response) => {
   try {
     const search = req.query.search as string | undefined;
-    const [users, statsData] = await Promise.all([
+    const [users, statsData, creditsBurnedMap] = await Promise.all([
       userRepository.listUsers(search),
       userRepository.getUserStats(),
+      requestLogRepository.getCreditsBurnedByUser(),
     ]);
-    res.json({ 
-      users, 
+    const usersWithBurn = users.map((user) => ({
+      ...user,
+      creditsBurned: creditsBurnedMap[user._id] || 0,
+    }));
+    res.json({
+      users: usersWithBurn,
       stats: {
         total: statsData.total,
         activeUsers: statsData.activeUsers,

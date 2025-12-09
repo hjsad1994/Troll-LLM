@@ -250,6 +250,23 @@ export const translations = {
         loading: 'Loading...',
       },
     },
+    // Dashboard Test Page
+    dashboardTest: {
+      detailedUsage: {
+        title: 'Detailed Usage',
+        subtitle: 'Token breakdown by period',
+        inputTokens: 'Input Tokens',
+        outputTokens: 'Output Tokens',
+        cacheWrite: 'Cache Write',
+        cacheHit: 'Cache Hit',
+        creditsBurned: 'Credits Burned',
+        requests: 'Requests',
+      },
+      requestLogs: {
+        title: 'Request Logs',
+        noRequests: 'No requests found in this period',
+      },
+    },
     // Dashboard Models Page
     dashboardModels: {
       badge: 'Available Models',
@@ -957,6 +974,7 @@ export const translations = {
         user: 'User',
         credits: 'Credits',
         refCredits: 'Ref Credits',
+        burned: 'Burned',
         expires: 'Expires',
         created: 'Created',
         actions: 'Actions',
@@ -1418,6 +1436,23 @@ export const translations = {
         healthy: 'Up',
         unhealthy: 'Down',
         loading: 'Đang tải...',
+      },
+    },
+    // Dashboard Test Page
+    dashboardTest: {
+      detailedUsage: {
+        title: 'Chi tiết sử dụng',
+        subtitle: 'Phân tích token theo thời gian',
+        inputTokens: 'Input Tokens',
+        outputTokens: 'Output Tokens',
+        cacheWrite: 'Cache Write',
+        cacheHit: 'Cache Hit',
+        creditsBurned: 'Credits đã dùng',
+        requests: 'Requests',
+      },
+      requestLogs: {
+        title: 'Lịch sử Request',
+        noRequests: 'Không có request nào trong khoảng thời gian này',
       },
     },
     // Dashboard Models Page
@@ -2127,6 +2162,7 @@ export const translations = {
         user: 'Người dùng',
         credits: 'Credits',
         refCredits: 'Ref Credits',
+        burned: 'Đã dùng',
         expires: 'Hết hạn',
         created: 'Ngày tạo',
         actions: 'Thao tác',

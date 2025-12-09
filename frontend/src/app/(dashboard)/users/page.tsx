@@ -221,6 +221,7 @@ export default function UsersPage() {
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.user}</th>
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.credits}</th>
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.refCredits}</th>
+                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.burned}</th>
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.expires}</th>
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.created}</th>
                 <th className="text-right px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.actions}</th>
@@ -229,7 +230,7 @@ export default function UsersPage() {
             <tbody className="bg-white dark:bg-black/40">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
+                  <td colSpan={7} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-indigo-200 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
                       <span className="text-slate-600 dark:text-slate-500 text-sm">{t.users.loading}</span>
@@ -238,7 +239,7 @@ export default function UsersPage() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                     {t.users.noUsersFound}
                   </td>
                 </tr>
@@ -247,6 +248,7 @@ export default function UsersPage() {
                   const username = u._id || 'unknown'
                   const credits = u.credits || 0
                   const refCredits = u.refCredits || 0
+                  const creditsBurned = u.creditsBurned || 0
                   const isUpdating = updating === username
 
                   return (
@@ -276,6 +278,11 @@ export default function UsersPage() {
                       <td className="px-4 py-3">
                         <span className={`font-semibold text-sm ${refCredits > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
                           ${refCredits.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`font-semibold text-sm ${creditsBurned > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400'}`}>
+                          ${creditsBurned.toFixed(2)}
                         </span>
                       </td>
                       <td className="px-4 py-3">

@@ -952,7 +952,7 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 	requestStartTime := time.Now()
 	resp, err := maintarget.ForwardOpenAIRequest(requestBody, isStreaming)
 	if err != nil {
-		log.Printf("❌ [MainTarget] Request failed: %v", err)
+		log.Printf("❌ [MainTarget] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"error": {"message": "Request to main target failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
@@ -1031,7 +1031,7 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 	requestStartTime := time.Now()
 	resp, err := maintarget.ForwardOpenAIRequest(requestBody, isStreaming)
 	if err != nil {
-		log.Printf("❌ [MainTarget-OpenAI] Request failed: %v", err)
+		log.Printf("❌ [MainTarget-OpenAI] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"error": {"message": "Request to main target failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
@@ -1120,7 +1120,7 @@ func handleOhmyGPTRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIR
 	requestStartTime := time.Now()
 	resp, err := omgProvider.ForwardRequest(requestBody, isStreaming)
 	if err != nil {
-		log.Printf("❌ [OhmyGPT] Request failed: %v", err)
+		log.Printf("❌ [OhmyGPT] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"error": {"message": "Request to OhmyGPT failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
@@ -1223,7 +1223,7 @@ func handleOhmyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 	requestStartTime := time.Now()
 	resp, err := omgProvider.ForwardMessagesRequest(requestBody, isStreaming)
 	if err != nil {
-		log.Printf("❌ [OhmyGPT] Request failed: %v", err)
+		log.Printf("❌ [OhmyGPT] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OhmyGPT failed"}}`, http.StatusBadGateway)
 		return
 	}
@@ -1309,7 +1309,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 	requestStartTime := time.Now()
 	resp, err := maintarget.ForwardRequest(requestBody, isStreaming)
 	if err != nil {
-		log.Printf("❌ [MainTarget] Request failed: %v", err)
+		log.Printf("❌ [MainTarget] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to main target failed"}}`, http.StatusBadGateway)
 		return
 	}

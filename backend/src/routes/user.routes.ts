@@ -128,6 +128,49 @@ router.get('/credits-usage', jwtAuth, async (req: Request, res: Response) => {
   }
 });
 
+router.get('/detailed-usage', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const period = (req.query.period as '1h' | '24h' | '7d' | '30d') || '24h';
+    const validPeriods = ['1h', '24h', '7d', '30d'];
+    if (!validPeriods.includes(period)) {
+      return res.status(400).json({ error: 'Invalid period. Use: 1h, 24h, 7d, or 30d' });
+    }
+
+    const usage = await requestLogRepository.getDetailedUsageByPeriod(username, period);
+    res.json(usage);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/request-logs', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const period = (req.query.period as '1h' | '24h' | '7d' | '30d') || '24h';
+    const validPeriods = ['1h', '24h', '7d', '30d'];
+    if (!validPeriods.includes(period)) {
+      return res.status(400).json({ error: 'Invalid period. Use: 1h, 24h, 7d, or 30d' });
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    const logs = await requestLogRepository.getRequestLogsByPeriod(username, period, page, limit);
+    res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Referral endpoints
 router.get('/referral', jwtAuth, async (req: Request, res: Response) => {
   try {
