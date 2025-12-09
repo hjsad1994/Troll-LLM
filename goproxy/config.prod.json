@@ -22,7 +22,7 @@
       "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.6,
-      "upstream": "main",
+      "upstream": "ohmygpt",
       "upstream_model_id": "claude-opus-4.5"
     },
     {
@@ -36,7 +36,7 @@
       "cache_write_price_per_mtok": 4,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.6,
-      "upstream": "main",
+      "upstream": "ohmygpt",
       "upstream_model_id": "claude-sonnet-4.5"
     },
     {
@@ -49,7 +49,7 @@
       "cache_write_price_per_mtok": 1.6,
       "cache_hit_price_per_mtok": 0.10,
       "billing_multiplier": 1.6,
-      "upstream": "main",
+      "upstream": "ohmygpt",
       "upstream_model_id": "claude-haiku-4.5"
     },
     {
