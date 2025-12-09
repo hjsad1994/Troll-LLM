@@ -18,7 +18,7 @@
       "reasoning": "high",
       "thinking_budget": 10000,
       "input_price_per_mtok": 5.5,
-      "output_price_per_mtok": 27,
+      "output_price_per_mtok": 26.5,
       "cache_write_price_per_mtok": 6.5,
       "cache_hit_price_per_mtok": 0.50,
       "billing_multiplier": 1.15,
