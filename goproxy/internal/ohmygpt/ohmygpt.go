@@ -525,8 +525,12 @@ func (p *OhmyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStre
 		log.Printf("📤 [TrollProxy/OhmyGPT] POST %s (key=%s, direct, stream=%v)", endpoint, key.ID, isStreaming)
 	}
 
+	startTime := time.Now()
 	resp, err := client.Do(req)
+	elapsed := time.Since(startTime)
 	if err != nil {
+		// Log detailed error with timing to help debug proxy vs upstream timeouts
+		log.Printf("⏱️ [TrollProxy/OhmyGPT] Request failed after %v (proxy=%s): %v", elapsed, proxyName, err)
 		return nil, err
 	}
 
@@ -674,8 +678,11 @@ func (p *OhmyGPTProvider) retryWithNextKeyToEndpoint(endpoint string, body []byt
 		log.Printf("📤 [TrollProxy/OhmyGPT] RETRY POST %s (key=%s, direct, stream=%v, retries=%d)", endpoint, key.ID, isStreaming, retriesLeft)
 	}
 
+	startTime := time.Now()
 	resp, err := client.Do(req)
+	elapsed := time.Since(startTime)
 	if err != nil {
+		log.Printf("⏱️ [TrollProxy/OhmyGPT] RETRY failed after %v (proxy=%s): %v", elapsed, proxyName, err)
 		return nil, err
 	}
 
