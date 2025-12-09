@@ -348,23 +348,10 @@ function CheckoutContent() {
               </div>
 
               <button
-                onClick={handleCheckout}
-                disabled={loading}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/20"
+                disabled
+                className="w-full py-4 rounded-xl bg-gray-400 text-white font-semibold text-lg cursor-not-allowed opacity-60 flex items-center justify-center gap-2"
               >
-                {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {t.checkout.payment.processing}
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                    {t.checkout.payment.payNow}
-                  </>
-                )}
+                {t.pricing.unavailable}
               </button>
             </div>
           </div>
