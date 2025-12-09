@@ -384,7 +384,7 @@ export default function LandingPage() {
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto">
+          <div className="max-w-md mx-auto">
             {/* Dev Tier */}
             <div className="group relative">
               {/* Card glow on hover */}
@@ -408,13 +408,7 @@ export default function LandingPage() {
                 {/* Price */}
                 <div className="mb-5 sm:mb-6">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-bold text-[var(--theme-text)]">25K</span>
-                    <span className="text-[var(--theme-text-subtle)] text-base sm:text-lg">VND</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/week</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xl sm:text-2xl font-bold text-slate-600 dark:text-slate-400">{t.pricing.dev.usdPrice}</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs">/week</span>
+                    <span className="text-2xl sm:text-3xl font-bold text-[var(--theme-text)]">{t.pricing.updating}</span>
                   </div>
                 </div>
 
@@ -424,83 +418,9 @@ export default function LandingPage() {
                 {/* Features */}
                 <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
                   {[
-                    { text: t.pricing.dev.features.credits, highlight: true },
+                    { text: t.pricing.updating, highlight: true },
                     { text: t.pricing.dev.features.models, highlight: true },
                     { text: t.pricing.dev.features.support, highlight: true },
-                  ].map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-indigo-500/20 text-indigo-500 dark:text-indigo-400' : 'bg-slate-200 dark:bg-slate-800 text-[var(--theme-text-muted)]'}`}>
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className={`text-sm ${item.highlight ? 'text-[var(--theme-text)] font-medium' : 'text-[var(--theme-text-muted)]'}`}>{item.text}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {/* CTA */}
-                <button
-                  disabled
-                  className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-gray-400 text-white font-semibold text-center cursor-not-allowed opacity-60 text-sm sm:text-base"
-                >
-                  {t.pricing.unavailable}
-                </button>
-              </div>
-            </div>
-
-            {/* Pro Tier */}
-            <div className="group relative">
-              {/* Card glow */}
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-3xl opacity-30 group-hover:opacity-50 transition-opacity duration-500 blur-xl" />
-
-              <div className="relative p-6 sm:p-8 rounded-2xl border border-indigo-300 dark:border-indigo-500/30 bg-white dark:bg-slate-900/80 backdrop-blur-sm h-full flex flex-col shadow-md">
-                {/* Popular badge */}
-                <div className="absolute -top-3.5 sm:-top-4 left-1/2 -translate-x-1/2">
-                <div className="px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] sm:text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center gap-1 sm:gap-1.5">
-                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                    </svg>
-                    {t.pricing.pro.popular}
-                  </div>
-                </div>
-
-                {/* Header */}
-                <div className="flex items-start justify-between mb-5 sm:mb-6 mt-2">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 mb-2 sm:mb-3">
-                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span className="text-indigo-500 dark:text-indigo-400 text-[10px] sm:text-xs font-medium">{t.pricing.pro.badge}</span>
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{t.pricing.pro.name}</h3>
-                    <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm mt-1">{t.pricing.pro.description}</p>
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div className="mb-5 sm:mb-6">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-bold text-[var(--theme-text)]">50K</span>
-                    <span className="text-[var(--theme-text-subtle)] text-base sm:text-lg">VND</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">/week</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{t.pricing.pro.usdPrice}</span>
-                    <span className="text-[var(--theme-text-subtle)] text-xs">/week</span>
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent mb-5 sm:mb-6" />
-
-                {/* Features */}
-                <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
-                  {[
-                    { text: t.pricing.pro.features.credits, highlight: true },
-                    { text: t.pricing.pro.features.models, highlight: true },
-                    { text: t.pricing.pro.features.support, highlight: true },
                   ].map((item, idx) => (
                     <li key={idx} className="flex items-center gap-3">
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-indigo-500/20 text-indigo-500 dark:text-indigo-400' : 'bg-slate-200 dark:bg-slate-800 text-[var(--theme-text-muted)]'}`}>

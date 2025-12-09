@@ -86,6 +86,7 @@ export const translations = {
       compareAll: 'Compare all features',
       buyNow: 'Buy Now',
       unavailable: 'Unavailable',
+      updating: 'Updating',
       internationalNote: 'International users: Please contact us via Discord for payment options.',
     },
     // FAQ
@@ -296,7 +297,7 @@ export const translations = {
       privacyLink: 'Privacy Policy',
       errorPasswordMatch: 'Passwords do not match',
       errorPasswordLength: 'Password must be at least 6 characters',
-      unavailable: 'Unavailable',
+      unavailable: 'Registration Closed',
     },
     // Docs Pricing Page
     docsPricing: {
@@ -1261,6 +1262,7 @@ export const translations = {
       compareAll: 'So sánh tất cả tính năng',
       buyNow: 'Mua ngay',
       unavailable: 'Ngưng nhận Thanh toán',
+      updating: 'Đang cập nhật',
       internationalNote: 'Người dùng quốc tế: Vui lòng liên hệ qua Discord để được hỗ trợ thanh toán.',
     },
     // FAQ
@@ -1471,7 +1473,7 @@ export const translations = {
       privacyLink: 'Chính sách Bảo mật',
       errorPasswordMatch: 'Mật khẩu không khớp',
       errorPasswordLength: 'Mật khẩu phải có ít nhất 6 ký tự',
-      unavailable: 'Ngưng nhận Thanh toán',
+      unavailable: 'Ngưng nhận Đăng ký',
     },
     // Docs Pricing Page
     docsPricing: {
