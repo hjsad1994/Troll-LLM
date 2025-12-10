@@ -18,6 +18,22 @@ var (
 )
 
 func ValidateKey(apiKey string) (*UserKey, error) {
+	// 1. Try user_keys collection first
+	userKey, err := validateFromUserKeys(apiKey)
+	if err == nil {
+		return userKey, nil
+	}
+
+	// 2. If not found in user_keys, fallback to users collection
+	if err == ErrKeyNotFound {
+		return validateFromUsersCollection(apiKey)
+	}
+
+	return nil, err
+}
+
+// validateFromUserKeys validates API key from user_keys collection
+func validateFromUserKeys(apiKey string) (*UserKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -41,6 +57,50 @@ func ValidateKey(apiKey string) (*UserKey, error) {
 	}
 
 	return &userKey, nil
+}
+
+// validateFromUsersCollection validates API key from legacy users collection
+// Used as fallback for sk-trollllm-* format keys stored in users.apiKey field
+func validateFromUsersCollection(apiKey string) (*UserKey, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user LegacyUser
+	err := db.UsersCollection().FindOne(ctx, bson.M{"apiKey": apiKey}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, ErrKeyNotFound
+		}
+		return nil, err
+	}
+
+	if !user.IsActive {
+		return nil, ErrKeyRevoked
+	}
+
+	// Check expiry
+	if user.ExpiresAt != nil && time.Now().After(*user.ExpiresAt) {
+		return nil, ErrPlanExpired
+	}
+
+	// Determine tier based on credits
+	tier := determineTier(user.Credits, user.RefCredits)
+
+	// Convert to UserKey format for compatibility
+	return &UserKey{
+		ID:       apiKey,
+		Name:     user.ID, // username
+		Tier:     tier,
+		IsActive: user.IsActive,
+	}, nil
+}
+
+// determineTier returns user tier based on credits balance
+func determineTier(credits, refCredits float64) string {
+	if credits > 0 || refCredits > 0 {
+		return "pro" // Users with credits get pro tier
+	}
+	return "free"
 }
 
 func deleteExpiredKey(apiKey string) {

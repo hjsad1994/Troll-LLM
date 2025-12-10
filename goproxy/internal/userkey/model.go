@@ -38,3 +38,14 @@ func (u *UserKey) IsPlanExpired() bool {
 	}
 	return time.Now().After(*u.PlanExpiresAt)
 }
+
+// LegacyUser represents a user from the legacy "users" collection
+// Used as fallback when API key is not found in user_keys
+type LegacyUser struct {
+	ID         string     `bson:"_id" json:"id"`                                    // username
+	APIKey     string     `bson:"apiKey" json:"api_key"`                            // sk-trollllm-* format
+	IsActive   bool       `bson:"isActive" json:"is_active"`                        // account status
+	Credits    float64    `bson:"credits" json:"credits"`                           // USD credits
+	RefCredits float64    `bson:"refCredits" json:"ref_credits"`                    // referral credits USD
+	ExpiresAt  *time.Time `bson:"expiresAt,omitempty" json:"expires_at,omitempty"`  // credit expiry
+}
