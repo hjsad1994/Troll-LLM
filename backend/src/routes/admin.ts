@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import * as userKeyService from '../services/userkey.service.js';
-import * as factoryKeyService from '../services/factorykey.service.js';
 import * as metricsService from '../services/metrics.service.js';
 
 const router = Router();
@@ -159,98 +158,6 @@ router.post('/keys/:id/reset', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error resetting key:', error);
     res.status(500).json({ error: 'Failed to reset key' });
-  }
-});
-
-// GET /admin/factory-keys - List factory keys with health status
-router.get('/factory-keys', async (_req: Request, res: Response) => {
-  try {
-    const keys = await factoryKeyService.listFactoryKeys();
-    const stats = await factoryKeyService.getFactoryKeyStats();
-
-    res.json({
-      ...stats,
-      keys,
-    });
-  } catch (error) {
-    console.error('Error listing factory keys:', error);
-    res.status(500).json({ error: 'Failed to list factory keys' });
-  }
-});
-
-// POST /admin/factory-keys - Create factory key
-router.post('/factory-keys', async (req: Request, res: Response) => {
-  try {
-    const { id, apiKey } = req.body;
-    if (!id || !apiKey) {
-      res.status(400).json({ error: 'id and apiKey are required' });
-      return;
-    }
-
-    const key = await factoryKeyService.createFactoryKey(id, apiKey);
-    res.status(201).json(key);
-  } catch (error) {
-    console.error('Error creating factory key:', error);
-    res.status(500).json({ error: 'Failed to create factory key' });
-  }
-});
-
-// DELETE /admin/factory-keys/:id - Delete factory key
-router.delete('/factory-keys/:id', async (req: Request, res: Response) => {
-  try {
-    const deleted = await factoryKeyService.deleteFactoryKey(req.params.id);
-
-    if (!deleted) {
-      res.status(404).json({ error: 'Factory key not found' });
-      return;
-    }
-
-    res.json({ deleted: true, id: req.params.id });
-  } catch (error) {
-    console.error('Error deleting factory key:', error);
-    res.status(500).json({ error: 'Failed to delete factory key' });
-  }
-});
-
-// GET /admin/factory-keys/analytics - Get token analytics for all factory keys
-router.get('/factory-keys/analytics', async (_req: Request, res: Response) => {
-  try {
-    const analytics = await factoryKeyService.getTokenAnalytics();
-    res.json(analytics);
-  } catch (error) {
-    console.error('Error getting analytics:', error);
-    res.status(500).json({ error: 'Failed to get analytics' });
-  }
-});
-
-// GET /admin/factory-keys/:id/analytics - Get token analytics for specific factory key
-router.get('/factory-keys/:id/analytics', async (req: Request, res: Response) => {
-  try {
-    const analytics = await factoryKeyService.getTokenAnalytics(req.params.id);
-    res.json(analytics);
-  } catch (error) {
-    console.error('Error getting analytics:', error);
-    res.status(500).json({ error: 'Failed to get analytics' });
-  }
-});
-
-// POST /admin/factory-keys/:id/reset - Reset factory key health status
-router.post('/factory-keys/:id/reset', async (req: Request, res: Response) => {
-  try {
-    const key = await factoryKeyService.resetFactoryKeyStatus(req.params.id);
-
-    if (!key) {
-      res.status(404).json({ error: 'Factory key not found' });
-      return;
-    }
-
-    res.json({
-      ...key,
-      reset_at: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error resetting factory key:', error);
-    res.status(500).json({ error: 'Failed to reset factory key' });
   }
 });
 

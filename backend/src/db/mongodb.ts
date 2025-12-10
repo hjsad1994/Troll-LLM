@@ -25,6 +25,5 @@ export async function disconnectDB(): Promise<void> {
 // Re-export for backward compatibility
 export { UserNew as User, hashPassword, verifyPassword } from '../models/user-new.model.js';
 export { UserKey } from '../models/user-key.model.js';
-export { FactoryKey } from '../models/factory-key.model.js';
 export { RequestLog } from '../models/request-log.model.js';
 export { Proxy, ProxyKeyBinding, ProxyHealthLog } from '../models/proxy.model.js';
