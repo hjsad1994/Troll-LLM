@@ -21,7 +21,7 @@ export default function PaymentModal({ isOpen, onClose, package: pkg, onSuccess 
     paymentId: string
     qrCodeUrl: string
     amount: number
-    tokens: number
+    credits: number
     orderCode: string
     expiresAt: string
   } | null>(null)
@@ -53,7 +53,7 @@ export default function PaymentModal({ isOpen, onClose, package: pkg, onSuccess 
         paymentId: data.paymentId,
         qrCodeUrl: data.qrCodeUrl,
         amount: data.amount,
-        tokens: data.tokens,
+        credits: data.credits,
         orderCode: data.orderCode,
         expiresAt: data.expiresAt,
       })
@@ -272,7 +272,7 @@ export default function PaymentModal({ isOpen, onClose, package: pkg, onSuccess 
                   {formatPrice(paymentData.amount)} VND
                 </p>
                 <p className="text-gray-500 dark:text-gray-400">
-                  {(paymentData.tokens / 1000000).toFixed(0)}M tokens / 7 days
+                  ${paymentData.credits.toFixed(2)} credits / 7 days
                 </p>
               </div>
 
