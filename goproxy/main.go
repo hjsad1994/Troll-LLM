@@ -600,30 +600,29 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
 			if err == userkey.ErrKeyRevoked {
 				http.Error(w, `{"error": {"message": "API key has been revoked", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			} else if err == userkey.ErrInsufficientCredits {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"error": {"message": "Insufficient credits. Please purchase credits to continue.", "type": "insufficient_credits"}}`))
+			} else if err == userkey.ErrCreditsExpired {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(`{"error": {"message": "Credits have expired. Please purchase new credits.", "type": "credits_expired"}}`))
 			} else {
 				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
 			}
 			return
 		}
-		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
+		log.Printf("🔑 Key validated (db): %s", clientKeyMask)
 		username = userKey.Name // Store username for credit deduction
-
-		// Check if Free Tier user - block access
-		if userKey.IsFreeUser() {
-			log.Printf("🚫 Free Tier user blocked: %s", clientKeyMask)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(`{"error": {"message": "Free Tier users cannot access this API. Please upgrade your plan.", "type": "free_tier_restricted"}}`))
-			return
-		}
 
 		// Check if user has sufficient credits
 		if err := userkey.CheckUserCredits(username); err != nil {
 			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient tokens for user: %s", username)
+				log.Printf("💸 Insufficient credits for user: %s", username)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"error": {"message": "Insufficient tokens. Please purchase a package to continue using the service.", "type": "insufficient_tokens"}}`))
+				w.Write([]byte(`{"error": {"message": "Insufficient credits. Please purchase credits to continue.", "type": "insufficient_credits"}}`))
 				return
 			}
 			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
@@ -2313,17 +2312,8 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		log.Printf("🔑 Key validated (db): %s [%s]", clientKeyMask, userKey.Tier)
+		log.Printf("🔑 Key validated (db): %s", clientKeyMask)
 		username = userKey.Name // Store username for credit deduction
-
-		// Check if Free Tier user - block access
-		if userKey.IsFreeUser() {
-			log.Printf("🚫 Free Tier user blocked: %s", clientKeyMask)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(`{"type":"error","error":{"type":"free_tier_restricted","message":"Free Tier users cannot access this API. Please upgrade your plan."}}`))
-			return
-		}
 
 		// Check if user has sufficient credits
 		if err := userkey.CheckUserCredits(username); err != nil {

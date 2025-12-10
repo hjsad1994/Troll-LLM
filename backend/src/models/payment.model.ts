@@ -1,16 +1,20 @@
 import mongoose from 'mongoose';
 
-// Credit packages: 20 = $20 USD, 40 = $40 USD
-export type CreditPackage = '20' | '40';
+// Credit amount: any integer from 20 to 100 USD
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'expired';
 export type PaymentMethod = 'sepay';
+
+// Constants for credit purchases
+export const MIN_CREDITS = 20;
+export const MAX_CREDITS = 100;
+export const VND_RATE = 1000; // 1000 VND = $1
+export const VALIDITY_DAYS = 7;
 
 export interface IPayment {
   _id: mongoose.Types.ObjectId;
   userId: string;
   discordId?: string;
   username?: string;
-  package: CreditPackage;
   credits: number;
   amount: number;
   currency: 'VND';
@@ -23,18 +27,16 @@ export interface IPayment {
   completedAt?: Date;
 }
 
-// Credit packages: price in VND, credits in USD, validity in days, referral bonus in USD
-export const PACKAGE_CONFIG: Record<CreditPackage, { amount: number; credits: number; days: number; refBonus: number }> = {
-  '20': { amount: 20000, credits: 20, days: 7, refBonus: 10 },
-  '40': { amount: 40000, credits: 40, days: 7, refBonus: 20 },
-};
+// Helper to calculate referral bonus (50% of credits, minimum $5)
+export function calculateRefBonus(credits: number): number {
+  return Math.max(5, Math.floor(credits * 0.5));
+}
 
 const paymentSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
   discordId: { type: String },
   username: { type: String },
-  package: { type: String, enum: ['20', '40'], required: true },
-  credits: { type: Number, required: true },
+  credits: { type: Number, required: true, min: MIN_CREDITS, max: MAX_CREDITS },
   amount: { type: Number, required: true },
   currency: { type: String, enum: ['VND'], default: 'VND' },
   orderCode: { type: String, sparse: true, index: true },
@@ -50,10 +52,10 @@ paymentSchema.index({ status: 1, expiresAt: 1 });
 
 export const Payment = mongoose.model<IPayment>('Payment', paymentSchema, 'payments');
 
-export function generateOrderCode(pkg: CreditPackage): string {
+export function generateOrderCode(credits: number): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `TROLL${pkg}USD${timestamp}${random}`;
+  return `TROLL${credits}D${timestamp}${random}`;
 }
 
 export function generateQRCodeUrl(orderCode: string, amount: number, username?: string): string {

@@ -13,7 +13,7 @@ import (
 var (
 	ErrKeyNotFound         = errors.New("API key not found")
 	ErrKeyRevoked          = errors.New("API key has been revoked")
-	ErrPlanExpired         = errors.New("plan has expired")
+	ErrCreditsExpired      = errors.New("credits have expired")
 	ErrInsufficientCredits = errors.New("insufficient credits")
 )
 
@@ -24,9 +24,9 @@ func ValidateKey(apiKey string) (*UserKey, error) {
 		return userKey, nil
 	}
 
-	// 2. If not found in user_keys, fallback to users collection
+	// 2. If not found in user_keys, fallback to usersNew collection
 	if err == ErrKeyNotFound {
-		return validateFromUsersCollection(apiKey)
+		return validateFromUsersNewCollection(apiKey)
 	}
 
 	return nil, err
@@ -50,23 +50,23 @@ func validateFromUserKeys(apiKey string) (*UserKey, error) {
 		return nil, ErrKeyRevoked
 	}
 
-	if userKey.IsPlanExpired() {
+	if userKey.IsExpired() {
 		// Delete expired key from collection
 		go deleteExpiredKey(apiKey)
-		return nil, ErrPlanExpired
+		return nil, ErrCreditsExpired
 	}
 
 	return &userKey, nil
 }
 
-// validateFromUsersCollection validates API key from legacy users collection
-// Used as fallback for sk-trollllm-* format keys stored in users.apiKey field
-func validateFromUsersCollection(apiKey string) (*UserKey, error) {
+// validateFromUsersNewCollection validates API key from usersNew collection
+// Used for sk-trollllm-* format keys stored in usersNew.apiKey field
+func validateFromUsersNewCollection(apiKey string) (*UserKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var user LegacyUser
-	err := db.UsersCollection().FindOne(ctx, bson.M{"apiKey": apiKey}).Decode(&user)
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"apiKey": apiKey}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, ErrKeyNotFound
@@ -80,27 +80,21 @@ func validateFromUsersCollection(apiKey string) (*UserKey, error) {
 
 	// Check expiry
 	if user.ExpiresAt != nil && time.Now().After(*user.ExpiresAt) {
-		return nil, ErrPlanExpired
+		return nil, ErrCreditsExpired
 	}
 
-	// Determine tier based on credits
-	tier := determineTier(user.Credits, user.RefCredits)
+	// Check if user has credits
+	if user.Credits <= 0 && user.RefCredits <= 0 {
+		return nil, ErrInsufficientCredits
+	}
 
 	// Convert to UserKey format for compatibility
 	return &UserKey{
-		ID:       apiKey,
-		Name:     user.ID, // username
-		Tier:     tier,
-		IsActive: user.IsActive,
+		ID:        apiKey,
+		Name:      user.ID, // username
+		IsActive:  user.IsActive,
+		ExpiresAt: user.ExpiresAt,
 	}, nil
-}
-
-// determineTier returns user tier based on credits balance
-func determineTier(credits, refCredits float64) string {
-	if credits > 0 || refCredits > 0 {
-		return "pro" // Users with credits get pro tier
-	}
-	return "free"
 }
 
 func deleteExpiredKey(apiKey string) {
@@ -125,7 +119,7 @@ func GetKeyByID(apiKey string) (*UserKey, error) {
 	return &userKey, nil
 }
 
-// UserCredits represents the credits balance info from users collection
+// UserCredits represents the credits balance info from usersNew collection
 type UserCredits struct {
 	Username   string  `bson:"_id"`
 	Credits    float64 `bson:"credits"`
@@ -151,10 +145,10 @@ func CheckUserCredits(username string) error {
 	defer cancel()
 
 	var user UserCredits
-	err := db.UsersCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil // User not found in users collection, allow (legacy)
+			return ErrInsufficientCredits // User not found = no credits
 		}
 		return err
 	}
@@ -178,10 +172,10 @@ func CheckUserCreditsDetailed(username string) (*CreditCheckResult, error) {
 	defer cancel()
 
 	var user UserCredits
-	err := db.UsersCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return &CreditCheckResult{HasCredits: true, UseRefCredits: false}, nil
+			return &CreditCheckResult{HasCredits: false}, ErrInsufficientCredits
 		}
 		return nil, err
 	}
@@ -214,7 +208,7 @@ func GetUserCredits(username string) (float64, error) {
 	defer cancel()
 
 	var user UserCredits
-	err := db.UsersCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return 0, nil
@@ -235,7 +229,7 @@ func GetUserCreditsWithRef(username string) (credits float64, refCredits float64
 	defer cancel()
 
 	var user UserCredits
-	err = db.UsersCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	err = db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return 0, 0, nil

@@ -72,6 +72,10 @@ func UsersCollection() *mongo.Collection {
 	return GetCollection("usersNew")
 }
 
+func UsersNewCollection() *mongo.Collection {
+	return GetCollection("usersNew")
+}
+
 func TrollKeysCollection() *mongo.Collection {
 	return GetCollection("factory_keys")
 }

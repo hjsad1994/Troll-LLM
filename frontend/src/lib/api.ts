@@ -47,12 +47,9 @@ export function logout() {
   localStorage.removeItem('adminToken')
 }
 
-export async function register(username: string, password: string, role: string = 'user', ref?: string) {
-  const body: { username: string; password: string; role: string; ref?: string } = { username, password, role }
-  if (ref) {
-    body.ref = ref
-  }
-  
+export async function register(username: string, password: string, role: string = 'user') {
+  const body: { username: string; password: string; role: string } = { username, password, role }
+
   const resp = await fetch('/api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -222,7 +219,6 @@ export async function getRequestLogs(
 }
 
 // Admin User Management
-export type UserPlan = 'free' | 'dev' | 'pro' | 'pro-troll'
 
 export interface AdminUser {
   _id: string
@@ -242,18 +238,13 @@ export interface AdminUser {
   expiresAt?: string
 }
 
-export interface PlanLimits {
-  rpm: number
-  valueUsd: number
-}
 
 export interface UsersResponse {
   users: AdminUser[]
   stats: {
     total: number
-    byPlan: Record<string, number>
+    activeUsers: number
   }
-  planLimits: Record<UserPlan, PlanLimits>
 }
 
 export async function getAdminUsers(search?: string): Promise<UsersResponse> {
@@ -266,18 +257,6 @@ export async function getAdminUsers(search?: string): Promise<UsersResponse> {
   return resp.json()
 }
 
-export async function updateUserPlan(username: string, plan: UserPlan): Promise<{ success: boolean; message: string }> {
-  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/plan`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plan })
-  })
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to update user plan')
-  }
-  return resp.json()
-}
 
 export async function updateUserCredits(username: string, credits: number): Promise<{ success: boolean; message: string }> {
   const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/credits`, {
@@ -383,22 +362,19 @@ export interface CheckoutResponse {
   orderCode: string
   qrCodeUrl: string
   amount: number
-  tokens: number
-  package: string
+  credits: number
   expiresAt: string
 }
 
 export interface PaymentStatusResponse {
   status: 'pending' | 'success' | 'failed' | 'expired'
   remainingSeconds: number
-  plan?: string
   completedAt?: string
 }
 
 export interface PaymentHistoryItem {
   id: string
   orderCode: string
-  plan: string
   amount: number
   status: string
   createdAt: string
@@ -413,11 +389,11 @@ export async function getTokenPackages(): Promise<{ packages: TokenPackage[] }> 
   return resp.json()
 }
 
-export async function createCheckout(pkg: '6m' | '12m', discordId?: string): Promise<CheckoutResponse> {
+export async function createCheckout(credits: string | number, discordId?: string): Promise<CheckoutResponse> {
   const resp = await fetchWithAuth('/api/payment/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ package: pkg, discordId })
+    body: JSON.stringify({ credits, discordId })
   })
   if (!resp.ok) {
     const data = await resp.json()
@@ -626,55 +602,6 @@ export async function getAvailableModels(): Promise<{ models: ModelConfig[] }> {
   const resp = await fetch('/api/models')
   if (!resp.ok) {
     throw new Error('Failed to get models')
-  }
-  return resp.json()
-}
-
-// Referral API
-export interface ReferralInfo {
-  referralCode: string
-  referralLink: string
-  refCredits: number
-}
-
-export interface ReferralStats {
-  totalReferrals: number
-  successfulReferrals: number
-  totalRefCreditsEarned: number
-  currentRefCredits: number
-}
-
-export interface ReferredUser {
-  username: string
-  status: 'registered' | 'paid'
-  plan: string | null
-  bonusEarned: number
-  createdAt: string
-}
-
-export async function getReferralInfo(): Promise<ReferralInfo> {
-  const resp = await fetchWithAuth('/api/user/referral')
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to get referral info')
-  }
-  return resp.json()
-}
-
-export async function getReferralStats(): Promise<ReferralStats> {
-  const resp = await fetchWithAuth('/api/user/referral/stats')
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to get referral stats')
-  }
-  return resp.json()
-}
-
-export async function getReferredUsers(): Promise<{ users: ReferredUser[] }> {
-  const resp = await fetchWithAuth('/api/user/referral/list')
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to get referred users')
   }
   return resp.json()
 }

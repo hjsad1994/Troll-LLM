@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { register } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
@@ -17,17 +17,8 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [refCode, setRefCode] = useState<string | null>(null)
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { checkAuth } = useAuth()
-
-  useEffect(() => {
-    const ref = searchParams.get('ref')
-    if (ref) {
-      setRefCode(ref)
-    }
-  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -46,7 +37,7 @@ function RegisterForm() {
     setLoading(true)
 
     try {
-      await register(username, password, 'user', refCode || undefined)
+      await register(username, password, 'user')
       checkAuth()
       router.push('/')
     } catch (err) {
@@ -91,9 +82,8 @@ function RegisterForm() {
                   required
                   minLength={3}
                   maxLength={50}
-                  disabled
                   autoFocus
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-black border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-black border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500/50 transition-colors"
                 />
               </div>
 
@@ -110,8 +100,7 @@ function RegisterForm() {
                     placeholder={t.register.passwordPlaceholder}
                     required
                     minLength={6}
-                    disabled
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-black border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed pr-12"
+                    className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-black border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500/50 transition-colors pr-12"
                   />
                   <button
                     type="button"
@@ -144,8 +133,7 @@ function RegisterForm() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder={t.register.confirmPasswordPlaceholder}
                     required
-                    disabled
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-black border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed pr-12"
+                    className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-black border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500/50 transition-colors pr-12"
                   />
                   <button
                     type="button"
@@ -178,11 +166,11 @@ function RegisterForm() {
 
               {/* Submit Button */}
               <button
-                type="button"
-                disabled
-                className="w-full py-3 rounded-lg bg-gray-400 text-white font-medium cursor-not-allowed opacity-60"
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {t.register.unavailable}
+                {loading ? t.register.creatingAccount : t.register.createAccount}
               </button>
             </form>
 

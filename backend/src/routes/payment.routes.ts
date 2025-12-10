@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { paymentService, SepayWebhookPayload } from '../services/payment.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
-import { PACKAGE_CONFIG, CreditPackage } from '../models/payment.model.js';
+import { MIN_CREDITS, MAX_CREDITS, VND_RATE, VALIDITY_DAYS } from '../models/payment.model.js';
 
 const router = Router();
 
@@ -31,31 +31,24 @@ router.post('/checkout', jwtAuth, async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Support both 'package' and 'plan' for backward compatibility
-    const { package: pkg, plan, discordId } = req.body as { package?: CreditPackage; plan?: string; discordId?: string };
-    
-    // Map old plan names to new package names for backward compatibility
-    let creditPackage: CreditPackage | undefined = pkg;
-    if (!creditPackage && plan) {
-      // Map dev/pro to 20/40 for backward compatibility
-      if (plan === 'dev' || plan === '6m' || plan === '20') creditPackage = '20';
-      else if (plan === 'pro' || plan === 'pro-troll' || plan === '12m' || plan === '40') creditPackage = '40';
-    }
-    
-    if (!creditPackage || !PACKAGE_CONFIG[creditPackage]) {
-      return res.status(400).json({ error: 'Invalid package. Must be "20" or "40"' });
+    const { credits, discordId } = req.body as { credits?: string | number; discordId?: string };
+
+    // Parse credits amount
+    const creditsAmount = typeof credits === 'string' ? parseInt(credits, 10) : credits;
+
+    if (!creditsAmount || !Number.isInteger(creditsAmount) || creditsAmount < MIN_CREDITS || creditsAmount > MAX_CREDITS) {
+      return res.status(400).json({ error: `Invalid amount. Must be between $${MIN_CREDITS} and $${MAX_CREDITS}` });
     }
 
     // Use the logged-in username as transfer content
-    const result = await paymentService.createCheckout(username, creditPackage, discordId, username);
-    
+    const result = await paymentService.createCheckout(username, creditsAmount, discordId, username);
+
     res.json({
       paymentId: result.paymentId,
       orderCode: result.orderCode,
       qrCodeUrl: result.qrCodeUrl,
       amount: result.amount,
       credits: result.credits,
-      package: result.package,
       expiresAt: result.expiresAt,
     });
   } catch (error: any) {
@@ -68,11 +61,11 @@ router.post('/checkout', jwtAuth, async (req: Request, res: Response) => {
 router.post('/webhook', verifySepayWebhook, async (req: Request, res: Response) => {
   try {
     const payload = req.body as SepayWebhookPayload;
-    
+
     console.log('[Payment Webhook] Received:', JSON.stringify(payload));
-    
+
     const result = await paymentService.processWebhook(payload);
-    
+
     // Always return 200 to acknowledge receipt
     res.status(200).json(result);
   } catch (error: any) {
@@ -92,7 +85,7 @@ router.get('/:id/status', jwtAuth, async (req: Request, res: Response) => {
 
     const { id } = req.params;
     const status = await paymentService.getPaymentStatus(id, username);
-    
+
     if (!status) {
       return res.status(404).json({ error: 'Payment not found' });
     }
@@ -113,12 +106,11 @@ router.get('/history', jwtAuth, async (req: Request, res: Response) => {
     }
 
     const payments = await paymentService.getPaymentHistory(username);
-    
+
     res.json({
       payments: payments.map(p => ({
         id: p._id,
         orderCode: p.orderCode,
-        package: p.package,
         credits: p.credits,
         amount: p.amount,
         status: p.status,
@@ -132,29 +124,15 @@ router.get('/history', jwtAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/payment/packages - Get available packages (public)
-router.get('/packages', (_req: Request, res: Response) => {
+// GET /api/payment/config - Get payment configuration (public)
+router.get('/config', (_req: Request, res: Response) => {
   res.json({
-    packages: [
-      {
-        id: '20',
-        name: '$20 Credits',
-        price: PACKAGE_CONFIG['20'].amount,
-        credits: PACKAGE_CONFIG['20'].credits,
-        days: PACKAGE_CONFIG['20'].days,
-        currency: 'VND',
-        features: ['$20 USD credits', 'Valid for 7 days', 'All AI models'],
-      },
-      {
-        id: '40',
-        name: '$40 Credits',
-        price: PACKAGE_CONFIG['40'].amount,
-        credits: PACKAGE_CONFIG['40'].credits,
-        days: PACKAGE_CONFIG['40'].days,
-        currency: 'VND',
-        features: ['$40 USD credits', 'Valid for 7 days', 'All AI models', 'Best value'],
-      },
-    ],
+    minCredits: MIN_CREDITS,
+    maxCredits: MAX_CREDITS,
+    vndRate: VND_RATE,
+    validityDays: VALIDITY_DAYS,
+    currency: 'VND',
+    features: ['All AI models', 'Valid for 7 days', '1:1 Warranty', 'Priority support'],
   });
 });
 

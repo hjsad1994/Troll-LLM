@@ -204,11 +204,11 @@ export default function UserDashboard() {
             </h1>
             {userProfile && (
               <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                (userProfile.credits || 0) + (userProfile.refCredits || 0) > 0
+                (userProfile.credits || 0) > 0
                   ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20'
                   : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-[var(--theme-text-muted)] border border-slate-200 dark:border-white/10'
               }`}>
-                {(userProfile.credits || 0) + (userProfile.refCredits || 0) > 0 ? 'Active' : 'Free'}
+                {(userProfile.credits || 0) > 0 ? 'Active' : 'Free'}
               </span>
             )}
           </div>
@@ -348,11 +348,11 @@ export default function UserDashboard() {
               </div>
               {billingInfo && (
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
-                  (billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0
+                  (billingInfo.credits || 0) > 0
                     ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                     : 'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
                 }`}>
-                  {(billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0 ? 'Active' : 'Free'}
+                  {(billingInfo.credits || 0) > 0 ? 'Active' : 'Free'}
                 </span>
               )}
             </div>
@@ -361,19 +361,11 @@ export default function UserDashboard() {
               <div className="space-y-4 sm:space-y-6">
                 {/* Credits Display */}
                 <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-4 sm:p-5">
-                  <div className="grid grid-cols-2 gap-4 mb-3 sm:mb-4">
-                    <div>
-                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Credits (USD)</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                        ${(userProfile.credits || 0).toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Ref Credits</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-violet-600 dark:text-violet-400">
-                        ${(userProfile.refCredits || 0).toFixed(2)}
-                      </p>
-                    </div>
+                  <div className="mb-3 sm:mb-4">
+                    <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Credits (USD)</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                      ${(userProfile.credits || 0).toFixed(2)}
+                    </p>
                   </div>
                   <div className="pt-3 sm:pt-4 border-t border-slate-300 dark:border-white/10">
                     <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs">Tokens Used (Analytics)</p>
@@ -395,7 +387,7 @@ export default function UserDashboard() {
                 )}
 
                 {/* Credits Period Section - for users with credits */}
-                {((userProfile.credits || 0) + (userProfile.refCredits || 0) > 0) && billingInfo?.expiresAt && (
+                {((userProfile.credits || 0) > 0) && billingInfo?.expiresAt && (
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
                     <div className="flex items-center gap-2 mb-2 sm:mb-3">
                       <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -9,7 +9,7 @@ interface Payment {
   id: string
   userId: string
   username?: string
-  plan: string
+  credits: number
   amount: number
   currency: string
   status: 'pending' | 'success' | 'failed' | 'expired'
@@ -57,19 +57,6 @@ function getStatusBadge(status: string) {
   )
 }
 
-function getPlanBadge(plan: string) {
-  const planConfig: Record<string, { bg: string; text: string }> = {
-    dev: { bg: 'bg-violet-500/10', text: 'text-violet-400' },
-    pro: { bg: 'bg-amber-500/10', text: 'text-amber-400' },
-    'pro-troll': { bg: 'bg-rose-500/10', text: 'text-rose-400' },
-  }
-  const config = planConfig[plan] || planConfig.dev
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text} border border-current/20 uppercase`}>
-      {plan}
-    </span>
-  )
-}
 
 export default function AdminBillingPage() {
   const { user } = useAuth()
@@ -199,7 +186,7 @@ export default function AdminBillingPage() {
                 <thead>
                   <tr className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider border-b border-gray-300 dark:border-white/10">
                     <th className="text-left py-3 px-4">User</th>
-                    <th className="text-left py-3 px-4">Plan</th>
+                    <th className="text-right py-3 px-4">Credits</th>
                     <th className="text-right py-3 px-4">Amount</th>
                     <th className="text-center py-3 px-4">Status</th>
                     <th className="text-left py-3 px-4">Order Code</th>
@@ -214,7 +201,7 @@ export default function AdminBillingPage() {
                         <span className="text-gray-900 dark:text-white font-medium">{payment.username || payment.userId}</span>
                       </td>
                       <td className="py-3 px-4">
-                        {getPlanBadge(payment.plan)}
+                        ${payment.credits}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(payment.amount)}</span>

@@ -1,11 +1,14 @@
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
-import { 
-  IPayment, 
-  CreditPackage, 
-  PACKAGE_CONFIG,
-  generateOrderCode, 
-  generateQRCodeUrl 
+import {
+  IPayment,
+  MIN_CREDITS,
+  MAX_CREDITS,
+  VND_RATE,
+  VALIDITY_DAYS,
+  calculateRefBonus,
+  generateOrderCode,
+  generateQRCodeUrl
 } from '../models/payment.model.js';
 import { UserKey } from '../models/user-key.model.js';
 
@@ -15,13 +18,12 @@ export interface CheckoutResult {
   qrCodeUrl: string;
   amount: number;
   credits: number;
-  package: CreditPackage;
   expiresAt: Date;
 }
 
 interface DiscordWebhookPayload {
   discordId: string;
-  plan: string;
+  credits: string;
   username: string;
   orderCode: string;
   amount: number;
@@ -31,7 +33,7 @@ interface DiscordWebhookPayload {
 export interface PaymentStatusResult {
   status: string;
   remainingSeconds: number;
-  plan?: string;
+  credits?: number;
   completedAt?: Date;
 }
 
@@ -51,16 +53,16 @@ export interface SepayWebhookPayload {
 }
 
 function extractOrderCode(text: string): string | null {
-  // Try to find TROLL20USD or TROLL40USD pattern in the text
-  const match = text.match(/TROLL(20|40)USD\d+[A-Z0-9]+/i);
+  // Try to find TROLL{amount}D pattern in the text (amount can be 20-100)
+  const match = text.match(/TROLL(\d+)D\d+[A-Z0-9]+/i);
   return match ? match[0].toUpperCase() : null;
 }
 
 export class PaymentService {
-  async createCheckout(userId: string, pkg: CreditPackage, discordId?: string, username?: string): Promise<CheckoutResult> {
-    const pkgConfig = PACKAGE_CONFIG[pkg];
-    if (!pkgConfig) {
-      throw new Error('Invalid package');
+  async createCheckout(userId: string, credits: number, discordId?: string, username?: string): Promise<CheckoutResult> {
+    // Validate credits amount
+    if (!Number.isInteger(credits) || credits < MIN_CREDITS || credits > MAX_CREDITS) {
+      throw new Error(`Invalid amount. Must be between $${MIN_CREDITS} and $${MAX_CREDITS}`);
     }
 
     // Validate Discord ID format (should be 17-19 digit number)
@@ -68,27 +70,26 @@ export class PaymentService {
       throw new Error('Invalid Discord ID format. Please enter your Discord User ID (17-19 digits)');
     }
 
-    const orderCode = generateOrderCode(pkg);
+    const amount = credits * VND_RATE;
+    const orderCode = generateOrderCode(credits);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     const payment = await paymentRepository.create({
       userId,
       discordId,
       username,
-      package: pkg,
-      credits: pkgConfig.credits,
-      amount: pkgConfig.amount,
+      credits,
+      amount,
     });
 
-    const qrCodeUrl = generateQRCodeUrl(payment.orderCode!, pkgConfig.amount, username);
+    const qrCodeUrl = generateQRCodeUrl(payment.orderCode!, amount, username);
 
     return {
       paymentId: payment._id.toString(),
       orderCode: payment.orderCode!,
       qrCodeUrl,
-      amount: pkgConfig.amount,
-      credits: pkgConfig.credits,
-      package: pkg,
+      amount,
+      credits,
       expiresAt: payment.expiresAt,
     };
   }
@@ -106,14 +107,14 @@ export class PaymentService {
     return {
       status: payment.status,
       remainingSeconds,
-      plan: payment.status === 'success' ? payment.package : undefined,
+      credits: payment.status === 'success' ? payment.credits : undefined,
       completedAt: payment.completedAt,
     };
   }
 
   async processWebhook(payload: SepayWebhookPayload): Promise<{ processed: boolean; message: string }> {
     console.log('[Payment Webhook] Processing:', JSON.stringify(payload));
-    
+
     // Validate transfer type
     if (payload.transferType !== 'in') {
       return { processed: false, message: 'Ignored: not incoming transfer' };
@@ -129,12 +130,12 @@ export class PaymentService {
     // Extract order code from content or description
     const content = payload.content || '';
     const description = payload.description || '';
-    
+
     let orderCode = extractOrderCode(content);
     if (!orderCode) {
       orderCode = extractOrderCode(description);
     }
-    
+
     if (!orderCode) {
       console.log(`[Payment Webhook] Unmatched content: ${content}`);
       console.log(`[Payment Webhook] Unmatched description: ${description}`);
@@ -170,7 +171,7 @@ export class PaymentService {
     }
 
     console.log(`[Payment Webhook] Updating payment status to success...`);
-    
+
     // Process successful payment
     await paymentRepository.updateStatus(
       payment._id.toString(),
@@ -179,21 +180,21 @@ export class PaymentService {
     );
 
     console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
-    
+
     // Add credits to user
-    await this.addCredits(payment.userId, payment.package as CreditPackage, payment.credits);
+    await this.addCredits(payment.userId, payment.credits);
 
     // Send webhook to Discord bot
     await this.notifyDiscordBot({
       discordId: payment.discordId || '',
-      plan: payment.package,
+      credits: `$${payment.credits}`,
       username: payment.userId,
       orderCode: payment.orderCode || orderCode,
       amount: payment.amount,
       transactionId: payload.id.toString(),
     });
 
-    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Package: $${payment.credits}`);
+    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Credits: $${payment.credits}`);
     return { processed: true, message: 'Payment processed successfully' };
   }
 
@@ -217,9 +218,9 @@ export class PaymentService {
       });
 
       const result = await response.json() as { success?: boolean; error?: string };
-      
+
       if (response.ok && result.success) {
-        console.log(`[Discord Webhook] Role assigned for ${payload.discordId}: ${payload.plan}`);
+        console.log(`[Discord Webhook] Role assigned for ${payload.discordId}: ${payload.credits}`);
       } else {
         console.error(`[Discord Webhook] Failed: ${result.error || response.statusText}`);
       }
@@ -228,27 +229,26 @@ export class PaymentService {
     }
   }
 
-  private async addCredits(userId: string, pkg: CreditPackage, credits: number): Promise<void> {
-    console.log(`[Payment] Adding $${credits} credits to user: ${userId} (package: ${pkg})`);
-    
+  private async addCredits(userId: string, credits: number): Promise<void> {
+    console.log(`[Payment] Adding $${credits} credits to user: ${userId}`);
+
     const user = await userRepository.getFullUser(userId);
     if (!user) {
       console.log(`[Payment] User not found: ${userId}`);
       throw new Error('User not found');
     }
 
-    const pkgConfig = PACKAGE_CONFIG[pkg];
     const now = new Date();
-    
+
     // Calculate expiration: if user has existing credits, extend from current expiry; else 7 days from now
     let expiresAt: Date;
     if (user.expiresAt && user.expiresAt > now && user.credits > 0) {
       // Extend existing expiration by 7 days
-      expiresAt = new Date(user.expiresAt.getTime() + pkgConfig.days * 24 * 60 * 60 * 1000);
+      expiresAt = new Date(user.expiresAt.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
       console.log(`[Payment] Extending expiration from ${user.expiresAt} to ${expiresAt}`);
     } else {
       // New purchase or expired: 7 days from now
-      expiresAt = new Date(now.getTime() + pkgConfig.days * 24 * 60 * 60 * 1000);
+      expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
     }
 
     // Update user with new credits
@@ -260,7 +260,7 @@ export class PaymentService {
     });
 
     // Award referral bonus if this is first payment and user was referred
-    await this.awardReferralBonus(userId, pkg);
+    await this.awardReferralBonus(userId, credits);
 
     // Sync to user_keys collection for GoProxy
     if (user.apiKey) {
@@ -289,9 +289,9 @@ export class PaymentService {
     console.log(`[Payment] ✅ Added $${credits} credits to ${userId}, expires: ${expiresAt}`);
   }
 
-  private async awardReferralBonus(userId: string, pkg: CreditPackage): Promise<void> {
+  private async awardReferralBonus(userId: string, credits: number): Promise<void> {
     console.log(`[Referral] Checking referral bonus for user: ${userId}`);
-    
+
     const user = await userRepository.getFullUser(userId);
     if (!user) {
       console.log(`[Referral] User not found: ${userId}`);
@@ -305,15 +305,14 @@ export class PaymentService {
       console.log(`[Referral] User ${userId} was not referred by anyone`);
       return;
     }
-    
+
     if (user.referralBonusAwarded) {
       console.log(`[Referral] User ${userId} already received referral bonus`);
       return;
     }
 
-    // Determine bonus credits based on package
-    const pkgConfig = PACKAGE_CONFIG[pkg];
-    const bonusCredits = pkgConfig.refBonus;
+    // Calculate bonus credits (50% of credits, min $5)
+    const bonusCredits = calculateRefBonus(credits);
 
     // Award refCredits to the referred user (new user)
     await userRepository.addRefCredits(userId, bonusCredits);
@@ -322,7 +321,7 @@ export class PaymentService {
     // Award refCredits to the referrer
     await userRepository.addRefCredits(user.referredBy, bonusCredits);
 
-    console.log(`[Referral] ✅ Awarded $${bonusCredits} refCredits to ${userId} and ${user.referredBy} for $${pkg} package`);
+    console.log(`[Referral] ✅ Awarded $${bonusCredits} refCredits to ${userId} and ${user.referredBy} for $${credits} purchase`);
   }
 
   async getPaymentHistory(userId: string): Promise<IPayment[]> {

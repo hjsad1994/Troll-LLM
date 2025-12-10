@@ -7,37 +7,17 @@ import { createCheckout, getPaymentStatus, isAuthenticated } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import { useTheme } from '@/components/ThemeProvider'
 
-const PACKAGES = {
-  '6m': {
-    price: 20000,
-    originalPrice: 25000,
-    discount: 20,
-    tokens: 6000000,
-    days: 7,
-    popular: false,
-  },
-  '12m': {
-    price: 40000,
-    originalPrice: 50000,
-    discount: 20,
-    tokens: 12000000,
-    days: 7,
-    popular: true,
-  },
-}
-
-type PackageType = '6m' | '12m'
+const MIN_AMOUNT = 20
+const MAX_AMOUNT = 100
+const VND_RATE = 1000 // 1000 VND = $1
 
 function CheckoutContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { t, language, setLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
-  const packageParam = searchParams.get('package') as PackageType | null
 
-  const [selectedPackage, setSelectedPackage] = useState<PackageType>(
-    packageParam === '12m' ? '12m' : '6m'
-  )
+  const [customAmount, setCustomAmount] = useState(MIN_AMOUNT)
   const [discordId, setDiscordId] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -53,31 +33,20 @@ function CheckoutContent() {
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [discordRoleAssigned, setDiscordRoleAssigned] = useState(false)
 
-  const pkg = PACKAGES[selectedPackage]
-  
-  const formatTokens = (tokens: number) => {
-    return `${(tokens / 1000000).toFixed(0)}M`
-  }
-  
-  const getFeatures = (pkgKey: PackageType) => {
-    const p = PACKAGES[pkgKey]
-    return [
-      `${formatTokens(p.tokens)} tokens`,
-      `Valid for ${p.days} days`,
-      t.checkout.features.allModels,
-      t.checkout.features.prioritySupport,
-    ]
-  }
-  
-  const features = getFeatures(selectedPackage)
+  const vndAmount = customAmount * VND_RATE
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.push('/login?redirect=/checkout' + (packageParam ? `?package=${packageParam}` : ''))
+      router.push('/login?redirect=/checkout')
     }
-  }, [router, packageParam])
+  }, [router])
 
   const handleCheckout = async () => {
+    if (customAmount < MIN_AMOUNT || customAmount > MAX_AMOUNT) {
+      setError(`Amount must be between $${MIN_AMOUNT} and $${MAX_AMOUNT}`)
+      return
+    }
+
     if (discordId && !/^\d{17,19}$/.test(discordId)) {
       setError(t.checkout.discord.invalidId)
       return
@@ -87,12 +56,12 @@ function CheckoutContent() {
     setError(null)
 
     try {
-      const data = await createCheckout(selectedPackage, discordId || undefined)
+      const data = await createCheckout(customAmount, discordId || undefined)
       setPaymentData({
         paymentId: data.paymentId,
         qrCodeUrl: data.qrCodeUrl,
         amount: data.amount,
-        tokens: data.tokens,
+        tokens: data.credits,
         orderCode: data.orderCode,
       })
       const expiresAt = new Date(data.expiresAt)
@@ -211,7 +180,7 @@ function CheckoutContent() {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-12">
-        {/* Step: Select Plan */}
+        {/* Step: Select Amount */}
         {step === 'select' && (
           <div className="space-y-8">
             <div className="text-center">
@@ -223,7 +192,7 @@ function CheckoutContent() {
               </p>
             </div>
 
-            {/* Selected Plan Info */}
+            {/* Amount Selection */}
             <div className="relative group">
               <div
                 className="absolute -inset-1 rounded-2xl opacity-60 dark:opacity-75 blur-md"
@@ -243,51 +212,104 @@ function CheckoutContent() {
               />
 
               <div className="relative p-6 rounded-[14px] bg-white dark:bg-gray-900 shadow-sm dark:shadow-none">
-                {pkg.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                    <span
-                      className="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-lg"
-                      style={{
-                        background: 'linear-gradient(90deg, #6366f1, #a855f7, #ec4899, #6366f1)',
-                        backgroundSize: '300% 100%',
-                        animation: 'ledBorder 3s linear infinite',
-                      }}
+                <div className="text-center mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    {language === 'vi' ? 'Chọn số tiền' : 'Select Amount'}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {language === 'vi' ? `Tối thiểu $${MIN_AMOUNT} - Tối đa $${MAX_AMOUNT}` : `Min $${MIN_AMOUNT} - Max $${MAX_AMOUNT}`}
+                  </p>
+                </div>
+
+                {/* Quick Amount Buttons */}
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {[20, 50, 75, 100].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => setCustomAmount(amount)}
+                      className={`py-2.5 rounded-lg font-medium text-sm transition-all ${
+                        customAmount === amount
+                          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
                     >
-                      BEST VALUE
-                    </span>
-                  </div>
-                )}
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{formatTokens(pkg.tokens)} Tokens</h3>
-                  <p className="text-gray-500 dark:text-gray-400">Valid for {pkg.days} days</p>
+                      ${amount}
+                    </button>
+                  ))}
                 </div>
-                <div className="text-right">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">{formatPrice(pkg.price)}</span>
-                    <span className="text-gray-500">VND</span>
-                  </div>
-                  {pkg.price < pkg.originalPrice && (
-                    <span className="text-sm text-gray-400 line-through">{formatPrice(pkg.originalPrice)} VND</span>
-                  )}
+
+                {/* Custom Amount Input */}
+                <div className="relative mb-4">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400">$</span>
+                  <input
+                    type="number"
+                    min={MIN_AMOUNT}
+                    max={MAX_AMOUNT}
+                    value={customAmount}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || MIN_AMOUNT
+                      setCustomAmount(Math.min(MAX_AMOUNT, Math.max(MIN_AMOUNT, val)))
+                    }}
+                    className="w-full pl-12 pr-4 py-4 text-2xl font-bold text-center rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  />
                 </div>
-              </div>
-              <div className="h-px bg-gray-200 dark:bg-white/10 my-4" />
-              <ul className="grid grid-cols-2 gap-3">
-                {features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
-                <Link href="/#pricing" className="text-sm text-indigo-500 hover:text-indigo-600 transition-colors">
-                  ← {t.checkout.changePlan || 'Change plan'}
-                </Link>
-              </div>
+
+                {/* Slider */}
+                <input
+                  type="range"
+                  min={MIN_AMOUNT}
+                  max={MAX_AMOUNT}
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                />
+
+                <div className="h-px bg-gray-200 dark:bg-white/10 my-5" />
+
+                {/* Summary */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">{language === 'vi' ? 'Số tiền USD' : 'USD Amount'}</span>
+                    <span className="text-xl font-bold text-gray-900 dark:text-white">${customAmount}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">{language === 'vi' ? 'Số tiền VND' : 'VND Amount'}</span>
+                    <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatPrice(vndAmount)} VND</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 dark:text-gray-500">{language === 'vi' ? 'Tỷ giá' : 'Rate'}</span>
+                    <span className="text-gray-500 dark:text-gray-500">1,000 VND = $1</span>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-gray-200 dark:border-white/10">
+                  <ul className="grid grid-cols-2 gap-2 text-sm">
+                    <li className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {t.checkout.features.allModels}
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {language === 'vi' ? 'Hiệu lực 1 tuần' : 'Valid for 1 week'}
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {language === 'vi' ? 'Bảo hành 1:1' : '1:1 Warranty'}
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {t.checkout.features.prioritySupport}
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
 
@@ -332,32 +354,45 @@ function CheckoutContent() {
               </div>
             )}
 
-            {/* Summary & Pay Button */}
+            {/* Pay Button */}
             <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{t.checkout.summary.total}</p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {formatPrice(pkg.price)} <span className="text-lg font-normal text-gray-400">VND</span>
+                    {formatPrice(vndAmount)} <span className="text-lg font-normal text-gray-400">VND</span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Package</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{formatTokens(pkg.tokens)} Tokens</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Credits</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">${customAmount}</p>
                 </div>
               </div>
 
               <button
-                disabled
-                className="w-full py-4 rounded-xl bg-gray-400 text-white font-semibold text-lg cursor-not-allowed opacity-60 flex items-center justify-center gap-2"
+                onClick={handleCheckout}
+                disabled={loading}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25"
               >
-                {t.pricing.unavailable}
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t.checkout.payment.processing}
+                  </>
+                ) : (
+                  <>
+                    {t.pricing.buyNow}
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </>
+                )}
               </button>
             </div>
           </div>
         )}
 
-        {/* Confirmation Modal - simplified for token packages */}
+        {/* Confirmation Modal */}
         {showConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-white/10">
@@ -372,25 +407,25 @@ function CheckoutContent() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Please review before proceeding</p>
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 mb-4 border border-gray-100 dark:border-white/5">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Package</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatTokens(pkg.tokens)} Tokens</span>
+                  <span className="text-gray-600 dark:text-gray-400">Credits</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">${customAmount}</span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600 dark:text-gray-400">Valid for</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{pkg.days} days</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">7 days</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">{t.checkout.summary.total}</span>
-                  <span className="font-bold text-lg text-gray-900 dark:text-white">{formatPrice(pkg.price)} VND</span>
+                  <span className="font-bold text-lg text-gray-900 dark:text-white">{formatPrice(vndAmount)} VND</span>
                 </div>
               </div>
 
               <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl p-4 mb-6">
                 <p className="text-sm text-emerald-800 dark:text-emerald-300">
-                  <strong>Note:</strong> Tokens will be added to your account balance after successful payment.
+                  <strong>Note:</strong> Credits will be added to your account balance after successful payment.
                 </p>
               </div>
 
@@ -482,22 +517,22 @@ function CheckoutContent() {
                 {t.checkout.success.title}
               </h1>
               <p className="text-gray-500 dark:text-gray-400">
-                You have received {formatTokens(pkg.tokens)} tokens!
+                {language === 'vi' ? `Bạn đã nhận được $${customAmount} credits!` : `You have received $${customAmount} credits!`}
               </p>
             </div>
 
             <div className="bg-white dark:bg-white/5 rounded-xl p-6 space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Package</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatTokens(pkg.tokens)} Tokens</span>
+                <span className="text-gray-500 dark:text-gray-400">Credits</span>
+                <span className="font-semibold text-gray-900 dark:text-white">${customAmount}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Valid for</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{pkg.days} days</span>
+                <span className="text-gray-500 dark:text-gray-400">{language === 'vi' ? 'Hiệu lực' : 'Valid for'}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{language === 'vi' ? '7 ngày' : '7 days'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Amount Paid</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(pkg.price)} VND</span>
+                <span className="text-gray-500 dark:text-gray-400">{language === 'vi' ? 'Đã thanh toán' : 'Amount Paid'}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(vndAmount)} VND</span>
               </div>
             </div>
 

@@ -368,101 +368,75 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-16 sm:py-24 border-t border-gray-200 dark:border-white/5 relative overflow-hidden">
+      <section id="pricing" className="py-16 sm:py-20 border-t border-gray-200 dark:border-white/5 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
 
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="relative max-w-md mx-auto px-4 sm:px-6">
           {/* Header */}
-          <div className="text-center mb-10 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-3 sm:mb-4">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-[var(--theme-text)] mb-2">
               {t.pricing.title}
             </h2>
-            <p className="text-base sm:text-lg text-[var(--theme-text-muted)] max-w-xl mx-auto">
+            <p className="text-sm text-[var(--theme-text-muted)]">
               {t.pricing.subtitle}
             </p>
           </div>
 
-          {/* Pricing Cards */}
-          <div className="max-w-md mx-auto">
-            {/* Dev Tier */}
-            <div className="group relative">
-              {/* Card glow on hover */}
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-400/30 dark:from-slate-600/50 to-slate-500/30 dark:to-slate-700/50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl" />
+          {/* Pricing Card */}
+          <div className="group relative">
+            {/* Gradient border */}
+            <div className="absolute -inset-[1px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl opacity-50 group-hover:opacity-100 transition-opacity" />
 
-              <div className="relative p-6 sm:p-8 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900/50 backdrop-blur-sm hover:border-gray-300 dark:hover:border-white/20 transition-all duration-300 h-full flex flex-col shadow-sm">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-5 sm:mb-6">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 mb-2 sm:mb-3">
-                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--theme-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                      </svg>
-                      <span className="text-[var(--theme-text-muted)] text-[10px] sm:text-xs font-medium">{t.pricing.dev.badge}</span>
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{t.pricing.dev.name}</h3>
-                    <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm mt-1">{t.pricing.dev.description}</p>
-                  </div>
+            <div className="relative p-6 rounded-2xl bg-white dark:bg-slate-900">
+              {/* Price */}
+              <div className="text-center mb-5">
+                <div className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  $20
                 </div>
-
-                {/* Price */}
-                <div className="mb-5 sm:mb-6">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl sm:text-3xl font-bold text-[var(--theme-text)]">{t.pricing.updating}</span>
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent mb-5 sm:mb-6" />
-
-                {/* Features */}
-                <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
-                  {[
-                    { text: t.pricing.updating, highlight: true },
-                    { text: t.pricing.dev.features.models, highlight: true },
-                    { text: t.pricing.dev.features.support, highlight: true },
-                  ].map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.highlight ? 'bg-indigo-500/20 text-indigo-500 dark:text-indigo-400' : 'bg-slate-200 dark:bg-slate-800 text-[var(--theme-text-muted)]'}`}>
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className={`text-sm ${item.highlight ? 'text-[var(--theme-text)] font-medium' : 'text-[var(--theme-text-muted)]'}`}>{item.text}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {/* CTA */}
-                <button
-                  disabled
-                  className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 rounded-xl bg-gray-400 text-white font-semibold text-center cursor-not-allowed opacity-60 text-sm sm:text-base"
-                >
-                  {t.pricing.unavailable}
-                </button>
+                <div className="text-[var(--theme-text-muted)] text-xs mt-1">{t.pricing.minPurchase}</div>
               </div>
-            </div>
 
+              {/* Features */}
+              <div className="space-y-2.5 mb-5">
+                {[
+                  { icon: '💰', text: t.pricing.dev.features.credits },
+                  { icon: '🤖', text: t.pricing.dev.features.models },
+                  { icon: '🛡️', text: t.pricing.dev.features.support },
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2.5 text-sm">
+                    <span className="text-base">{item.icon}</span>
+                    <span className="text-[var(--theme-text)]">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA Button */}
+              <Link
+                href="/checkout"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/25 transition-all"
+              >
+                {t.pricing.buyNow}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </Link>
+            </div>
           </div>
 
-          {/* International users note */}
-          <div className="text-center mt-8 sm:mt-10">
-            <div className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-              <svg className="w-5 h-5 text-[#5865F2] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-              </svg>
-              <span className="text-[var(--theme-text-muted)] text-sm">{t.pricing.internationalNote}</span>
-              <a href="https://discord.gg/Prs3RxwnyQ" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] font-semibold hover:underline text-sm">
-                Discord
-              </a>
-            </div>
+          {/* Discord note */}
+          <div className="flex items-center justify-center gap-2 mt-6 text-xs text-[var(--theme-text-muted)]">
+            <span>{t.pricing.internationalNote}</span>
+            <a href="https://discord.gg/Prs3RxwnyQ" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] font-medium hover:underline">
+              Discord
+            </a>
           </div>
 
           {/* Compare link */}
-          <div className="text-center mt-6 sm:mt-8">
-            <Link href="/models" className="inline-flex items-center gap-2 text-[var(--theme-text-subtle)] hover:text-[var(--theme-text)] transition-colors text-xs sm:text-sm">
-              <span>{t.pricing.compareAll}</span>
-              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="text-center mt-4">
+            <Link href="/models" className="inline-flex items-center gap-1.5 text-[var(--theme-text-subtle)] hover:text-[var(--theme-text)] transition-colors text-xs">
+              {t.pricing.compareAll}
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </Link>

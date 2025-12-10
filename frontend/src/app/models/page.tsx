@@ -310,7 +310,6 @@ export default function ModelsPage() {
                     <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.context}</th>
                     <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.input}</th>
                     <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.output}</th>
-                    <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">Multiplier</th>
                     <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden md:table-cell">{t.models.table.speed}</th>
                     <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden lg:table-cell">{t.models.table.capabilities}</th>
                     <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden xl:table-cell">{t.models.table.apiId}</th>
@@ -357,10 +356,6 @@ export default function ModelsPage() {
                         {/* Output Price */}
                         <td className="px-4 py-4 text-right">
                           <span className={`font-medium text-sm ${colors.text}`}>{formatPrice(model.outputPrice)}</span>
-                        </td>
-                        {/* Multiplier */}
-                        <td className="px-4 py-4 text-center">
-                          <span className="text-[var(--theme-text)] text-sm font-medium">{model.billingMultiplier}x</span>
                         </td>
                         {/* Speed */}
                         <td className="px-4 py-4 text-center hidden md:table-cell">

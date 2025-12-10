@@ -100,6 +100,7 @@ router.patch('/users/:username/credits', requireAdmin, async (req: Request, res:
       user: {
         username: user._id,
         credits: user.credits,
+        expiresAt: user.expiresAt,
       }
     });
   } catch (error) {
@@ -155,6 +156,7 @@ router.post('/users/:username/credits/add', requireAdmin, async (req: Request, r
       user: {
         username: user._id,
         credits: user.credits,
+        expiresAt: user.expiresAt,
       }
     });
   } catch (error) {
@@ -310,7 +312,6 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
         id: p._id,
         userId: p.userId,
         username: p.username,
-        package: p.package,
         credits: p.credits,
         amount: p.amount,
         currency: p.currency,

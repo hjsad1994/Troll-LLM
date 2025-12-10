@@ -144,19 +144,52 @@ export class UserRepository {
   }
 
   async addCredits(username: string, credits: number): Promise<IUser | null> {
-    return User.findByIdAndUpdate(
+    const VALIDITY_DAYS = 7;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+
+    const updatedUser = await User.findByIdAndUpdate(
       username,
-      { $inc: { credits } },
+      {
+        $inc: { credits },
+        $set: { expiresAt, purchasedAt: now }
+      },
       { new: true }
     ).lean();
+
+    if (updatedUser?.apiKey) {
+      await UserKey.updateOne(
+        { _id: updatedUser.apiKey },
+        { $set: { expiresAt } },
+        { upsert: false }
+      );
+    }
+
+    return updatedUser;
   }
 
   async setCredits(username: string, credits: number): Promise<IUser | null> {
-    return User.findByIdAndUpdate(
+    const VALIDITY_DAYS = 7;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+
+    const updatedUser = await User.findByIdAndUpdate(
       username,
-      { credits },
+      {
+        $set: { credits, expiresAt, purchasedAt: now }
+      },
       { new: true }
     ).lean();
+
+    if (updatedUser?.apiKey) {
+      await UserKey.updateOne(
+        { _id: updatedUser.apiKey },
+        { $set: { expiresAt } },
+        { upsert: false }
+      );
+    }
+
+    return updatedUser;
   }
 
   async getFullUser(username: string): Promise<IUser | null> {
