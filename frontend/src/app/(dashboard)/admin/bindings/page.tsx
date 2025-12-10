@@ -57,6 +57,8 @@ export default function OhmyGPTBindingsPage() {
 
   const [keyForm, setKeyForm] = useState({ id: '', apiKey: '' })
   const [bindingForm, setBindingForm] = useState({ proxyId: '', ohmygptKeyId: '', priority: '1' })
+  const [editBindingModal, setEditBindingModal] = useState(false)
+  const [editBindingForm, setEditBindingForm] = useState({ proxyId: '', ohmygptKeyId: '', priority: '1' })
 
   const { showToast } = useToast()
 
@@ -213,6 +215,45 @@ export default function OhmyGPTBindingsPage() {
       loadData()
     } catch {
       showToast('Failed to delete binding', 'error')
+    }
+  }
+
+  async function reloadBindingsOnProxy() {
+    setLoading(true)
+    try {
+      // Call backend API which proxies to goproxy /reload endpoint
+      const resp = await fetchWithAuth('/admin/ohmygpt/reload', { method: 'POST' })
+      if (!resp.ok) {
+        const err = await resp.json()
+        throw new Error(err.error || 'Failed to reload')
+      }
+      const data = await resp.json()
+      showToast(`Reloaded: ${data.proxy_count} proxies, ${data.ohmygpt_keys || 0} OhmyGPT keys`)
+      // Refresh UI data
+      await loadData()
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reload bindings', 'error')
+      setLoading(false)
+    }
+  }
+
+  async function updateBinding(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      const resp = await fetchWithAuth(
+        `/admin/ohmygpt/bindings/${editBindingForm.proxyId}/${editBindingForm.ohmygptKeyId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ priority: parseInt(editBindingForm.priority) }),
+        }
+      )
+      if (!resp.ok) throw new Error('Failed to update')
+      setEditBindingModal(false)
+      showToast('Binding updated')
+      loadData()
+    } catch {
+      showToast('Failed to update binding', 'error')
     }
   }
 
@@ -425,15 +466,27 @@ export default function OhmyGPTBindingsPage() {
               </div>
               <h2 className="text-xl font-semibold text-[var(--theme-text)]">Proxy Bindings</h2>
             </div>
-            <button
-              onClick={() => setCreateBindingModal(true)}
-              className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Binding
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={reloadBindingsOnProxy}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reload
+              </button>
+              <button
+                onClick={() => setCreateBindingModal(true)}
+                className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Binding
+              </button>
+            </div>
           </div>
 
           {Object.keys(groupedBindings).length === 0 ? (
@@ -505,6 +558,19 @@ export default function OhmyGPTBindingsPage() {
 
                           {/* Actions */}
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditBindingForm({
+                                  proxyId: binding.proxyId,
+                                  ohmygptKeyId: binding.ohmygptKeyId,
+                                  priority: String(binding.priority)
+                                })
+                                setEditBindingModal(true)
+                              }}
+                              className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/10 text-blue-600 dark:text-blue-400 text-xs font-medium hover:bg-blue-500/10 transition-colors"
+                            >
+                              Edit
+                            </button>
                             <button
                               onClick={() => toggleBinding(binding.proxyId, binding.ohmygptKeyId, binding.isActive)}
                               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -633,6 +699,37 @@ export default function OhmyGPTBindingsPage() {
             className="w-full py-3 rounded-lg bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             Create Binding
+          </button>
+        </form>
+      </Modal>
+
+      {/* Edit Binding Modal */}
+      <Modal isOpen={editBindingModal} onClose={() => setEditBindingModal(false)} title="Edit Binding">
+        <form onSubmit={updateBinding} className="space-y-5">
+          <div>
+            <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">Key</label>
+            <p className="text-[var(--theme-text-muted)] font-mono text-sm px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+              {editBindingForm.ohmygptKeyId}
+            </p>
+          </div>
+          <div>
+            <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">Priority</label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={editBindingForm.priority}
+              onChange={(e) => setEditBindingForm({...editBindingForm, priority: e.target.value})}
+              required
+              className="w-full px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-[var(--theme-text)] focus:outline-none focus:border-blue-500 dark:focus:border-blue-400/50 transition-colors"
+            />
+            <p className="text-[var(--theme-text-subtle)] text-xs mt-2">Lower number = higher priority (1 is highest)</p>
+          </div>
+          <button
+            type="submit"
+            className="w-full py-3 rounded-lg bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+          >
+            Update Binding
           </button>
         </form>
       </Modal>

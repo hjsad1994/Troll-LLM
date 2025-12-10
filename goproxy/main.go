@@ -3091,23 +3091,45 @@ func main() {
 		}
 
 		log.Printf("🔄 Manual reload triggered")
+
+		// Reload proxy pool
 		if err := proxyPool.Reload(); err != nil {
-			log.Printf("❌ Manual reload failed: %v", err)
+			log.Printf("❌ Proxy pool reload failed: %v", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
-				"error":   err.Error(),
+				"error":   "Proxy pool reload failed: " + err.Error(),
 			})
 			return
 		}
 
+		// Reload troll key pool
+		if err := trollKeyPool.Reload(); err != nil {
+			log.Printf("⚠️ Troll key pool reload failed: %v", err)
+		}
+
+		// Reload OhmyGPT keys and bindings
+		ohmygptReloaded := false
+		ohmygptKeyCount := 0
+		if ohmygptProv := ohmygpt.GetOhmyGPT(); ohmygptProv != nil {
+			if err := ohmygptProv.Reload(); err != nil {
+				log.Printf("⚠️ OhmyGPT reload failed: %v", err)
+			} else {
+				ohmygptReloaded = true
+				ohmygptKeyCount = ohmygptProv.GetKeyCount()
+				log.Printf("✅ OhmyGPT reloaded: %d keys", ohmygptKeyCount)
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"message":     "Proxy bindings reloaded successfully",
-			"proxy_count": proxyPool.GetProxyCount(),
-			"bindings":    proxyPool.GetBindingsInfo(),
+			"success":          true,
+			"message":          "All pools reloaded successfully",
+			"proxy_count":      proxyPool.GetProxyCount(),
+			"bindings":         proxyPool.GetBindingsInfo(),
+			"ohmygpt_reloaded": ohmygptReloaded,
+			"ohmygpt_keys":     ohmygptKeyCount,
 		})
 	}))
 

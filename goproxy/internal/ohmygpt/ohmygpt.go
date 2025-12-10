@@ -535,7 +535,7 @@ func (p *OhmyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStre
 	}
 
 	// Check for rate limit or quota errors
-	if resp.StatusCode == 429 || resp.StatusCode == 402 {
+	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		p.CheckAndRotateOnError(key.ID, resp.StatusCode, string(bodyBytes))
@@ -686,7 +686,7 @@ func (p *OhmyGPTProvider) retryWithNextKeyToEndpoint(endpoint string, body []byt
 		return nil, err
 	}
 
-	if resp.StatusCode == 429 || resp.StatusCode == 402 {
+	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		p.CheckAndRotateOnError(key.ID, resp.StatusCode, string(bodyBytes))

@@ -22,8 +22,8 @@
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
       "billing_multiplier": 1.0,
-      "upstream": "ohmygpt",
-      "upstream_model_id": "claude-opus-4-5"
+      "upstream": "main",
+      "upstream_model_id": "claude-opus-4.5"
     },
     {
       "name": "Claude Sonnet 4.5",
@@ -36,8 +36,8 @@
       "cache_write_price_per_mtok": 4.125,
       "cache_hit_price_per_mtok": 0.33,
       "billing_multiplier": 1.2,
-      "upstream": "ohmygpt",
-      "upstream_model_id": "claude-sonnet-4-5"
+      "upstream": "main",
+      "upstream_model_id": "claude-sonnet-4.5"
     },
     {
       "name": "Claude Haiku 4.5",
@@ -49,8 +49,8 @@
       "cache_write_price_per_mtok": 1.375,
       "cache_hit_price_per_mtok": 0.11,
       "billing_multiplier": 0.4,
-      "upstream": "ohmygpt",
-      "upstream_model_id": "claude-haiku-4-5"
+      "upstream": "main",
+      "upstream_model_id": "claude-haiku-4.5"
     },
     {
       "name": "GPT-5.1",

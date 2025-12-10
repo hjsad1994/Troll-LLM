@@ -1,5 +1,8 @@
 import { userRepository, isCreditsExpired } from '../repositories/user.repository.js';
-import { maskApiKey, IUser } from '../models/user.model.js';
+import { maskApiKey, IUserNew } from '../models/user-new.model.js';
+
+// Alias for backward compatibility
+type IUser = IUserNew;
 
 export interface UserProfile {
   username: string;

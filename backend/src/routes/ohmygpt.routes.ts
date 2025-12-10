@@ -293,4 +293,27 @@ router.post('/backup-keys/:id/restore', async (req: Request, res: Response) => {
   }
 });
 
+// ============ RELOAD ============
+
+// POST /admin/ohmygpt/reload - Reload all pools on goproxy
+router.post('/reload', async (_req: Request, res: Response) => {
+  try {
+    const proxyPort = process.env.PROXY_PORT || '8003';
+    const goproxyUrl = process.env.GOPROXY_URL || `http://localhost:${proxyPort}`;
+    const response = await fetch(`${goproxyUrl}/reload`, { method: 'POST' });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Goproxy reload failed:', errorText);
+      return res.status(response.status).json({ error: 'Failed to reload goproxy', details: errorText });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error: any) {
+    console.error('Error reloading goproxy:', error);
+    res.status(500).json({ error: 'Failed to connect to goproxy', details: error.message });
+  }
+});
+
 export default router;

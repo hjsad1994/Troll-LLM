@@ -1,6 +1,10 @@
-import { User, IUser, hashPassword, generateApiKey, generateReferralCode } from '../models/user.model.js';
+import { UserNew, IUserNew, hashPassword, generateApiKey, generateReferralCode } from '../models/user-new.model.js';
 import { UserKey } from '../models/user-key.model.js';
 import { RequestLog } from '../models/request-log.model.js';
+
+// Alias for backward compatibility
+const User = UserNew;
+type IUser = IUserNew;
 
 export interface CreateUserData {
   username: string;

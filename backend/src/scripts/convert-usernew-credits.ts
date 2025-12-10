@@ -4,7 +4,7 @@ import { UserNew } from '../models/user-new.model.js';
 
 // Conversion constants
 const VND_PER_OLD_CREDIT = 144; // 1,250 credits = 180,000đ → 1 credit = 144đ
-const VND_PER_NEW_DOLLAR = 1000; // $1 = 1,000đ
+const VND_PER_NEW_DOLLAR = 1000; // $1 = 900đ
 const BALANCE_THRESHOLD = 50; // $50 threshold for expiration
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;

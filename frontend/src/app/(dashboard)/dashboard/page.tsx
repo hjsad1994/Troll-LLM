@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getCreditsUsage, UserProfile, BillingInfo, CreditsUsage } from '@/lib/api'
+import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getDetailedUsage, getRequestLogs, UserProfile, BillingInfo, DetailedUsage, RequestLogItem, RequestLogsResponse } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 
@@ -22,41 +22,33 @@ function formatDateDMY(dateStr: string | null | undefined): string {
   return `${day}/${month}/${year}`
 }
 
-function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: string }) {
-  const [displayed, setDisplayed] = useState('0')
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  const seconds = date.getSeconds().toString().padStart(2, '0')
+  return `${day}/${month} ${hours}:${minutes}:${seconds}`
+}
 
-  useEffect(() => {
-    const num = parseFloat(value.replace(/[^0-9.]/g, ''))
-    if (isNaN(num)) {
-      setDisplayed(value)
-      return
-    }
-
-    let start = 0
-    const duration = 1500
-    const increment = num / (duration / 16)
-
-    const timer = setInterval(() => {
-      start += increment
-      if (start >= num) {
-        setDisplayed(value)
-        clearInterval(timer)
-      } else {
-        setDisplayed(num < 100 ? start.toFixed(1) : Math.floor(start).toString())
-      }
-    }, 16)
-
-    return () => clearInterval(timer)
-  }, [value])
-
-  return <span>{displayed}{suffix}</span>
+function getModelShortName(model: string): string {
+  if (model.includes('opus')) return 'Opus'
+  if (model.includes('sonnet')) return 'Sonnet'
+  if (model.includes('haiku')) return 'Haiku'
+  if (model.includes('gpt-4')) return 'GPT-4'
+  if (model.includes('gpt-3')) return 'GPT-3.5'
+  return model.split('/').pop() || model
 }
 
 export default function UserDashboard() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
-  const [creditsUsage, setCreditsUsage] = useState<CreditsUsage | null>(null)
+  const [detailedUsage, setDetailedUsage] = useState<DetailedUsage | null>(null)
+  const [requestLogs, setRequestLogs] = useState<RequestLogsResponse | null>(null)
   const [usagePeriod, setUsagePeriod] = useState<'1h' | '24h' | '7d' | '30d'>('24h')
+  const [currentPage, setCurrentPage] = useState(1)
   const [showFullApiKey, setShowFullApiKey] = useState(false)
   const [fullApiKey, setFullApiKey] = useState<string | null>(null)
   const [rotating, setRotating] = useState(false)
@@ -65,6 +57,8 @@ export default function UserDashboard() {
   const [copied, setCopied] = useState(false)
   const [providerCopied, setProviderCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [usageLoading, setUsageLoading] = useState(false)
+  const [logsLoading, setLogsLoading] = useState(false)
   const { user } = useAuth()
   const { t } = useLanguage()
 
@@ -77,24 +71,64 @@ export default function UserDashboard() {
 
   const loadUserData = useCallback(async () => {
     try {
-      const [profile, billing, credits] = await Promise.all([
+      const [profile, billing, usage, logs] = await Promise.all([
         getUserProfile().catch(() => null),
         getBillingInfo().catch(() => null),
-        getCreditsUsage().catch(() => null),
+        getDetailedUsage(usagePeriod).catch(() => null),
+        getRequestLogs(usagePeriod, 1, 50).catch(() => null),
       ])
       if (profile) setUserProfile(profile)
       if (billing) setBillingInfo(billing)
-      if (credits) setCreditsUsage(credits)
+      if (usage) setDetailedUsage(usage)
+      if (logs) setRequestLogs(logs)
     } catch (err) {
       console.error('Failed to load user data:', err)
     } finally {
       setLoading(false)
     }
+  }, [usagePeriod])
+
+  const loadDetailedUsageAndLogs = useCallback(async (period: '1h' | '24h' | '7d' | '30d') => {
+    setUsageLoading(true)
+    setLogsLoading(true)
+    setCurrentPage(1)
+    try {
+      const [usage, logs] = await Promise.all([
+        getDetailedUsage(period),
+        getRequestLogs(period, 1, 50),
+      ])
+      setDetailedUsage(usage)
+      setRequestLogs(logs)
+    } catch (err) {
+      console.error('Failed to load detailed usage:', err)
+    } finally {
+      setUsageLoading(false)
+      setLogsLoading(false)
+    }
   }, [])
+
+  const loadMoreLogs = useCallback(async (page: number) => {
+    setLogsLoading(true)
+    try {
+      const logs = await getRequestLogs(usagePeriod, page, 50)
+      setRequestLogs(logs)
+      setCurrentPage(page)
+    } catch (err) {
+      console.error('Failed to load logs:', err)
+    } finally {
+      setLogsLoading(false)
+    }
+  }, [usagePeriod])
 
   useEffect(() => {
     loadUserData()
   }, [loadUserData])
+
+  useEffect(() => {
+    if (!loading) {
+      loadDetailedUsageAndLogs(usagePeriod)
+    }
+  }, [usagePeriod, loading, loadDetailedUsageAndLogs])
 
   const handleShowApiKey = async () => {
     if (showFullApiKey) {
@@ -161,7 +195,7 @@ export default function UserDashboard() {
 
   return (
     <div className="min-h-screen px-4 sm:px-6">
-      <div className="relative max-w-5xl mx-auto space-y-8 sm:space-y-12">
+      <div className="relative max-w-7xl mx-auto space-y-8 sm:space-y-12">
         {/* Header - Compact */}
         <header className="flex items-center justify-between gap-4 opacity-0 animate-fade-in-up">
           <div className="flex items-center gap-3">
@@ -181,7 +215,7 @@ export default function UserDashboard() {
           <span className="text-[var(--theme-text-subtle)] text-sm hidden sm:block">{getTimeGreeting()}</span>
         </header>
 
-        {/* Main Grid */}
+        {/* Main Grid - API Key & Credits */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* API Key Card */}
           <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-200">
@@ -398,8 +432,6 @@ export default function UserDashboard() {
                     </div>
                   </div>
                 )}
-
-
               </div>
             ) : (
               <div className="space-y-4">
@@ -409,8 +441,8 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Credits Usage Card */}
-        <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-400">
+        {/* Detailed Usage Card */}
+        <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-400">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
@@ -419,8 +451,8 @@ export default function UserDashboard() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <h3 className="text-base sm:text-lg font-semibold text-[var(--theme-text)]">{t.dashboard.creditsUsage.title}</h3>
-                <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">{t.dashboard.creditsUsage.subtitle}</p>
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--theme-text)]">{t.dashboardTest?.detailedUsage?.title || 'Detailed Usage'}</h3>
+                <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">{t.dashboardTest?.detailedUsage?.subtitle || 'Token breakdown by period'}</p>
               </div>
             </div>
             <div className="flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 self-start sm:self-auto overflow-x-auto">
@@ -440,17 +472,178 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          <div className="p-4 sm:p-6 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-center">
-            <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs sm:text-sm mb-2">
-              {usagePeriod === '1h' ? t.dashboard.creditsUsage.last1h : usagePeriod === '24h' ? t.dashboard.creditsUsage.last24h : usagePeriod === '7d' ? t.dashboard.creditsUsage.last7d : t.dashboard.creditsUsage.last30d}
-            </p>
-            <p className="text-3xl sm:text-4xl font-bold text-orange-600 dark:text-orange-400">
-              ${(creditsUsage ? creditsUsage[`last${usagePeriod}`] : 0).toFixed(2)}
-            </p>
-          </div>
+          {usageLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                  <div className="h-4 bg-slate-200 dark:bg-white/10 rounded animate-pulse mb-2" />
+                  <div className="h-6 bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
+                  {t.dashboardTest?.detailedUsage?.inputTokens || 'Input Tokens'}
+                </p>
+                <p className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatLargeNumber(detailedUsage?.inputTokens)}
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
+                  {t.dashboardTest?.detailedUsage?.outputTokens || 'Output Tokens'}
+                </p>
+                <p className="text-lg sm:text-xl font-bold text-purple-600 dark:text-purple-400">
+                  {formatLargeNumber(detailedUsage?.outputTokens)}
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
+                  {t.dashboardTest?.detailedUsage?.cacheWrite || 'Cache Write'}
+                </p>
+                <p className="text-lg sm:text-xl font-bold text-cyan-600 dark:text-cyan-400">
+                  {formatLargeNumber(detailedUsage?.cacheWriteTokens)}
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
+                  {t.dashboardTest?.detailedUsage?.cacheHit || 'Cache Hit'}
+                </p>
+                <p className="text-lg sm:text-xl font-bold text-teal-600 dark:text-teal-400">
+                  {formatLargeNumber(detailedUsage?.cacheHitTokens)}
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
+                  {t.dashboardTest?.detailedUsage?.creditsBurned || 'Credits Burned'}
+                </p>
+                <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
+                  ${(detailedUsage?.creditsBurned || 0).toFixed(4)}
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
+                  {t.dashboardTest?.detailedUsage?.requests || 'Requests'}
+                </p>
+                <p className="text-lg sm:text-xl font-bold text-slate-700 dark:text-slate-300">
+                  {formatLargeNumber(detailedUsage?.requestCount)}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
+        {/* Request Logs Table */}
+        <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-500">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--theme-text)]">{t.dashboardTest?.requestLogs?.title || 'Request Logs'}</h3>
+                <p className="text-[var(--theme-text-subtle)] text-xs sm:text-sm">
+                  {requestLogs ? `${requestLogs.total} requests` : 'Loading...'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/10">
+                  <th className="text-left px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Time</th>
+                  <th className="text-left px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Model</th>
+                  <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Input</th>
+                  <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Output</th>
+                  <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Cache Write</th>
+                  <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Cache Hit</th>
+                  <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Cost</th>
+                  <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Latency</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                {logsLoading ? (
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={8} className="px-3 py-3">
+                        <div className="h-4 bg-slate-100 dark:bg-white/5 rounded animate-pulse" />
+                      </td>
+                    </tr>
+                  ))
+                ) : requestLogs?.requests.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-8 text-center text-slate-500 dark:text-slate-400">
+                      No requests found in this period
+                    </td>
+                  </tr>
+                ) : (
+                  requestLogs?.requests.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-sm whitespace-nowrap">
+                        {formatDateTime(log.createdAt)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400">
+                          {getModelShortName(log.model)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-mono text-blue-600 dark:text-blue-400">
+                        {formatLargeNumber(log.inputTokens)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-mono text-purple-600 dark:text-purple-400">
+                        {formatLargeNumber(log.outputTokens)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-mono text-cyan-600 dark:text-cyan-400">
+                        {formatLargeNumber(log.cacheWriteTokens)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-mono text-teal-600 dark:text-teal-400">
+                        {formatLargeNumber(log.cacheHitTokens)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-mono text-orange-600 dark:text-orange-400">
+                        ${log.creditsCost.toFixed(4)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm text-slate-600 dark:text-slate-400">
+                        {log.latencyMs > 0 ? `${(log.latencyMs / 1000).toFixed(1)}s` : '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {requestLogs && requestLogs.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Page {currentPage} of {requestLogs.totalPages}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => loadMoreLogs(currentPage - 1)}
+                  disabled={currentPage === 1 || logsLoading}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => loadMoreLogs(currentPage + 1)}
+                  disabled={currentPage === requestLogs.totalPages || logsLoading}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+      </div>
 
       {/* Rotate API Key Modal */}
       {showRotateConfirm && (

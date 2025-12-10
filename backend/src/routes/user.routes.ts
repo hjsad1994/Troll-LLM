@@ -3,7 +3,7 @@ import { userService } from '../services/user.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
-import { maskUsername } from '../models/user.model.js';
+import { maskUsername } from '../models/user-new.model.js';
 
 const router = Router();
 

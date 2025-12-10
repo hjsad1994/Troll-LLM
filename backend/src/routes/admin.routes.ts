@@ -1,11 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { userKeyController } from '../controllers/user-key.controller.js';
-import { factoryKeyController } from '../controllers/factory-key.controller.js';
 import { metricsController } from '../controllers/metrics.controller.js';
 import { allowReadOnly, requireAdmin } from '../middleware/role.middleware.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
-import { backupKeyRepository } from '../repositories/backup-key.repository.js';
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { PaymentStatus } from '../models/payment.model.js';
 
@@ -18,14 +16,6 @@ router.post('/keys', requireAdmin, (req, res) => userKeyController.create(req, r
 router.patch('/keys/:id', requireAdmin, (req, res) => userKeyController.update(req, res));
 router.delete('/keys/:id', requireAdmin, (req, res) => userKeyController.delete(req, res));
 router.post('/keys/:id/reset', requireAdmin, (req, res) => userKeyController.reset(req, res));
-
-// Troll-Keys - admin only (contains sensitive upstream API keys)
-router.get('/troll-keys', requireAdmin, (req, res) => factoryKeyController.list(req, res));
-router.get('/troll-keys/analytics', requireAdmin, (req, res) => factoryKeyController.getAllAnalytics(req, res));
-router.get('/troll-keys/:id/analytics', requireAdmin, (req, res) => factoryKeyController.getAnalytics(req, res));
-router.post('/troll-keys', requireAdmin, (req, res) => factoryKeyController.create(req, res));
-router.delete('/troll-keys/:id', requireAdmin, (req, res) => factoryKeyController.delete(req, res));
-router.post('/troll-keys/:id/reset', requireAdmin, (req, res) => factoryKeyController.reset(req, res));
 
 // Metrics - all authenticated users can read
 router.get('/metrics', (req, res) => metricsController.getSystemMetrics(req, res));
@@ -230,80 +220,6 @@ router.post('/users/:username/credit-package', requireAdmin, async (req: Request
   } catch (error) {
     console.error('Failed to set credit package:', error);
     res.status(500).json({ error: 'Failed to set credit package' });
-  }
-});
-
-// Backup Keys - admin only (for auto key rotation)
-router.get('/backup-keys', requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const [keys, stats] = await Promise.all([
-      backupKeyRepository.findAll(),
-      backupKeyRepository.getStats(),
-    ]);
-    const maskedKeys = keys.map((k: any) => ({
-      id: k._id,
-      maskedApiKey: k.apiKey ? `${k.apiKey.slice(0, 8)}...${k.apiKey.slice(-4)}` : '***',
-      isUsed: k.isUsed,
-      activated: k.activated || false,
-      usedFor: k.usedFor,
-      usedAt: k.usedAt,
-      createdAt: k.createdAt,
-    }));
-    res.json({ keys: maskedKeys, ...stats });
-  } catch (error) {
-    console.error('Failed to list backup keys:', error);
-    res.status(500).json({ error: 'Failed to list backup keys' });
-  }
-});
-
-router.post('/backup-keys', requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const { id, apiKey } = req.body;
-    if (!id || !apiKey) {
-      return res.status(400).json({ error: 'ID and API key are required' });
-    }
-    const key = await backupKeyRepository.create({ id, apiKey });
-    res.status(201).json({ 
-      success: true, 
-      key: {
-        id: key._id,
-        maskedApiKey: `${apiKey.slice(0, 8)}...${apiKey.slice(-4)}`,
-        isUsed: key.isUsed,
-        createdAt: key.createdAt,
-      }
-    });
-  } catch (error: any) {
-    if (error.code === 11000) {
-      return res.status(400).json({ error: 'Backup key with this ID already exists' });
-    }
-    console.error('Failed to create backup key:', error);
-    res.status(500).json({ error: 'Failed to create backup key' });
-  }
-});
-
-router.delete('/backup-keys/:id', requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const deleted = await backupKeyRepository.delete(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ error: 'Backup key not found' });
-    }
-    res.json({ success: true, message: 'Backup key deleted' });
-  } catch (error) {
-    console.error('Failed to delete backup key:', error);
-    res.status(500).json({ error: 'Failed to delete backup key' });
-  }
-});
-
-router.post('/backup-keys/:id/restore', requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const key = await backupKeyRepository.markAsAvailable(req.params.id);
-    if (!key) {
-      return res.status(404).json({ error: 'Backup key not found' });
-    }
-    res.json({ success: true, message: 'Backup key restored to available' });
-  } catch (error) {
-    console.error('Failed to restore backup key:', error);
-    res.status(500).json({ error: 'Failed to restore backup key' });
   }
 });
 

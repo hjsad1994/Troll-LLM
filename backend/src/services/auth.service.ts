@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { userRepository, isCreditsExpired } from '../repositories/user.repository.js';
-import { verifyPassword } from '../models/user.model.js';
+import { verifyPassword } from '../models/user-new.model.js';
 import { LoginInput, RegisterInput, AuthResponse, JwtPayload } from '../dtos/auth.dto.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_SECRET_KEY || 'change-this-secret';

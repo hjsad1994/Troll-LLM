@@ -69,7 +69,7 @@ func UserKeysCollection() *mongo.Collection {
 }
 
 func UsersCollection() *mongo.Collection {
-	return GetCollection("users")
+	return GetCollection("usersNew")
 }
 
 func TrollKeysCollection() *mongo.Collection {
