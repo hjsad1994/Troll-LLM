@@ -251,9 +251,9 @@ export class PaymentService {
       expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
     }
 
-    // Update user with new credits
-    const { User } = await import('../models/user.model.js');
-    await User.findByIdAndUpdate(userId, {
+    // Update user with new credits - use UserNew model (usersNew collection)
+    const { UserNew } = await import('../models/user-new.model.js');
+    await UserNew.findByIdAndUpdate(userId, {
       purchasedAt: now,
       expiresAt,
       $inc: { credits },
