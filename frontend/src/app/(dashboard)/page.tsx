@@ -387,34 +387,29 @@ export default function Dashboard() {
               </div>
               {billingInfo && (
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  (billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0
+                  (billingInfo.credits || 0) > 0
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-slate-500/20 text-slate-400'
                 }`}>
-                  {(billingInfo.credits || 0) + (billingInfo.refCredits || 0) > 0 ? 'Active' : 'Free'}
+                  {(billingInfo.credits || 0) > 0 ? 'Active' : 'Free'}
                 </span>
               )}
             </div>
             
             {billingInfo ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="bg-slate-900/50 rounded-lg p-3">
                     <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Credits (USD)</p>
                     <p className="text-2xl font-bold text-emerald-400">
                       ${(billingInfo.credits || 0).toFixed(2)}
                     </p>
                   </div>
-                  <div className="bg-slate-900/50 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Ref Credits</p>
-                    <p className="text-2xl font-bold text-cyan-400">${(billingInfo.refCredits || 0).toFixed(2)}</p>
-                  </div>
                 </div>
               </div>
             ) : (
               <div className="animate-pulse space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="h-16 bg-slate-700/50 rounded-lg"></div>
+                <div className="grid grid-cols-1 gap-4">
                   <div className="h-16 bg-slate-700/50 rounded-lg"></div>
                 </div>
                 <div className="h-4 bg-slate-700/50 rounded-lg"></div>

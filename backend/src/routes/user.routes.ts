@@ -171,65 +171,65 @@ router.get('/request-logs', jwtAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Referral endpoints
-router.get('/referral', jwtAuth, async (req: Request, res: Response) => {
-  try {
-    const username = (req as any).user?.username;
-    if (!username) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+// Referral system disabled
+// router.get('/referral', jwtAuth, async (req: Request, res: Response) => {
+//   try {
+//     const username = (req as any).user?.username;
+//     if (!username) {
+//       return res.status(401).json({ error: 'Unauthorized' });
+//     }
 
-    const user = await userRepository.getFullUser(username);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+//     const user = await userRepository.getFullUser(username);
+//     if (!user) {
+//       return res.status(404).json({ error: 'User not found' });
+//     }
 
-    const baseUrl = process.env.FRONTEND_URL || 'https://trollllm.xyz';
-    const referralLink = `${baseUrl}/register?ref=${user.referralCode}`;
+//     const baseUrl = process.env.FRONTEND_URL || 'https://trollllm.xyz';
+//     const referralLink = `${baseUrl}/register?ref=${user.referralCode}`;
 
-    res.json({
-      referralCode: user.referralCode,
-      referralLink,
-      refCredits: user.refCredits || 0,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+//     res.json({
+//       referralCode: user.referralCode,
+//       referralLink,
+//       refCredits: user.refCredits || 0,
+//     });
+//   } catch (error: any) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
-router.get('/referral/stats', jwtAuth, async (req: Request, res: Response) => {
-  try {
-    const username = (req as any).user?.username;
-    if (!username) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+// router.get('/referral/stats', jwtAuth, async (req: Request, res: Response) => {
+//   try {
+//     const username = (req as any).user?.username;
+//     if (!username) {
+//       return res.status(401).json({ error: 'Unauthorized' });
+//     }
 
-    const stats = await userRepository.getReferralStats(username);
-    res.json(stats);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+//     const stats = await userRepository.getReferralStats(username);
+//     res.json(stats);
+//   } catch (error: any) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
-router.get('/referral/list', jwtAuth, async (req: Request, res: Response) => {
-  try {
-    const username = (req as any).user?.username;
-    if (!username) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+// router.get('/referral/list', jwtAuth, async (req: Request, res: Response) => {
+//   try {
+//     const username = (req as any).user?.username;
+//     if (!username) {
+//       return res.status(401).json({ error: 'Unauthorized' });
+//     }
 
-    const referredUsers = await userRepository.getReferredUsers(username);
-    
-    // Mask usernames for privacy
-    const maskedUsers = referredUsers.map(u => ({
-      ...u,
-      username: maskUsername(u.username),
-    }));
+//     const referredUsers = await userRepository.getReferredUsers(username);
 
-    res.json({ users: maskedUsers });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+//     // Mask usernames for privacy
+//     const maskedUsers = referredUsers.map(u => ({
+//       ...u,
+//       username: maskUsername(u.username),
+//     }));
+
+//     res.json({ users: maskedUsers });
+//   } catch (error: any) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 export default router;

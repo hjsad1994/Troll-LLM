@@ -259,8 +259,8 @@ export class PaymentService {
       $inc: { credits },
     });
 
-    // Award referral bonus if this is first payment and user was referred
-    await this.awardReferralBonus(userId, credits);
+    // Referral system disabled
+    // await this.awardReferralBonus(userId, credits);
 
     // Sync to user_keys collection for GoProxy
     if (user.apiKey) {
