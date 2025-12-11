@@ -8,8 +8,8 @@ const DefaultUserRPM = 300
 type UserKey struct {
 	ID            string     `bson:"_id" json:"id"`
 	Name          string     `bson:"name" json:"name"`
-	TokensUsed    int64      `bson:"tokensUsed" json:"tokens_used"`
-	RequestsCount int64      `bson:"requestsCount" json:"requests_count"`
+	TokensUsed    float64    `bson:"tokensUsed" json:"tokens_used"`
+	RequestsCount float64    `bson:"requestsCount" json:"requests_count"`
 	IsActive      bool       `bson:"isActive" json:"is_active"`
 	CreatedAt     time.Time  `bson:"createdAt" json:"created_at"`
 	LastUsedAt    *time.Time `bson:"lastUsedAt,omitempty" json:"last_used_at,omitempty"`

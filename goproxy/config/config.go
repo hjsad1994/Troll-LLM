@@ -15,18 +15,19 @@ type Endpoint struct {
 
 // Model configuration
 type Model struct {
-	Name                  string  `json:"name"`
-	ID                    string  `json:"id"`
-	Type                  string  `json:"type"`
-	Reasoning             string  `json:"reasoning"`
-	ThinkingBudget        int     `json:"thinking_budget,omitempty"` // Budget tokens for thinking mode
-	InputPricePerMTok     float64 `json:"input_price_per_mtok"`
-	OutputPricePerMTok    float64 `json:"output_price_per_mtok"`
+	Name                  string   `json:"name"`
+	ID                    string   `json:"id"`
+	IDAliases             []string `json:"id_aliases,omitempty"`        // Alternative model IDs that map to this model
+	Type                  string   `json:"type"`
+	Reasoning             string   `json:"reasoning"`
+	ThinkingBudget        int      `json:"thinking_budget,omitempty"` // Budget tokens for thinking mode
+	InputPricePerMTok     float64  `json:"input_price_per_mtok"`
+	OutputPricePerMTok    float64  `json:"output_price_per_mtok"`
 	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
 	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
 	BillingMultiplier      float64 `json:"billing_multiplier"`
-	Upstream              string  `json:"upstream"`                    // "troll" or "main" - determines which upstream provider to use
-	UpstreamModelID       string  `json:"upstream_model_id,omitempty"` // Model ID to use when sending to upstream (if different from ID)
+	Upstream              string   `json:"upstream"`                    // "troll" or "main" - determines which upstream provider to use
+	UpstreamModelID       string   `json:"upstream_model_id,omitempty"` // Model ID to use when sending to upstream (if different from ID)
 }
 
 // Config global configuration
@@ -77,16 +78,24 @@ func GetConfig() *Config {
 	return globalConfig
 }
 
-// GetModelByID gets model configuration by model ID
+// GetModelByID gets model configuration by model ID or alias
 func GetModelByID(modelID string) *Model {
 	cfg := GetConfig()
 	if cfg == nil {
 		return nil
 	}
 
-	for _, model := range cfg.Models {
+	for i := range cfg.Models {
+		model := &cfg.Models[i]
+		// Check primary ID
 		if model.ID == modelID {
-			return &model
+			return model
+		}
+		// Check aliases
+		for _, alias := range model.IDAliases {
+			if alias == modelID {
+				return model
+			}
 		}
 	}
 	return nil
