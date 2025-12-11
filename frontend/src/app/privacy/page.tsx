@@ -124,7 +124,7 @@ export default function PrivacyPage() {
               <p className="text-[var(--theme-text-muted)]">
                 {privacy.contact.description}{' '}
                 <a
-                  href="https://discord.gg/Prs3RxwnyQ"
+                  href="https://discord.gg/WA3NzpXuq9"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-500 hover:text-indigo-400 transition-colors"
@@ -153,7 +153,7 @@ export default function PrivacyPage() {
               </Link>
               <span className="text-[var(--theme-text-subtle)]">•</span>
               <a
-                href="https://discord.gg/Prs3RxwnyQ"
+                href="https://discord.gg/WA3NzpXuq9"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--theme-text-subtle)] hover:text-[var(--theme-text)] transition-colors"

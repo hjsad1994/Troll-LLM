@@ -334,7 +334,7 @@ export default function ChangelogPage() {
                 </p>
               </div>
               <Link 
-                href="https://discord.gg/Prs3RxwnyQ" 
+                href="https://discord.gg/WA3NzpXuq9" 
                 target="_blank"
                 className="px-4 py-2 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-medium transition-colors flex items-center gap-2"
               >
@@ -409,7 +409,7 @@ export default function ChangelogPage() {
                 GitHub
               </a>
               <a 
-                href="https://discord.gg/Prs3RxwnyQ" 
+                href="https://discord.gg/WA3NzpXuq9" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors"
