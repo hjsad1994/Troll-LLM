@@ -1322,7 +1322,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.DeductCreditsWithCache(username, billingCost, billingTokens, input, output, cacheWrite, cacheHit)
 				// Update Friend Key usage if applicable
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
@@ -1342,7 +1342,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheW=%d cacheH=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
 	}
 
 	// Handle response

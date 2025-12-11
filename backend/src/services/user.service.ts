@@ -25,6 +25,7 @@ export interface BillingInfo {
   purchasedAt: Date | null;
   expiresAt: Date | null;
   daysUntilExpiration: number | null;
+  subscriptionDays: number;
   isExpiringSoon: boolean;
 }
 
@@ -65,10 +66,19 @@ export class UserService {
     const user = await userRepository.getFullUser(username);
     if (!user) return null;
 
+    // Calculate subscription days from purchasedAt and expiresAt
+    let subscriptionDays = 0;
+    if (user.purchasedAt && user.expiresAt) {
+      const purchasedAt = new Date(user.purchasedAt);
+      const expiresAt = new Date(user.expiresAt);
+      const totalDiff = expiresAt.getTime() - purchasedAt.getTime();
+      subscriptionDays = Math.round(totalDiff / (1000 * 60 * 60 * 24));
+    }
+
     // Calculate days until expiration
     let daysUntilExpiration: number | null = null;
     let isExpiringSoon = false;
-    
+
     if (user.expiresAt && (user.credits > 0 || user.refCredits > 0)) {
       const now = new Date();
       const expiresAt = new Date(user.expiresAt);
@@ -84,6 +94,7 @@ export class UserService {
       purchasedAt: user.purchasedAt || null,
       expiresAt: user.expiresAt || null,
       daysUntilExpiration,
+      subscriptionDays,
       isExpiringSoon,
     };
   }

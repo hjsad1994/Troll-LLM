@@ -110,6 +110,7 @@ export interface BillingInfo {
   purchasedAt: string | null
   expiresAt: string | null
   daysUntilExpiration: number | null
+  subscriptionDays: number
   isExpiringSoon: boolean
 }
 

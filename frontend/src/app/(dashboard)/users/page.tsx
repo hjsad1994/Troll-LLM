@@ -17,14 +17,33 @@ function formatDateTime(dateStr: string | undefined): string {
   return `${day}/${month}/${year} ${hours}:${minutes}`
 }
 
-function getDaysRemaining(expiresAt: string | undefined, expiredText: string): string {
-  if (!expiresAt) return '-'
-  const now = new Date()
+function getDaysRemaining(purchasedAt: string | undefined, expiresAt: string | undefined, expiredText: string): { text: string; daysRemaining: number | null; subscriptionDays: number | null; status: 'expired' | 'warning' | 'ok' | 'none' } {
+  if (!expiresAt || !purchasedAt) return { text: '-', daysRemaining: null, subscriptionDays: null, status: 'none' }
+
+  const purchased = new Date(purchasedAt)
   const exp = new Date(expiresAt)
-  const diff = exp.getTime() - now.getTime()
-  if (diff <= 0) return expiredText
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
-  return `${days}d`
+  const now = new Date()
+
+  // Calculate total subscription days from purchasedAt to expiresAt
+  const totalDiff = exp.getTime() - purchased.getTime()
+  const subscriptionDays = Math.round(totalDiff / (1000 * 60 * 60 * 24))
+
+  // Calculate remaining days
+  const remainingDiff = exp.getTime() - now.getTime()
+  if (remainingDiff <= 0) return { text: expiredText, daysRemaining: 0, subscriptionDays, status: 'expired' }
+
+  const daysRemaining = Math.ceil(remainingDiff / (1000 * 60 * 60 * 24))
+  const status = daysRemaining <= 3 ? 'warning' : 'ok'
+  return { text: `${daysRemaining}/${subscriptionDays}`, daysRemaining, subscriptionDays, status }
+}
+
+function getExpiresColor(status: 'expired' | 'warning' | 'ok' | 'none'): string {
+  switch (status) {
+    case 'expired': return 'text-red-500'
+    case 'warning': return 'text-amber-500 dark:text-amber-400'
+    case 'ok': return 'text-emerald-600 dark:text-emerald-400'
+    default: return 'text-slate-400'
+  }
 }
 
 type RoleFilter = 'all' | 'admin' | 'user'
@@ -214,7 +233,122 @@ export default function UsersPage() {
           {loading ? t.users.loading : `${filteredUsers.length} users`}
         </p>
 
-        <div className="rounded-xl border border-slate-300 dark:border-white/10 overflow-hidden">
+        {/* Mobile Card Layout */}
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-4 h-4 border-2 border-indigo-200 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
+              <span className="ml-3 text-slate-600 dark:text-slate-500 text-sm">{t.users.loading}</span>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">{t.users.noUsersFound}</div>
+          ) : (
+            filteredUsers.map((u) => {
+              const username = u._id || 'unknown'
+              const credits = u.credits || 0
+              const refCredits = u.refCredits || 0
+              const creditsBurned = u.creditsBurned || 0
+              const isUpdating = updating === username
+              const expires = getDaysRemaining(u.purchasedAt, u.expiresAt, t.users.expired)
+
+              return (
+                <div key={username} className="rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 p-4">
+                  {/* User Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
+                      u.role === 'admin'
+                        ? 'bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400'
+                        : 'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
+                    }`}>
+                      {username.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-slate-900 dark:text-white font-medium">{username}</p>
+                      <p className={`text-xs ${u.role === 'admin' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}`}>
+                        {u.role || 'user'}
+                      </p>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${getExpiresColor(expires.status)}`}>
+                      {expires.text}
+                    </div>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="text-center p-2 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-xs text-slate-500 uppercase">{t.users.table.credits}</p>
+                      <p className={`font-semibold text-sm ${credits > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                        ${credits.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-xs text-slate-500 uppercase">{t.users.table.refCredits}</p>
+                      <p className={`font-semibold text-sm ${refCredits > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+                        ${refCredits.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-slate-50 dark:bg-white/5">
+                      <p className="text-xs text-slate-500 uppercase">{t.users.table.burned}</p>
+                      <p className={`font-semibold text-sm ${creditsBurned > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400'}`}>
+                        ${creditsBurned.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Created Date */}
+                  <p className="text-xs text-slate-500 mb-4">
+                    {t.users.table.created}: {formatDateTime(u.createdAt)}
+                  </p>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="$"
+                        value={setAmounts[username] || ''}
+                        onChange={(e) => setSetAmounts(prev => ({ ...prev, [username]: e.target.value }))}
+                        className="flex-1 px-2 py-1.5 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs focus:outline-none focus:border-amber-400"
+                        disabled={isUpdating}
+                      />
+                      <button
+                        onClick={() => handleSetCredits(username)}
+                        disabled={isUpdating || !setAmounts[username]}
+                        className="px-3 py-1.5 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                      >
+                        SET
+                      </button>
+                    </div>
+                    <div className="flex-1 flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="$"
+                        value={addAmounts[username] || ''}
+                        onChange={(e) => setAddAmounts(prev => ({ ...prev, [username]: e.target.value }))}
+                        className="flex-1 px-2 py-1.5 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs focus:outline-none focus:border-emerald-400"
+                        disabled={isUpdating}
+                      />
+                      <button
+                        onClick={() => handleAddCredits(username)}
+                        disabled={isUpdating || !addAmounts[username]}
+                        className="px-3 py-1.5 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                      >
+                        ADD
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Desktop Table Layout */}
+        <div className="hidden md:block rounded-xl border border-slate-300 dark:border-white/10 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/60">
@@ -286,9 +420,14 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-sm ${getDaysRemaining(u.expiresAt, t.users.expired) === t.users.expired ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}>
-                          {getDaysRemaining(u.expiresAt, t.users.expired)}
-                        </span>
+                        {(() => {
+                          const expires = getDaysRemaining(u.purchasedAt, u.expiresAt, t.users.expired)
+                          return (
+                            <span className={`text-sm font-medium ${getExpiresColor(expires.status)}`}>
+                              {expires.text}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
                         {formatDateTime(u.createdAt)}

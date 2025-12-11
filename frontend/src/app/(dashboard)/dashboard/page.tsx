@@ -389,11 +389,28 @@ export default function UserDashboard() {
                 {/* Credits Period Section - for users with credits */}
                 {((userProfile.credits || 0) > 0) && billingInfo?.expiresAt && (
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
-                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                      <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">Credits Validity</span>
+                    <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">Credits Validity</span>
+                      </div>
+                      {/* Expires Countdown X/Y format */}
+                      {billingInfo?.daysUntilExpiration !== null && billingInfo?.daysUntilExpiration !== undefined && (
+                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                          billingInfo.daysUntilExpiration <= 0
+                            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                            : billingInfo.daysUntilExpiration <= 3
+                              ? 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20'
+                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                        }`}>
+                          {billingInfo.daysUntilExpiration <= 0
+                            ? 'Expired'
+                            : `${billingInfo.daysUntilExpiration}/${billingInfo.subscriptionDays || 7}`
+                          }
+                        </span>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
@@ -410,15 +427,6 @@ export default function UserDashboard() {
                             : 'text-slate-700 dark:text-[var(--theme-text)]'
                         }`}>
                           {billingInfo?.expiresAt ? formatDateDMY(billingInfo.expiresAt) : 'N/A'}
-                          {billingInfo?.daysUntilExpiration !== null && billingInfo?.daysUntilExpiration !== undefined && (
-                            <span className={`ml-1 sm:ml-2 text-xs ${
-                              billingInfo.isExpiringSoon
-                                ? 'text-amber-500 dark:text-amber-400'
-                                : 'text-slate-500 dark:text-[var(--theme-text-subtle)]'
-                            }`}>
-                              ({billingInfo.daysUntilExpiration} days)
-                            </span>
-                          )}
                         </p>
                       </div>
                     </div>

@@ -222,7 +222,7 @@ const (
 	DefaultOutputPricePerMTok     = 15.0
 	DefaultCacheWritePricePerMTok = 3.75
 	DefaultCacheHitPricePerMTok   = 0.30
-	DefaultBillingMultiplier      = 1.4 // Default 40% markup
+	DefaultBillingMultiplier      = 1.15 // Default 15% markup
 )
 
 // GetModelPricing gets input/output pricing for a model
