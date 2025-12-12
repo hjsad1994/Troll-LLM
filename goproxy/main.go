@@ -977,14 +977,14 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 				InputTokens:      input,
 				OutputTokens:     output,
 				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   cacheHit,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cache_w=%d cache_h=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
+		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cache_w=%d cache_h=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
 	}
 
 	if isStreaming {
@@ -1059,14 +1059,14 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 				InputTokens:      input,
 				OutputTokens:     output,
 				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   cacheHit,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d cache_w=%d cache_h=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
+		log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d cache_w=%d cache_h=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
 	}
 
 	// Handle response (passthrough OpenAI format)
@@ -1154,14 +1154,14 @@ func handleOhmyGPTRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIR
 				InputTokens:      input,
 				OutputTokens:     output,
 				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   cacheHit,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
+		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
 	}
 
 	// Handle response
@@ -1257,14 +1257,14 @@ func handleOhmyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 				InputTokens:      input,
 				OutputTokens:     output,
 				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   cacheHit,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
+		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
 	}
 
 	// Handle response
@@ -1339,14 +1339,14 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 				InputTokens:      input,
 				OutputTokens:     output,
 				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   cacheHit,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheW=%d cacheH=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
+		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheW=%d cacheH=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
 	}
 
 	// Handle response
@@ -1558,8 +1558,8 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
-					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d), billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
+					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, config.EffectiveCacheHit(cacheHitTokens), billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
@@ -1581,7 +1581,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 				InputTokens:      inputTokens,
 				OutputTokens:     outputTokens,
 				CacheWriteTokens: cacheWriteTokens,
-				CacheHitTokens:   cacheHitTokens,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHitTokens),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
@@ -1746,8 +1746,8 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
-					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d), billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
+					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, config.EffectiveCacheHit(totalCacheHitTokens), billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
@@ -1769,7 +1769,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 				InputTokens:      totalInputTokens,
 				OutputTokens:     totalOutputTokens,
 				CacheWriteTokens: totalCacheWriteTokens,
-				CacheHitTokens:   totalCacheHitTokens,
+				CacheHitTokens:   config.EffectiveCacheHit(totalCacheHitTokens),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
@@ -1879,8 +1879,8 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
-					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+				log.Printf("📊 Updated usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d), billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
+					inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, config.EffectiveCacheHit(cacheHitTokens), billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
@@ -1902,7 +1902,7 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 				InputTokens:      inputTokens,
 				OutputTokens:     outputTokens,
 				CacheWriteTokens: cacheWriteTokens,
-				CacheHitTokens:   cacheHitTokens,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHitTokens),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
@@ -2722,7 +2722,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 						InputTokens:      inputTokens,
 						OutputTokens:     outputTokens,
 						CacheWriteTokens: cacheWriteTokens,
-						CacheHitTokens:   cacheHitTokens,
+						CacheHitTokens:   config.EffectiveCacheHit(cacheHitTokens),
 						CreditsCost:      billingCost,
 						TokensUsed:       billingTokens,
 						StatusCode:       resp.StatusCode,
@@ -2912,8 +2912,8 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 			} else if debugMode {
 				inputPrice, outputPrice := config.GetModelPricing(modelID)
 				cacheWritePrice, cacheHitPrice := config.GetModelCachePricing(modelID)
-				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d, billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
-					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
+				log.Printf("📊 Updated usage (stream): in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d), billing=%d (price: $%.2f/$%.2f/$%.2f/$%.2f/MTok)",
+					totalInputTokens, totalOutputTokens, totalCacheWriteTokens, totalCacheHitTokens, config.EffectiveCacheHit(totalCacheHitTokens), billingTokens, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice)
 			}
 			// Deduct credits and update tokensUsed for user
 			if username != "" {
@@ -2935,7 +2935,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				InputTokens:      totalInputTokens,
 				OutputTokens:     totalOutputTokens,
 				CacheWriteTokens: totalCacheWriteTokens,
-				CacheHitTokens:   totalCacheHitTokens,
+				CacheHitTokens:   config.EffectiveCacheHit(totalCacheHitTokens),
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       200,

@@ -240,16 +240,9 @@ export class PaymentService {
 
     const now = new Date();
 
-    // Calculate expiration: if user has existing credits, extend from current expiry; else 7 days from now
-    let expiresAt: Date;
-    if (user.expiresAt && user.expiresAt > now && user.credits > 0) {
-      // Extend existing expiration by 7 days
-      expiresAt = new Date(user.expiresAt.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
-      console.log(`[Payment] Extending expiration from ${user.expiresAt} to ${expiresAt}`);
-    } else {
-      // New purchase or expired: 7 days from now
-      expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
-    }
+    // Always set expiration to 7 days from now (no stacking)
+    const expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+    console.log(`[Payment] Setting expiration to ${VALIDITY_DAYS} days from now: ${expiresAt}`);
 
     // Build update object
     const updateData: Record<string, unknown> = {

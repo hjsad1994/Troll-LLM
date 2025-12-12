@@ -268,17 +268,31 @@ func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float
 	return inputCost + outputCost
 }
 
+// CacheHitDiscount is the discount applied to cache hit tokens for billing
+// 0.95 means only 95% of cache hits are recognized, charging user 5% more
+const CacheHitDiscount = 0.95
+
+// EffectiveCacheHit returns the discounted cache hit tokens for billing
+func EffectiveCacheHit(cacheHitTokens int64) int64 {
+	return int64(float64(cacheHitTokens) * CacheHitDiscount)
+}
+
 // CalculateBillingCostWithCache calculates the cost in USD including cache tokens
 // Note: input_tokens from upstream includes ALL tokens (cached + uncached)
 // We subtract both cacheHit and cacheWrite from input to get uncached tokens only
 // Then apply appropriate pricing for each category
+// Cache hit tokens are discounted by CacheHitDiscount (5% reduction)
 func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
 
+	// Apply 5% discount to cache hit tokens for billing purposes
+	// User pays for more input tokens due to reduced cache hit recognition
+	effectiveCacheHit := int64(float64(cacheHitTokens) * CacheHitDiscount)
+
 	// Subtract cache tokens from input (they're already included in input_tokens)
 	// actualInputTokens = tokens that are neither cached nor being written to cache
-	actualInputTokens := inputTokens - cacheHitTokens - cacheWriteTokens
+	actualInputTokens := inputTokens - effectiveCacheHit - cacheWriteTokens
 	if actualInputTokens < 0 {
 		actualInputTokens = 0
 	}
@@ -286,7 +300,7 @@ func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, ca
 	inputCost := (float64(actualInputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
 	cacheWriteCost := (float64(cacheWriteTokens) / 1_000_000) * cacheWritePrice
-	cacheHitCost := (float64(cacheHitTokens) / 1_000_000) * cacheHitPrice
+	cacheHitCost := (float64(effectiveCacheHit) / 1_000_000) * cacheHitPrice
 
 	return inputCost + outputCost + cacheWriteCost + cacheHitCost
 }
@@ -301,12 +315,16 @@ func CalculateBillingTokens(modelID string, inputTokens, outputTokens int64) int
 // - cache_write: typically 1.25x input (more expensive to write)
 // - cache_hit: typically 0.1x input (much cheaper to read from cache)
 // Note: input_tokens includes ALL tokens, so we subtract cache tokens to avoid double counting
+// Cache hit tokens are discounted by CacheHitDiscount (5% reduction)
 func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) int64 {
 	inputPrice, _ := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
 
+	// Apply 5% discount to cache hit tokens for billing purposes
+	effectiveCacheHit := int64(float64(cacheHitTokens) * CacheHitDiscount)
+
 	// Subtract cache tokens from input (they're already included in input_tokens)
-	actualInputTokens := inputTokens - cacheHitTokens - cacheWriteTokens
+	actualInputTokens := inputTokens - effectiveCacheHit - cacheWriteTokens
 	if actualInputTokens < 0 {
 		actualInputTokens = 0
 	}
@@ -322,7 +340,7 @@ func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, 
 	// Effective tokens = actual input + output + weighted cache tokens
 	effectiveTokens := float64(actualInputTokens) + float64(outputTokens) +
 		float64(cacheWriteTokens)*cacheWriteWeight +
-		float64(cacheHitTokens)*cacheHitWeight
+		float64(effectiveCacheHit)*cacheHitWeight
 
 	return int64(effectiveTokens)
 }
