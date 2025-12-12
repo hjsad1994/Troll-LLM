@@ -28,6 +28,6 @@ Lưu `discordId` vào collection `usersNew` khi người dùng thanh toán thàn
 - **Breaking Changes**: Không
 
 ## Acceptance Criteria
-- [ ] `discordId` được lưu vào `usersNew` khi thanh toán thành công
-- [ ] `discordId` có thể được cập nhật qua các lần thanh toán sau
-- [ ] Discord webhook tiếp tục hoạt động như trước
+- [x] `discordId` được lưu vào `usersNew` khi thanh toán thành công
+- [x] `discordId` có thể được cập nhật qua các lần thanh toán sau
+- [x] Discord webhook tiếp tục hoạt động như trước

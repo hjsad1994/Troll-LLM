@@ -181,8 +181,8 @@ export class PaymentService {
 
     console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
 
-    // Add credits to user
-    await this.addCredits(payment.userId, payment.credits);
+    // Add credits to user (also saves discordId if provided)
+    await this.addCredits(payment.userId, payment.credits, payment.discordId);
 
     // Send webhook to Discord bot
     await this.notifyDiscordBot({
@@ -229,7 +229,7 @@ export class PaymentService {
     }
   }
 
-  private async addCredits(userId: string, credits: number): Promise<void> {
+  private async addCredits(userId: string, credits: number, discordId?: string): Promise<void> {
     console.log(`[Payment] Adding $${credits} credits to user: ${userId}`);
 
     const user = await userRepository.getFullUser(userId);
@@ -251,13 +251,22 @@ export class PaymentService {
       expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
     }
 
-    // Update user with new credits - use UserNew model (usersNew collection)
-    const { UserNew } = await import('../models/user-new.model.js');
-    await UserNew.findByIdAndUpdate(userId, {
+    // Build update object
+    const updateData: Record<string, unknown> = {
       purchasedAt: now,
       expiresAt,
       $inc: { credits },
-    });
+    };
+
+    // Only update discordId if provided (don't overwrite existing with empty value)
+    if (discordId) {
+      updateData.discordId = discordId;
+      console.log(`[Payment] Saving discordId: ${discordId}`);
+    }
+
+    // Update user with new credits - use UserNew model (usersNew collection)
+    const { UserNew } = await import('../models/user-new.model.js');
+    await UserNew.findByIdAndUpdate(userId, updateData);
 
     // Referral system disabled
     // await this.awardReferralBonus(userId, credits);

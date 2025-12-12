@@ -1,6 +1,6 @@
 # Payment Specification - Discord ID Extension
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: User Discord ID Storage
 The system SHALL store the user's Discord ID in the `usersNew` collection when a payment is completed.
@@ -20,10 +20,6 @@ The system SHALL store the user's Discord ID in the `usersNew` collection when a
 #### Scenario: Update Discord ID on subsequent payment
 - **WHEN** a user completes a new payment with a different `discordId`
 - **THEN** the system SHALL update the user's `discordId` to the new value
-
----
-
-## ADDED Requirements
 
 ### Requirement: UserNew Discord ID Field
 The `usersNew` collection SHALL include an optional `discordId` field.

@@ -33,6 +33,8 @@ export interface IUserNew {
   referredBy?: string | null;
   refCredits: number;        // Referral credits (bonus, USD)
   referralBonusAwarded: boolean;
+  // Discord integration
+  discordId?: string;        // Discord User ID (17-19 digits)
 }
 
 const userNewSchema = new mongoose.Schema({
@@ -57,6 +59,8 @@ const userNewSchema = new mongoose.Schema({
   referredBy: { type: String, default: null },
   refCredits: { type: Number, default: 0 },
   referralBonusAwarded: { type: Boolean, default: false },
+  // Discord integration
+  discordId: { type: String, default: null },
 });
 
 export const UserNew = mongoose.model<IUserNew>('UserNew', userNewSchema, 'usersNew');
