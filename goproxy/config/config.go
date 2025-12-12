@@ -25,7 +25,6 @@ type Model struct {
 	OutputPricePerMTok    float64  `json:"output_price_per_mtok"`
 	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
 	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
-	BillingMultiplier      float64 `json:"billing_multiplier"`
 	Upstream              string   `json:"upstream"`                    // "troll" or "main" - determines which upstream provider to use
 	UpstreamModelID       string   `json:"upstream_model_id,omitempty"` // Model ID to use when sending to upstream (if different from ID)
 }
@@ -231,7 +230,6 @@ const (
 	DefaultOutputPricePerMTok     = 15.0
 	DefaultCacheWritePricePerMTok = 3.75
 	DefaultCacheHitPricePerMTok   = 0.30
-	DefaultBillingMultiplier      = 1.15 // Default 15% markup
 )
 
 // GetModelPricing gets input/output pricing for a model
@@ -262,38 +260,35 @@ func GetModelCachePricing(modelID string) (cacheWritePrice, cacheHitPrice float6
 	return model.CacheWritePricePerMTok, model.CacheHitPricePerMTok
 }
 
-// GetModelMultiplier gets billing multiplier for a model
-func GetModelMultiplier(modelID string) float64 {
-	model := GetModelByID(modelID)
-	if model == nil || model.BillingMultiplier <= 0 {
-		return DefaultBillingMultiplier
-	}
-	return model.BillingMultiplier
-}
-
 // CalculateBillingCost calculates the cost in USD for input/output tokens (without cache)
-// Applies per-model BillingMultiplier to the final cost
 func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
-	multiplier := GetModelMultiplier(modelID)
 	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
-	return (inputCost + outputCost) * multiplier
+	return inputCost + outputCost
 }
 
 // CalculateBillingCostWithCache calculates the cost in USD including cache tokens
-// Applies per-model BillingMultiplier to the final cost
+// Note: input_tokens from upstream includes ALL tokens (cached + uncached)
+// We subtract both cacheHit and cacheWrite from input to get uncached tokens only
+// Then apply appropriate pricing for each category
 func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
-	multiplier := GetModelMultiplier(modelID)
-	
-	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
+
+	// Subtract cache tokens from input (they're already included in input_tokens)
+	// actualInputTokens = tokens that are neither cached nor being written to cache
+	actualInputTokens := inputTokens - cacheHitTokens - cacheWriteTokens
+	if actualInputTokens < 0 {
+		actualInputTokens = 0
+	}
+
+	inputCost := (float64(actualInputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
 	cacheWriteCost := (float64(cacheWriteTokens) / 1_000_000) * cacheWritePrice
 	cacheHitCost := (float64(cacheHitTokens) / 1_000_000) * cacheHitPrice
-	
-	return (inputCost + outputCost + cacheWriteCost + cacheHitCost) * multiplier
+
+	return inputCost + outputCost + cacheWriteCost + cacheHitCost
 }
 
 // CalculateBillingTokens calculates tokens to deduct from user's balance (without cache)
@@ -305,12 +300,17 @@ func CalculateBillingTokens(modelID string, inputTokens, outputTokens int64) int
 // Cache tokens are weighted by their price ratio relative to input price:
 // - cache_write: typically 1.25x input (more expensive to write)
 // - cache_hit: typically 0.1x input (much cheaper to read from cache)
-// Then applies model-specific billing_multiplier (Opus x2.0, Sonnet x1.2, Haiku x0.4)
+// Note: input_tokens includes ALL tokens, so we subtract cache tokens to avoid double counting
 func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) int64 {
 	inputPrice, _ := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
-	multiplier := GetModelMultiplier(modelID)
-	
+
+	// Subtract cache tokens from input (they're already included in input_tokens)
+	actualInputTokens := inputTokens - cacheHitTokens - cacheWriteTokens
+	if actualInputTokens < 0 {
+		actualInputTokens = 0
+	}
+
 	// Calculate cache token weights relative to input price
 	cacheWriteWeight := 1.0
 	cacheHitWeight := 0.1
@@ -318,15 +318,13 @@ func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, 
 		cacheWriteWeight = cacheWritePrice / inputPrice
 		cacheHitWeight = cacheHitPrice / inputPrice
 	}
-	
-	// Effective tokens = input + output + weighted cache tokens
-	effectiveTokens := float64(inputTokens) + float64(outputTokens) + 
-		float64(cacheWriteTokens)*cacheWriteWeight + 
+
+	// Effective tokens = actual input + output + weighted cache tokens
+	effectiveTokens := float64(actualInputTokens) + float64(outputTokens) +
+		float64(cacheWriteTokens)*cacheWriteWeight +
 		float64(cacheHitTokens)*cacheHitWeight
-	
-	// Apply model multiplier
-	billingTokens := effectiveTokens * multiplier
-	return int64(billingTokens)
+
+	return int64(effectiveTokens)
 }
 
 // GetTokenMultiplier - deprecated, kept for backward compatibility

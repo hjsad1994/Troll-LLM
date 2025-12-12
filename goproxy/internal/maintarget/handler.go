@@ -188,9 +188,29 @@ func HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage fu
 			dataStr := strings.TrimPrefix(line, "data: ")
 			var event map[string]interface{}
 			if json.Unmarshal([]byte(dataStr), &event) == nil {
-				if eventType, _ := event["type"].(string); eventType == "message_delta" {
+				eventType, _ := event["type"].(string)
+
+				// message_start may contain input tokens and cache tokens (standard Anthropic)
+				if eventType == "message_start" {
+					if message, ok := event["message"].(map[string]interface{}); ok {
+						if usage, ok := message["usage"].(map[string]interface{}); ok {
+							if v, ok := usage["input_tokens"].(float64); ok && v > 0 {
+								totalInput = int64(v)
+							}
+							if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
+								totalCacheWrite = int64(v)
+							}
+							if v, ok := usage["cache_read_input_tokens"].(float64); ok {
+								totalCacheHit = int64(v)
+							}
+						}
+					}
+				}
+
+				// message_delta contains output tokens and may contain all usage (MainTarget format)
+				if eventType == "message_delta" {
 					if usage, ok := event["usage"].(map[string]interface{}); ok {
-						if v, ok := usage["input_tokens"].(float64); ok {
+						if v, ok := usage["input_tokens"].(float64); ok && v > 0 {
 							totalInput = int64(v)
 						}
 						if v, ok := usage["output_tokens"].(float64); ok {
@@ -211,7 +231,7 @@ func HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage fu
 		flusher.Flush()
 	}
 
-	log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheW=%d cacheH=%d", totalInput, totalOutput, totalCacheWrite, totalCacheHit)
+	log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheH=%d", totalInput, totalOutput, totalCacheHit)
 	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
 		onUsage(totalInput, totalOutput, totalCacheWrite, totalCacheHit)
 	}
@@ -250,7 +270,7 @@ func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage
 			if v, ok := usage["cache_read_input_tokens"].(float64); ok {
 				cacheHit = int64(v)
 			}
-			log.Printf("📊 [MainTarget] Usage: in=%d out=%d", input, output)
+			log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheH=%d", input, output, cacheHit)
 			if onUsage != nil {
 				onUsage(input, output, cacheWrite, cacheHit)
 			}
