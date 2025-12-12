@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getDetailedUsage, getRequestLogs, UserProfile, BillingInfo, DetailedUsage, RequestLogItem, RequestLogsResponse } from '@/lib/api'
+import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getDetailedUsage, getRequestLogs, getPaymentHistory, UserProfile, BillingInfo, DetailedUsage, RequestLogItem, RequestLogsResponse, PaymentHistoryItem } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
+import DashboardPaymentModal from '@/components/DashboardPaymentModal'
 
 function formatLargeNumber(num: number | undefined | null): string {
   if (num == null) return '0'
@@ -59,6 +60,8 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true)
   const [usageLoading, setUsageLoading] = useState(false)
   const [logsLoading, setLogsLoading] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
   const { user } = useAuth()
   const { t } = useLanguage()
 
@@ -71,16 +74,18 @@ export default function UserDashboard() {
 
   const loadUserData = useCallback(async () => {
     try {
-      const [profile, billing, usage, logs] = await Promise.all([
+      const [profile, billing, usage, logs, payments] = await Promise.all([
         getUserProfile().catch(() => null),
         getBillingInfo().catch(() => null),
         getDetailedUsage(usagePeriod).catch(() => null),
         getRequestLogs(usagePeriod, 1, 50).catch(() => null),
+        getPaymentHistory().catch(() => ({ payments: [] })),
       ])
       if (profile) setUserProfile(profile)
       if (billing) setBillingInfo(billing)
       if (usage) setDetailedUsage(usage)
       if (logs) setRequestLogs(logs)
+      if (payments) setPaymentHistory(payments.payments.slice(0, 5))
     } catch (err) {
       console.error('Failed to load user data:', err)
     } finally {
@@ -432,10 +437,31 @@ export default function UserDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* Buy Credits Button */}
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  {t.dashboardPayment?.buyCredits || 'Buy Credits'}
+                </button>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="h-32 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
+                {/* Buy Credits Button - always visible */}
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  {t.dashboardPayment?.buyCredits || 'Buy Credits'}
+                </button>
               </div>
             )}
           </div>
@@ -701,6 +727,15 @@ export default function UserDashboard() {
           </div>
         </div>
       )}
+
+      {/* Payment Modal */}
+      <DashboardPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={() => {
+          loadUserData()
+        }}
+      />
     </div>
   )
 }

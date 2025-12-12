@@ -381,6 +381,19 @@ export class RequestLogRepository {
       requestCount: r.requestCount || 0,
     }));
   }
+
+  async getLastActivityByUser(): Promise<Record<string, Date>> {
+    const result = await RequestLog.aggregate([
+      { $match: { userId: { $exists: true, $ne: null } } },
+      { $sort: { createdAt: -1 } },
+      { $group: { _id: '$userId', lastActivity: { $first: '$createdAt' } } },
+    ]);
+    const map: Record<string, Date> = {};
+    result.forEach((r) => {
+      if (r._id) map[r._id] = r.lastActivity;
+    });
+    return map;
+  }
 }
 
 export const requestLogRepository = new RequestLogRepository();

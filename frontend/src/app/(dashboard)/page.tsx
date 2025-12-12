@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { fetchWithAuth, getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, UserProfile, BillingInfo } from '@/lib/api'
+import { fetchWithAuth, getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getPaymentHistory, UserProfile, BillingInfo, PaymentHistoryItem } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
+import DashboardPaymentModal from '@/components/DashboardPaymentModal'
 
 interface Stats {
   totalKeys: number
@@ -140,16 +141,20 @@ export default function Dashboard() {
   const [newApiKey, setNewApiKey] = useState<string | null>(null)
   const [showRotateConfirm, setShowRotateConfirm] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
   const { user } = useAuth()
 
   const loadUserData = useCallback(async () => {
     try {
-      const [profile, billing] = await Promise.all([
+      const [profile, billing, payments] = await Promise.all([
         getUserProfile().catch(() => null),
         getBillingInfo().catch(() => null),
+        getPaymentHistory().catch(() => ({ payments: [] })),
       ])
       if (profile) setUserProfile(profile)
       if (billing) setBillingInfo(billing)
+      if (payments) setPaymentHistory(payments.payments.slice(0, 5))
     } catch (err) {
       console.error('Failed to load user data:', err)
     }
@@ -406,13 +411,34 @@ export default function Dashboard() {
                     </p>
                   </div>
                 </div>
+                {/* Buy Credits Button */}
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Buy Credits
+                </button>
               </div>
             ) : (
-              <div className="animate-pulse space-y-3">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="h-16 bg-slate-700/50 rounded-lg"></div>
+              <div className="space-y-3">
+                <div className="animate-pulse">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="h-16 bg-slate-700/50 rounded-lg"></div>
+                  </div>
                 </div>
-                <div className="h-4 bg-slate-700/50 rounded-lg"></div>
+                {/* Buy Credits Button - always visible */}
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Buy Credits
+                </button>
               </div>
             )}
           </div>
@@ -789,6 +815,81 @@ export default function Dashboard() {
           </a>
         </div>
       </div>
+
+      {/* Recent Payments */}
+      <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-white">Recent Payments</h3>
+          </div>
+          <button
+            onClick={() => setShowPaymentModal(true)}
+            className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            Buy Credits
+          </button>
+        </div>
+        <div className="p-4">
+          {paymentHistory.length > 0 ? (
+            <div className="space-y-3">
+              {paymentHistory.map((payment) => (
+                <div key={payment.id} className="bg-slate-800/50 rounded-lg p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      payment.status === 'success' ? 'bg-emerald-400' :
+                      payment.status === 'pending' ? 'bg-amber-400' : 'bg-red-400'
+                    }`} />
+                    <div>
+                      <p className="text-sm text-white font-medium">
+                        {new Intl.NumberFormat('vi-VN').format(payment.amount)} VND
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {new Date(payment.createdAt).toLocaleDateString('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    payment.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' :
+                    payment.status === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {payment.status === 'success' ? 'Success' :
+                     payment.status === 'pending' ? 'Pending' : 'Expired'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-slate-500">
+              <p>No payments yet</p>
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="text-emerald-400 text-sm hover:underline mt-2 inline-block"
+              >
+                Make your first purchase
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Payment Modal */}
+      <DashboardPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={() => {
+          loadUserData()
+        }}
+      />
     </div>
   )
 }

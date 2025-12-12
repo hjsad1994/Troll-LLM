@@ -48,6 +48,8 @@ function getExpiresColor(status: 'expired' | 'warning' | 'ok' | 'none'): string 
 
 type RoleFilter = 'all' | 'admin' | 'user'
 type StatusFilter = 'all' | 'active' | 'inactive'
+type SortColumn = 'credits' | 'burned' | 'expires' | 'lastLogin' | null
+type SortDirection = 'asc' | 'desc'
 
 export default function UsersPage() {
   const { user } = useAuth()
@@ -58,6 +60,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const [setAmounts, setSetAmounts] = useState<Record<string, string>>({})
@@ -87,8 +91,58 @@ export default function UsersPage() {
         return statusFilter === 'active' ? hasCredits : !hasCredits
       })
     }
+
+    // Apply sorting
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal: number
+        let bVal: number
+
+        switch (sortColumn) {
+          case 'credits':
+            aVal = a.credits || 0
+            bVal = b.credits || 0
+            break
+          case 'burned':
+            aVal = a.creditsBurned || 0
+            bVal = b.creditsBurned || 0
+            break
+          case 'expires':
+            // Sort by daysRemaining, users with no expiration go to end when descending
+            const aExpires = getDaysRemaining(a.purchasedAt, a.expiresAt, '')
+            const bExpires = getDaysRemaining(b.purchasedAt, b.expiresAt, '')
+            aVal = aExpires.daysRemaining ?? (sortDirection === 'desc' ? -Infinity : Infinity)
+            bVal = bExpires.daysRemaining ?? (sortDirection === 'desc' ? -Infinity : Infinity)
+            break
+          case 'lastLogin':
+            // Sort by lastActivity timestamp, users who never had activity go to end when descending
+            aVal = a.lastActivity ? new Date(a.lastActivity).getTime() : (sortDirection === 'desc' ? -Infinity : Infinity)
+            bVal = b.lastActivity ? new Date(b.lastActivity).getTime() : (sortDirection === 'desc' ? -Infinity : Infinity)
+            break
+          default:
+            return 0
+        }
+
+        if (sortDirection === 'desc') {
+          return bVal - aVal
+        }
+        return aVal - bVal
+      })
+    }
+
     return result
-  }, [users, roleFilter, statusFilter])
+  }, [users, roleFilter, statusFilter, sortColumn, sortDirection])
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking same column
+      setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')
+    } else {
+      // Set new column with default desc direction
+      setSortColumn(column)
+      setSortDirection('desc')
+    }
+  }
 
   const loadUsers = useCallback(async (searchTerm?: string) => {
     try {
@@ -349,8 +403,13 @@ export default function UsersPage() {
                   </div>
 
                   {/* Created Date */}
-                  <p className="text-xs text-slate-500 mb-4">
+                  <p className="text-xs text-slate-500 mb-1">
                     {t.users.table.created}: {formatDateTime(u.createdAt)}
+                  </p>
+
+                  {/* Last Login */}
+                  <p className="text-xs text-slate-500 mb-4">
+                    {t.users.table.lastLogin}: {formatDateTime(u.lastActivity)}
                   </p>
 
                   {/* Actions */}
@@ -406,10 +465,59 @@ export default function UsersPage() {
             <thead>
               <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/60">
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.user}</th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.credits}</th>
+                <th
+                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  onClick={() => handleSort('credits')}
+                >
+                  <span className="flex items-center gap-1">
+                    {t.users.table.credits}
+                    {sortColumn === 'credits' && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sortDirection === 'desc' ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+                      </svg>
+                    )}
+                  </span>
+                </th>
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.refCredits}</th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.burned}</th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.expires}</th>
+                <th
+                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  onClick={() => handleSort('burned')}
+                >
+                  <span className="flex items-center gap-1">
+                    {t.users.table.burned}
+                    {sortColumn === 'burned' && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sortDirection === 'desc' ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+                      </svg>
+                    )}
+                  </span>
+                </th>
+                <th
+                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  onClick={() => handleSort('expires')}
+                >
+                  <span className="flex items-center gap-1">
+                    {t.users.table.expires}
+                    {sortColumn === 'expires' && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sortDirection === 'desc' ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+                      </svg>
+                    )}
+                  </span>
+                </th>
+                <th
+                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  onClick={() => handleSort('lastLogin')}
+                >
+                  <span className="flex items-center gap-1">
+                    {t.users.table.lastLogin}
+                    {sortColumn === 'lastLogin' && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sortDirection === 'desc' ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+                      </svg>
+                    )}
+                  </span>
+                </th>
                 <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.created}</th>
                 <th className="text-right px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.actions}</th>
               </tr>
@@ -417,7 +525,7 @@ export default function UsersPage() {
             <tbody className="bg-white dark:bg-black/40">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center">
+                  <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-indigo-200 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
                       <span className="text-slate-600 dark:text-slate-500 text-sm">{t.users.loading}</span>
@@ -426,7 +534,7 @@ export default function UsersPage() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
                     {t.users.noUsersFound}
                   </td>
                 </tr>
@@ -481,6 +589,9 @@ export default function UsersPage() {
                             </span>
                           )
                         })()}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
+                        {formatDateTime(u.lastActivity)}
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
                         {formatDateTime(u.createdAt)}

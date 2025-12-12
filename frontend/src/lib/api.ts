@@ -227,6 +227,7 @@ export interface AdminUser {
   isActive: boolean
   createdAt: string
   lastLoginAt?: string
+  lastActivity?: string
   apiKey?: string
   apiKeyCreatedAt?: string
   creditsUsed: number
