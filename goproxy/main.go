@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -24,12 +25,14 @@ import (
 	"goproxy/internal/proxy"
 	"goproxy/internal/ratelimit"
 	"goproxy/internal/ohmygpt"
+	"goproxy/internal/openhandspool"
 	"goproxy/internal/usage"
 	"goproxy/internal/userkey"
 	"goproxy/transformers"
 
 	"github.com/andybalholm/brotli"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
 	"golang.org/x/net/http2"
 )
 
@@ -218,6 +221,21 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 			APIKey:      "", // handled by OhmyGPT provider with key rotation
 			UseProxy:    false,
 			KeyID:       "ohmygpt",
+		}, nil, nil
+	}
+
+	// OpenHands LLM Proxy routing
+	if upstream == "openhands" {
+		openhandsPool := openhandspool.GetPool()
+		if openhandsPool == nil || openhandsPool.GetKeyCount() == 0 {
+			return nil, nil, fmt.Errorf("openhands not configured")
+		}
+		log.Printf("🔀 [Model Routing] %s -> OpenHands LLM Proxy", modelID)
+		return &UpstreamConfig{
+			EndpointURL: "https://llm-proxy.app.all-hands.dev",
+			APIKey:      "", // handled by OpenHands provider with key rotation
+			UseProxy:    false,
+			KeyID:       "openhands",
 		}, nil, nil
 	}
 
@@ -788,8 +806,16 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			handleMainTargetRequestOpenAI(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else if upstreamConfig.KeyID == "ohmygpt" {
 			handleOhmyGPTRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+		} else if upstreamConfig.KeyID == "openhands" {
+			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else {
 			handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
+		}
+	case "openhands":
+		// OpenHands LLM Proxy: Always forward OpenAI format to /v1/chat/completions
+		// No transformation needed - OpenHands handles Claude/GPT/Gemini models in OpenAI format
+		if upstreamConfig.KeyID == "openhands" {
+			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		}
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
@@ -1357,6 +1383,386 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 	}
 }
 
+// handleOpenHandsMessagesRequest handles /v1/messages requests routed to OpenHands LLM Proxy
+// Forwards Anthropic format request to OpenHands /v1/messages endpoint
+func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
+	openhandsPool := openhandspool.GetPool()
+	if openhandsPool == nil || openhandsPool.GetKeyCount() == 0 {
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"OpenHands not configured"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Select a key from the pool
+	key, err := openhandsPool.SelectKey()
+	if err != nil {
+		log.Printf("❌ [OpenHands] No healthy keys available: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"No healthy OpenHands keys available"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse request to inject system prompt
+	var anthropicReq transformers.AnthropicRequest
+	if err := json.Unmarshal(originalBody, &anthropicReq); err != nil {
+		log.Printf("❌ [OpenHands] Failed to parse request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Invalid JSON"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Get upstream model ID (may be different from client-requested model ID)
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+	anthropicReq.Model = upstreamModelID
+
+	// Inject and merge system prompt
+	configSystemPrompt := config.GetSystemPrompt()
+	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.System))
+	var systemEntries []map[string]interface{}
+
+	// Add config system prompt first (higher priority)
+	if configSystemPrompt != "" {
+		systemEntries = append(systemEntries, map[string]interface{}{
+			"type": "text",
+			"text": configSystemPrompt,
+		})
+		log.Printf("✅ [OpenHands] Injected config system prompt (%d chars)", len(configSystemPrompt))
+	}
+
+	// Add user system prompt (sanitized to remove blocked content)
+	if userSystemText != "" {
+		sanitizedUserSystem := sanitizeBlockedContent(userSystemText)
+		if sanitizedUserSystem != "" {
+			systemEntries = append(systemEntries, map[string]interface{}{
+				"type": "text",
+				"text": sanitizedUserSystem,
+			})
+			log.Printf("✅ [OpenHands] Merged user system prompt (%d chars)", len(sanitizedUserSystem))
+		}
+	}
+
+	if len(systemEntries) > 0 {
+		anthropicReq.System = systemEntries
+	} else {
+		anthropicReq.System = nil
+	}
+
+	// Serialize modified request
+	requestBody, err := json.Marshal(anthropicReq)
+	if err != nil {
+		log.Printf("❌ [OpenHands] Failed to serialize request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"Failed to serialize request"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if upstreamModelID != modelID {
+		log.Printf("🔀 [OpenHands] Model mapping: %s -> %s", modelID, upstreamModelID)
+	}
+
+	log.Printf("📤 [OpenHands-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, key=%s)", upstreamModelID, isStreaming, key.ID)
+
+	// Create HTTP request
+	req, err := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/messages", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Printf("❌ [OpenHands] Failed to create request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request creation failed"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+key.APIKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+
+	// Send request
+	requestStartTime := time.Now()
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		log.Printf("❌ [OpenHands] Request failed after %v: %v", time.Since(requestStartTime), err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OpenHands failed"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Check for errors and handle key rotation
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		errorBody := string(bodyBytes)
+		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, errorBody)
+		openhandsPool.CheckAndRotateOnError(key.ID, resp.StatusCode, errorBody)
+		// Return error to client
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		w.Write(bodyBytes)
+		return
+	}
+
+	// Usage callback for billing (with cache support)
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		// Update OpenHands key usage stats in MongoDB
+		// (similar to OhmyGPT pattern - update tokens used in database)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		db.OpenHandsKeysCollection().UpdateByID(ctx, key.ID, bson.M{
+			"$inc": bson.M{
+				"tokensUsed":    input + output,
+				"requestsCount": 1,
+			},
+		})
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "openhands:" + key.ID,
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
+	}
+
+	// Handle response using maintarget handlers (same format as Anthropic)
+	if isStreaming {
+		maintarget.HandleStreamResponse(w, resp, onUsage)
+	} else {
+		maintarget.HandleNonStreamResponse(w, resp, onUsage)
+	}
+}
+
+// handleOpenHandsOpenAIRequest handles /v1/chat/completions requests routed to OpenHands
+// Forwards OpenAI format request to OpenHands /v1/chat/completions endpoint
+func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
+	openhandsPool := openhandspool.GetPool()
+	if openhandsPool == nil || openhandsPool.GetKeyCount() == 0 {
+		http.Error(w, `{"error": {"message": "OpenHands not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Select a key from the pool
+	key, err := openhandsPool.SelectKey()
+	if err != nil {
+		log.Printf("❌ [OpenHands] No healthy keys available: %v", err)
+		http.Error(w, `{"error": {"message": "No healthy OpenHands keys available", "type": "server_error"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	// Get upstream model ID and inject system prompt
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+	openaiReq.Model = upstreamModelID
+
+	// Inject and merge system prompt (OpenAI format uses system message)
+	configSystemPrompt := config.GetSystemPrompt()
+	if configSystemPrompt != "" {
+		// Check if there's already a system message
+		var existingSystemContent string
+		foundSystemIndex := -1
+
+		for i, msg := range openaiReq.Messages {
+			if msg.Role == "system" {
+				if content, ok := msg.Content.(string); ok {
+					existingSystemContent = content
+					foundSystemIndex = i
+					break
+				}
+			}
+		}
+
+		// Merge: config prompt first, then user's system message
+		mergedSystemContent := configSystemPrompt
+		if existingSystemContent != "" {
+			mergedSystemContent = configSystemPrompt + "\n\n" + sanitizeBlockedContent(existingSystemContent)
+			log.Printf("✅ [OpenHands-OpenAI] Merged system prompts (config: %d chars, user: %d chars)", len(configSystemPrompt), len(existingSystemContent))
+			// Remove existing system message, we'll add merged one at the beginning
+			openaiReq.Messages = append(openaiReq.Messages[:foundSystemIndex], openaiReq.Messages[foundSystemIndex+1:]...)
+		} else {
+			log.Printf("✅ [OpenHands-OpenAI] Injected config system prompt (%d chars)", len(configSystemPrompt))
+		}
+
+		// Insert merged system message at the beginning
+		systemMessage := transformers.OpenAIMessage{
+			Role:    "system",
+			Content: mergedSystemContent,
+		}
+		openaiReq.Messages = append([]transformers.OpenAIMessage{systemMessage}, openaiReq.Messages...)
+	}
+
+	// Serialize modified request
+	requestBody, err := json.Marshal(openaiReq)
+	if err != nil {
+		log.Printf("❌ [OpenHands-OpenAI] Failed to serialize request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if upstreamModelID != modelID {
+		log.Printf("🔀 [OpenHands-OpenAI] Model mapping: %s -> %s", modelID, upstreamModelID)
+	}
+
+	isStreaming := openaiReq.Stream
+	log.Printf("📤 [OpenHands-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, key=%s)", upstreamModelID, isStreaming, key.ID)
+
+	// Create HTTP request
+	req, err := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/chat/completions", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Printf("❌ [OpenHands] Failed to create request: %v", err)
+		http.Error(w, `{"error": {"message": "Request creation failed", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+key.APIKey)
+
+	// Send request
+	requestStartTime := time.Now()
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		log.Printf("❌ [OpenHands] Request failed after %v: %v", time.Since(requestStartTime), err)
+		http.Error(w, `{"error": {"message": "Request to OpenHands failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Check for errors and handle key rotation
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		errorBody := string(bodyBytes)
+		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, errorBody)
+		openhandsPool.CheckAndRotateOnError(key.ID, resp.StatusCode, errorBody)
+		// Return error to client
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		w.Write(bodyBytes)
+		return
+	}
+
+	// Usage callback for billing (with cache support)
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		// Update OpenHands key usage stats in MongoDB
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		db.OpenHandsKeysCollection().UpdateByID(ctx, key.ID, bson.M{
+			"$inc": bson.M{
+				"tokensUsed":    input + output,
+				"requestsCount": 1,
+			},
+		})
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "openhands:" + key.ID,
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
+	}
+
+	// Estimate input tokens from request (rough: 1 token ≈ 4 chars)
+	// This is needed because OpenHands doesn't return usage in streaming mode
+	estimatedInput := estimateInputTokens(openaiReq)
+
+	// Handle response (OpenHands /v1/chat/completions returns OpenAI-compatible format)
+	if isStreaming {
+		handleOpenHandsOpenAIStreamResponse(w, resp, onUsage, estimatedInput)
+	} else {
+		handleOpenHandsOpenAINonStreamResponse(w, resp, onUsage)
+	}
+}
+
+// estimateInputTokens estimates input tokens from OpenAI request
+// Uses rough estimation: 1 token ≈ 4 characters
+func estimateInputTokens(req *transformers.OpenAIRequest) int64 {
+	var totalChars int64
+
+	// Count characters in all messages
+	for _, msg := range req.Messages {
+		// Add role chars
+		totalChars += int64(len(msg.Role))
+
+		// Add content chars
+		if content, ok := msg.Content.(string); ok {
+			totalChars += int64(len(content))
+		}
+	}
+
+	// Rough estimation: 1 token ≈ 4 chars
+	estimatedTokens := totalChars / 4
+
+	// Add overhead for message structure (rough estimate)
+	estimatedTokens += int64(len(req.Messages) * 4)
+
+	log.Printf("🔢 [Token Estimation] Messages: %d, Chars: %d, Estimated tokens: %d", len(req.Messages), totalChars, estimatedTokens)
+	return estimatedTokens
+}
+
+// handleOpenHandsOpenAIStreamResponse handles OpenHands streaming response with proper logging
+func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), estimatedInputTokens int64) {
+	log.Printf("📡 [OpenHands-OpenAI] Handling streaming response (estimated input: %d tokens)", estimatedInputTokens)
+
+	// Wrap onUsage to inject estimated input tokens if not provided by stream
+	wrappedOnUsage := func(input, output, cacheWrite, cacheHit int64) {
+		// If stream doesn't provide input tokens, use estimation
+		if input == 0 && estimatedInputTokens > 0 {
+			input = estimatedInputTokens
+			log.Printf("⚠️ [OpenHands-OpenAI] Using estimated input tokens: %d (stream provided 0)", input)
+		}
+		log.Printf("📊 [OpenHands-OpenAI] Stream usage: in=%d out=%d cache_write=%d cache_hit=%d", input, output, cacheWrite, cacheHit)
+		if onUsage != nil {
+			onUsage(input, output, cacheWrite, cacheHit)
+		}
+	}
+
+	maintarget.HandleOpenAIStreamResponse(w, resp, wrappedOnUsage)
+}
+
+// handleOpenHandsOpenAINonStreamResponse handles OpenHands non-streaming response with proper logging
+func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+	log.Printf("📋 [OpenHands-OpenAI] Handling non-streaming response")
+
+	// Wrap onUsage to add OpenHands-specific logging
+	wrappedOnUsage := func(input, output, cacheWrite, cacheHit int64) {
+		log.Printf("📊 [OpenHands-OpenAI] Non-stream usage: in=%d out=%d cache_write=%d cache_hit=%d", input, output, cacheWrite, cacheHit)
+		if onUsage != nil {
+			onUsage(input, output, cacheWrite, cacheHit)
+		}
+	}
+
+	maintarget.HandleOpenAINonStreamResponse(w, resp, wrappedOnUsage)
+}
+
 // Handle TrollOpenAI type request
 func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string, bodyBytes []byte) {
 	// Transform request
@@ -1731,6 +2137,16 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 		}
 	}
 
+	// Check for scanner errors (connection issues, truncation, etc)
+	if err := scanner.Err(); err != nil {
+		log.Printf("❌ [Stream] Scanner error detected: %v (in=%d out=%d)", err, totalInputTokens, totalOutputTokens)
+		// Send error event to client
+		errorEvent := fmt.Sprintf("event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"stream_error\",\"message\":\"Stream interrupted\"}}\n\n")
+		fmt.Fprint(w, errorEvent)
+		flusher.Flush()
+		return
+	}
+
 	// Send end marker
 	log.Printf("✅ [Stream] Sending [DONE] marker (events processed, in=%d, out=%d)", totalInputTokens, totalOutputTokens)
 	fmt.Fprint(w, "data: [DONE]\n\n")
@@ -2030,6 +2446,16 @@ func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response,
 				}
 			}
 		}
+	}
+
+	// Check for scanner errors (connection issues, truncation, etc)
+	if err := scanner.Err(); err != nil {
+		log.Printf("❌ [TrollOpenAI Stream] Scanner error detected: %v (in=%d out=%d)", err, totalInputTokens, totalOutputTokens)
+		// Send error event to client
+		errorEvent := fmt.Sprintf("data: {\"error\":{\"message\":\"Stream interrupted\",\"type\":\"stream_error\"}}\n\n")
+		fmt.Fprint(w, errorEvent)
+		flusher.Flush()
+		return
 	}
 
 	// Send end marker if not sent
@@ -2418,6 +2844,12 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	// For "ohmygpt" upstream: forward via TrollProxy/OhmyGPT
 	if upstreamConfig.KeyID == "ohmygpt" {
 		handleOhmyGPTMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
+		return
+	}
+
+	// For "openhands" upstream: forward via OpenHands LLM Proxy
+	if upstreamConfig.KeyID == "openhands" {
+		handleOpenHandsMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
 		return
 	}
 	// NEW MODEL-BASED ROUTING - END
@@ -3025,7 +3457,7 @@ func main() {
 			// Start auto-reload for OhmyGPT keys
 			ohmygptProvider.StartAutoReload(reloadInterval)
 			log.Printf("✅ OhmyGPT key pool loaded: %d keys", ohmygptProvider.GetKeyCount())
-			
+
 			// Set proxy pool for OhmyGPT (use same pool as Troll)
 			if proxyPool != nil && proxyPool.HasProxies() {
 				ohmygptProvider.SetProxyPool(proxyPool)
@@ -3033,6 +3465,16 @@ func main() {
 		} else {
 			log.Printf("⚠️ OhmyGPT not configured (no keys in ohmygpt_keys collection)")
 		}
+	}
+
+	// Load OpenHands LLM Proxy key pool (from MongoDB)
+	openhandsKeyPool := openhandspool.GetPool()
+	if openhandsKeyPool.GetKeyCount() > 0 {
+		// Start auto-reload for OpenHands keys
+		openhandsKeyPool.StartAutoReload(reloadInterval)
+		log.Printf("✅ OpenHands key pool loaded: %d keys", openhandsKeyPool.GetKeyCount())
+	} else {
+		log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 	}
 
 	// NEW MODEL-BASED ROUTING - END
