@@ -143,21 +143,26 @@ export class UserRepository {
     return newApiKey;
   }
 
-  async addCredits(username: string, credits: number): Promise<IUser | null> {
+  async addCredits(username: string, credits: number, resetExpiration: boolean = true): Promise<IUser | null> {
     const VALIDITY_DAYS = 7;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
 
+    const updateQuery: any = {
+      $inc: { credits }
+    };
+
+    if (resetExpiration) {
+      updateQuery.$set = { expiresAt, purchasedAt: now };
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       username,
-      {
-        $inc: { credits },
-        $set: { expiresAt, purchasedAt: now }
-      },
+      updateQuery,
       { new: true }
     ).lean();
 
-    if (updatedUser?.apiKey) {
+    if (resetExpiration && updatedUser?.apiKey) {
       await UserKey.updateOne(
         { _id: updatedUser.apiKey },
         { $set: { expiresAt } },
@@ -168,20 +173,24 @@ export class UserRepository {
     return updatedUser;
   }
 
-  async setCredits(username: string, credits: number): Promise<IUser | null> {
+  async setCredits(username: string, credits: number, resetExpiration: boolean = true): Promise<IUser | null> {
     const VALIDITY_DAYS = 7;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
 
+    const setFields: any = { credits };
+    if (resetExpiration) {
+      setFields.expiresAt = expiresAt;
+      setFields.purchasedAt = now;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       username,
-      {
-        $set: { credits, expiresAt, purchasedAt: now }
-      },
+      { $set: setFields },
       { new: true }
     ).lean();
 
-    if (updatedUser?.apiKey) {
+    if (resetExpiration && updatedUser?.apiKey) {
       await UserKey.updateOne(
         { _id: updatedUser.apiKey },
         { $set: { expiresAt } },

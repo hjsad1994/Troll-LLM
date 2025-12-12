@@ -259,11 +259,11 @@ export async function getAdminUsers(search?: string): Promise<UsersResponse> {
 }
 
 
-export async function updateUserCredits(username: string, credits: number): Promise<{ success: boolean; message: string }> {
+export async function updateUserCredits(username: string, credits: number, resetExpiration: boolean = true): Promise<{ success: boolean; message: string }> {
   const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/credits`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ credits })
+    body: JSON.stringify({ credits, resetExpiration })
   })
   if (!resp.ok) {
     const data = await resp.json()
@@ -285,11 +285,11 @@ export async function updateUserRefCredits(username: string, refCredits: number)
   return resp.json()
 }
 
-export async function addUserCredits(username: string, amount: number): Promise<{ success: boolean; message: string }> {
+export async function addUserCredits(username: string, amount: number, resetExpiration: boolean = true): Promise<{ success: boolean; message: string }> {
   const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/credits/add`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount })
+    body: JSON.stringify({ amount, resetExpiration })
   })
   if (!resp.ok) {
     const data = await resp.json()

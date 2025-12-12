@@ -83,13 +83,13 @@ router.get('/users/:username', requireAdmin, async (req: Request, res: Response)
 
 router.patch('/users/:username/credits', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { credits } = req.body;
-    
+    const { credits, resetExpiration = true } = req.body;
+
     if (typeof credits !== 'number' || credits < 0) {
       return res.status(400).json({ error: 'Credits must be a non-negative number' });
     }
-    
-    const user = await userRepository.setCredits(req.params.username, credits);
+
+    const user = await userRepository.setCredits(req.params.username, credits, resetExpiration);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -139,13 +139,13 @@ router.patch('/users/:username/refCredits', requireAdmin, async (req: Request, r
 // Add credits (increment) - admin only
 router.post('/users/:username/credits/add', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { amount } = req.body;
-    
+    const { amount, resetExpiration = true } = req.body;
+
     if (typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
-    
-    const user = await userRepository.addCredits(req.params.username, amount);
+
+    const user = await userRepository.addCredits(req.params.username, amount, resetExpiration);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

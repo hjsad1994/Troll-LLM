@@ -970,19 +970,21 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:       username,
-				UserKeyID:    userApiKey,
-				TrollKeyID:   "main",
-				Model:        modelID,
-				InputTokens:  input,
-				OutputTokens: output,
-				CreditsCost:  billingCost,
-				TokensUsed:   billingTokens,
-				StatusCode:   resp.StatusCode,
-				LatencyMs:    latencyMs,
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "main",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+		log.Printf("📊 [MainTarget] Usage: in=%d out=%d cache_w=%d cache_h=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
 	}
 
 	if isStreaming {
@@ -1050,19 +1052,21 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
 			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:       username,
-				UserKeyID:    userApiKey,
-				TrollKeyID:   "main",
-				Model:        modelID,
-				InputTokens:  input,
-				OutputTokens: output,
-				CreditsCost:  billingCost,
-				TokensUsed:   billingTokens,
-				StatusCode:   resp.StatusCode,
-				LatencyMs:    latencyMs,
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				TrollKeyID:       "main",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d cost=$%.6f", input, output, billingCost)
+		log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d cache_w=%d cache_h=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
 	}
 
 	// Handle response (passthrough OpenAI format)

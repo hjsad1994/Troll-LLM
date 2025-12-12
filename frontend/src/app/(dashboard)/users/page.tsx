@@ -68,6 +68,7 @@ export default function UsersPage() {
     username: string
     amount: number
   } | null>(null)
+  const [resetExpiration, setResetExpiration] = useState(true)
 
   const roleStats = useMemo(() => {
     const adminCount = users.filter(u => u.role === 'admin').length
@@ -146,10 +147,10 @@ export default function UsersPage() {
     setUpdating(username)
     try {
       if (type === 'set') {
-        await updateUserCredits(username, amount)
+        await updateUserCredits(username, amount, resetExpiration)
         setSetAmounts(prev => ({ ...prev, [username]: '' }))
       } else {
-        await addUserCredits(username, amount)
+        await addUserCredits(username, amount, resetExpiration)
         setAddAmounts(prev => ({ ...prev, [username]: '' }))
       }
       await loadUsers(search || undefined)
@@ -181,18 +182,39 @@ export default function UsersPage() {
 
         {stats && (
           <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                statusFilter === 'all'
+                  ? 'border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-400/20 bg-indigo-50 dark:bg-indigo-500/10'
+                  : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 hover:border-slate-400 dark:hover:border-white/20'
+              }`}
+            >
               <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">{t.users.totalUsers}</p>
               <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
-            </div>
-            <div className="p-4 rounded-xl border border-emerald-300 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5">
+            </button>
+            <button
+              onClick={() => setStatusFilter('active')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                statusFilter === 'active'
+                  ? 'border-emerald-400 dark:border-emerald-500 ring-2 ring-emerald-400/20 bg-emerald-50 dark:bg-emerald-500/10'
+                  : 'border-emerald-300 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5 hover:border-emerald-400 dark:hover:border-emerald-500/40'
+              }`}
+            >
               <p className="text-emerald-600 dark:text-emerald-500 text-xs uppercase tracking-wider mb-1">{t.users.activeUsers}</p>
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{stats.activeUsers || 0}</p>
-            </div>
-            <div className="p-4 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40">
+            </button>
+            <button
+              onClick={() => setStatusFilter('inactive')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                statusFilter === 'inactive'
+                  ? 'border-slate-400 dark:border-slate-500 ring-2 ring-slate-400/20 bg-slate-100 dark:bg-slate-500/10'
+                  : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 hover:border-slate-400 dark:hover:border-white/20'
+              }`}
+            >
               <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">{t.users.inactive}</p>
               <p className="text-2xl font-bold text-slate-600 dark:text-slate-400">{stats.total - (stats.activeUsers || 0)}</p>
-            </div>
+            </button>
           </div>
         )}
 
@@ -209,24 +231,55 @@ export default function UsersPage() {
               className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 transition-all text-sm"
             />
           </div>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
-            className="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-900 dark:text-white text-sm"
-          >
-            <option value="all">{t.users.allRoles}</option>
-            <option value="admin">{t.users.admin} ({roleStats.admin})</option>
-            <option value="user">{t.users.user} ({roleStats.user})</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-900 dark:text-white text-sm"
-          >
-            <option value="all">{t.users.allStatus}</option>
-            <option value="active">{t.users.active}</option>
-            <option value="inactive">{t.users.inactiveStatus}</option>
-          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setRoleFilter(roleFilter === 'admin' ? 'all' : 'admin')}
+              className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-all flex items-center gap-2 ${
+                roleFilter === 'admin'
+                  ? 'border-rose-400 dark:border-rose-500 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 ring-2 ring-rose-400/20'
+                  : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-700 dark:text-slate-300 hover:border-rose-300 dark:hover:border-rose-500/30'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              {t.users.admin}
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                roleFilter === 'admin'
+                  ? 'bg-rose-200 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                  : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400'
+              }`}>
+                {roleStats.admin}
+              </span>
+            </button>
+            <button
+              onClick={() => setRoleFilter(roleFilter === 'user' ? 'all' : 'user')}
+              className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-all flex items-center gap-2 ${
+                roleFilter === 'user'
+                  ? 'border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 ring-2 ring-indigo-400/20'
+                  : 'border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 text-slate-700 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500/30'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              {t.users.user}
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                roleFilter === 'user'
+                  ? 'bg-indigo-200 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                  : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400'
+              }`}>
+                {roleStats.user}
+              </span>
+            </button>
+          </div>
+          <label className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={resetExpiration}
+              onChange={(e) => setResetExpiration(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
+            />
+            <span className="text-slate-700 dark:text-slate-300 text-sm whitespace-nowrap">
+              {t.users.resetExpiration || 'Reset Expiration'}
+            </span>
+          </label>
         </div>
 
         <p className="text-slate-600 dark:text-slate-500 text-sm">
@@ -301,8 +354,8 @@ export default function UsersPage() {
                   </p>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
-                    <div className="flex-1 flex items-center gap-1">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
@@ -310,18 +363,18 @@ export default function UsersPage() {
                         placeholder="$"
                         value={setAmounts[username] || ''}
                         onChange={(e) => setSetAmounts(prev => ({ ...prev, [username]: e.target.value }))}
-                        className="flex-1 px-2 py-1.5 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs focus:outline-none focus:border-amber-400"
+                        className="flex-1 min-w-0 px-3 py-2 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm focus:outline-none focus:border-amber-400"
                         disabled={isUpdating}
                       />
                       <button
                         onClick={() => handleSetCredits(username)}
                         disabled={isUpdating || !setAmounts[username]}
-                        className="px-3 py-1.5 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                        className="px-4 py-2 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm font-bold hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
                       >
                         SET
                       </button>
                     </div>
-                    <div className="flex-1 flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
@@ -329,13 +382,13 @@ export default function UsersPage() {
                         placeholder="$"
                         value={addAmounts[username] || ''}
                         onChange={(e) => setAddAmounts(prev => ({ ...prev, [username]: e.target.value }))}
-                        className="flex-1 px-2 py-1.5 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs focus:outline-none focus:border-emerald-400"
+                        className="flex-1 min-w-0 px-3 py-2 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm focus:outline-none focus:border-emerald-400"
                         disabled={isUpdating}
                       />
                       <button
                         onClick={() => handleAddCredits(username)}
                         disabled={isUpdating || !addAmounts[username]}
-                        className="px-3 py-1.5 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                        className="px-4 py-2 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
                       >
                         ADD
                       </button>

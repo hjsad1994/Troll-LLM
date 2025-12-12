@@ -965,6 +965,7 @@ export const translations = {
         setFailed: 'Failed to set credits',
         addFailed: 'Failed to add credits',
       },
+      resetExpiration: 'Reset Expiration',
     },
     // Friend Key Page
     friendKey: {
@@ -2117,6 +2118,7 @@ export const translations = {
         setFailed: 'Không thể đặt credits',
         addFailed: 'Không thể thêm credits',
       },
+      resetExpiration: 'Reset thời hạn',
     },
     // Friend Key Page
     friendKey: {
