@@ -2252,38 +2252,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	xAPIKeyHeader := r.Header.Get("x-api-key")
 	clientAPIKey := ""
 
-	// Log key headers for debugging
-	userAgent := r.Header.Get("User-Agent")
-	log.Printf("🔍 [Request] Has Authorization: %v, Has x-api-key: %v, User-Agent: %s", authHeader != "", xAPIKeyHeader != "", userAgent)
-
-	if authHeader != "" && len(authHeader) > 20 {
-		log.Printf("🔍 [Request] Authorization prefix: %s...", authHeader[:20])
-	}
-	if xAPIKeyHeader != "" && len(xAPIKeyHeader) > 15 {
-		log.Printf("🔍 [Request] x-api-key prefix: %s...", xAPIKeyHeader[:15])
-	}
-
-	// Check if BOTH headers are present with DIFFERENT values (common macOS SDK issue)
-	if authHeader != "" && xAPIKeyHeader != "" {
-		authKey := ""
-		if parts := strings.SplitN(authHeader, " ", 2); len(parts) == 2 {
-			authKey = parts[1]
-		}
-		if authKey != xAPIKeyHeader {
-			log.Printf("⚠️ [macOS Issue] Both Authorization and x-api-key present with DIFFERENT values!")
-			log.Printf("   Authorization key: %s...", authKey[:min(15, len(authKey))])
-			log.Printf("   x-api-key: %s...", xAPIKeyHeader[:min(15, len(xAPIKeyHeader))])
-		}
-	}
-
-	// Debug: Log ALL headers to identify where sk-ant-api03 key might come from
-	if debugMode {
-		log.Printf("🔍 [Debug] Request headers:")
-		for key, values := range r.Header {
-			log.Printf("  %s: %v", key, values)
-		}
-	}
-
 	if authHeader != "" {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
@@ -2298,15 +2266,8 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errorMsg, http.StatusUnauthorized)
 			return
 		}
-		// Log API key prefix for debugging (first 15 chars only)
-		if len(clientAPIKey) > 15 {
-			log.Printf("🔍 [Debug] API key from Authorization: %s... (length: %d)", clientAPIKey[:15], len(clientAPIKey))
-		}
 	} else if xAPIKey := xAPIKeyHeader; xAPIKey != "" {
 		// Anthropic SDKs send x-api-key without Authorization header
-		// IMPORTANT: Only use x-api-key if Authorization is NOT present
-		// This prevents macOS SDK from sending wrong key in x-api-key header
-		log.Printf("🔍 [Request] Using x-api-key header (no Authorization present)")
 
 		// Validate that this is not a server-side API key
 		if isServerSideAPIKey(xAPIKey) {
@@ -2317,10 +2278,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 		clientAPIKey = xAPIKey
 		authHeader = "Bearer " + xAPIKey
-		// Log API key prefix for debugging (first 15 chars only)
-		if len(clientAPIKey) > 15 {
-			log.Printf("🔍 [Debug] API key from x-api-key: %s... (length: %d)", clientAPIKey[:15], len(clientAPIKey))
-		}
 	} else {
 		http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Authorization header is required"}}`, http.StatusUnauthorized)
 		return
