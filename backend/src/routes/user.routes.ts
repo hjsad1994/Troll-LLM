@@ -232,4 +232,47 @@ router.get('/request-logs', jwtAuth, async (req: Request, res: Response) => {
 //   }
 // });
 
+// Discord ID management
+router.get('/discord-id', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const discordId = await userRepository.getDiscordId(username);
+    res.json({ discordId });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch('/discord-id', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { discordId } = req.body;
+
+    // Validate Discord ID format (17-19 digits)
+    if (discordId !== null && discordId !== '') {
+      const discordIdRegex = /^\d{17,19}$/;
+      if (!discordIdRegex.test(discordId)) {
+        return res.status(400).json({ error: 'Invalid Discord ID format. Must be 17-19 digits.' });
+      }
+    }
+
+    const user = await userRepository.updateDiscordId(username, discordId || null);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ success: true, discordId: user.discordId || null });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
