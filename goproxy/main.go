@@ -2262,6 +2262,12 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Log key headers for macOS debugging (always log, not just debug mode)
 	userAgent := r.Header.Get("User-Agent")
 	log.Printf("🔍 [Request] Has Authorization: %v, Has x-api-key: %v, User-Agent: %s", authHeader != "", xAPIKeyHeader != "", userAgent)
+
+	// TEMP: Log full x-api-key if it's sk-ant-api03 format (for investigation)
+	if xAPIKeyHeader != "" && strings.HasPrefix(xAPIKeyHeader, "sk-ant-api03") {
+		log.Printf("🔍 [INVESTIGATION] Full sk-ant-api03 key detected: %s", xAPIKeyHeader)
+	}
+
 	if authHeader != "" && len(authHeader) > 20 {
 		log.Printf("🔍 [Request] Authorization prefix: %s...", authHeader[:20])
 	}
