@@ -185,6 +185,8 @@ func isServerSideAPIKey(apiKey string) bool {
 		if strings.HasPrefix(apiKey, "sk-ant-api03-_h") {
 			log.Printf("🚨 [SECURITY ALERT] Detected widely-leaked key: sk-ant-api03-_h... - This key is being used by multiple users!")
 			log.Printf("🚨 [SECURITY ALERT] Possible source: Example code, tutorial, or SDK default configuration")
+			// TEMPORARY: Log full key for investigation (REMOVE AFTER FINDING SOURCE)
+			log.Printf("🔍 [INVESTIGATION] Full leaked key: %s", apiKey)
 		}
 		return true
 	}
