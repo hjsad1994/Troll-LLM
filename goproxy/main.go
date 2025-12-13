@@ -181,6 +181,11 @@ func getEnv(key, defaultValue string) string {
 func isServerSideAPIKey(apiKey string) bool {
 	// Block Anthropic API keys (sk-ant-api03 format) - these are for server-side forwarding only
 	if strings.HasPrefix(apiKey, "sk-ant-api03-") {
+		// Special check for the specific leaked key
+		if strings.HasPrefix(apiKey, "sk-ant-api03-_h") {
+			log.Printf("🚨 [SECURITY ALERT] Detected widely-leaked key: sk-ant-api03-_h... - This key is being used by multiple users!")
+			log.Printf("🚨 [SECURITY ALERT] Possible source: Example code, tutorial, or SDK default configuration")
+		}
 		return true
 	}
 	// Add more server-side key formats here if needed in the future
@@ -2253,7 +2258,8 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	clientAPIKey := ""
 
 	// Log key headers for macOS debugging (always log, not just debug mode)
-	log.Printf("🔍 [Request] Has Authorization: %v, Has x-api-key: %v", authHeader != "", xAPIKeyHeader != "")
+	userAgent := r.Header.Get("User-Agent")
+	log.Printf("🔍 [Request] Has Authorization: %v, Has x-api-key: %v, User-Agent: %s", authHeader != "", xAPIKeyHeader != "", userAgent)
 	if authHeader != "" && len(authHeader) > 20 {
 		log.Printf("🔍 [Request] Authorization prefix: %s...", authHeader[:20])
 	}
@@ -2292,7 +2298,15 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		// Validate that this is not a server-side API key
 		if isServerSideAPIKey(clientAPIKey) {
 			log.Printf("❌ [Security] Rejected server-side API key in Authorization header: %s...", clientAPIKey[:min(12, len(clientAPIKey))])
-			http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key format"}}`, http.StatusUnauthorized)
+
+			// Check if this is the widely-leaked key
+			var errorMsg string
+			if strings.HasPrefix(clientAPIKey, "sk-ant-api03-_h") {
+				errorMsg = `{"type":"error","error":{"type":"authentication_error","message":"CRITICAL: You are using a leaked example API key that is shared by many users. This key has been found in public tutorials or SDK defaults. Please use YOUR PERSONAL API key from https://trollllm.xyz/dashboard (format: sk-trollllm-xxx). Check: your code, environment variables, ~/.anthropic/config, Keychain, and any tutorials you followed."}}`
+			} else {
+				errorMsg = `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key: You are using a server-side API key (sk-ant-api03-xxx) instead of your user API key. Please use your API key from the dashboard (format: sk-trollllm-xxx). On macOS, check: environment variables, Keychain, ~/.anthropic/config, and .env files."}}`
+			}
+			http.Error(w, errorMsg, http.StatusUnauthorized)
 			return
 		}
 		// Log API key prefix for debugging (first 15 chars only)
@@ -2308,7 +2322,15 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		// Validate that this is not a server-side API key
 		if isServerSideAPIKey(xAPIKey) {
 			log.Printf("❌ [Security] Rejected server-side API key in x-api-key header: %s...", xAPIKey[:min(12, len(xAPIKey))])
-			http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key format"}}`, http.StatusUnauthorized)
+
+			// Check if this is the widely-leaked key
+			var errorMsg string
+			if strings.HasPrefix(xAPIKey, "sk-ant-api03-_h") {
+				errorMsg = `{"type":"error","error":{"type":"authentication_error","message":"CRITICAL: You are using a leaked example API key that is shared by many users. This key has been found in public tutorials or SDK defaults. Please use YOUR PERSONAL API key from https://trollllm.xyz/dashboard (format: sk-trollllm-xxx). Check: your code, environment variables, ~/.anthropic/config, Keychain, and any tutorials you followed."}}`
+			} else {
+				errorMsg = `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key: You are using a server-side API key (sk-ant-api03-xxx) instead of your user API key. Please use your API key from the dashboard (format: sk-trollllm-xxx). On macOS, check: environment variables, Keychain, ~/.anthropic/config, and .env files."}}`
+			}
+			http.Error(w, errorMsg, http.StatusUnauthorized)
 			return
 		}
 		clientAPIKey = xAPIKey
