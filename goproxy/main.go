@@ -2252,46 +2252,10 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate API key (support both x-api-key and Authorization/Bearer)
-	// IMPORTANT: Prioritize x-api-key for Anthropic endpoint since:
-	//   1. Anthropic SDK uses x-api-key header
-	//   2. Some clients (Kilo Code) may send BOTH headers with different keys
-	//   3. x-api-key is the correct TrollLLM key configured by user
+	// Validate Authorization header (support both Authorization/Bearer and x-api-key)
 	authHeader := r.Header.Get("Authorization")
-	xAPIKey := r.Header.Get("x-api-key")
+	xAPIKeyHeader := r.Header.Get("x-api-key")
 	clientAPIKey := ""
-
-	// Log key headers for debugging
-	userAgent := r.Header.Get("User-Agent")
-	log.Printf("🔍 [Request] Has Authorization: %v, Has x-api-key: %v, User-Agent: %s", authHeader != "", xAPIKeyHeader != "", userAgent)
-
-	if authHeader != "" && len(authHeader) > 20 {
-		log.Printf("🔍 [Request] Authorization prefix: %s...", authHeader[:20])
-	}
-	if xAPIKeyHeader != "" && len(xAPIKeyHeader) > 15 {
-		log.Printf("🔍 [Request] x-api-key prefix: %s...", xAPIKeyHeader[:15])
-	}
-
-	// Check if BOTH headers are present with DIFFERENT values (common macOS SDK issue)
-	if authHeader != "" && xAPIKeyHeader != "" {
-		authKey := ""
-		if parts := strings.SplitN(authHeader, " ", 2); len(parts) == 2 {
-			authKey = parts[1]
-		}
-		if authKey != xAPIKeyHeader {
-			log.Printf("⚠️ [macOS Issue] Both Authorization and x-api-key present with DIFFERENT values!")
-			log.Printf("   Authorization key: %s...", authKey[:min(15, len(authKey))])
-			log.Printf("   x-api-key: %s...", xAPIKeyHeader[:min(15, len(xAPIKeyHeader))])
-		}
-	}
-
-	// Debug: Log ALL headers to identify where sk-ant-api03 key might come from
-	if debugMode {
-		log.Printf("🔍 [Debug] Request headers:")
-		for key, values := range r.Header {
-			log.Printf("  %s: %v", key, values)
-		}
-	}
 
 	if authHeader != "" {
 		parts := strings.SplitN(authHeader, " ", 2)
@@ -2300,6 +2264,24 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		clientAPIKey = parts[1]
+		// Validate that this is not a server-side API key
+		if isServerSideAPIKey(clientAPIKey) {
+			log.Printf("❌ [Security] Rejected server-side API key in Authorization header: %s...", clientAPIKey[:min(12, len(clientAPIKey))])
+			errorMsg := `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key: You are using a server-side API key (sk-ant-api03-xxx) instead of your user API key. Please use your API key from the dashboard (format: sk-trollllm-xxx). Check: your environment variables, Keychain, ~/.anthropic/config, and .env files."}}`
+			http.Error(w, errorMsg, http.StatusUnauthorized)
+			return
+		}
+	} else if xAPIKey := xAPIKeyHeader; xAPIKey != "" {
+		// Anthropic SDKs send x-api-key without Authorization header
+		// Validate that this is not a server-side API key
+		if isServerSideAPIKey(xAPIKey) {
+			log.Printf("❌ [Security] Rejected server-side API key in x-api-key header: %s...", xAPIKey[:min(12, len(xAPIKey))])
+			errorMsg := `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key: You are using a server-side API key (sk-ant-api03-xxx) instead of your user API key. Please use your API key from the dashboard (format: sk-trollllm-xxx). Check: your environment variables, Keychain, ~/.anthropic/config, and .env files."}}`
+			http.Error(w, errorMsg, http.StatusUnauthorized)
+			return
+		}
+		clientAPIKey = xAPIKey
+		authHeader = "Bearer " + xAPIKey
 	} else {
 		http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Authorization header is required"}}`, http.StatusUnauthorized)
 		return
