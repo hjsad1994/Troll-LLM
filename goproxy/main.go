@@ -2309,10 +2309,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		clientAPIKey = parts[1]
-	} else if xAPIKey := r.Header.Get("x-api-key"); xAPIKey != "" {
-		// Anthropic SDKs send x-api-key without Authorization header
-		clientAPIKey = xAPIKey
-		authHeader = "Bearer " + xAPIKey
 	} else {
 		http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Authorization header is required"}}`, http.StatusUnauthorized)
 		return
