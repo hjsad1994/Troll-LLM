@@ -368,78 +368,176 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-16 sm:py-20 border-t border-gray-200 dark:border-white/5 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent" />
+      <section id="pricing" className="py-16 sm:py-24 border-t border-gray-200 dark:border-white/5 relative overflow-hidden">
+        {/* Enhanced Background decoration */}
+        <div className="absolute inset-0">
+          {/* Grid pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.15)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.15)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:60px_60px]" />
 
-        <div className="relative max-w-md mx-auto px-4 sm:px-6">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-[var(--theme-text)] mb-2">
+          {/* Animated gradient orbs */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-indigo-500/30 via-purple-500/30 to-pink-500/30 dark:from-indigo-500/20 dark:via-purple-500/20 dark:to-pink-500/20 rounded-full blur-3xl animate-gradient-xy" />
+
+          {/* Additional floating orbs */}
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-500/40 dark:bg-indigo-500/20 rounded-full blur-3xl animate-float" />
+          <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/40 dark:bg-purple-500/20 rounded-full blur-3xl animate-float-delayed" />
+
+          {/* Radial gradient overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,var(--theme-bg)_100%)]" />
+
+          {/* Animated particles */}
+          <div className="absolute inset-0">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-1 h-1 bg-indigo-500/50 dark:bg-indigo-400/30 rounded-full animate-particle-float"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  bottom: '0',
+                  animationDelay: `${Math.random() * 10}s`,
+                  animationDuration: `${15 + Math.random() * 10}s`
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
+          {/* Header with enhanced styling */}
+          <div className="text-center mb-12 sm:mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-indigo-500/20 bg-indigo-500/5 dark:bg-indigo-500/10 mb-6">
+              <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{t.pricing.subtitle}</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-4">
               {t.pricing.title}
             </h2>
-            <p className="text-sm text-[var(--theme-text-muted)]">
-              {t.pricing.subtitle}
+            <p className="text-base sm:text-lg text-[var(--theme-text-subtle)] max-w-2xl mx-auto">
+              {t.pricing.description}
             </p>
           </div>
 
-          {/* Pricing Card */}
-          <div className="group relative">
-            {/* Gradient border */}
-            <div className="absolute -inset-[1px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl opacity-50 group-hover:opacity-100 transition-opacity" />
+          {/* Enhanced Pricing Card with Glass Effect */}
+          <div className="max-w-md mx-auto">
+            <div className="group relative">
+              {/* Animated gradient border glow */}
+              <div className="absolute -inset-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-3xl opacity-75 group-hover:opacity-100 blur-sm group-hover:blur transition-all duration-500 animate-gradient-xy" />
 
-            <div className="relative p-6 rounded-2xl bg-white dark:bg-slate-900">
-              {/* Price */}
-              <div className="text-center mb-5">
-                <div className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  $20
-                </div>
-                <div className="text-[var(--theme-text-muted)] text-xs mt-1">{t.pricing.minPurchase}</div>
-              </div>
-
-              {/* Features */}
-              <div className="space-y-2.5 mb-5">
-                {[
-                  { icon: '💰', text: t.pricing.dev.features.credits },
-                  { icon: '🤖', text: t.pricing.dev.features.models },
-                  { icon: '🛡️', text: t.pricing.dev.features.support },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2.5 text-sm">
-                    <span className="text-base">{item.icon}</span>
-                    <span className="text-[var(--theme-text)]">{item.text}</span>
+              {/* Main card with glass morphism effect */}
+              <div className="relative p-8 sm:p-10 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-white/10">
+                {/* Popular badge */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                  <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-semibold shadow-lg">
+                    MOST POPULAR
                   </div>
-                ))}
-              </div>
+                </div>
 
-              {/* CTA Button */}
-              <Link
-                href="/checkout"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/25 transition-all"
-              >
-                {t.pricing.buyNow}
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {/* Price display with enhanced styling */}
+                <div className="text-center mb-8 mt-4">
+                  <div className="flex items-end justify-center gap-2 mb-2">
+                    <span className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                      $20
+                    </span>
+                    <span className="text-lg text-[var(--theme-text-muted)] mb-2">USD</span>
+                  </div>
+                  <div className="text-[var(--theme-text-muted)] text-sm">{t.pricing.minPurchase}</div>
+                  <div className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                    Pay only for what you use
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-white/10 to-transparent mb-6" />
+
+                {/* Enhanced Features list */}
+                <div className="space-y-4 mb-8">
+                  {[
+                    {
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ),
+                      text: t.pricing.dev.features.credits,
+                      highlight: true
+                    },
+                    {
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      ),
+                      text: t.pricing.dev.features.models
+                    },
+                    {
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      ),
+                      text: t.pricing.dev.features.support
+                    },
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                        item.highlight
+                          ? 'bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20'
+                          : 'bg-gray-50 dark:bg-white/5'
+                      }`}
+                    >
+                      <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
+                        item.highlight
+                          ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white'
+                          : 'bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-400'
+                      }`}>
+                        {item.icon}
+                      </div>
+                      <span className="text-[var(--theme-text)] text-sm font-medium">{item.text}</span>
+                      <svg className="w-5 h-5 text-green-500 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Enhanced CTA Button */}
+                <Link
+                  href="/checkout"
+                  className="group/btn relative flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-semibold text-base hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+                  <span className="relative z-10">{t.pricing.buyNow}</span>
+                  <svg className="relative z-10 w-5 h-5 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              </div>
+            </div>
+
+            {/* Discord note with enhanced styling */}
+            <div className="mt-8 text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/20">
+                <svg className="w-5 h-5 text-[#5865F2]" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+                <span className="text-xs text-[var(--theme-text-muted)]">{t.pricing.internationalNote}</span>
+                <a href="https://discord.gg/WA3NzpXuq9" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] font-semibold hover:underline text-sm">
+                  Join Discord
+                </a>
+              </div>
+            </div>
+
+            {/* Compare link with enhanced styling */}
+            <div className="text-center mt-6">
+              <Link href="/models" className="inline-flex items-center gap-2 text-[var(--theme-text-subtle)] hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-sm group/link">
+                {t.pricing.compareAll}
+                <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
               </Link>
             </div>
-          </div>
-
-          {/* Discord note */}
-          <div className="flex items-center justify-center gap-2 mt-6 text-xs text-[var(--theme-text-muted)]">
-            <span>{t.pricing.internationalNote}</span>
-            <a href="https://discord.gg/WA3NzpXuq9" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] font-medium hover:underline">
-              Discord
-            </a>
-          </div>
-
-          {/* Compare link */}
-          <div className="text-center mt-4">
-            <Link href="/models" className="inline-flex items-center gap-1.5 text-[var(--theme-text-subtle)] hover:text-[var(--theme-text)] transition-colors text-xs">
-              {t.pricing.compareAll}
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </Link>
           </div>
         </div>
       </section>

@@ -55,6 +55,7 @@ export const translations = {
     pricing: {
       title: 'Pay As You Go',
       subtitle: 'Simple, transparent pricing. No subscriptions. Pay only for what you use.',
+      description: 'Start with just $20 and experience enterprise-grade Claude AI with transparent pricing',
       saleEndsIn: 'Sale ends in',
       days: 'Days',
       hours: 'Hours',
@@ -763,7 +764,7 @@ export const translations = {
         expired: 'Payment expired. Please try again.',
         exactAmount: '* Must pay exact amount, no more or less',
         transferContent: 'Transfer content:',
-        warningText: 'If you pay the wrong amount or payment is successful but you don\'t receive your plan, please contact admin via',
+        warningText: 'If you pay the wrong amount or payment is successful but credits are not added, please contact admin via',
       },
       success: {
         title: 'Payment Successful!',
@@ -1240,6 +1241,7 @@ export const translations = {
     pricing: {
       title: 'Nạp Bao Nhiêu, Dùng Bấy Nhiêu',
       subtitle: 'Giá cả đơn giản, minh bạch. Không đăng ký. Chỉ trả cho những gì bạn sử dụng.',
+      description: 'Bắt đầu chỉ với $20 và trải nghiệm Claude AI cấp doanh nghiệp với giá cả minh bạch',
       saleEndsIn: 'Khuyến mãi kết thúc sau',
       days: 'Ngày',
       hours: 'Giờ',
@@ -1948,7 +1950,7 @@ export const translations = {
         expired: 'Thanh toán hết hạn. Vui lòng thử lại.',
         exactAmount: '* Phải chuyển đúng số tiền, không được thừa hoặc thiếu',
         transferContent: 'Nội dung chuyển khoản:',
-        warningText: 'Nếu chuyển sai số tiền hoặc thanh toán thành công nhưng không nhận được gói, vui lòng liên hệ admin qua',
+        warningText: 'Nếu chuyển sai số tiền hoặc thanh toán thành công nhưng chưa nhận được credits, vui lòng liên hệ admin qua',
       },
       success: {
         title: 'Thanh toán Thành công!',
