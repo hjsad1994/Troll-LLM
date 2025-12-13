@@ -21,9 +21,9 @@ import (
 	"goproxy/db"
 	"goproxy/internal/keypool"
 	"goproxy/internal/maintarget"
+	"goproxy/internal/ohmygpt"
 	"goproxy/internal/proxy"
 	"goproxy/internal/ratelimit"
-	"goproxy/internal/ohmygpt"
 	"goproxy/internal/usage"
 	"goproxy/internal/userkey"
 	"goproxy/transformers"
@@ -456,7 +456,7 @@ func keysStatusHandler(w http.ResponseWriter, r *http.Request) {
 func ohmygptBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	keys, stats := ohmygpt.ListOhmyGPTBackupKeys()
-	
+
 	// Mask API keys
 	maskedKeys := make([]map[string]interface{}, len(keys))
 	for i, k := range keys {
@@ -473,7 +473,7 @@ func ohmygptBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
 			"createdAt":    k.CreatedAt,
 		}
 	}
-	
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"keys":      maskedKeys,
 		"total":     stats.Total,
@@ -597,7 +597,12 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		// Validate from MongoDB user_keys collection
 		userKey, err := userkey.ValidateKey(clientAPIKey)
 		if err != nil {
-			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
+			// Debug: Log full key for debugging (first 20 chars + last 4)
+			fullKeyDebug := clientAPIKey
+			if len(fullKeyDebug) > 24 {
+				fullKeyDebug = fullKeyDebug[:20] + "..." + fullKeyDebug[len(fullKeyDebug)-4:]
+			}
+			log.Printf("❌ API Key validation failed (db): %s (full: %s) - %v", clientKeyMask, fullKeyDebug, err)
 			if err == userkey.ErrKeyRevoked {
 				http.Error(w, `{"error": {"message": "API key has been revoked", "type": "authentication_error"}}`, http.StatusUnauthorized)
 			} else if err == userkey.ErrInsufficientCredits {
@@ -1217,7 +1222,7 @@ func handleOhmyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 	}
 
 	log.Printf("📤 [TrollProxy/OhmyGPT-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, messages=%d, tools=%d)", upstreamModelID, isStreaming, messagesCount, toolsCount)
-	
+
 	// Debug: log first 500 chars of request body if messages are empty
 	if messagesCount == 0 {
 		log.Printf("⚠️ [TrollProxy/OhmyGPT-Anthropic] Empty messages array! Request body (first 500 chars): %s", string(requestBody[:min(500, len(requestBody))]))
@@ -2236,21 +2241,31 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate Authorization header (support both Authorization/Bearer and x-api-key)
+	// Validate API key (support both x-api-key and Authorization/Bearer)
+	// IMPORTANT: Prioritize x-api-key for Anthropic endpoint since:
+	//   1. Anthropic SDK uses x-api-key header
+	//   2. Some clients (Kilo Code) may send BOTH headers with different keys
+	//   3. x-api-key is the correct TrollLLM key configured by user
 	authHeader := r.Header.Get("Authorization")
+	xAPIKey := r.Header.Get("x-api-key")
 	clientAPIKey := ""
 
-	if authHeader != "" {
+	// Prioritize x-api-key over Authorization header for Anthropic endpoint
+	if xAPIKey != "" {
+		// Use x-api-key (standard Anthropic header, likely TrollLLM key)
+		clientAPIKey = xAPIKey
+		authHeader = "Bearer " + xAPIKey
+		if debugMode {
+			log.Printf("🔑 [/v1/messages] Using x-api-key header")
+		}
+	} else if authHeader != "" {
+		// Fallback to Authorization header
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
 			http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid authorization header format"}}`, http.StatusUnauthorized)
 			return
 		}
 		clientAPIKey = parts[1]
-	} else if xAPIKey := r.Header.Get("x-api-key"); xAPIKey != "" {
-		// Anthropic SDKs send x-api-key without Authorization header
-		clientAPIKey = xAPIKey
-		authHeader = "Bearer " + xAPIKey
 	} else {
 		http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Authorization header is required"}}`, http.StatusUnauthorized)
 		return
@@ -2308,7 +2323,12 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		// Validate from MongoDB user_keys collection
 		userKey, err := userkey.ValidateKey(clientAPIKey)
 		if err != nil {
-			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
+			// Debug: Log full key for debugging (first 20 chars + last 4)
+			fullKeyDebug := clientAPIKey
+			if len(fullKeyDebug) > 24 {
+				fullKeyDebug = fullKeyDebug[:20] + "..." + fullKeyDebug[len(fullKeyDebug)-4:]
+			}
+			log.Printf("❌ API Key validation failed (db): %s (full: %s) - %v", clientKeyMask, fullKeyDebug, err)
 			if err == userkey.ErrKeyRevoked {
 				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"API key has been revoked"}}`, http.StatusUnauthorized)
 			} else {
@@ -3025,7 +3045,7 @@ func main() {
 			// Start auto-reload for OhmyGPT keys
 			ohmygptProvider.StartAutoReload(reloadInterval)
 			log.Printf("✅ OhmyGPT key pool loaded: %d keys", ohmygptProvider.GetKeyCount())
-			
+
 			// Set proxy pool for OhmyGPT (use same pool as Troll)
 			if proxyPool != nil && proxyPool.HasProxies() {
 				ohmygptProvider.SetProxyPool(proxyPool)

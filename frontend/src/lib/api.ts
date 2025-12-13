@@ -608,4 +608,28 @@ export async function getAvailableModels(): Promise<{ models: ModelConfig[] }> {
   return resp.json()
 }
 
+// Discord ID management
+export async function getDiscordId(): Promise<string | null> {
+  const resp = await fetchWithAuth('/api/user/discord-id')
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get Discord ID')
+  }
+  const data = await resp.json()
+  return data.discordId
+}
+
+export async function updateDiscordId(discordId: string | null): Promise<{ success: boolean; discordId: string | null }> {
+  const resp = await fetchWithAuth('/api/user/discord-id', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ discordId })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update Discord ID')
+  }
+  return resp.json()
+}
+
 

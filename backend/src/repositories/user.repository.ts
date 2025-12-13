@@ -410,6 +410,19 @@ export class UserRepository {
     }));
   }
 
+  async updateDiscordId(username: string, discordId: string | null): Promise<IUser | null> {
+    return User.findByIdAndUpdate(
+      username,
+      { $set: { discordId } },
+      { new: true }
+    ).lean();
+  }
+
+  async getDiscordId(username: string): Promise<string | null> {
+    const user = await User.findById(username).select('discordId').lean();
+    return user?.discordId || null;
+  }
+
   async generateReferralCodeForExistingUsers(): Promise<number> {
     const usersWithoutCode = await User.find({ 
       $or: [
