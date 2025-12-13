@@ -99,6 +99,42 @@
       "billing_multiplier": 1.0,
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.1"
+    },
+    {
+      "name": "GPT-5.1 Codex Max",
+      "id": "gpt-5.1-codex-max",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 2.0,
+      "output_price_per_mtok": 16.0,
+      "cache_hit_price_per_mtok": 0.2,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1-codex-max"
+    },
+    {
+      "name": "Grok 4.1 Fast Reasoning",
+      "id": "grok-4-1-fast-reasoning-latest",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 3.0,
+      "output_price_per_mtok": 15.0,
+      "cache_hit_price_per_mtok": 0.3,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "grok-4-1-fast-reasoning-latest"
+    },
+    {
+      "name": "Kimi K2 Thinking",
+      "id": "kimi-k2-thinking",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.5,
+      "output_price_per_mtok": 2.5,
+      "cache_hit_price_per_mtok": 0.05,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "kimi-k2-thinking"
     }
   ],
   "system_prompt": "",
