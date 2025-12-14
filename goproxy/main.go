@@ -1740,7 +1740,7 @@ func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq 
 
 // sanitizeError returns a generic error message without revealing upstream details (OpenAI format)
 func sanitizeError(statusCode int, originalError []byte) []byte {
-	log.Printf("🔒 [GoProxy] Original error (hidden): %s", string(originalError))
+	log.Printf("🔒 [GoProxy] Original error (hidden): %s", truncateErrorLog(string(originalError), 300))
 	switch statusCode {
 	case 400:
 		return []byte(`{"error":{"message":"Bad request","type":"invalid_request_error"}}`)
@@ -1763,7 +1763,7 @@ func sanitizeError(statusCode int, originalError []byte) []byte {
 
 // sanitizeAnthropicError returns a generic error message in Anthropic format
 func sanitizeAnthropicError(statusCode int, originalError []byte) []byte {
-	log.Printf("🔒 [GoProxy] Original error (hidden): %s", string(originalError))
+	log.Printf("🔒 [GoProxy] Original error (hidden): %s", truncateErrorLog(string(originalError), 300))
 	switch statusCode {
 	case 400:
 		return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Bad request"}}`)
