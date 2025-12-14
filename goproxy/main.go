@@ -1354,14 +1354,14 @@ handleMessagesResponse:
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
+		log.Printf("📊 [OpenHands] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f)", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID))
 	}
 
 	// Handle response using maintarget handlers (same format as Anthropic)
 	if isStreaming {
-		maintarget.HandleStreamResponse(w, resp, onUsage)
+		maintarget.HandleStreamResponseWithPrefix(w, resp, onUsage, "OpenHands")
 	} else {
-		maintarget.HandleNonStreamResponse(w, resp, onUsage)
+		maintarget.HandleNonStreamResponseWithPrefix(w, resp, onUsage, "OpenHands")
 	}
 }
 
@@ -1554,7 +1554,7 @@ handleOpenAIResponse:
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
+		log.Printf("📊 [OpenHands] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f)", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID))
 	}
 
 	// Estimate input tokens from request (rough: 1 token ≈ 4 chars)
@@ -1591,14 +1591,11 @@ func estimateInputTokens(req *transformers.OpenAIRequest) int64 {
 	// Add overhead for message structure (rough estimate)
 	estimatedTokens += int64(len(req.Messages) * 4)
 
-	log.Printf("🔢 [Token Estimation] Messages: %d, Chars: %d, Estimated tokens: %d", len(req.Messages), totalChars, estimatedTokens)
 	return estimatedTokens
 }
 
 // handleOpenHandsOpenAIStreamResponse handles OpenHands streaming response with proper logging
 func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), estimatedInputTokens int64) {
-	log.Printf("📡 [OpenHands-OpenAI] Handling streaming response (estimated input: %d tokens)", estimatedInputTokens)
-
 	// Wrap onUsage to inject estimated input tokens if not provided by stream
 	wrappedOnUsage := func(input, output, cacheWrite, cacheHit int64) {
 		// If stream doesn't provide input tokens, use estimation
@@ -3243,8 +3240,11 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 		timeSinceLastEvent := time.Since(lastEventTime)
 		log.Printf("❌ Error reading stream after %d events (duration: %v, last_event: %s, time_since_last: %v): %v",
 			eventCount, time.Since(startTime), lastEventType, timeSinceLastEvent, err)
-		// Send error event to client so they know stream failed
-		errorEvent := fmt.Sprintf("event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"stream_error\",\"message\":\"Stream interrupted: %s\"}}\n\n", err.Error())
+		// Send error event to client so they know stream failed (don't expose internal error)
+		errorEvent := `event: error
+data: {"type":"error","error":{"type":"stream_error","message":"Stream interrupted"}}
+
+`
 		fmt.Fprint(w, errorEvent)
 		flusher.Flush()
 	} else if eventCount == 0 {

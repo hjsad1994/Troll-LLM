@@ -156,9 +156,14 @@ func ForwardOpenAIRequest(originalBody []byte, isStreaming bool) (*http.Response
 
 // HandleStreamResponse handles Anthropic streaming response (passthrough)
 func HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+	HandleStreamResponseWithPrefix(w, resp, onUsage, "MainTarget")
+}
+
+// HandleStreamResponseWithPrefix handles Anthropic streaming response with custom log prefix
+func HandleStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ [MainTarget] Error %d", resp.StatusCode)
+		log.Printf("❌ [%s] Error %d", logPrefix, resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(sanitizeAnthropicError(resp.StatusCode, body))
@@ -239,16 +244,19 @@ func HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage fu
 
 	// Check for scanner errors (connection issues, truncation, etc)
 	if err := scanner.Err(); err != nil {
-		log.Printf("❌ [MainTarget] Scanner error detected: %v (in=%d out=%d, events=%d, lastEvent=%s)", err, totalInput, totalOutput, eventCount, lastEventType)
-		// Send error event to client
-		errorEvent := fmt.Sprintf("event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"stream_error\",\"message\":\"Stream interrupted: %v\"}}\n\n", err)
+		log.Printf("❌ [%s] Scanner error: %v (in=%d out=%d, events=%d, lastEvent=%s)", logPrefix, err, totalInput, totalOutput, eventCount, lastEventType)
+		// Send generic error event to client (don't expose internal error)
+		errorEvent := `event: error
+data: {"type":"error","error":{"type":"stream_error","message":"Stream interrupted"}}
+
+`
 		fmt.Fprint(w, errorEvent)
 		flusher.Flush()
 		return
 	}
 
-	log.Printf("📊 [MainTarget] Stream completed: events=%d lastEvent=%s", eventCount, lastEventType)
-	log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheH=%d", totalInput, totalOutput, totalCacheHit)
+	log.Printf("📊 [%s] Stream completed: events=%d lastEvent=%s", logPrefix, eventCount, lastEventType)
+	log.Printf("📊 [%s] Usage: in=%d out=%d cacheW=%d cacheH=%d", logPrefix, totalInput, totalOutput, totalCacheWrite, totalCacheHit)
 	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
 		onUsage(totalInput, totalOutput, totalCacheWrite, totalCacheHit)
 	}
@@ -256,6 +264,11 @@ func HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage fu
 
 // HandleNonStreamResponse handles Anthropic non-streaming response (passthrough)
 func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+	HandleNonStreamResponseWithPrefix(w, resp, onUsage, "MainTarget")
+}
+
+// HandleNonStreamResponseWithPrefix handles Anthropic non-streaming response with custom log prefix
+func HandleNonStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"failed to read response"}}`, http.StatusInternalServerError)
@@ -263,7 +276,7 @@ func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("❌ [MainTarget] Error %d", resp.StatusCode)
+		log.Printf("❌ [%s] Error %d", logPrefix, resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(sanitizeAnthropicError(resp.StatusCode, body))
@@ -287,7 +300,7 @@ func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage
 			if v, ok := usage["cache_read_input_tokens"].(float64); ok {
 				cacheHit = int64(v)
 			}
-			log.Printf("📊 [MainTarget] Usage: in=%d out=%d cacheH=%d", input, output, cacheHit)
+			log.Printf("📊 [%s] Usage: in=%d out=%d cacheW=%d cacheH=%d", logPrefix, input, output, cacheWrite, cacheHit)
 			if onUsage != nil {
 				onUsage(input, output, cacheWrite, cacheHit)
 			}
