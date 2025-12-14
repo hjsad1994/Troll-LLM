@@ -21,7 +21,7 @@
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.1,
+      "billing_multiplier": 1.075,
       "upstream": "openhands",
       "upstream_model_id": "claude-opus-4-5-20251101"
     },
@@ -36,23 +36,9 @@
       "output_price_per_mtok": 15.0,
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.3,
-      "billing_multiplier": 1.1,
+      "billing_multiplier": 1.075,
       "upstream": "openhands",
       "upstream_model_id": "claude-sonnet-4-5-20250929"
-    },
-    {
-      "name": "Claude Haiku 4.5",
-      "id": "claude-haiku-4-5-20251001",
-      "type": "openhands",
-      "reasoning": "high",
-      "thinking_budget": 8000,
-      "input_price_per_mtok": 1.0,
-      "output_price_per_mtok": 5.0,
-      "cache_write_price_per_mtok": 1.25,
-      "cache_hit_price_per_mtok": 0.1,
-      "billing_multiplier": 1.1,
-      "upstream": "openhands",
-      "upstream_model_id": "claude-haiku-4-5-20251001"
     },
     {
       "name": "Gemini 3 Pro Preview",

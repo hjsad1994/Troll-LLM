@@ -338,8 +338,8 @@ export default function UserDashboard() {
                         </button>
                       </div>
                     </div>
-                    {/* Priority Endpoint */}
-                    <div className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 dark:from-amber-500/10 dark:to-orange-500/10 rounded-lg border border-amber-500/20 p-2.5 sm:p-3">
+                    {/* Priority Endpoint - Temporarily hidden */}
+                    {/* <div className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 dark:from-amber-500/10 dark:to-orange-500/10 rounded-lg border border-amber-500/20 p-2.5 sm:p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -357,7 +357,7 @@ export default function UserDashboard() {
                           {priorityProviderCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
                         </button>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>
@@ -596,8 +596,8 @@ export default function UserDashboard() {
           )}
         </div>
 
-        {/* Request Logs Table */}
-        <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-500">
+        {/* Request Logs Table - Temporarily hidden */}
+        {/* <div className="p-4 sm:p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none transition-colors opacity-0 animate-fade-in-up animation-delay-500">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
@@ -612,7 +612,6 @@ export default function UserDashboard() {
                 </p>
               </div>
             </div>
-            {/* Upstream Filter Tabs */}
             <div className="flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 self-start sm:self-auto">
               <button
                 onClick={() => setLogsFilter('all')}
@@ -633,19 +632,6 @@ export default function UserDashboard() {
                 }`}
               >
                 Standard
-              </button>
-              <button
-                onClick={() => setLogsFilter('openhands')}
-                className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1 ${
-                  logsFilter === 'openhands'
-                    ? 'bg-amber-500 text-white'
-                    : 'text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10'
-                }`}
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Priority
               </button>
             </div>
           </div>
@@ -736,7 +722,6 @@ export default function UserDashboard() {
             </table>
           </div>
 
-          {/* Pagination */}
           {requestLogs && requestLogs.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
               <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -760,7 +745,7 @@ export default function UserDashboard() {
               </div>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* Rotate API Key Modal */}

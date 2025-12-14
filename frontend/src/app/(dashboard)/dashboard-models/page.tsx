@@ -263,11 +263,14 @@ export default function ModelsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const { t } = useLanguage()
 
+  // Filter out openhands/priority-only models temporarily
+  const visibleModels = models.filter(m => m.type !== 'openhands')
+
   const filteredModels = filter === 'all'
-    ? models
+    ? visibleModels
     : filter === 'other'
-      ? models.filter(m => m.type === 'openhands')
-      : models.filter(m => m.type === filter)
+      ? visibleModels.filter(m => m.type === 'openhands')
+      : visibleModels.filter(m => m.type === filter)
 
   const handleCopyId = async (id: string) => {
     await navigator.clipboard.writeText(id)
@@ -275,10 +278,10 @@ export default function ModelsPage() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  const anthropicCount = models.filter(m => m.type === 'anthropic').length
-  const openaiCount = models.filter(m => m.type === 'openai').length
-  const googleCount = models.filter(m => m.type === 'google').length
-  const otherCount = models.filter(m => m.type === 'openhands').length
+  const anthropicCount = visibleModels.filter(m => m.type === 'anthropic').length
+  const openaiCount = visibleModels.filter(m => m.type === 'openai').length
+  const googleCount = visibleModels.filter(m => m.type === 'google').length
+  const otherCount = visibleModels.filter(m => m.type === 'openhands').length
 
   return (
     <div className="min-h-screen">
@@ -300,8 +303,8 @@ export default function ModelsPage() {
           </p>
         </header>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 opacity-0 animate-fade-in-up animation-delay-100">
+        {/* Stats Cards - Updated to 4 columns since Other is hidden */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 opacity-0 animate-fade-in-up animation-delay-100">
           <div className="p-3 sm:p-4 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.04]">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
@@ -310,7 +313,7 @@ export default function ModelsPage() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{models.length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{visibleModels.length}</p>
                 <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-sm truncate">{t.dashboardModels.stats.total}</p>
               </div>
             </div>
@@ -357,7 +360,8 @@ export default function ModelsPage() {
               </div>
             </div>
           </div>
-          <div className="p-3 sm:p-4 rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-purple-500/5 dark:from-violet-500/10 dark:to-purple-500/10">
+          {/* Other stat card - Temporarily hidden */}
+          {/* <div className="p-3 sm:p-4 rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-purple-500/5 dark:from-violet-500/10 dark:to-purple-500/10">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 shrink-0">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -369,7 +373,7 @@ export default function ModelsPage() {
                 <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-sm truncate">Other</p>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Filter Tabs */}
@@ -382,7 +386,7 @@ export default function ModelsPage() {
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10'
             }`}
           >
-            {t.dashboardModels.filters.all} ({models.length})
+            {t.dashboardModels.filters.all} ({visibleModels.length})
           </button>
           <button
             onClick={() => setFilter('anthropic')}
@@ -414,7 +418,8 @@ export default function ModelsPage() {
           >
             Google ({googleCount})
           </button>
-          <button
+          {/* Other filter tab - Temporarily hidden */}
+          {/* <button
             onClick={() => setFilter('other')}
             className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
               filter === 'other'
@@ -423,7 +428,7 @@ export default function ModelsPage() {
             }`}
           >
             Other ({otherCount})
-          </button>
+          </button> */}
         </div>
 
         {/* Models Grid */}
@@ -451,7 +456,8 @@ export default function ModelsPage() {
                           Reasoning
                         </span>
                       )}
-                      {model.isPriority && (
+                      {/* Priority Only badge - Temporarily hidden */}
+                      {/* {model.isPriority && (
                         <span
                           className="px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 cursor-help"
                           title="Model này chỉ có trên Priority Endpoint (priority-chat.trollllm.xyz)"
@@ -461,8 +467,9 @@ export default function ModelsPage() {
                           </svg>
                           Priority Only
                         </span>
-                      )}
-                      {model.priorityMultiplier && !model.isPriority && (
+                      )} */}
+                      {/* +Priority badge - Temporarily hidden */}
+                      {/* {model.priorityMultiplier && !model.isPriority && (
                         <span
                           className="px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 flex items-center gap-1 cursor-help"
                           title={`Model này hỗ trợ Priority Endpoint với hệ số nhân ${model.priorityMultiplier}x`}
@@ -472,7 +479,7 @@ export default function ModelsPage() {
                           </svg>
                           +Priority
                         </span>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 </div>
@@ -522,8 +529,8 @@ export default function ModelsPage() {
                 </div>
               </div>
 
-              {/* Priority Note */}
-              {model.priorityMultiplier && (
+              {/* Priority Note - Temporarily hidden */}
+              {/* {model.priorityMultiplier && (
                 <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/10">
                   <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-xs flex items-center gap-1.5">
                     <svg className="w-3.5 h-3.5 text-cyan-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -532,7 +539,7 @@ export default function ModelsPage() {
                     <span>Hỗ trợ Priority Endpoint với hệ số nhân <strong className="text-cyan-600 dark:text-cyan-400">{model.priorityMultiplier}x</strong></span>
                   </p>
                 </div>
-              )}
+              )} */}
             </div>
           ))}
         </div>

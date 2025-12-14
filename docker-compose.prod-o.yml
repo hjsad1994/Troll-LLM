@@ -13,7 +13,7 @@ services:
       - frontend
       - backend
       - goproxy
-      # - goproxy-openhands  # Temporarily disabled
+      - goproxy-openhands
     restart: unless-stopped
     networks:
       - trollllm-network
@@ -59,8 +59,21 @@ services:
     networks:
       - trollllm-network
 
-  # GoProxy Main (chat.trollllm.xyz - using OpenHands upstream)
+  # GoProxy Main (chat.trollllm.xyz - port 8003)
   goproxy:
+    build:
+      context: ./goproxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config.prod.json:/app/config.json:ro
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # GoProxy OpenHands (priority-chat.trollllm.xyz - port 8004)
+  goproxy-openhands:
     build:
       context: ./goproxy
       dockerfile: Dockerfile
@@ -71,19 +84,6 @@ services:
     restart: unless-stopped
     networks:
       - trollllm-network
-
-  # GoProxy OpenHands (priority-chat.trollllm.xyz - port 8004) - TEMPORARILY DISABLED
-  # goproxy-openhands:
-  #   build:
-  #     context: ./goproxy
-  #     dockerfile: Dockerfile
-  #   volumes:
-  #     - ./goproxy/config-openhands-prod.json:/app/config.json:ro
-  #   env_file:
-  #     - ./.env
-  #   restart: unless-stopped
-  #   networks:
-  #     - trollllm-network
 
 networks:
   trollllm-network:
