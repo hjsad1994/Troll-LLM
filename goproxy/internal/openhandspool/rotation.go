@@ -3,11 +3,11 @@ package openhandspool
 import (
 	"context"
 	"log"
-	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"goproxy/db"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // RotateKey replaces a failed key completely:
@@ -102,73 +102,40 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 }
 
 // CheckAndRotateOnError checks if the error warrants key rotation and performs it
+// Simple: error status code -> disable and rotate
 func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody string) {
 	shouldRotate := false
 	reason := ""
-	bodyLower := strings.ToLower(errorBody)
 
-	// Check status codes
 	switch statusCode {
-	case 400:
-		// Check for budget exceeded error (OpenHands specific)
-		if strings.Contains(errorBody, "ExceededBudget") ||
-		   strings.Contains(bodyLower, "budget_exceeded") ||
-		   strings.Contains(bodyLower, "over budget") {
-			shouldRotate = true
-			reason = "budget_exceeded"
-		}
-	case 429:
-		// Rate limited - temporary, don't rotate
-		p.MarkRateLimited(keyID)
-		log.Printf("⚠️ [OpenHandsRotation] Key %s rate limited, marked for cooldown", keyID)
-		return
-	case 401, 403:
+	case 401:
 		shouldRotate = true
-		reason = "authentication_error"
+		reason = "unauthorized"
 	case 402:
 		shouldRotate = true
 		reason = "payment_required"
-	}
-
-	// Check for invalid/revoked key
-	if !shouldRotate && (strings.Contains(bodyLower, "invalid_api_key") ||
-		strings.Contains(bodyLower, "revoked") ||
-		strings.Contains(bodyLower, "unauthorized")) {
+	case 403:
 		shouldRotate = true
-		reason = "invalid_key"
-	}
-
-	// Check for quota/billing messages
-	if !shouldRotate && (strings.Contains(bodyLower, "quota") ||
-		strings.Contains(bodyLower, "insufficient credits") ||
-		strings.Contains(bodyLower, "billing")) {
-		shouldRotate = true
-		reason = "quota_exhausted"
+		reason = "forbidden"
+	case 429:
+		p.MarkRateLimited(keyID)
+		return
 	}
 
 	if shouldRotate {
-		log.Printf("🚫 [OpenHandsRotation] Key %s needs rotation (reason: %s)", keyID, reason)
-
-		// Check if backup keys available
+		log.Printf("🚫 [OpenHandsRotation] Key %s error %d, rotating...", keyID, statusCode)
 		backupCount := GetBackupKeyCount()
-
 		if backupCount > 0 {
-			// Backup available - rotate to new key
-			log.Printf("🔄 [OpenHandsRotation] Found %d backup keys, rotating key %s", backupCount, keyID)
 			newKeyID, err := p.RotateKey(keyID, reason)
 			if err != nil {
-				// Rotation failed - mark as exhausted
 				log.Printf("❌ [OpenHandsRotation] Rotation failed: %v", err)
 				p.MarkExhausted(keyID)
-				log.Printf("🚨 [OpenHandsRotation] Key %s marked as exhausted (disabled)", keyID)
 			} else if newKeyID != "" {
-				log.Printf("✅ [OpenHandsRotation] Key %s replaced with backup key %s", keyID, newKeyID)
+				log.Printf("✅ [OpenHandsRotation] Rotated: %s -> %s", keyID, newKeyID)
 			}
 		} else {
-			// No backup - mark as exhausted and keep disabled
-			log.Printf("⚠️ [OpenHandsRotation] No backup keys available")
 			p.MarkExhausted(keyID)
-			log.Printf("🚨 [OpenHandsRotation] Key %s marked as exhausted (disabled) - add backup keys to restore service", keyID)
+			log.Printf("🚨 [OpenHandsRotation] No backup keys, %s disabled", keyID)
 		}
 	}
 }

@@ -324,22 +324,14 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
 
 	var totalInput, totalOutput int64
-	var eventCount int64
-	var isDone bool
-	var contentLength int64 // Track content for fallback estimation
 
-	var lastEventData string
 	for scanner.Scan() {
-		eventCount++
 		line := scanner.Text()
 
 		// Extract usage from events
 		if strings.HasPrefix(line, "data: ") {
 			dataStr := strings.TrimPrefix(line, "data: ")
-			if dataStr == "[DONE]" {
-				isDone = true
-			} else {
-				lastEventData = dataStr // Track last event for debugging
+			if dataStr != "[DONE]" {
 				var event map[string]interface{}
 				if json.Unmarshal([]byte(dataStr), &event) == nil {
 					// Check if this event contains usage
@@ -349,21 +341,6 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 						}
 						if v, ok := usage["completion_tokens"].(float64); ok {
 							totalOutput = int64(v)
-						}
-						log.Printf("🔍 [MainTarget-OpenAI] Found usage in stream: in=%d out=%d", totalInput, totalOutput)
-					}
-					// Track content for fallback usage estimation
-					if choices, ok := event["choices"].([]interface{}); ok && len(choices) > 0 {
-						if choice, ok := choices[0].(map[string]interface{}); ok {
-							if delta, ok := choice["delta"].(map[string]interface{}); ok {
-								if content, ok := delta["content"].(string); ok {
-									contentLength += int64(len(content))
-								}
-							}
-						}
-						// Debug first 3 events
-						if eventCount <= 3 {
-							log.Printf("🔍 [MainTarget-OpenAI] Event #%d: has %d choices, has_usage=%v", eventCount, len(choices), event["usage"] != nil)
 						}
 					}
 				}
@@ -376,7 +353,7 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 
 	// Check for scanner errors (connection issues, truncation, etc)
 	if err := scanner.Err(); err != nil {
-		log.Printf("❌ [MainTarget-OpenAI] Scanner error detected: %v (in=%d out=%d, events=%d, done=%v)", err, totalInput, totalOutput, eventCount, isDone)
+		log.Printf("❌ [MainTarget-OpenAI] Scanner error detected: %v", err)
 		// Send error event to client
 		errorEvent := fmt.Sprintf("data: {\"error\":{\"message\":\"Stream interrupted: %v\",\"type\":\"stream_error\"}}\n\n", err)
 		fmt.Fprint(w, errorEvent)
@@ -384,29 +361,11 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 		return
 	}
 
-	log.Printf("📊 [MainTarget-OpenAI] Stream completed: events=%d done=%v", eventCount, isDone)
-
-	// Fallback: If no usage found, log the last event and estimate from content
-	if totalInput == 0 && totalOutput == 0 {
-		if lastEventData != "" {
-			maxLen := 500
-			if len(lastEventData) > maxLen {
-				log.Printf("⚠️ [MainTarget-OpenAI] No usage found! Last event (truncated): %s...", lastEventData[:maxLen])
-			} else {
-				log.Printf("⚠️ [MainTarget-OpenAI] No usage found! Last event: %s", lastEventData)
-			}
+	if totalInput > 0 || totalOutput > 0 {
+		log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d", totalInput, totalOutput)
+		if onUsage != nil {
+			onUsage(totalInput, totalOutput, 0, 0)
 		}
-
-		// Estimate output tokens from content length (rough: 1 token ≈ 4 chars)
-		if contentLength > 0 {
-			totalOutput = contentLength / 4
-			log.Printf("⚠️ [MainTarget-OpenAI] Estimated output tokens from content: %d tokens (~%d chars)", totalOutput, contentLength)
-		}
-	}
-
-	log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d (content: %d chars)", totalInput, totalOutput, contentLength)
-	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
-		onUsage(totalInput, totalOutput, 0, 0)  // MainTarget doesn't support cache tokens
 	}
 }
 

@@ -14,10 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"golang.org/x/net/http2"
 	"goproxy/db"
 	"goproxy/internal/proxy"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/net/http2"
 )
 
 const (
@@ -40,14 +41,14 @@ const (
 
 // OpenHandsKey represents a single API key stored in MongoDB
 type OpenHandsKey struct {
-	ID            string           `bson:"_id" json:"id"`
-	APIKey        string           `bson:"apiKey" json:"api_key"`
+	ID            string             `bson:"_id" json:"id"`
+	APIKey        string             `bson:"apiKey" json:"api_key"`
 	Status        OpenHandsKeyStatus `bson:"status" json:"status"`
-	TokensUsed    int64            `bson:"tokensUsed" json:"tokens_used"`
-	RequestsCount int64            `bson:"requestsCount" json:"requests_count"`
-	LastError     string           `bson:"lastError,omitempty" json:"last_error,omitempty"`
-	CooldownUntil *time.Time       `bson:"cooldownUntil,omitempty" json:"cooldown_until,omitempty"`
-	CreatedAt     time.Time        `bson:"createdAt" json:"created_at"`
+	TokensUsed    int64              `bson:"tokensUsed" json:"tokens_used"`
+	RequestsCount int64              `bson:"requestsCount" json:"requests_count"`
+	LastError     string             `bson:"lastError,omitempty" json:"last_error,omitempty"`
+	CooldownUntil *time.Time         `bson:"cooldownUntil,omitempty" json:"cooldown_until,omitempty"`
+	CreatedAt     time.Time          `bson:"createdAt" json:"created_at"`
 }
 
 // IsAvailable returns true if the key is available for use
@@ -75,16 +76,16 @@ type OpenHandsKeyBinding struct {
 
 // OpenHandsProvider implements Provider interface for OpenHands with MongoDB key pool
 type OpenHandsProvider struct {
-	keys           []*OpenHandsKey
-	bindings       map[string][]*OpenHandsKeyBinding // proxyId -> bindings
-	current        int
-	keyIndex       map[string]int // proxyId -> current key index for rotation
-	lastUsedKeyID  string
-	lastUsedProxy  string
-	client         *http.Client
-	proxyPool      *proxy.ProxyPool
-	useProxy       bool
-	mu             sync.Mutex
+	keys          []*OpenHandsKey
+	bindings      map[string][]*OpenHandsKeyBinding // proxyId -> bindings
+	current       int
+	keyIndex      map[string]int // proxyId -> current key index for rotation
+	lastUsedKeyID string
+	lastUsedProxy string
+	client        *http.Client
+	proxyPool     *proxy.ProxyPool
+	useProxy      bool
+	mu            sync.Mutex
 }
 
 var openhandsInstance *OpenHandsProvider
@@ -107,7 +108,7 @@ func GetOpenHands() *OpenHandsProvider {
 func ConfigureOpenHands() error {
 	provider := GetOpenHands()
 	provider.client = createOpenHandsClient()
-	
+
 	if err := provider.LoadKeys(); err != nil {
 		return err
 	}
@@ -286,61 +287,40 @@ func (p *OpenHandsProvider) MarkError(keyID string, err string) {
 }
 
 // CheckAndRotateOnError checks response and rotates key if needed
+// Simple: error status code -> disable and rotate
 func (p *OpenHandsProvider) CheckAndRotateOnError(keyID string, statusCode int, body string) {
 	shouldRotate := false
 	reason := ""
 
 	switch statusCode {
-	case 400:
-		// Handle budget exceeded error (OpenHands specific)
-		if strings.Contains(body, "ExceededBudget") || strings.Contains(body, "budget_exceeded") || strings.Contains(body, "over budget") {
-			shouldRotate = true
-			reason = "budget_exceeded"
-		} else {
-			p.MarkError(keyID, "Bad request")
-			return
-		}
-	case 429:
-		if strings.Contains(body, "quota") || strings.Contains(body, "exhausted") {
-			shouldRotate = true
-			reason = "quota_exhausted"
-		} else {
-			p.MarkRateLimited(keyID)
-			return
-		}
+	case 401:
+		shouldRotate = true
+		reason = "unauthorized"
 	case 402:
 		shouldRotate = true
 		reason = "payment_required"
-	case 401:
-		shouldRotate = true
-		reason = "invalid_api_key"
 	case 403:
-		if strings.Contains(body, "banned") || strings.Contains(body, "suspended") {
-			shouldRotate = true
-			reason = "account_banned"
-		} else {
-			p.MarkError(keyID, "Access denied")
-			return
-		}
+		shouldRotate = true
+		reason = "forbidden"
+	case 429:
+		p.MarkRateLimited(keyID)
+		return
 	}
 
 	if shouldRotate {
-		log.Printf("🚫 [OpenHands] Key %s needs rotation (reason: %s)", keyID, reason)
-
+		log.Printf("🚫 [OpenHands] Key %s error %d, rotating...", keyID, statusCode)
 		backupCount := GetOpenHandsBackupKeyCount()
 		if backupCount > 0 {
-			log.Printf("🔄 [OpenHands] Found %d backup keys, rotating...", backupCount)
 			newKeyID, err := p.RotateKey(keyID, reason)
 			if err != nil {
 				log.Printf("❌ [OpenHands] Rotation failed: %v", err)
 				p.MarkExhausted(keyID)
 			} else {
-				log.Printf("✅ [OpenHands] Key %s replaced with %s", keyID, newKeyID)
+				log.Printf("✅ [OpenHands] Rotated: %s -> %s", keyID, newKeyID)
 			}
 		} else {
-			log.Printf("⚠️ [OpenHands] No backup keys available")
 			p.MarkExhausted(keyID)
-			log.Printf("🚨 [OpenHands] Key %s marked as exhausted - add backup keys!", keyID)
+			log.Printf("🚨 [OpenHands] No backup keys, %s disabled", keyID)
 		}
 	}
 }
@@ -653,11 +633,11 @@ func (p *OpenHandsProvider) selectProxyAndKey() (*http.Client, string, *OpenHand
 	if err != nil {
 		return nil, "", nil, err
 	}
-	
+
 	p.mu.Lock()
 	p.lastUsedProxy = selectedProxy.Name
 	p.mu.Unlock()
-	
+
 	return client, selectedProxy.Name, key, nil
 }
 
@@ -761,7 +741,7 @@ func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *ht
 				if json.Unmarshal([]byte(dataStr), &event) == nil {
 					// Check event type for Anthropic format
 					eventType, _ := event["type"].(string)
-					
+
 					// Anthropic format: message_start contains input usage
 					if eventType == "message_start" {
 						if message, ok := event["message"].(map[string]interface{}); ok {
@@ -778,7 +758,7 @@ func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *ht
 							}
 						}
 					}
-					
+
 					// Anthropic format: message_delta contains output usage
 					if eventType == "message_delta" {
 						if usage, ok := event["usage"].(map[string]interface{}); ok {
@@ -787,7 +767,7 @@ func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *ht
 							}
 						}
 					}
-					
+
 					// OpenAI format: usage in final chunk
 					if usage, ok := event["usage"].(map[string]interface{}); ok {
 						if v, ok := usage["prompt_tokens"].(float64); ok {
