@@ -1397,6 +1397,47 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	upstreamModelID := config.GetUpstreamModelID(modelID)
 	openaiReq.Model = upstreamModelID
 
+	// Fix tool-related issues for Anthropic/Claude models
+	// 1. If no tools param but messages contain tool_calls/tool messages, strip them
+	// 2. Convert tool messages without tool_call_id to user messages
+	hasToolsParam := len(openaiReq.Tools) > 0
+	fixedMessages := make([]transformers.OpenAIMessage, 0, len(openaiReq.Messages))
+
+	for _, msg := range openaiReq.Messages {
+		if msg.Role == "tool" {
+			// Tool result message
+			content := ""
+			if c, ok := msg.Content.(string); ok {
+				content = c
+			}
+
+			if !hasToolsParam || msg.ToolCallID == "" {
+				// No tools param or missing tool_call_id - convert to user message
+				log.Printf("⚠️ [OpenHands-OpenAI] Converting tool message to user message (hasTools=%v, hasToolCallID=%v)", hasToolsParam, msg.ToolCallID != "")
+				fixedMessages = append(fixedMessages, transformers.OpenAIMessage{
+					Role:    "user",
+					Content: "[Tool Result]\n" + content,
+				})
+			} else {
+				fixedMessages = append(fixedMessages, msg)
+			}
+		} else if msg.Role == "assistant" && msg.ToolCalls != nil && !hasToolsParam {
+			// Assistant message with tool_calls but no tools param - strip tool_calls
+			log.Printf("⚠️ [OpenHands-OpenAI] Stripping tool_calls from assistant message (no tools param)")
+			content := ""
+			if c, ok := msg.Content.(string); ok {
+				content = c
+			}
+			fixedMessages = append(fixedMessages, transformers.OpenAIMessage{
+				Role:    "assistant",
+				Content: content,
+			})
+		} else {
+			fixedMessages = append(fixedMessages, msg)
+		}
+	}
+	openaiReq.Messages = fixedMessages
+
 	// Claude/Anthropic doesn't allow both temperature and top_p
 	// Check the original body and remove top_p if both exist
 	var rawRequest map[string]interface{}

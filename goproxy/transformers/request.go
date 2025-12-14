@@ -98,8 +98,10 @@ func convertImageURLToAnthropic(url string) map[string]interface{} {
 
 // OpenAIMessage represents an OpenAI format message
 type OpenAIMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"` // Can be string or []ContentPart
+	Role       string      `json:"role"`
+	Content    interface{} `json:"content"`               // Can be string or []ContentPart
+	ToolCallID string      `json:"tool_call_id,omitempty"` // For tool result messages
+	ToolCalls  interface{} `json:"tool_calls,omitempty"`   // For assistant tool call messages
 }
 
 // ContentPart represents a message content part
