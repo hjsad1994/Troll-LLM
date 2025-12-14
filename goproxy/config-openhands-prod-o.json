@@ -53,6 +53,30 @@
       "upstream_model_id": "gemini-3-pro-preview"
     },
     {
+      "name": "Qwen3 Coder 480B",
+      "id": "qwen3-coder-480b",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.5,
+      "output_price_per_mtok": 2.0,
+      "cache_hit_price_per_mtok": 0.05,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "qwen3-coder-480b"
+    },
+    {
+      "name": "Kimi K2",
+      "id": "kimi-k2-0711-preview",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.3,
+      "output_price_per_mtok": 1.5,
+      "cache_hit_price_per_mtok": 0.03,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "kimi-k2-0711-preview"
+    },
+    {
       "name": "GLM-4.6",
       "id": "glm-4.6",
       "type": "openhands",
@@ -63,6 +87,42 @@
       "billing_multiplier": 1.0,
       "upstream": "openhands",
       "upstream_model_id": "glm-4.6"
+    },
+    {
+      "name": "GPT-5.1",
+      "id": "gpt-5.1",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 1.5,
+      "output_price_per_mtok": 12.0,
+      "cache_hit_price_per_mtok": 0.15,
+      "billing_multiplier": 1.05,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1"
+    },
+    {
+      "name": "GPT-5.1 Codex Max",
+      "id": "gpt-5.1-codex-max",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 2.0,
+      "output_price_per_mtok": 16.0,
+      "cache_hit_price_per_mtok": 0.2,
+      "billing_multiplier": 1.1,  
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1-codex-max"
+    },
+    {
+      "name": "Kimi K2 Thinking",
+      "id": "kimi-k2-thinking",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.5,
+      "output_price_per_mtok": 2.5,
+      "cache_hit_price_per_mtok": 0.05,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "kimi-k2-thinking"
     }
   ],
   "system_prompt": "",
