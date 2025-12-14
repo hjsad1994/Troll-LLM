@@ -1273,7 +1273,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		errorBody := string(bodyBytes)
-		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, errorBody)
+		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, truncateErrorLog(errorBody, 300))
 
 		// Check if this is a rotatable error (budget exceeded, auth error, etc.)
 		isBudgetExceeded := strings.Contains(errorBody, "ExceededBudget") ||
@@ -1486,7 +1486,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		errorBody := string(bodyBytes)
-		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, errorBody)
+		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, truncateErrorLog(errorBody, 300))
 
 		// Check if this is a rotatable error (budget exceeded, auth error, etc.)
 		isBudgetExceeded := strings.Contains(errorBody, "ExceededBudget") ||
@@ -3275,6 +3275,23 @@ data: {"type":"error","error":{"type":"stream_error","message":"Stream interrupt
 	} else {
 		log.Printf("✅ Stream completed: %d events in %v", eventCount, time.Since(startTime))
 	}
+}
+
+// truncateErrorLog truncates error body for logging, keeping only the essential error message
+func truncateErrorLog(errorBody string, maxLen int) string {
+	if len(errorBody) <= maxLen {
+		return errorBody
+	}
+	// Try to find just the error message part
+	if idx := strings.Index(errorBody, `"message":`); idx != -1 {
+		// Extract a reasonable portion starting from message
+		end := idx + 200
+		if end > len(errorBody) {
+			end = len(errorBody)
+		}
+		return errorBody[idx:end] + "..."
+	}
+	return errorBody[:maxLen] + "..."
 }
 
 func main() {
