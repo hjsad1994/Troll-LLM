@@ -182,7 +182,7 @@ export class PaymentService {
     console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
 
     // Add credits to user (also saves discordId if provided)
-    await this.addCredits(payment.userId, payment.credits, payment.discordId);
+    await this.addCredits(payment.userId, payment.credits, payment.discordId, payment._id.toString());
 
     // Send webhook to Discord bot
     await this.notifyDiscordBot({
@@ -229,7 +229,7 @@ export class PaymentService {
     }
   }
 
-  private async addCredits(userId: string, credits: number, discordId?: string): Promise<void> {
+  private async addCredits(userId: string, credits: number, discordId?: string, paymentId?: string): Promise<void> {
     console.log(`[Payment] Adding $${credits} credits to user: ${userId}`);
 
     const user = await userRepository.getFullUser(userId);
@@ -237,6 +237,11 @@ export class PaymentService {
       console.log(`[Payment] User not found: ${userId}`);
       throw new Error('User not found');
     }
+
+    // Get current credits before adding
+    const creditsBefore = user.credits || 0;
+    const creditsAfter = creditsBefore + credits;
+    console.log(`[Payment] Credits: before=${creditsBefore}, after=${creditsAfter}`);
 
     const now = new Date();
 
@@ -260,6 +265,16 @@ export class PaymentService {
     // Update user with new credits - use UserNew model (usersNew collection)
     const { UserNew } = await import('../models/user-new.model.js');
     await UserNew.findByIdAndUpdate(userId, updateData);
+
+    // Update payment record with creditsBefore and creditsAfter
+    if (paymentId) {
+      const { Payment } = await import('../models/payment.model.js');
+      await Payment.findByIdAndUpdate(paymentId, {
+        creditsBefore,
+        creditsAfter,
+      });
+      console.log(`[Payment] Updated payment ${paymentId} with creditsBefore=${creditsBefore}, creditsAfter=${creditsAfter}`);
+    }
 
     // Referral system disabled
     // await this.awardReferralBonus(userId, credits);

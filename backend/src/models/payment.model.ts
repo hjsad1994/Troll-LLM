@@ -22,6 +22,8 @@ export interface IPayment {
   paymentMethod: PaymentMethod;
   status: PaymentStatus;
   sepayTransactionId?: string;
+  creditsBefore?: number;
+  creditsAfter?: number;
   createdAt: Date;
   expiresAt: Date;
   completedAt?: Date;
@@ -43,6 +45,8 @@ const paymentSchema = new mongoose.Schema({
   paymentMethod: { type: String, enum: ['sepay'], default: 'sepay' },
   status: { type: String, enum: ['pending', 'success', 'failed', 'expired'], default: 'pending' },
   sepayTransactionId: { type: String },
+  creditsBefore: { type: Number },
+  creditsAfter: { type: Number },
   createdAt: { type: Date, default: Date.now },
   expiresAt: { type: Date, required: true },
   completedAt: { type: Date },
