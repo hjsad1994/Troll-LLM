@@ -337,6 +337,7 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
 
 	var totalInput, totalOutput int64
+	var estimatedOutputChars int64 // Count output characters for estimation
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -354,6 +355,17 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 						}
 						if v, ok := usage["completion_tokens"].(float64); ok {
 							totalOutput = int64(v)
+						}
+					}
+
+					// Count output characters from delta content (for estimation)
+					if choices, ok := event["choices"].([]interface{}); ok && len(choices) > 0 {
+						if choice, ok := choices[0].(map[string]interface{}); ok {
+							if delta, ok := choice["delta"].(map[string]interface{}); ok {
+								if content, ok := delta["content"].(string); ok {
+									estimatedOutputChars += int64(len(content))
+								}
+							}
 						}
 					}
 				}
@@ -374,11 +386,18 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 		return
 	}
 
-	if totalInput > 0 || totalOutput > 0 {
-		log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d", totalInput, totalOutput)
-		if onUsage != nil {
-			onUsage(totalInput, totalOutput, 0, 0)
+	// If no usage data from stream, estimate output tokens from content
+	if totalOutput == 0 && estimatedOutputChars > 0 {
+		totalOutput = estimatedOutputChars / 4 // Rough: 1 token ≈ 4 chars
+		if totalOutput < 1 {
+			totalOutput = 1
 		}
+		log.Printf("⚠️ [MainTarget-OpenAI] Estimated output tokens: %d (from %d chars)", totalOutput, estimatedOutputChars)
+	}
+
+	log.Printf("📊 [MainTarget-OpenAI] Stream completed: in=%d out=%d", totalInput, totalOutput)
+	if onUsage != nil {
+		onUsage(totalInput, totalOutput, 0, 0)
 	}
 }
 

@@ -54,12 +54,19 @@ export const translations = {
     // Pricing
     pricing: {
       title: 'Pay As You Go',
-      subtitle: 'Simple, transparent pricing. No subscriptions. Pay only for what you use.',
+      subtitle: 'Simple, transparent pricing. No subscriptions.',
+      tagline: 'Pay only for what you use',
       saleEndsIn: 'Sale ends in',
       days: 'Days',
       hours: 'Hours',
       minutes: 'Minutes',
       seconds: 'Seconds',
+      features: {
+        allModels: 'Access to all AI models',
+        openaiApi: 'OpenAI-compatible API',
+        usageBilling: 'Usage-based billing',
+        discordSupport: 'Discord support',
+      },
       dev: {
         badge: 'FLEXIBLE',
         name: 'Pay As You Go',
@@ -83,14 +90,15 @@ export const translations = {
           support: 'Priority support',
         },
       },
-      compareAll: 'Compare all features',
+      compareAll: 'Compare all models',
       buyNow: 'Buy Now',
       unavailable: 'Unavailable',
       updating: 'Updating',
       minPurchase: 'Minimum: $20',
       validity: 'Valid for 1 week',
       rate: '1,000 VND = $1',
-      internationalNote: 'International users: Please contact us via Discord for payment options.',
+      securePayment: 'Secure payment via banking',
+      internationalNote: 'International users: Contact us via',
     },
     // FAQ
     faq: {
@@ -1240,12 +1248,19 @@ export const translations = {
     // Pricing
     pricing: {
       title: 'Nạp Bao Nhiêu, Dùng Bấy Nhiêu',
-      subtitle: 'Giá cả đơn giản, minh bạch. Không đăng ký. Chỉ trả cho những gì bạn sử dụng.',
+      subtitle: 'Giá cả đơn giản, minh bạch. Không đăng ký.',
+      tagline: 'Chỉ trả cho những gì bạn sử dụng',
       saleEndsIn: 'Khuyến mãi kết thúc sau',
       days: 'Ngày',
       hours: 'Giờ',
       minutes: 'Phút',
       seconds: 'Giây',
+      features: {
+        allModels: 'Truy cập tất cả mô hình AI',
+        openaiApi: 'API tương thích OpenAI',
+        usageBilling: 'Tính phí theo mức sử dụng',
+        discordSupport: 'Hỗ trợ qua Discord',
+      },
       dev: {
         badge: 'LINH HOẠT',
         name: 'Nạp & Dùng',
@@ -1269,14 +1284,15 @@ export const translations = {
           support: 'Hỗ trợ ưu tiên',
         },
       },
-      compareAll: 'So sánh tất cả tính năng',
+      compareAll: 'So sánh tất cả mô hình',
       buyNow: 'Mua ngay',
       unavailable: 'Ngưng nhận Thanh toán',
       updating: 'Đang cập nhật',
       minPurchase: 'Mua tối thiểu: $20',
       validity: 'Hiệu lực 1 tuần',
       rate: '1.000 VND = $1',
-      internationalNote: 'Người dùng quốc tế: Vui lòng liên hệ qua Discord để được hỗ trợ thanh toán.',
+      securePayment: 'Thanh toán an toàn qua ngân hàng',
+      internationalNote: 'Người dùng quốc tế: Liên hệ qua',
     },
     // FAQ
     faq: {

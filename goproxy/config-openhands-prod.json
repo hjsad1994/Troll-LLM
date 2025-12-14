@@ -21,7 +21,7 @@
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.05,
+      "billing_multiplier": 1.075,
       "upstream": "openhands",
       "upstream_model_id": "claude-opus-4-5-20251101"
     },
@@ -36,7 +36,7 @@
       "output_price_per_mtok": 15.0,
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.3,
-      "billing_multiplier": 1.05,
+      "billing_multiplier": 1.075,
       "upstream": "openhands",
       "upstream_model_id": "claude-sonnet-4-5-20250929"
     },
@@ -47,8 +47,8 @@
       "reasoning": "high",
       "input_price_per_mtok": 2.0,
       "output_price_per_mtok": 12.0,
-      "cache_hit_price_per_mtok": 0.2,
-      "billing_multiplier": 1.05,
+      "cache_hit_price_per_mtok": 0.5,
+      "billing_multiplier": 1.075,
       "upstream": "openhands",
       "upstream_model_id": "gemini-3-pro-preview"
     },
@@ -58,9 +58,9 @@
       "type": "openhands",
       "reasoning": "medium",
       "input_price_per_mtok": 0.2,
-      "output_price_per_mtok": 1.0,
-      "cache_hit_price_per_mtok": 0.02,
-      "billing_multiplier": 1.05,
+      "output_price_per_mtok": 1.8,
+      "cache_hit_price_per_mtok": 0.08,
+      "billing_multiplier": 1.075,
       "upstream": "openhands",
       "upstream_model_id": "glm-4.6"
     }

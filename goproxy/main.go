@@ -1189,6 +1189,17 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	upstreamModelID := config.GetUpstreamModelID(modelID)
 	anthropicReq.Model = upstreamModelID
 
+	// Claude/Anthropic doesn't allow both temperature and top_p
+	// We need to check and remove top_p from the raw JSON if temperature exists
+	var rawRequest map[string]interface{}
+	json.Unmarshal(originalBody, &rawRequest)
+	_, hasTemperature := rawRequest["temperature"]
+	_, hasTopP := rawRequest["top_p"]
+	if hasTemperature && hasTopP {
+		log.Printf("⚠️ [OpenHands] Removing top_p - Claude doesn't allow both temperature and top_p")
+		delete(rawRequest, "top_p")
+	}
+
 	// Inject and merge system prompt
 	configSystemPrompt := config.GetSystemPrompt()
 	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.System))
@@ -1385,6 +1396,18 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	// Get upstream model ID and inject system prompt
 	upstreamModelID := config.GetUpstreamModelID(modelID)
 	openaiReq.Model = upstreamModelID
+
+	// Claude/Anthropic doesn't allow both temperature and top_p
+	// Check the original body and remove top_p if both exist
+	var rawRequest map[string]interface{}
+	json.Unmarshal(bodyBytes, &rawRequest)
+	_, hasTemperature := rawRequest["temperature"]
+	_, hasTopP := rawRequest["top_p"]
+	removeTopP := hasTemperature && hasTopP
+	if removeTopP {
+		log.Printf("⚠️ [OpenHands-OpenAI] Removing top_p - Claude doesn't allow both temperature and top_p")
+		openaiReq.TopP = 0 // Reset to zero value, will be omitempty
+	}
 
 	// Inject and merge system prompt (OpenAI format uses system message)
 	configSystemPrompt := config.GetSystemPrompt()
