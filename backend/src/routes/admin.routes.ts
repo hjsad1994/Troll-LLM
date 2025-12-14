@@ -286,27 +286,51 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
     const period = (req.query.period as string) || 'all';
     
     let since: Date | undefined;
+    let until: Date | undefined;
     const now = new Date();
-    switch (period) {
-      case '1h':
-        since = new Date(now.getTime() - 60 * 60 * 1000);
-        break;
-      case '24h':
-        since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case '7d':
-        since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        since = undefined;
+
+    // Check for custom date range
+    const fromDate = req.query.from as string;
+    const toDate = req.query.to as string;
+
+    if (fromDate) {
+      since = new Date(fromDate);
+      since.setHours(0, 0, 0, 0);
+    }
+    if (toDate) {
+      until = new Date(toDate);
+      until.setHours(23, 59, 59, 999);
+    }
+
+    // If no custom date, use period presets
+    if (!fromDate && !toDate) {
+      switch (period) {
+        case '1h':
+          since = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case '2h':
+          since = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+          break;
+        case '3h':
+          since = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+          break;
+        case '24h':
+          since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          since = undefined;
+      }
     }
     
     const [result, stats] = await Promise.all([
-      paymentRepository.getAllPayments({ page, limit, status, since }),
-      paymentRepository.getPaymentStats(since),
+      paymentRepository.getAllPayments({ page, limit, status, since, until }),
+      paymentRepository.getPaymentStats(since, until),
     ]);
     
     res.json({

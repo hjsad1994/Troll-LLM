@@ -86,16 +86,19 @@ export class PaymentRepository {
     limit?: number;
     status?: PaymentStatus;
     since?: Date;
+    until?: Date;
   } = {}): Promise<{ payments: IPayment[]; total: number; page: number; totalPages: number }> {
-    const { page = 1, limit = 20, status, since } = options;
+    const { page = 1, limit = 20, status, since, until } = options;
     const skip = (page - 1) * limit;
 
     const query: any = {};
     if (status) {
       query.status = status;
     }
-    if (since) {
-      query.createdAt = { $gte: since };
+    if (since || until) {
+      query.createdAt = {};
+      if (since) query.createdAt.$gte = since;
+      if (until) query.createdAt.$lte = until;
     }
 
     const [payments, total] = await Promise.all([
@@ -115,15 +118,17 @@ export class PaymentRepository {
     };
   }
 
-  async getPaymentStats(since?: Date): Promise<{
+  async getPaymentStats(since?: Date, until?: Date): Promise<{
     totalAmount: number;
     successCount: number;
     pendingCount: number;
     failedCount: number;
   }> {
     const query: any = {};
-    if (since) {
-      query.createdAt = { $gte: since };
+    if (since || until) {
+      query.createdAt = {};
+      if (since) query.createdAt.$gte = since;
+      if (until) query.createdAt.$lte = until;
     }
 
     const [stats] = await Payment.aggregate([

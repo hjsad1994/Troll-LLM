@@ -67,7 +67,9 @@ export default function AdminBillingPage() {
   const [stats, setStats] = useState<PaymentStats>({ totalAmount: 0, successCount: 0, pendingCount: 0, failedCount: 0 })
   const [pagination, setPagination] = useState<Pagination>({ page: 1, totalPages: 1, total: 0, limit: 20 })
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState<'all' | '1h' | '24h' | '7d' | '30d'>('all')
+  const [period, setPeriod] = useState<'all' | '1h' | '2h' | '3h' | '24h' | '7d' | '30d' | 'custom'>('all')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
 
   useEffect(() => {
     if (user && !isAdmin) {
@@ -78,9 +80,16 @@ export default function AdminBillingPage() {
   const loadPayments = useCallback(async (page: number = 1) => {
     try {
       setLoading(true)
-      const resp = await fetchWithAuth(`/admin/payments?page=${page}&limit=20&period=${period}`)
+      let url = `/admin/payments?page=${page}&limit=20&period=${period}`
+      if (period === 'custom' && fromDate) {
+        url += `&from=${fromDate}`
+        if (toDate) {
+          url += `&to=${toDate}`
+        }
+      }
+      const resp = await fetchWithAuth(url)
       if (!resp.ok) throw new Error('Failed to load payments')
-      
+
       const data = await resp.json()
       // Filter out pending payments
       const filteredPayments = data.payments.filter((p: Payment) => p.status !== 'pending')
@@ -92,7 +101,7 @@ export default function AdminBillingPage() {
     } finally {
       setLoading(false)
     }
-  }, [period])
+  }, [period, fromDate, toDate])
 
   useEffect(() => {
     if (isAdmin) {
@@ -148,22 +157,67 @@ export default function AdminBillingPage() {
         </section>
 
         {/* Period Filter */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-gray-500 dark:text-neutral-500 text-sm mr-2">Period:</span>
-          {(['all', '1h', '24h', '7d', '30d'] as const).map((p) => (
+          {(['all', '1h', '2h', '3h', '24h', '7d', '30d'] as const).map((p) => (
             <button
               key={p}
-              onClick={() => setPeriod(p)}
+              onClick={() => {
+                setPeriod(p)
+                setFromDate('')
+                setToDate('')
+              }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 period === p
                   ? 'bg-indigo-500 dark:bg-white text-white dark:text-black'
                   : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-white/10'
               }`}
             >
-              {p === 'all' ? 'All Time' : p === '1h' ? '1 Hour' : p === '24h' ? '24 Hours' : p === '7d' ? '7 Days' : '30 Days'}
+              {p === 'all' ? 'All Time' : p === '1h' ? '1 Hour' : p === '2h' ? '2 Hours' : p === '3h' ? '3 Hours' : p === '24h' ? '24 Hours' : p === '7d' ? '7 Days' : '30 Days'}
             </button>
           ))}
+          <button
+            onClick={() => setPeriod('custom')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              period === 'custom'
+                ? 'bg-indigo-500 dark:bg-white text-white dark:text-black'
+                : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-white/10'
+            }`}
+          >
+            Custom
+          </button>
         </div>
+
+        {/* Date Range Filter */}
+        {period === 'custom' && (
+          <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-500 dark:text-neutral-500">From:</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-white/20"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-500 dark:text-neutral-500">To:</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-white/20"
+              />
+            </div>
+            <button
+              onClick={() => loadPayments(1)}
+              disabled={!fromDate}
+              className="px-4 py-2 rounded-lg bg-indigo-500 dark:bg-white text-white dark:text-black text-sm font-medium hover:bg-indigo-600 dark:hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Apply
+            </button>
+          </div>
+        )}
 
         {/* Payments Table */}
         <section className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 overflow-hidden">
