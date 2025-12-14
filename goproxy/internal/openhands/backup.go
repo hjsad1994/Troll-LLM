@@ -135,7 +135,13 @@ func RestoreOpenHandsBackupKey(id string) error {
 	return err
 }
 
-// RotateOpenHandsKey rotates a failed key with a backup key
+// RotateOpenHandsKey replaces a failed key with a backup key:
+// 1. Find available backup key
+// 2. DELETE the old openhands_key document completely
+// 3. INSERT backup key as new openhands_key
+// 4. UPDATE bindings to point to new key ID
+// 5. Mark backup key as used
+// 6. Update in-memory pool
 func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -151,41 +157,22 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 		return "", err
 	}
 
-	maskedKey := backupKey.APIKey
-	if len(maskedKey) > 12 {
-		maskedKey = maskedKey[:8] + "..." + maskedKey[len(maskedKey)-4:]
+	newKeyMasked := backupKey.APIKey
+	if len(newKeyMasked) > 12 {
+		newKeyMasked = newKeyMasked[:8] + "..." + newKeyMasked[len(newKeyMasked)-4:]
 	}
-	log.Printf("✅ [OpenHands/Rotation] Found backup key: %s (%s)", backupKey.ID, maskedKey)
+	log.Printf("✅ [OpenHands/Rotation] Found backup key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 2. Get the proxy binding for failed key
-	bindingsCol := db.GetCollection("openhands_bindings")
-	var oldBinding struct {
-		ProxyID  string `bson:"proxyId"`
-		Priority int    `bson:"priority"`
-	}
-	err = bindingsCol.FindOne(ctx, bson.M{"openhandsKeyId": failedKeyID}).Decode(&oldBinding)
-	if err != nil {
-		log.Printf("⚠️ [OpenHands/Rotation] No binding found for key %s", failedKeyID)
-	}
-
-	// 3. Delete bindings for failed key
-	deleteResult, err := bindingsCol.DeleteMany(ctx, bson.M{"openhandsKeyId": failedKeyID})
-	if err != nil {
-		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete bindings: %v", err)
-	} else if deleteResult.DeletedCount > 0 {
-		log.Printf("🗑️ [OpenHands/Rotation] Deleted %d bindings for key %s", deleteResult.DeletedCount, failedKeyID)
-	}
-
-	// 4. Delete failed key from openhands_keys
+	// 2. DELETE old key completely
 	keysCol := db.OpenHandsKeysCollection()
 	_, err = keysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
-		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete key: %v", err)
+		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete old key: %v", err)
 	} else {
-		log.Printf("🗑️ [OpenHands/Rotation] Deleted failed key: %s", failedKeyID)
+		log.Printf("🗑️ [OpenHands/Rotation] Deleted old key: %s", failedKeyID)
 	}
 
-	// 5. Insert backup key as new active key
+	// 3. INSERT backup key as new openhands_key
 	now := time.Now()
 	newKeyDoc := bson.M{
 		"_id":           backupKey.ID,
@@ -194,32 +181,35 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 		"tokensUsed":    int64(0),
 		"requestsCount": int64(0),
 		"createdAt":     now,
+		"replacedKey":   failedKeyID,
 	}
 	_, err = keysCol.InsertOne(ctx, newKeyDoc)
 	if err != nil {
 		log.Printf("❌ [OpenHands/Rotation] Failed to insert new key: %v", err)
 		return "", err
 	}
-	log.Printf("✅ [OpenHands/Rotation] Inserted new key: %s", backupKey.ID)
+	log.Printf("✅ [OpenHands/Rotation] Inserted new key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 6. Create new binding (use same proxy as failed key)
-	if oldBinding.ProxyID != "" {
-		newBinding := bson.M{
-			"proxyId":        oldBinding.ProxyID,
-			"openhandsKeyId": backupKey.ID,
-			"priority":     oldBinding.Priority,
-			"isActive":     true,
-			"createdAt":    now,
-		}
-		_, err = bindingsCol.InsertOne(ctx, newBinding)
-		if err != nil {
-			log.Printf("⚠️ [OpenHands/Rotation] Failed to create new binding: %v", err)
-		} else {
-			log.Printf("✅ [OpenHands/Rotation] Created binding: proxy %s -> key %s", oldBinding.ProxyID, backupKey.ID)
-		}
+	// 4. UPDATE bindings to point to new key ID
+	bindingsCol := db.GetCollection("openhands_bindings")
+	updateResult, err := bindingsCol.UpdateMany(ctx,
+		bson.M{"openhandsKeyId": failedKeyID},
+		bson.M{
+			"$set": bson.M{
+				"openhandsKeyId": backupKey.ID,
+				"updatedAt":      now,
+			},
+		},
+	)
+	if err != nil {
+		log.Printf("⚠️ [OpenHands/Rotation] Failed to update bindings: %v", err)
+	} else if updateResult.ModifiedCount > 0 {
+		log.Printf("✅ [OpenHands/Rotation] Updated %d bindings: %s -> %s", updateResult.ModifiedCount, failedKeyID, backupKey.ID)
+	} else {
+		log.Printf("ℹ️ [OpenHands/Rotation] No bindings to update for key %s", failedKeyID)
 	}
 
-	// 7. Mark backup key as used
+	// 5. Mark backup key as used
 	_, err = backupCol.UpdateByID(ctx, backupKey.ID, bson.M{
 		"$set": bson.M{
 			"isUsed":    true,
@@ -230,30 +220,29 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 	})
 	if err != nil {
 		log.Printf("⚠️ [OpenHands/Rotation] Failed to mark backup as used: %v", err)
+	} else {
+		log.Printf("✅ [OpenHands/Rotation] Marked backup %s as used (replaced: %s)", backupKey.ID, failedKeyID)
 	}
 
-	// 8. Update in-memory pool
+	// 6. Update in-memory pool - remove old key, add new key
 	p.mu.Lock()
-	// Remove failed key
 	newKeys := make([]*OpenHandsKey, 0)
 	for _, key := range p.keys {
 		if key.ID != failedKeyID {
 			newKeys = append(newKeys, key)
 		}
 	}
-	// Add new key
-	newKey := &OpenHandsKey{
+	newKeys = append(newKeys, &OpenHandsKey{
 		ID:            backupKey.ID,
 		APIKey:        backupKey.APIKey,
 		Status:        OpenHandsStatusHealthy,
 		TokensUsed:    0,
 		RequestsCount: 0,
 		CreatedAt:     now,
-	}
-	newKeys = append(newKeys, newKey)
+	})
 	p.keys = newKeys
 	p.mu.Unlock()
 
-	log.Printf("✅ [OpenHands/Rotation] Complete: %s (dead) -> %s (active)", failedKeyID, backupKey.ID)
+	log.Printf("✅ [OpenHands/Rotation] Complete: %s (deleted) -> %s (new)", failedKeyID, backupKey.ID)
 	return backupKey.ID, nil
 }

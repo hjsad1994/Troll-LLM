@@ -41,6 +41,65 @@ func (p *KeyPool) LoadKeys() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// First, get all active key IDs from bindings
+	bindingsCol := db.GetCollection("openhands_bindings")
+	bindingsCursor, err := bindingsCol.Find(ctx, bson.M{"isActive": true})
+	if err != nil {
+		return err
+	}
+	defer bindingsCursor.Close(ctx)
+
+	// Collect unique key IDs from bindings
+	boundKeyIDs := make(map[string]bool)
+	for bindingsCursor.Next(ctx) {
+		var binding struct {
+			OpenHandsKeyID string `bson:"openhandsKeyId"`
+		}
+		if err := bindingsCursor.Decode(&binding); err != nil {
+			continue
+		}
+		if binding.OpenHandsKeyID != "" {
+			boundKeyIDs[binding.OpenHandsKeyID] = true
+		}
+	}
+
+	// If no bindings found, fall back to loading all keys
+	if len(boundKeyIDs) == 0 {
+		log.Printf("⚠️ No active bindings found, loading all openhands keys")
+		return p.loadAllKeys(ctx)
+	}
+
+	// Load only keys that have bindings
+	keyIDs := make([]string, 0, len(boundKeyIDs))
+	for keyID := range boundKeyIDs {
+		keyIDs = append(keyIDs, keyID)
+	}
+
+	cursor, err := db.OpenHandsKeysCollection().Find(ctx, bson.M{"_id": bson.M{"$in": keyIDs}})
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(ctx)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.keys = make([]*OpenHandsKey, 0)
+	for cursor.Next(ctx) {
+		var key OpenHandsKey
+		if err := cursor.Decode(&key); err != nil {
+			log.Printf("⚠️ Failed to decode openhands key: %v", err)
+			continue
+		}
+		p.keys = append(p.keys, &key)
+	}
+
+	log.Printf("✅ Loaded %d openhands keys (from %d bindings)", len(p.keys), len(boundKeyIDs))
+	return nil
+}
+
+// loadAllKeys loads all keys without checking bindings (fallback)
+func (p *KeyPool) loadAllKeys(ctx context.Context) error {
 	cursor, err := db.OpenHandsKeysCollection().Find(ctx, bson.M{})
 	if err != nil {
 		return err
@@ -60,7 +119,7 @@ func (p *KeyPool) LoadKeys() error {
 		p.keys = append(p.keys, &key)
 	}
 
-	log.Printf("✅ Loaded %d openhands keys", len(p.keys))
+	log.Printf("✅ Loaded %d openhands keys (all keys, no bindings)", len(p.keys))
 	return nil
 }
 

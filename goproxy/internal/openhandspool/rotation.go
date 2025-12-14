@@ -3,6 +3,7 @@ package openhandspool
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"goproxy/db"
@@ -10,10 +11,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// RotateKey replaces a failed key completely:
-// 1. Delete failed key from openhands_keys
-// 2. Insert backup key into openhands_keys
-// 3. Mark backup key as used
+// RotateKey replaces a failed key with a backup key:
+// 1. Find available backup key
+// 2. DELETE the old openhands_key document completely
+// 3. INSERT backup key as new openhands_key
+// 4. UPDATE bindings to point to new key ID
+// 5. Mark backup key as used
+// 6. Update in-memory pool
 func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -34,43 +38,53 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 		newKeyMasked = newKeyMasked[:8] + "..." + newKeyMasked[len(newKeyMasked)-4:]
 	}
 
-	// 2. Delete failed key from openhands_keys
+	// 2. DELETE old key completely
 	openHandsKeysCol := db.OpenHandsKeysCollection()
 	_, err = openHandsKeysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
-		log.Printf("⚠️ [OpenHandsRotation] Failed to delete openhands key: %v", err)
+		log.Printf("⚠️ [OpenHandsRotation] Failed to delete old key: %v", err)
 	} else {
-		log.Printf("🗑️ [OpenHandsRotation] Deleted openhands key: %s", failedKeyID)
+		log.Printf("🗑️ [OpenHandsRotation] Deleted old key: %s", failedKeyID)
 	}
 
-	// 3. Insert backup key as new openhands key (with reset stats)
+	// 3. INSERT backup key as new openhands_key
 	now := time.Now()
-	newOpenHandsKeyDoc := bson.M{
+	newKeyDoc := bson.M{
 		"_id":           backupKey.ID,
 		"apiKey":        backupKey.APIKey,
 		"status":        StatusHealthy,
 		"tokensUsed":    int64(0),
 		"requestsCount": int64(0),
 		"createdAt":     now,
+		"replacedKey":   failedKeyID, // Track which key this replaced
 	}
-	_, err = openHandsKeysCol.InsertOne(ctx, newOpenHandsKeyDoc)
-
-	// Also create in-memory struct
-	newOpenHandsKey := OpenHandsKey{
-		ID:            backupKey.ID,
-		APIKey:        backupKey.APIKey,
-		Status:        StatusHealthy,
-		TokensUsed:    0,
-		RequestsCount: 0,
-		CreatedAt:     now,
-	}
+	_, err = openHandsKeysCol.InsertOne(ctx, newKeyDoc)
 	if err != nil {
-		log.Printf("❌ [OpenHandsRotation] Failed to insert new openhands key: %v", err)
+		log.Printf("❌ [OpenHandsRotation] Failed to insert new key: %v", err)
 		return "", err
 	}
-	log.Printf("✅ [OpenHandsRotation] Inserted new openhands key: %s (%s)", backupKey.ID, newKeyMasked)
+	log.Printf("✅ [OpenHandsRotation] Inserted new key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 4. Mark backup key as used (activated)
+	// 4. UPDATE bindings to point to new key ID
+	bindingsCol := db.GetCollection("openhands_bindings")
+	updateResult, err := bindingsCol.UpdateMany(ctx,
+		bson.M{"openhandsKeyId": failedKeyID},
+		bson.M{
+			"$set": bson.M{
+				"openhandsKeyId": backupKey.ID,
+				"updatedAt":      now,
+			},
+		},
+	)
+	if err != nil {
+		log.Printf("⚠️ [OpenHandsRotation] Failed to update bindings: %v", err)
+	} else if updateResult.ModifiedCount > 0 {
+		log.Printf("✅ [OpenHandsRotation] Updated %d bindings: %s -> %s", updateResult.ModifiedCount, failedKeyID, backupKey.ID)
+	} else {
+		log.Printf("ℹ️ [OpenHandsRotation] No bindings to update for key %s", failedKeyID)
+	}
+
+	// 5. Mark backup key as used
 	_, err = backupKeysCol.UpdateByID(ctx, backupKey.ID, bson.M{
 		"$set": bson.M{
 			"isUsed":    true,
@@ -81,9 +95,11 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 	})
 	if err != nil {
 		log.Printf("⚠️ [OpenHandsRotation] Failed to mark backup key as used: %v", err)
+	} else {
+		log.Printf("✅ [OpenHandsRotation] Marked backup %s as used (replaced: %s)", backupKey.ID, failedKeyID)
 	}
 
-	// 5. Update in-memory pool - remove old key, add new key
+	// 6. Update in-memory pool - remove old key, add new key
 	p.mu.Lock()
 	newKeys := make([]*OpenHandsKey, 0)
 	for _, key := range p.keys {
@@ -91,13 +107,18 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 			newKeys = append(newKeys, key)
 		}
 	}
-	newKeys = append(newKeys, &newOpenHandsKey)
+	newKeys = append(newKeys, &OpenHandsKey{
+		ID:            backupKey.ID,
+		APIKey:        backupKey.APIKey,
+		Status:        StatusHealthy,
+		TokensUsed:    0,
+		RequestsCount: 0,
+		CreatedAt:     now,
+	})
 	p.keys = newKeys
 	p.mu.Unlock()
 
-	log.Printf("✅ [OpenHandsRotation] Rotation complete: %s (dead) -> %s (active)", failedKeyID, backupKey.ID)
-	log.Printf("📝 [OpenHandsRotation] Admin can delete backup key %s from openhands_backup_keys (marked as activated)", backupKey.ID)
-
+	log.Printf("✅ [OpenHandsRotation] Rotation complete: %s (deleted) -> %s (new)", failedKeyID, backupKey.ID)
 	return backupKey.ID, nil
 }
 
@@ -108,6 +129,13 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 	reason := ""
 
 	switch statusCode {
+	case 400:
+		// Check if it's a budget_exceeded error
+		if strings.Contains(errorBody, "ExceededBudget") || strings.Contains(errorBody, "budget_exceeded") || strings.Contains(errorBody, "over budget") {
+			shouldRotate = true
+			reason = "budget_exceeded"
+			log.Printf("🚨 [OpenHandsRotation] Key %s budget exceeded, triggering rotation", keyID)
+		}
 	case 401:
 		shouldRotate = true
 		reason = "unauthorized"

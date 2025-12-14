@@ -9,6 +9,11 @@ export interface OpenHandsKey {
   lastError?: string;
   cooldownUntil?: Date;
   createdAt: Date;
+  updatedAt?: Date;
+  // Rotation tracking
+  replacedBy?: string;      // Backup key ID that replaced this key's API
+  replacedAt?: Date;        // When the replacement happened
+  previousApiKey?: string;  // Masked version of old API key
 }
 
 export interface OpenHandsKeyBinding {

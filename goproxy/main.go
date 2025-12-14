@@ -1301,17 +1301,17 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 						log.Printf("❌ [OpenHands] Retry also failed (status=%d): %s", retryResp.StatusCode, string(retryBody))
 						w.Header().Set("Content-Type", "application/json")
 						w.WriteHeader(retryResp.StatusCode)
-						w.Write(retryBody)
+						w.Write(openhands.SanitizeAnthropicError(retryResp.StatusCode, retryBody))
 						return
 					}
 				}
 			}
 		}
 
-		// Return error to client
+		// Return sanitized error to client
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		w.Write(bodyBytes)
+		w.Write(openhands.SanitizeAnthropicError(resp.StatusCode, bodyBytes))
 		return
 	}
 
@@ -1501,17 +1501,17 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 						log.Printf("❌ [OpenHands-OpenAI] Retry also failed (status=%d): %s", retryResp.StatusCode, string(retryBody))
 						w.Header().Set("Content-Type", "application/json")
 						w.WriteHeader(retryResp.StatusCode)
-						w.Write(retryBody)
+						w.Write(openhands.SanitizeError(retryResp.StatusCode, retryBody))
 						return
 					}
 				}
 			}
 		}
 
-		// Return error to client
+		// Return sanitized error to client
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		w.Write(bodyBytes)
+		w.Write(openhands.SanitizeError(resp.StatusCode, bodyBytes))
 		return
 	}
 

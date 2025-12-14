@@ -86,6 +86,12 @@ export default function OpenHandsBindingsPage() {
     return groups
   }, [bindings, proxies])
 
+  // Filter keys that don't have any bindings yet (available for new binding)
+  const availableKeys = useMemo(() => {
+    const boundKeyIds = new Set(bindings.map(b => b.openhandsKeyId))
+    return keys.filter(k => !boundKeyIds.has(k._id))
+  }, [keys, bindings])
+
   useEffect(() => {
     if (user && !isAdmin) {
       router.replace('/dashboard')
@@ -705,10 +711,17 @@ export default function OpenHandsBindingsPage() {
               className="w-full px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-[var(--theme-text)] focus:outline-none focus:border-blue-500 dark:focus:border-blue-400/50 transition-colors"
             >
               <option value="">Select key...</option>
-              {keys.map(k => (
-                <option key={k._id} value={k._id}>{k._id} ({k.status})</option>
-              ))}
+              {availableKeys.length === 0 ? (
+                <option value="" disabled>All keys already have bindings</option>
+              ) : (
+                availableKeys.map(k => (
+                  <option key={k._id} value={k._id}>{k._id} ({k.status})</option>
+                ))
+              )}
             </select>
+            {availableKeys.length === 0 && (
+              <p className="text-amber-500 text-xs mt-2">All keys already have bindings. Delete an existing binding first.</p>
+            )}
           </div>
           <div>
             <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">Priority</label>

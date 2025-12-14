@@ -293,6 +293,13 @@ func (p *OpenHandsProvider) CheckAndRotateOnError(keyID string, statusCode int, 
 	reason := ""
 
 	switch statusCode {
+	case 400:
+		// Check if it's a budget_exceeded error
+		if strings.Contains(body, "ExceededBudget") || strings.Contains(body, "budget_exceeded") || strings.Contains(body, "over budget") {
+			shouldRotate = true
+			reason = "budget_exceeded"
+			log.Printf("🚨 [OpenHands] Key %s budget exceeded, triggering rotation", keyID)
+		}
 	case 401:
 		shouldRotate = true
 		reason = "unauthorized"
@@ -529,10 +536,10 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 		bodyStr := string(bodyBytes)
 		resp.Body.Close()
 
-		// For 400, only handle budget_exceeded errors - other 400s should pass through
+		// For 400, only handle budget_exceeded errors - other 400s should be sanitized
 		if resp.StatusCode == 400 && !strings.Contains(bodyStr, "ExceededBudget") && !strings.Contains(bodyStr, "budget_exceeded") && !strings.Contains(bodyStr, "over budget") {
-			// Not a budget error, return as-is with reconstructed body
-			resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			// Not a budget error - return sanitized error response
+			resp.Body = io.NopCloser(bytes.NewReader(SanitizeError(resp.StatusCode, bodyBytes)))
 			return resp, nil
 		}
 
@@ -545,9 +552,9 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 			return p.retryWithNextKeyToEndpoint(endpoint, body, isStreaming, 2)
 		} else {
 			log.Printf("🚫 [OpenHands] Streaming request got HTTP %d - CANNOT RETRY to prevent double response!", resp.StatusCode)
-			// Return error response - handler will sanitize and forward to client
+			// Return sanitized error response - handler will forward to client
 			// Don't retry to avoid double response
-			resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			resp.Body = io.NopCloser(bytes.NewReader(SanitizeError(resp.StatusCode, bodyBytes)))
 			return resp, nil
 		}
 	}
@@ -690,9 +697,9 @@ func (p *OpenHandsProvider) retryWithNextKeyToEndpoint(endpoint string, body []b
 		bodyStr := string(bodyBytes)
 		resp.Body.Close()
 
-		// For 400, only handle budget_exceeded errors - other 400s should pass through
+		// For 400, only handle budget_exceeded errors - other 400s should be sanitized
 		if resp.StatusCode == 400 && !strings.Contains(bodyStr, "ExceededBudget") && !strings.Contains(bodyStr, "budget_exceeded") && !strings.Contains(bodyStr, "over budget") {
-			resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			resp.Body = io.NopCloser(bytes.NewReader(SanitizeError(resp.StatusCode, bodyBytes)))
 			return resp, nil
 		}
 
