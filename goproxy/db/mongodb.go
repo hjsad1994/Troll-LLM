@@ -88,10 +88,6 @@ func FriendKeysCollection() *mongo.Collection {
 	return GetCollection("friend_keys")
 }
 
-func OhmyGPTKeysCollection() *mongo.Collection {
-	return GetCollection("ohmygpt_keys")
-}
-
 func OpenHandsKeysCollection() *mongo.Collection {
 	return GetCollection("openhands_keys")
 }

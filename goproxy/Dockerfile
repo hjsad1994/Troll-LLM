@@ -27,7 +27,6 @@ RUN apk --no-cache add ca-certificates
 # Copy binary and config
 COPY --from=builder /app/goproxy .
 COPY --from=builder /app/config.json .
-COPY --from=builder /app/docs.html .
 
 # Expose port
 EXPOSE 8080

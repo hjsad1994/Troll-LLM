@@ -15,18 +15,19 @@ type Endpoint struct {
 
 // Model configuration
 type Model struct {
-	Name                  string   `json:"name"`
-	ID                    string   `json:"id"`
-	IDAliases             []string `json:"id_aliases,omitempty"`        // Alternative model IDs that map to this model
-	Type                  string   `json:"type"`
-	Reasoning             string   `json:"reasoning"`
-	ThinkingBudget        int      `json:"thinking_budget,omitempty"` // Budget tokens for thinking mode
-	InputPricePerMTok     float64  `json:"input_price_per_mtok"`
-	OutputPricePerMTok    float64  `json:"output_price_per_mtok"`
-	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
-	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
-	Upstream              string   `json:"upstream"`                    // "troll" or "main" - determines which upstream provider to use
-	UpstreamModelID       string   `json:"upstream_model_id,omitempty"` // Model ID to use when sending to upstream (if different from ID)
+	Name                   string   `json:"name"`
+	ID                     string   `json:"id"`
+	IDAliases              []string `json:"id_aliases,omitempty"`         // Alternative model IDs that map to this model
+	Type                   string   `json:"type"`
+	Reasoning              string   `json:"reasoning"`
+	ThinkingBudget         int      `json:"thinking_budget,omitempty"`    // Budget tokens for thinking mode
+	InputPricePerMTok      float64  `json:"input_price_per_mtok"`
+	OutputPricePerMTok     float64  `json:"output_price_per_mtok"`
+	CacheWritePricePerMTok float64  `json:"cache_write_price_per_mtok"`
+	CacheHitPricePerMTok   float64  `json:"cache_hit_price_per_mtok"`
+	BillingMultiplier      float64  `json:"billing_multiplier,omitempty"` // Multiplier applied to final billing cost (default 1.0)
+	Upstream               string   `json:"upstream"`                     // "troll" or "main" - determines which upstream provider to use
+	UpstreamModelID        string   `json:"upstream_model_id,omitempty"`  // Model ID to use when sending to upstream (if different from ID)
 }
 
 // Config global configuration
@@ -175,7 +176,7 @@ func GetModelThinkingBudget(modelID string) int {
 }
 
 // GetModelUpstream gets upstream provider for a model
-// Returns "main", "troll", or "ohmygpt" (default is "troll" if not specified)
+// Returns "main", "troll", or "openhands" (default is "troll" if not specified)
 func GetModelUpstream(modelID string) string {
 	model := GetModelByID(modelID)
 	if model == nil {
@@ -190,7 +191,7 @@ func GetModelUpstream(modelID string) string {
 // IsValidUpstream checks if upstream value is valid
 func IsValidUpstream(upstream string) bool {
 	switch upstream {
-	case "troll", "main", "ohmygpt":
+	case "troll", "main", "openhands":
 		return true
 	default:
 		return false
@@ -260,6 +261,16 @@ func GetModelCachePricing(modelID string) (cacheWritePrice, cacheHitPrice float6
 	return model.CacheWritePricePerMTok, model.CacheHitPricePerMTok
 }
 
+// GetBillingMultiplier gets the billing multiplier for a model
+// Returns 1.0 if not configured or model not found
+func GetBillingMultiplier(modelID string) float64 {
+	model := GetModelByID(modelID)
+	if model == nil || model.BillingMultiplier <= 0 {
+		return 1.0 // Default multiplier
+	}
+	return model.BillingMultiplier
+}
+
 // CalculateBillingCost calculates the cost in USD for input/output tokens (without cache)
 func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
@@ -270,10 +281,23 @@ func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float
 
 // CacheHitDiscount is the discount applied to cache hit tokens for billing
 // 0.90 means only 90% of cache hits are recognized, charging user 10% more
+// Only applied to non-openhands models
 const CacheHitDiscount = 0.90
 
 // EffectiveCacheHit returns the discounted cache hit tokens for billing
+// Deprecated: Use EffectiveCacheHitForModel instead for model-specific discount
 func EffectiveCacheHit(cacheHitTokens int64) int64 {
+	return int64(float64(cacheHitTokens) * CacheHitDiscount)
+}
+
+// EffectiveCacheHitForModel returns the effective cache hit tokens for billing
+// OpenHands models do not get cache hit discount (1.0 = full credit)
+// Other models get CacheHitDiscount (0.90 = 10% penalty)
+func EffectiveCacheHitForModel(modelID string, cacheHitTokens int64) int64 {
+	model := GetModelByID(modelID)
+	if model != nil && model.Upstream == "openhands" {
+		return cacheHitTokens // No discount for OpenHands
+	}
 	return int64(float64(cacheHitTokens) * CacheHitDiscount)
 }
 
@@ -281,14 +305,15 @@ func EffectiveCacheHit(cacheHitTokens int64) int64 {
 // Note: input_tokens from upstream includes ALL tokens (cached + uncached)
 // We subtract both cacheHit and cacheWrite from input to get uncached tokens only
 // Then apply appropriate pricing for each category
-// Cache hit tokens are discounted by CacheHitDiscount (10% reduction)
+// Cache hit tokens are discounted by CacheHitDiscount (10% reduction) for non-openhands models
+// Finally applies billing_multiplier from config (default 1.0)
 func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
+	multiplier := GetBillingMultiplier(modelID)
 
-	// Apply 10% discount to cache hit tokens for billing purposes
-	// User pays for more input tokens due to reduced cache hit recognition
-	effectiveCacheHit := int64(float64(cacheHitTokens) * CacheHitDiscount)
+	// Apply discount based on model type (no discount for OpenHands)
+	effectiveCacheHit := EffectiveCacheHitForModel(modelID, cacheHitTokens)
 
 	// Subtract cache tokens from input (they're already included in input_tokens)
 	// actualInputTokens = tokens that are neither cached nor being written to cache
@@ -302,7 +327,8 @@ func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, ca
 	cacheWriteCost := (float64(cacheWriteTokens) / 1_000_000) * cacheWritePrice
 	cacheHitCost := (float64(effectiveCacheHit) / 1_000_000) * cacheHitPrice
 
-	return inputCost + outputCost + cacheWriteCost + cacheHitCost
+	baseCost := inputCost + outputCost + cacheWriteCost + cacheHitCost
+	return baseCost * multiplier
 }
 
 // CalculateBillingTokens calculates tokens to deduct from user's balance (without cache)
@@ -315,13 +341,15 @@ func CalculateBillingTokens(modelID string, inputTokens, outputTokens int64) int
 // - cache_write: typically 1.25x input (more expensive to write)
 // - cache_hit: typically 0.1x input (much cheaper to read from cache)
 // Note: input_tokens includes ALL tokens, so we subtract cache tokens to avoid double counting
-// Cache hit tokens are discounted by CacheHitDiscount (10% reduction)
+// Cache hit tokens are discounted by CacheHitDiscount (10% reduction) for non-openhands models
+// Finally applies billing_multiplier from config (default 1.0)
 func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) int64 {
 	inputPrice, _ := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
+	multiplier := GetBillingMultiplier(modelID)
 
-	// Apply 10% discount to cache hit tokens for billing purposes
-	effectiveCacheHit := int64(float64(cacheHitTokens) * CacheHitDiscount)
+	// Apply discount based on model type (no discount for OpenHands)
+	effectiveCacheHit := EffectiveCacheHitForModel(modelID, cacheHitTokens)
 
 	// Subtract cache tokens from input (they're already included in input_tokens)
 	actualInputTokens := inputTokens - effectiveCacheHit - cacheWriteTokens
@@ -342,7 +370,7 @@ func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, 
 		float64(cacheWriteTokens)*cacheWriteWeight +
 		float64(effectiveCacheHit)*cacheHitWeight
 
-	return int64(effectiveTokens)
+	return int64(effectiveTokens * multiplier)
 }
 
 // GetTokenMultiplier - deprecated, kept for backward compatibility

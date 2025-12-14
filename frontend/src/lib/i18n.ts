@@ -165,9 +165,10 @@ export const translations = {
       },
       aiProvider: {
         title: 'AI Provider',
-        subtitle: 'API endpoint URL',
+        subtitle: 'Base URL for API requests',
         copy: 'Copy URL',
         copied: 'Copied!',
+        priorityEndpoint: 'Priority Endpoint',
       },
       credits: {
         title: 'Credits',
@@ -845,11 +846,11 @@ export const translations = {
         deleteFailed: 'Failed to delete key',
       },
     },
-    // OhmyGPT Backup Keys Page
-    ohmygptBackupKeys: {
-      badge: 'OhmyGPT Key Management',
-      title: 'OhmyGPT Backup Keys',
-      subtitle: 'Manage backup keys for automatic rotation when OhmyGPT keys fail',
+    // OpenHands Backup Keys Page
+    openhandsBackupKeys: {
+      badge: 'OpenHands Key Management',
+      title: 'OpenHands Backup Keys',
+      subtitle: 'Manage backup keys for automatic rotation when OpenHands keys fail',
       stats: {
         total: 'Total Keys',
         available: 'Available',
@@ -871,21 +872,21 @@ export const translations = {
       },
       empty: {
         title: 'No backup keys yet',
-        description: 'Add keys for automatic rotation when OhmyGPT keys fail',
+        description: 'Add keys for automatic rotation when OpenHands keys fail',
         cta: 'Add your first backup key',
       },
       loading: 'Loading keys...',
       info: {
-        title: 'How OhmyGPT Backup Keys Work',
-        description: 'Backup keys are automatically used when active OhmyGPT keys fail due to 401 invalid, 402 quota exhausted, or 403 banned errors. The system will seamlessly rotate to an available backup key to ensure uninterrupted service. Once a backup key is used, it will be marked as "Used" and can be restored manually if needed.',
+        title: 'How OpenHands Backup Keys Work',
+        description: 'Backup keys are automatically used when active OpenHands keys fail due to 401 invalid, 402 quota exhausted, or 403 banned errors. The system will seamlessly rotate to an available backup key to ensure uninterrupted service. Once a backup key is used, it will be marked as "Used" and can be restored manually if needed.',
       },
       modal: {
-        title: 'Add OhmyGPT Backup Key',
+        title: 'Add OpenHands Backup Key',
         keyIdLabel: 'Key ID',
-        keyIdPlaceholder: 'e.g., omg-backup-1',
+        keyIdPlaceholder: 'e.g., oh-backup-1',
         apiKeyLabel: 'API Key',
         apiKeyPlaceholder: 'sk-...',
-        warning: 'Backup keys will be automatically used when active OhmyGPT keys fail (401 invalid, 402 quota exhausted, 403 banned).',
+        warning: 'Backup keys will be automatically used when active OpenHands keys fail (401 invalid, 402 quota exhausted, 403 banned).',
         submit: 'Add Backup Key',
       },
       confirm: {
@@ -909,9 +910,9 @@ export const translations = {
       dashboard: 'Dashboard',
       admin: 'Admin',
       users: 'Users',
-      ohmygptKeys: 'OhmyGPT Keys',
+      openhandsKeys: 'OpenHands Keys',
       userTokens: 'User Tokens',
-      ohmygptBackupKeys: 'OhmyGPT Backups',
+      openhandsBackupKeys: 'OpenHands Backups',
       proxies: 'Proxies',
       keyBindings: 'Key Bindings',
       models: 'Models',
@@ -928,7 +929,7 @@ export const translations = {
       discordId: 'Discord User ID',
       discordIdOptional: 'Optional',
       discordIdPlaceholder: '123456789012345678',
-      discordIdHelp: 'Enter your Discord User ID to receive role after payment.',
+      discordIdHelp: 'Join to get the fastest support, giveaways, and exclusive offers.',
       discordIdError: 'Invalid Discord ID format. Must be 17-19 digits.',
       amount: 'Amount',
       vnd: 'VND',
@@ -1350,9 +1351,10 @@ export const translations = {
       },
       aiProvider: {
         title: 'AI Provider',
-        subtitle: 'URL endpoint API',
+        subtitle: 'Base URL cho API',
         copy: 'Sao chép URL',
         copied: 'Đã sao chép!',
+        priorityEndpoint: 'Endpoint Ưu tiên',
       },
       credits: {
         title: 'Credits',
@@ -2030,11 +2032,11 @@ export const translations = {
         deleteFailed: 'Không thể xóa key',
       },
     },
-    // OhmyGPT Backup Keys Page
-    ohmygptBackupKeys: {
-      badge: 'Quản lý Key OhmyGPT',
-      title: 'OhmyGPT Backup Keys',
-      subtitle: 'Quản lý các key dự phòng để tự động xoay vòng khi key OhmyGPT gặp lỗi',
+    // OpenHands Backup Keys Page
+    openhandsBackupKeys: {
+      badge: 'Quản lý Key OpenHands',
+      title: 'OpenHands Backup Keys',
+      subtitle: 'Quản lý các key dự phòng để tự động xoay vòng khi key OpenHands gặp lỗi',
       stats: {
         total: 'Tổng số Key',
         available: 'Khả dụng',
@@ -2056,21 +2058,21 @@ export const translations = {
       },
       empty: {
         title: 'Chưa có backup key nào',
-        description: 'Thêm các key để tự động xoay vòng khi key OhmyGPT gặp lỗi',
+        description: 'Thêm các key để tự động xoay vòng khi key OpenHands gặp lỗi',
         cta: 'Thêm backup key đầu tiên',
       },
       loading: 'Đang tải các key...',
       info: {
-        title: 'Cách hoạt động của OhmyGPT Backup Keys',
-        description: 'Backup keys sẽ tự động được sử dụng khi các key OhmyGPT chính gặp lỗi 401 không hợp lệ, 402 hết quota, hoặc 403 bị cấm. Hệ thống sẽ chuyển đổi liền mạch sang backup key khả dụng để đảm bảo dịch vụ không bị gián đoạn. Khi một backup key được sử dụng, nó sẽ được đánh dấu là "Đã dùng" và có thể được khôi phục thủ công nếu cần.',
+        title: 'Cách hoạt động của OpenHands Backup Keys',
+        description: 'Backup keys sẽ tự động được sử dụng khi các key OpenHands chính gặp lỗi 401 không hợp lệ, 402 hết quota, hoặc 403 bị cấm. Hệ thống sẽ chuyển đổi liền mạch sang backup key khả dụng để đảm bảo dịch vụ không bị gián đoạn. Khi một backup key được sử dụng, nó sẽ được đánh dấu là "Đã dùng" và có thể được khôi phục thủ công nếu cần.',
       },
       modal: {
-        title: 'Thêm OhmyGPT Backup Key',
+        title: 'Thêm OpenHands Backup Key',
         keyIdLabel: 'ID Key',
-        keyIdPlaceholder: 'VD: omg-backup-1',
+        keyIdPlaceholder: 'VD: oh-backup-1',
         apiKeyLabel: 'API Key',
         apiKeyPlaceholder: 'sk-...',
-        warning: 'Backup keys sẽ tự động được sử dụng khi key OhmyGPT chính gặp lỗi (401 không hợp lệ, 402 hết quota, 403 bị cấm).',
+        warning: 'Backup keys sẽ tự động được sử dụng khi key OpenHands chính gặp lỗi (401 không hợp lệ, 402 hết quota, 403 bị cấm).',
         submit: 'Thêm Backup Key',
       },
       confirm: {
@@ -2094,9 +2096,9 @@ export const translations = {
       dashboard: 'Bảng điều khiển',
       admin: 'Quản trị',
       users: 'Người dùng',
-      ohmygptKeys: 'OhmyGPT Keys',
+      openhandsKeys: 'OpenHands Keys',
       userTokens: 'User Tokens',
-      ohmygptBackupKeys: 'OhmyGPT Backups',
+      openhandsBackupKeys: 'OpenHands Backups',
       proxies: 'Proxies',
       keyBindings: 'Liên kết Key',
       models: 'Mô hình',
@@ -2113,7 +2115,7 @@ export const translations = {
       discordId: 'Discord User ID',
       discordIdOptional: 'Tùy chọn',
       discordIdPlaceholder: '123456789012345678',
-      discordIdHelp: 'Nhập Discord User ID để nhận role sau khi thanh toán.',
+      discordIdHelp: 'Tham gia để được hỗ trợ nhanh nhất, giveaway và các ưu đãi đặc biệt.',
       discordIdError: 'Định dạng Discord ID không hợp lệ. Phải có 17-19 chữ số.',
       amount: 'Số tiền',
       vnd: 'VND',

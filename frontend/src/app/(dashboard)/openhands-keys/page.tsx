@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import Modal from '@/components/Modal'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
-interface OhmyGPTKey {
+interface OpenHandsKey {
   _id?: string
   id?: string
   apiKey?: string
@@ -22,19 +22,22 @@ interface Stats {
   healthyKeys: number
 }
 
-export default function OhmyGPTKeysPage() {
+export default function OpenHandsKeysPage() {
   const { user } = useAuth()
   const router = useRouter()
   const isAdmin = user?.role === 'admin'
 
-  const [keys, setKeys] = useState<OhmyGPTKey[]>([])
+  const [keys, setKeys] = useState<OpenHandsKey[]>([])
   const [stats, setStats] = useState<Stats>({ totalKeys: 0, healthyKeys: 0 })
   const [loading, setLoading] = useState(true)
   const [createModal, setCreateModal] = useState(false)
+  const [importModal, setImportModal] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string; action: () => void }>({ open: false, message: '', action: () => {} })
   const { showToast } = useToast()
 
   const [form, setForm] = useState({ id: '', apiKey: '' })
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     if (user && !isAdmin) {
@@ -50,7 +53,7 @@ export default function OhmyGPTKeysPage() {
 
   async function loadKeys() {
     try {
-      const resp = await fetchWithAuth('/admin/ohmygpt/keys')
+      const resp = await fetchWithAuth('/admin/openhands/keys')
       if (!resp.ok) throw new Error('Failed to load')
       const data = await resp.json()
       setKeys(data.keys || [])
@@ -68,7 +71,7 @@ export default function OhmyGPTKeysPage() {
   async function createKey(e: React.FormEvent) {
     e.preventDefault()
     try {
-      const resp = await fetchWithAuth('/admin/ohmygpt/keys', {
+      const resp = await fetchWithAuth('/admin/openhands/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: form.id, apiKey: form.apiKey })
@@ -78,7 +81,7 @@ export default function OhmyGPTKeysPage() {
         throw new Error(data.error || 'Failed to create')
       }
       setCreateModal(false)
-      showToast('OhmyGPT Key added successfully')
+      showToast('OpenHands Key added successfully')
       setForm({ id: '', apiKey: '' })
       loadKeys()
     } catch (err) {
@@ -88,7 +91,7 @@ export default function OhmyGPTKeysPage() {
 
   async function resetKey(keyId: string) {
     try {
-      const resp = await fetchWithAuth(`/admin/ohmygpt/keys/${keyId}/reset`, { method: 'POST' })
+      const resp = await fetchWithAuth(`/admin/openhands/keys/${keyId}/reset`, { method: 'POST' })
       if (!resp.ok) throw new Error('Failed to reset')
       showToast('Status reset successfully')
       loadKeys()
@@ -99,12 +102,78 @@ export default function OhmyGPTKeysPage() {
 
   async function deleteKey(keyId: string) {
     try {
-      const resp = await fetchWithAuth(`/admin/ohmygpt/keys/${keyId}`, { method: 'DELETE' })
+      const resp = await fetchWithAuth(`/admin/openhands/keys/${keyId}`, { method: 'DELETE' })
       if (!resp.ok) throw new Error('Failed to delete')
-      showToast('OhmyGPT Key deleted')
+      showToast('OpenHands Key deleted')
       loadKeys()
     } catch {
       showToast('Failed to delete key', 'error')
+    }
+  }
+
+  async function importKeys(e: React.FormEvent) {
+    e.preventDefault()
+    if (!importFile) {
+      showToast('Please select a file', 'error')
+      return
+    }
+
+    setImporting(true)
+    try {
+      const text = await importFile.text()
+      const lines = text.split('\n').filter(line => line.trim())
+
+      let successCount = 0
+      let failCount = 0
+      const errors: string[] = []
+
+      for (const line of lines) {
+        const parts = line.trim().split('|')
+        if (parts.length !== 2) {
+          failCount++
+          errors.push(`Invalid format: ${line}`)
+          continue
+        }
+
+        const [id, apiKey] = parts
+        try {
+          const resp = await fetchWithAuth('/admin/openhands/keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id.trim(), apiKey: apiKey.trim() })
+          })
+
+          if (resp.ok) {
+            successCount++
+          } else {
+            const data = await resp.json()
+            failCount++
+            errors.push(`${id}: ${data.error || 'Failed'}`)
+          }
+        } catch (err) {
+          failCount++
+          errors.push(`${id}: Network error`)
+        }
+      }
+
+      setImportModal(false)
+      setImportFile(null)
+
+      if (successCount > 0) {
+        showToast(`Import completed: ${successCount} succeeded, ${failCount} failed`)
+      } else {
+        showToast('Import failed: No keys were added', 'error')
+      }
+
+      if (errors.length > 0 && errors.length <= 5) {
+        console.error('Import errors:', errors)
+      }
+
+      loadKeys()
+    } catch (err) {
+      showToast('Failed to read file', 'error')
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -135,19 +204,30 @@ export default function OhmyGPTKeysPage() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">OhmyGPT Keys</h1>
-                <p className="text-slate-600 dark:text-slate-500 text-xs sm:text-sm">Manage OhmyGPT API keys</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">OpenHands Keys</h1>
+                <p className="text-slate-600 dark:text-slate-500 text-xs sm:text-sm">Manage OpenHands API keys</p>
               </div>
             </div>
-            <button
-              onClick={() => setCreateModal(true)}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add OhmyGPT Key
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setImportModal(true)}
+                className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-blue-500 text-white font-medium text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Import Keys
+              </button>
+              <button
+                onClick={() => setCreateModal(true)}
+                className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Key
+              </button>
+            </div>
           </div>
         </header>
 
@@ -199,7 +279,7 @@ export default function OhmyGPTKeysPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                         </svg>
                       </div>
-                      <p className="text-slate-600 dark:text-slate-400">No OhmyGPT Keys yet. Add your first key!</p>
+                      <p className="text-slate-600 dark:text-slate-400">No OpenHands Keys yet. Add your first key!</p>
                     </div>
                   </td>
                 </tr>
@@ -275,7 +355,7 @@ export default function OhmyGPTKeysPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                 </svg>
               </div>
-              <p className="text-slate-600 dark:text-slate-400 text-sm">No OhmyGPT Keys yet. Add your first key!</p>
+              <p className="text-slate-600 dark:text-slate-400 text-sm">No OpenHands Keys yet. Add your first key!</p>
             </div>
           ) : (
             keys.map((key) => {
@@ -358,7 +438,7 @@ export default function OhmyGPTKeysPage() {
       </div>
 
       {/* Create Modal */}
-      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title="Add OhmyGPT Key">
+      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title="Add OpenHands Key">
         <form onSubmit={createKey} className="space-y-4">
           <div>
             <label className="block text-slate-600 dark:text-slate-400 text-sm mb-2">Key ID</label>
@@ -387,6 +467,51 @@ export default function OhmyGPTKeysPage() {
             className="w-full py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition-colors"
           >
             Add Key
+          </button>
+        </form>
+      </Modal>
+
+      {/* Import Modal */}
+      <Modal isOpen={importModal} onClose={() => setImportModal(false)} title="Import OpenHands Keys">
+        <form onSubmit={importKeys} className="space-y-4">
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 text-sm mb-2">Select .txt file</label>
+            <input
+              type="file"
+              accept=".txt"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 text-slate-900 dark:text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-500/10 dark:file:text-orange-400"
+            />
+          </div>
+          <div className="p-3 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+            <p className="text-slate-700 dark:text-slate-300 text-xs font-semibold mb-2">File Format:</p>
+            <code className="text-xs text-slate-600 dark:text-slate-400 block">
+              key-id-1|sk-ant-api03-xxx<br/>
+              key-id-2|sk-ant-api03-yyy<br/>
+              key-id-3|sk-ant-api03-zzz
+            </code>
+            <p className="text-slate-500 dark:text-slate-500 text-xs mt-2">
+              Each line: <strong>id|apiKey</strong> (separated by pipe |)
+            </p>
+          </div>
+          <button
+            type="submit"
+            disabled={!importFile || importing}
+            className="w-full py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {importing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Import Keys
+              </>
+            )}
           </button>
         </form>
       </Modal>

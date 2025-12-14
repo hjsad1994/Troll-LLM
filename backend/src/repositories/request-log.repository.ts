@@ -285,6 +285,7 @@ export class RequestLogRepository {
     requests: {
       id: string;
       model: string;
+      upstream: string;
       inputTokens: number;
       outputTokens: number;
       cacheWriteTokens: number;
@@ -324,6 +325,7 @@ export class RequestLogRepository {
       requests: requests.map((r) => ({
         id: r._id?.toString() || '',
         model: r.model || 'unknown',
+        upstream: r.upstream || ((r as any).trollKeyId?.toLowerCase().includes('openhands') ? 'openhands' : 'main'),
         inputTokens: r.inputTokens || 0,
         outputTokens: r.outputTokens || 0,
         cacheWriteTokens: r.cacheWriteTokens || 0,

@@ -109,6 +109,14 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 
 	// Check status codes
 	switch statusCode {
+	case 400:
+		// Check for budget exceeded error (OpenHands specific)
+		if strings.Contains(errorBody, "ExceededBudget") ||
+		   strings.Contains(bodyLower, "budget_exceeded") ||
+		   strings.Contains(bodyLower, "over budget") {
+			shouldRotate = true
+			reason = "budget_exceeded"
+		}
 	case 429:
 		// Rate limited - temporary, don't rotate
 		p.MarkRateLimited(keyID)

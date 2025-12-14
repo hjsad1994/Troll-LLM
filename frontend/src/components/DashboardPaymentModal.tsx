@@ -10,11 +10,8 @@ interface DashboardPaymentModalProps {
   onSuccess?: () => void
 }
 
-const CREDIT_OPTIONS = [
-  { value: 20, label: '$20', vnd: 20000 },
-  { value: 50, label: '$50', vnd: 50000 },
-  { value: 100, label: '$100', vnd: 100000 },
-]
+const MIN_AMOUNT = 20
+const MAX_AMOUNT = 100
 
 export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: DashboardPaymentModalProps) {
   const { t } = useLanguage()
@@ -176,30 +173,51 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
           {/* Step 1: Amount Selection */}
           {step === 'select' && (
             <div className="space-y-6">
-              {/* Amount Options */}
+              {/* Amount Slider */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-3">
                   {dp?.selectAmount || 'Select Amount'}
                 </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {CREDIT_OPTIONS.map((option) => (
+
+                {/* Amount Display */}
+                <div className="text-center mb-4">
+                  <span className="text-4xl font-bold text-emerald-400">${selectedAmount}</span>
+                  <p className="text-slate-400 text-sm mt-1">{formatPrice(selectedAmount * 1000)} VND</p>
+                </div>
+
+                {/* Slider */}
+                <div className="relative px-2">
+                  <input
+                    type="range"
+                    min={MIN_AMOUNT}
+                    max={MAX_AMOUNT}
+                    step={1}
+                    value={selectedAmount}
+                    onChange={(e) => setSelectedAmount(parseInt(e.target.value))}
+                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider-thumb"
+                    style={{
+                      background: `linear-gradient(to right, #10b981 0%, #10b981 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 100%)`
+                    }}
+                  />
+                  <div className="flex justify-between mt-2 text-xs text-slate-500">
+                    <span>${MIN_AMOUNT}</span>
+                    <span>${MAX_AMOUNT}</span>
+                  </div>
+                </div>
+
+                {/* Quick Select Buttons */}
+                <div className="flex gap-2 mt-4">
+                  {[20, 50, 75, 100].map((amount) => (
                     <button
-                      key={option.value}
-                      onClick={() => setSelectedAmount(option.value)}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        selectedAmount === option.value
-                          ? 'border-emerald-500 bg-emerald-500/10'
-                          : 'border-slate-700 hover:border-slate-600 bg-slate-800/50'
+                      key={amount}
+                      onClick={() => setSelectedAmount(amount)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                        selectedAmount === amount
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                       }`}
                     >
-                      <p className={`text-xl font-bold ${
-                        selectedAmount === option.value ? 'text-emerald-400' : 'text-white'
-                      }`}>
-                        {option.label}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {formatPrice(option.vnd)} VND
-                      </p>
+                      ${amount}
                     </button>
                   ))}
                 </div>

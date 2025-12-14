@@ -1,4 +1,4 @@
-package ohmygpt
+package openhands
 
 import (
 	"log"

@@ -13,6 +13,7 @@ services:
       - frontend
       - backend
       - goproxy
+      - goproxy-openhands
     restart: unless-stopped
     networks:
       - trollllm-network
@@ -47,22 +48,37 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./goproxy/config.prod.json:/app/goproxy/config.prod.json:ro
+      - ./goproxy/config-openhands-prod.json:/app/goproxy/config-openhands-prod.json:ro
     env_file:
       - ./backend/.env
     environment:
       - BACKEND_PORT=3005
       - GOPROXY_CONFIG_PATH=/app/goproxy/config.prod.json
+      - GOPROXY_OPENHANDS_CONFIG_PATH=/app/goproxy/config-openhands-prod.json
     restart: unless-stopped
     networks:
       - trollllm-network
 
-  # GoProxy (LLM API)
+  # GoProxy Main (chat.trollllm.xyz - port 8003)
   goproxy:
     build:
       context: ./goproxy
       dockerfile: Dockerfile
     volumes:
       - ./goproxy/config.prod.json:/app/config.json:ro
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # GoProxy OpenHands (priority-chat.trollllm.xyz - port 8004)
+  goproxy-openhands:
+    build:
+      context: ./goproxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config-openhands-prod.json:/app/config.json:ro
     env_file:
       - ./.env
     restart: unless-stopped

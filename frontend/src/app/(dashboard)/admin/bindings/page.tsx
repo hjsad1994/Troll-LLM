@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import Modal from '@/components/Modal'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
-interface OhmyGPTKey {
+interface OpenHandsKey {
   _id: string
   status: string
   tokensUsed: number
@@ -25,7 +25,7 @@ interface Proxy {
 
 interface Binding {
   proxyId: string
-  ohmygptKeyId: string
+  openhandsKeyId: string
   priority: number
   isActive: boolean
   proxyName?: string
@@ -40,12 +40,12 @@ interface GroupedBindings {
   }
 }
 
-export default function OhmyGPTBindingsPage() {
+export default function OpenHandsBindingsPage() {
   const { user } = useAuth()
   const router = useRouter()
   const isAdmin = user?.role === 'admin'
 
-  const [keys, setKeys] = useState<OhmyGPTKey[]>([])
+  const [keys, setKeys] = useState<OpenHandsKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [bindings, setBindings] = useState<Binding[]>([])
   const [stats, setStats] = useState({ totalKeys: 0, healthyKeys: 0, totalBindings: 0, totalProxies: 0 })
@@ -56,9 +56,9 @@ export default function OhmyGPTBindingsPage() {
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string; action: () => void }>({ open: false, message: '', action: () => {} })
 
   const [keyForm, setKeyForm] = useState({ id: '', apiKey: '' })
-  const [bindingForm, setBindingForm] = useState({ proxyId: '', ohmygptKeyId: '', priority: '1' })
+  const [bindingForm, setBindingForm] = useState({ proxyId: '', openhandsKeyId: '', priority: '1' })
   const [editBindingModal, setEditBindingModal] = useState(false)
-  const [editBindingForm, setEditBindingForm] = useState({ proxyId: '', ohmygptKeyId: '', priority: '1' })
+  const [editBindingForm, setEditBindingForm] = useState({ proxyId: '', openhandsKeyId: '', priority: '1' })
 
   const { showToast } = useToast()
 
@@ -101,8 +101,8 @@ export default function OhmyGPTBindingsPage() {
   async function loadData() {
     try {
       const [keysResp, bindingsResp] = await Promise.all([
-        fetchWithAuth('/admin/ohmygpt/keys'),
-        fetchWithAuth('/admin/ohmygpt/bindings'),
+        fetchWithAuth('/admin/openhands/keys'),
+        fetchWithAuth('/admin/openhands/bindings'),
       ])
 
       if (keysResp.ok) {
@@ -127,7 +127,7 @@ export default function OhmyGPTBindingsPage() {
   async function createKey(e: React.FormEvent) {
     e.preventDefault()
     try {
-      const resp = await fetchWithAuth('/admin/ohmygpt/keys', {
+      const resp = await fetchWithAuth('/admin/openhands/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(keyForm),
@@ -147,7 +147,7 @@ export default function OhmyGPTBindingsPage() {
 
   async function deleteKey(id: string) {
     try {
-      const resp = await fetchWithAuth(`/admin/ohmygpt/keys/${id}`, { method: 'DELETE' })
+      const resp = await fetchWithAuth(`/admin/openhands/keys/${id}`, { method: 'DELETE' })
       if (!resp.ok) throw new Error('Failed to delete')
       showToast('Key deleted')
       loadData()
@@ -158,7 +158,7 @@ export default function OhmyGPTBindingsPage() {
 
   async function resetKey(id: string) {
     try {
-      const resp = await fetchWithAuth(`/admin/ohmygpt/keys/${id}/reset`, { method: 'POST' })
+      const resp = await fetchWithAuth(`/admin/openhands/keys/${id}/reset`, { method: 'POST' })
       if (!resp.ok) throw new Error('Failed to reset')
       showToast('Key stats reset')
       loadData()
@@ -170,12 +170,12 @@ export default function OhmyGPTBindingsPage() {
   async function createBinding(e: React.FormEvent) {
     e.preventDefault()
     try {
-      const resp = await fetchWithAuth('/admin/ohmygpt/bindings', {
+      const resp = await fetchWithAuth('/admin/openhands/bindings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           proxyId: bindingForm.proxyId,
-          ohmygptKeyId: bindingForm.ohmygptKeyId,
+          openhandsKeyId: bindingForm.openhandsKeyId,
           priority: parseInt(bindingForm.priority),
         }),
       })
@@ -184,7 +184,7 @@ export default function OhmyGPTBindingsPage() {
         throw new Error(err.error || 'Failed to create binding')
       }
       setCreateBindingModal(false)
-      setBindingForm({ proxyId: '', ohmygptKeyId: '', priority: '1' })
+      setBindingForm({ proxyId: '', openhandsKeyId: '', priority: '1' })
       showToast('Binding created successfully')
       loadData()
     } catch (err: any) {
@@ -194,7 +194,7 @@ export default function OhmyGPTBindingsPage() {
 
   async function toggleBinding(proxyId: string, keyId: string, isActive: boolean) {
     try {
-      const resp = await fetchWithAuth(`/admin/ohmygpt/bindings/${proxyId}/${keyId}`, {
+      const resp = await fetchWithAuth(`/admin/openhands/bindings/${proxyId}/${keyId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !isActive }),
@@ -209,7 +209,7 @@ export default function OhmyGPTBindingsPage() {
 
   async function deleteBinding(proxyId: string, keyId: string) {
     try {
-      const resp = await fetchWithAuth(`/admin/ohmygpt/bindings/${proxyId}/${keyId}`, { method: 'DELETE' })
+      const resp = await fetchWithAuth(`/admin/openhands/bindings/${proxyId}/${keyId}`, { method: 'DELETE' })
       if (!resp.ok) throw new Error('Failed to delete')
       showToast('Binding deleted')
       loadData()
@@ -222,13 +222,13 @@ export default function OhmyGPTBindingsPage() {
     setLoading(true)
     try {
       // Call backend API which proxies to goproxy /reload endpoint
-      const resp = await fetchWithAuth('/admin/ohmygpt/reload', { method: 'POST' })
+      const resp = await fetchWithAuth('/admin/openhands/reload', { method: 'POST' })
       if (!resp.ok) {
         const err = await resp.json()
         throw new Error(err.error || 'Failed to reload')
       }
       const data = await resp.json()
-      showToast(`Reloaded: ${data.proxy_count} proxies, ${data.ohmygpt_keys || 0} OhmyGPT keys`)
+      showToast(`Reloaded: ${data.proxy_count} proxies, ${data.openhands_keys || 0} OpenHands keys`)
       // Refresh UI data
       await loadData()
     } catch (err: any) {
@@ -237,11 +237,29 @@ export default function OhmyGPTBindingsPage() {
     }
   }
 
+  async function repairBindings() {
+    setLoading(true)
+    try {
+      const resp = await fetchWithAuth('/admin/openhands/repair-bindings', { method: 'POST' })
+      if (!resp.ok) {
+        const err = await resp.json()
+        throw new Error(err.error || 'Failed to repair')
+      }
+      const data = await resp.json()
+      showToast(`Repair: ${data.repaired} fixed, ${data.deleted} removed`)
+      // Refresh UI data
+      await loadData()
+    } catch (err: any) {
+      showToast(err.message || 'Failed to repair bindings', 'error')
+      setLoading(false)
+    }
+  }
+
   async function updateBinding(e: React.FormEvent) {
     e.preventDefault()
     try {
       const resp = await fetchWithAuth(
-        `/admin/ohmygpt/bindings/${editBindingForm.proxyId}/${editBindingForm.ohmygptKeyId}`,
+        `/admin/openhands/bindings/${editBindingForm.proxyId}/${editBindingForm.openhandsKeyId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -282,13 +300,13 @@ export default function OhmyGPTBindingsPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400/75 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400"></span>
             </span>
-            <span className="text-[var(--theme-text-subtle)] text-sm">OhmyGPT Management</span>
+            <span className="text-[var(--theme-text-subtle)] text-sm">OpenHands Management</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-[var(--theme-text)] mb-2">
             Key Bindings
           </h1>
           <p className="text-[var(--theme-text-subtle)] text-lg">
-            Manage OhmyGPT keys and their proxy bindings
+            Manage OpenHands keys and their proxy bindings
           </p>
         </header>
 
@@ -347,7 +365,7 @@ export default function OhmyGPTBindingsPage() {
           </div>
         </div>
 
-        {/* OhmyGPT Keys Section */}
+        {/* OpenHands Keys Section */}
         <div className="opacity-0 animate-fade-in-up animation-delay-200">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -356,7 +374,7 @@ export default function OhmyGPTBindingsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-[var(--theme-text)]">OhmyGPT Keys</h2>
+              <h2 className="text-xl font-semibold text-[var(--theme-text)]">OpenHands Keys</h2>
             </div>
             <button
               onClick={() => setCreateKeyModal(true)}
@@ -468,6 +486,17 @@ export default function OhmyGPTBindingsPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
+                onClick={repairBindings}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg border border-amber-300 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Repair
+              </button>
+              <button
                 onClick={reloadBindingsOnProxy}
                 disabled={loading}
                 className="px-4 py-2 rounded-lg border border-slate-300 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors flex items-center gap-2 disabled:opacity-50"
@@ -497,7 +526,7 @@ export default function OhmyGPTBindingsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                   </svg>
                 </div>
-                <p className="text-[var(--theme-text-subtle)] text-sm">No bindings found. Create bindings to link proxies with OhmyGPT keys.</p>
+                <p className="text-[var(--theme-text-subtle)] text-sm">No bindings found. Create bindings to link proxies with OpenHands keys.</p>
               </div>
             </div>
           ) : (
@@ -532,7 +561,7 @@ export default function OhmyGPTBindingsPage() {
                   {/* Bindings List */}
                   <div className="divide-y divide-slate-200 dark:divide-white/5">
                     {group.bindings.map((binding, idx) => (
-                      <div key={`${binding.proxyId}-${binding.ohmygptKeyId}`} className="px-6 py-4 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+                      <div key={`${binding.proxyId}-${binding.openhandsKeyId}`} className="px-6 py-4 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             {/* Priority Badge */}
@@ -543,7 +572,7 @@ export default function OhmyGPTBindingsPage() {
                             {/* Key Info */}
                             <div className="flex items-center gap-3">
                               <code className="text-sm font-mono text-[var(--theme-text)] px-2 py-1 rounded bg-slate-100 dark:bg-white/5">
-                                {binding.ohmygptKeyId}
+                                {binding.openhandsKeyId}
                               </code>
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
                                 binding.keyStatus === 'healthy'
@@ -562,7 +591,7 @@ export default function OhmyGPTBindingsPage() {
                               onClick={() => {
                                 setEditBindingForm({
                                   proxyId: binding.proxyId,
-                                  ohmygptKeyId: binding.ohmygptKeyId,
+                                  openhandsKeyId: binding.openhandsKeyId,
                                   priority: String(binding.priority)
                                 })
                                 setEditBindingModal(true)
@@ -572,7 +601,7 @@ export default function OhmyGPTBindingsPage() {
                               Edit
                             </button>
                             <button
-                              onClick={() => toggleBinding(binding.proxyId, binding.ohmygptKeyId, binding.isActive)}
+                              onClick={() => toggleBinding(binding.proxyId, binding.openhandsKeyId, binding.isActive)}
                               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                 binding.isActive
                                   ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
@@ -582,7 +611,7 @@ export default function OhmyGPTBindingsPage() {
                               {binding.isActive ? 'Active' : 'Inactive'}
                             </button>
                             <button
-                              onClick={() => confirm(`Delete binding for ${binding.ohmygptKeyId}?`, () => deleteBinding(binding.proxyId, binding.ohmygptKeyId))}
+                              onClick={() => confirm(`Delete binding for ${binding.openhandsKeyId}?`, () => deleteBinding(binding.proxyId, binding.openhandsKeyId))}
                               className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
                             >
                               Remove
@@ -609,7 +638,7 @@ export default function OhmyGPTBindingsPage() {
             <div>
               <h3 className="text-[var(--theme-text)] font-semibold mb-2">How Key Bindings Work</h3>
               <p className="text-[var(--theme-text-subtle)] text-sm leading-relaxed">
-                Each proxy can be bound to multiple OhmyGPT keys with different priorities. When a request comes in, the system uses the highest priority (lowest number) active key. If that key fails, it automatically falls back to the next priority key. Use this to distribute load and ensure high availability.
+                Each proxy can be bound to multiple OpenHands keys with different priorities. When a request comes in, the system uses the highest priority (lowest number) active key. If that key fails, it automatically falls back to the next priority key. Use this to distribute load and ensure high availability.
               </p>
             </div>
           </div>
@@ -617,7 +646,7 @@ export default function OhmyGPTBindingsPage() {
       </div>
 
       {/* Create Key Modal */}
-      <Modal isOpen={createKeyModal} onClose={() => setCreateKeyModal(false)} title="Add OhmyGPT Key">
+      <Modal isOpen={createKeyModal} onClose={() => setCreateKeyModal(false)} title="Add OpenHands Key">
         <form onSubmit={createKey} className="space-y-5">
           <div>
             <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">Key ID</label>
@@ -668,10 +697,10 @@ export default function OhmyGPTBindingsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">OhmyGPT Key</label>
+            <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">OpenHands Key</label>
             <select
-              value={bindingForm.ohmygptKeyId}
-              onChange={(e) => setBindingForm({...bindingForm, ohmygptKeyId: e.target.value})}
+              value={bindingForm.openhandsKeyId}
+              onChange={(e) => setBindingForm({...bindingForm, openhandsKeyId: e.target.value})}
               required
               className="w-full px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-[var(--theme-text)] focus:outline-none focus:border-blue-500 dark:focus:border-blue-400/50 transition-colors"
             >
@@ -709,7 +738,7 @@ export default function OhmyGPTBindingsPage() {
           <div>
             <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">Key</label>
             <p className="text-[var(--theme-text-muted)] font-mono text-sm px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
-              {editBindingForm.ohmygptKeyId}
+              {editBindingForm.openhandsKeyId}
             </p>
           </div>
           <div>

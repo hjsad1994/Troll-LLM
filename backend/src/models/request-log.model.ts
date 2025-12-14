@@ -5,8 +5,10 @@ export interface IRequestLog {
   userId?: string;
   userKeyId: string;
   factoryKeyId: string;
+  trollKeyId?: string;
   friendKeyId?: string;
   model?: string;
+  upstream?: string;
   inputTokens?: number;
   outputTokens?: number;
   cacheWriteTokens?: number;
@@ -23,8 +25,10 @@ const requestLogSchema = new mongoose.Schema({
   userId: { type: String, index: true },
   userKeyId: { type: String, required: true },
   factoryKeyId: { type: String, required: true },
+  trollKeyId: { type: String },
   friendKeyId: { type: String, index: true },
   model: { type: String },
+  upstream: { type: String },
   inputTokens: { type: Number, default: 0 },
   outputTokens: { type: Number, default: 0 },
   cacheWriteTokens: { type: Number, default: 0 },

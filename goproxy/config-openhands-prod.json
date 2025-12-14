@@ -21,23 +21,9 @@
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/claude-opus-4-5-20251101"
-    },
-    {
-      "name": "Claude Opus 4",
-      "id": "claude-opus-4-20250514",
-      "type": "openhands",
-      "reasoning": "high",
-      "thinking_budget": 12000,
-      "input_price_per_mtok": 15.0,
-      "output_price_per_mtok": 75.0,
-      "cache_write_price_per_mtok": 18.75,
-      "cache_hit_price_per_mtok": 1.5,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/claude-opus-4-20250514"
+      "billing_multiplier": 1.1,
+      "upstream": "openhands",
+      "upstream_model_id": "claude-opus-4-5-20251101"
     },
     {
       "name": "Claude Sonnet 4.5",
@@ -50,85 +36,23 @@
       "output_price_per_mtok": 15.0,
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.3,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/claude-sonnet-4-5-20250929"
-    },
-    {
-      "name": "Claude Sonnet 4",
-      "id": "claude-sonnet-4-20250514",
-      "type": "openhands",
-      "reasoning": "high",
-      "thinking_budget": 12000,
-      "input_price_per_mtok": 3.0,
-      "output_price_per_mtok": 15.0,
-      "cache_write_price_per_mtok": 3.75,
-      "cache_hit_price_per_mtok": 0.3,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/claude-sonnet-4-20250514"
-    },
-    {
-      "name": "Claude Sonnet 3.7",
-      "id": "claude-3-7-sonnet-20250219",
-      "type": "openhands",
-      "reasoning": "high",
-      "input_price_per_mtok": 3.0,
-      "output_price_per_mtok": 15.0,
-      "cache_write_price_per_mtok": 3.75,
-      "cache_hit_price_per_mtok": 0.3,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/claude-3-7-sonnet-20250219"
+      "billing_multiplier": 1.1,
+      "upstream": "openhands",
+      "upstream_model_id": "claude-sonnet-4-5-20250929"
     },
     {
       "name": "Claude Haiku 4.5",
       "id": "claude-haiku-4-5-20251001",
       "type": "openhands",
       "reasoning": "high",
+      "thinking_budget": 8000,
       "input_price_per_mtok": 1.0,
       "output_price_per_mtok": 5.0,
       "cache_write_price_per_mtok": 1.25,
       "cache_hit_price_per_mtok": 0.1,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/claude-haiku-4-5-20251001"
-    },
-    {
-      "name": "GPT-5",
-      "id": "gpt-5-2025-08-07",
-      "type": "openhands",
-      "reasoning": "high",
-      "input_price_per_mtok": 1.25,
-      "output_price_per_mtok": 10.0,
-      "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/gpt-5-2025-08-07"
-    },
-    {
-      "name": "GPT-5 Codex",
-      "id": "gpt-5-codex",
-      "type": "openhands",
-      "reasoning": "high",
-      "input_price_per_mtok": 1.25,
-      "output_price_per_mtok": 10.0,
-      "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/gpt-5-codex"
-    },
-    {
-      "name": "Gemini 2.5 Pro",
-      "id": "gemini-2.5-pro",
-      "type": "openhands",
-      "reasoning": "high",
-      "input_price_per_mtok": 1.25,
-      "output_price_per_mtok": 10.0,
-      "cache_hit_price_per_mtok": 0.125,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/gemini-2.5-pro"
+      "billing_multiplier": 1.1,
+      "upstream": "openhands",
+      "upstream_model_id": "claude-haiku-4-5-20251001"
     },
     {
       "name": "Gemini 3 Pro Preview",
@@ -138,10 +62,83 @@
       "input_price_per_mtok": 2.0,
       "output_price_per_mtok": 12.0,
       "cache_hit_price_per_mtok": 0.2,
+      "billing_multiplier": 1.1,
+      "upstream": "openhands",
+      "upstream_model_id": "gemini-3-pro-preview"
+    },
+    {
+      "name": "Qwen3 Coder 480B",
+      "id": "qwen3-coder-480b",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.5,
+      "output_price_per_mtok": 2.0,
+      "cache_hit_price_per_mtok": 0.05,
       "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "prod/gemini-3-pro-preview"
+      "upstream": "openhands",
+      "upstream_model_id": "qwen3-coder-480b"
+    },
+    {
+      "name": "Kimi K2",
+      "id": "kimi-k2-0711-preview",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.3,
+      "output_price_per_mtok": 1.5,
+      "cache_hit_price_per_mtok": 0.03,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "kimi-k2-0711-preview"
+    },
+    {
+      "name": "GLM-4.6",
+      "id": "glm-4.6",
+      "type": "openhands",
+      "reasoning": "medium",
+      "input_price_per_mtok": 0.2,
+      "output_price_per_mtok": 1.0,
+      "cache_hit_price_per_mtok": 0.02,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "glm-4.6"
+    },
+    {
+      "name": "GPT-5.1",
+      "id": "gpt-5.1",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 1.5,
+      "output_price_per_mtok": 12.0,
+      "cache_hit_price_per_mtok": 0.15,
+      "billing_multiplier": 1.05,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1"
+    },
+    {
+      "name": "GPT-5.1 Codex Max",
+      "id": "gpt-5.1-codex-max",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 2.0,
+      "output_price_per_mtok": 16.0,
+      "cache_hit_price_per_mtok": 0.2,
+      "billing_multiplier": 1.1,  
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1-codex-max"
+    },
+    {
+      "name": "Kimi K2 Thinking",
+      "id": "kimi-k2-thinking",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.5,
+      "output_price_per_mtok": 2.5,
+      "cache_hit_price_per_mtok": 0.05,
+      "billing_multiplier": 1.0,
+      "upstream": "openhands",
+      "upstream_model_id": "kimi-k2-thinking"
     }
   ],
+  "system_prompt": "",
   "user_agent": "openhands-cli/1.0.0"
 }

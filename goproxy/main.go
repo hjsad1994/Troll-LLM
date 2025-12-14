@@ -24,7 +24,7 @@ import (
 	"goproxy/internal/maintarget"
 	"goproxy/internal/proxy"
 	"goproxy/internal/ratelimit"
-	"goproxy/internal/ohmygpt"
+	"goproxy/internal/openhands"
 	"goproxy/internal/openhandspool"
 	"goproxy/internal/usage"
 	"goproxy/internal/userkey"
@@ -208,19 +208,19 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 	}
 
 	// TEMPORARILY DISABLED: Factory AI Key logic
-	// All "troll" and "ohmygpt" upstream now route to OhmyGPT with key rotation
-	if upstream == "ohmygpt" || upstream == "troll" {
-		// Use OhmyGPT via TrollProxy with key rotation
-		omgProvider := ohmygpt.GetOhmyGPT()
+	// All "troll" and "openhands" upstream now route to OpenHands with key rotation
+	if upstream == "openhands" || upstream == "troll" {
+		// Use OpenHands via TrollProxy with key rotation
+		omgProvider := openhands.GetOpenHands()
 		if omgProvider == nil || !omgProvider.IsConfigured() {
-			return nil, nil, fmt.Errorf("ohmygpt not configured")
+			return nil, nil, fmt.Errorf("openhands not configured")
 		}
-		log.Printf("🔀 [Model Routing] %s -> OhmyGPT (upstream=%s)", modelID, upstream)
+		log.Printf("🔀 [Model Routing] %s -> OpenHands (upstream=%s)", modelID, upstream)
 		return &UpstreamConfig{
-			EndpointURL: ohmygpt.OhmyGPTEndpoint,
-			APIKey:      "", // handled by OhmyGPT provider with key rotation
+			EndpointURL: openhands.OpenHandsEndpoint,
+			APIKey:      "", // handled by OpenHands provider with key rotation
 			UseProxy:    false,
-			KeyID:       "ohmygpt",
+			KeyID:       "openhands",
 		}, nil, nil
 	}
 
@@ -239,15 +239,15 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 		}, nil, nil
 	}
 
-	// Fallback: also use OhmyGPT
-	omgProvider := ohmygpt.GetOhmyGPT()
+	// Fallback: also use OpenHands
+	omgProvider := openhands.GetOpenHands()
 	if omgProvider != nil && omgProvider.IsConfigured() {
-		log.Printf("🔀 [Model Routing] %s -> OhmyGPT (fallback)", modelID)
+		log.Printf("🔀 [Model Routing] %s -> OpenHands (fallback)", modelID)
 		return &UpstreamConfig{
-			EndpointURL: ohmygpt.OhmyGPTEndpoint,
+			EndpointURL: openhands.OpenHandsEndpoint,
 			APIKey:      "",
 			UseProxy:    false,
-			KeyID:       "ohmygpt",
+			KeyID:       "openhands",
 		}, nil, nil
 	}
 
@@ -470,10 +470,10 @@ func keysStatusHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// OhmyGPT backup keys endpoint
-func ohmygptBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
+// OpenHands backup keys endpoint
+func openhandsBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	keys, stats := ohmygpt.ListOhmyGPTBackupKeys()
+	keys, stats := openhands.ListOpenHandsBackupKeys()
 	
 	// Mask API keys
 	maskedKeys := make([]map[string]interface{}, len(keys))
@@ -525,19 +525,6 @@ func modelsHandler(w http.ResponseWriter, r *http.Request) {
 		"data":   openaiModels,
 	}); err != nil {
 		log.Printf("Error: failed to encode response: %v", err)
-	}
-}
-
-// API documentation endpoint
-func docsHandler(w http.ResponseWriter, r *http.Request) {
-	htmlContent, err := os.ReadFile("docs.html")
-	if err != nil {
-		http.Error(w, "Documentation not found", http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, err := w.Write(htmlContent); err != nil {
-		log.Printf("Error: failed to write response: %v", err)
 	}
 }
 
@@ -804,8 +791,6 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		// For "main" upstream: route to Main Target Server with OpenAI response format
 		if upstreamConfig.KeyID == "main" {
 			handleMainTargetRequestOpenAI(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
-		} else if upstreamConfig.KeyID == "ohmygpt" {
-			handleOhmyGPTRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else if upstreamConfig.KeyID == "openhands" {
 			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else {
@@ -828,16 +813,6 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	// For "main" upstream: use maintarget package (passthrough to external proxy)
 	if upstreamConfig.KeyID == "main" {
 		handleMainTargetRequest(w, openaiReq, bodyBytes, model.ID, userApiKey, username)
-		return
-	}
-
-	// For "ohmygpt" upstream: use OhmyGPT OpenAI endpoint
-	// NOTE: OhmyGPT only supports OpenAI format (/v1/chat/completions)
-	//       Anthropic endpoint (/v1/messages) returns 503
-	//       Caching NOT available on this endpoint
-	if upstreamConfig.KeyID == "ohmygpt" {
-		log.Printf("🔀 [OhmyGPT] Routing to OpenAI chat/completions endpoint (passthrough)")
-		handleOhmyGPTRequest(w, openaiReq, bodyBytes, model.ID, userApiKey, username)
 		return
 	}
 
@@ -1103,204 +1078,6 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 	}
 }
 
-// handleOhmyGPTRequest handles requests routed to OhmyGPT via TrollProxy
-// Uses OpenAI format for both request and response
-func handleOhmyGPTRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
-	omgProvider := ohmygpt.GetOhmyGPT()
-	if omgProvider == nil || !omgProvider.IsConfigured() {
-		http.Error(w, `{"error": {"message": "OhmyGPT not configured", "type": "server_error"}}`, http.StatusInternalServerError)
-		return
-	}
-
-	// Get upstream model ID (may be different from client-requested model ID)
-	upstreamModelID := config.GetUpstreamModelID(modelID)
-
-	// Prepare request body with mapped model ID
-	var requestBody []byte
-	if upstreamModelID != modelID {
-		var reqMap map[string]interface{}
-		if err := json.Unmarshal(bodyBytes, &reqMap); err == nil {
-			reqMap["model"] = upstreamModelID
-			if mapped, err := json.Marshal(reqMap); err == nil {
-				requestBody = mapped
-				log.Printf("🔀 [TrollProxy/OhmyGPT] Model mapping: %s -> %s", modelID, upstreamModelID)
-			} else {
-				requestBody = bodyBytes
-			}
-		} else {
-			requestBody = bodyBytes
-		}
-	} else {
-		requestBody = bodyBytes
-	}
-
-	// Log request details
-	var reqMap map[string]interface{}
-	toolsCount := 0
-	if json.Unmarshal(requestBody, &reqMap) == nil {
-		if tools, ok := reqMap["tools"].([]interface{}); ok {
-			toolsCount = len(tools)
-		}
-	}
-
-	isStreaming := openaiReq.Stream
-	log.Printf("📤 [TrollProxy/OhmyGPT-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, tools=%d)", upstreamModelID, isStreaming, toolsCount)
-
-	requestStartTime := time.Now()
-	resp, err := omgProvider.ForwardRequest(requestBody, isStreaming)
-	if err != nil {
-		log.Printf("❌ [OhmyGPT] Request failed after %v: %v", time.Since(requestStartTime), err)
-		http.Error(w, `{"error": {"message": "Request to OhmyGPT failed", "type": "upstream_error"}}`, http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Usage callback for billing (with cache support)
-	onUsage := func(input, output, cacheWrite, cacheHit int64) {
-		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
-
-		// Update OhmyGPT key usage stats in MongoDB
-		if keyID := omgProvider.GetLastUsedKeyID(); keyID != "" {
-			omgProvider.UpdateKeyUsage(keyID, input, output)
-		}
-
-		if userApiKey != "" {
-			usage.UpdateUsage(userApiKey, billingTokens)
-			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
-				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
-			}
-			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:           username,
-				UserKeyID:        userApiKey,
-				TrollKeyID:       "ohmygpt",
-				Model:            modelID,
-				InputTokens:      input,
-				OutputTokens:     output,
-				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
-				CreditsCost:      billingCost,
-				TokensUsed:       billingTokens,
-				StatusCode:       resp.StatusCode,
-				LatencyMs:        latencyMs,
-			})
-		}
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
-	}
-
-	// Handle response
-	if isStreaming {
-		omgProvider.HandleStreamResponse(w, resp, onUsage)
-	} else {
-		omgProvider.HandleNonStreamResponse(w, resp, onUsage)
-	}
-}
-
-// handleOhmyGPTMessagesRequest handles /v1/messages requests routed to OhmyGPT
-// Forwards Anthropic format request to OhmyGPT messages endpoint (no transformation)
-func handleOhmyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
-	omgProvider := ohmygpt.GetOhmyGPT()
-	if omgProvider == nil || !omgProvider.IsConfigured() {
-		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"OhmyGPT not configured"}}`, http.StatusInternalServerError)
-		return
-	}
-
-	// Get upstream model ID (may be different from client-requested model ID)
-	upstreamModelID := config.GetUpstreamModelID(modelID)
-
-	// Prepare request body with mapped model ID
-	var requestBody []byte
-	if upstreamModelID != modelID {
-		var reqMap map[string]interface{}
-		if err := json.Unmarshal(originalBody, &reqMap); err == nil {
-			reqMap["model"] = upstreamModelID
-			if mapped, err := json.Marshal(reqMap); err == nil {
-				requestBody = mapped
-				log.Printf("🔀 [TrollProxy/OhmyGPT] Model mapping: %s -> %s", modelID, upstreamModelID)
-			} else {
-				requestBody = originalBody
-			}
-		} else {
-			requestBody = originalBody
-		}
-	} else {
-		requestBody = originalBody
-	}
-
-	// Log request details
-	var reqMap map[string]interface{}
-	toolsCount := 0
-	messagesCount := 0
-	if json.Unmarshal(requestBody, &reqMap) == nil {
-		if tools, ok := reqMap["tools"].([]interface{}); ok {
-			toolsCount = len(tools)
-		}
-		if messages, ok := reqMap["messages"].([]interface{}); ok {
-			messagesCount = len(messages)
-		}
-	}
-
-	log.Printf("📤 [TrollProxy/OhmyGPT-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, messages=%d, tools=%d)", upstreamModelID, isStreaming, messagesCount, toolsCount)
-	
-	// Debug: log first 500 chars of request body if messages are empty
-	if messagesCount == 0 {
-		log.Printf("⚠️ [TrollProxy/OhmyGPT-Anthropic] Empty messages array! Request body (first 500 chars): %s", string(requestBody[:min(500, len(requestBody))]))
-	}
-
-	requestStartTime := time.Now()
-	resp, err := omgProvider.ForwardMessagesRequest(requestBody, isStreaming)
-	if err != nil {
-		log.Printf("❌ [OhmyGPT] Request failed after %v: %v", time.Since(requestStartTime), err)
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OhmyGPT failed"}}`, http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Usage callback for billing (with cache support)
-	onUsage := func(input, output, cacheWrite, cacheHit int64) {
-		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
-
-		// Update OhmyGPT key usage stats in MongoDB
-		if keyID := omgProvider.GetLastUsedKeyID(); keyID != "" {
-			omgProvider.UpdateKeyUsage(keyID, input, output)
-		}
-
-		if userApiKey != "" {
-			usage.UpdateUsage(userApiKey, billingTokens)
-			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
-				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
-			}
-			latencyMs := time.Since(requestStartTime).Milliseconds()
-			usage.LogRequestDetailed(usage.RequestLogParams{
-				UserID:           username,
-				UserKeyID:        userApiKey,
-				TrollKeyID:       "ohmygpt",
-				Model:            modelID,
-				InputTokens:      input,
-				OutputTokens:     output,
-				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
-				CreditsCost:      billingCost,
-				TokensUsed:       billingTokens,
-				StatusCode:       resp.StatusCode,
-				LatencyMs:        latencyMs,
-			})
-		}
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
-	}
-
-	// Handle response
-	if isStreaming {
-		omgProvider.HandleStreamResponse(w, resp, onUsage)
-	} else {
-		omgProvider.HandleNonStreamResponse(w, resp, onUsage)
-	}
-}
-
 // handleMainTargetMessagesRequest handles /v1/messages requests routed to main target
 // Forwards the original Anthropic request with model ID mapping
 func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
@@ -1486,7 +1263,51 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		errorBody := string(bodyBytes)
 		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, errorBody)
-		openhandsPool.CheckAndRotateOnError(key.ID, resp.StatusCode, errorBody)
+
+		// Check if this is a rotatable error (budget exceeded, auth error, etc.)
+		isBudgetExceeded := strings.Contains(errorBody, "ExceededBudget") ||
+			strings.Contains(strings.ToLower(errorBody), "budget_exceeded") ||
+			strings.Contains(strings.ToLower(errorBody), "over budget")
+		isAuthError := resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 402
+
+		if isBudgetExceeded || isAuthError {
+			// Rotate the key
+			openhandsPool.CheckAndRotateOnError(key.ID, resp.StatusCode, errorBody)
+
+			// For non-streaming requests, retry with new key
+			if !isStreaming {
+				newKey, retryErr := openhandsPool.SelectKey()
+				if retryErr == nil && newKey.ID != key.ID {
+					log.Printf("🔄 [OpenHands] Retrying with new key: %s", newKey.ID)
+
+					// Create new request with new key
+					retryReq, _ := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/messages", bytes.NewBuffer(requestBody))
+					retryReq.Header.Set("Content-Type", "application/json")
+					retryReq.Header.Set("Authorization", "Bearer "+newKey.APIKey)
+					retryReq.Header.Set("anthropic-version", "2023-06-01")
+
+					retryResp, retryDoErr := httpClient.Do(retryReq)
+					if retryDoErr == nil {
+						defer retryResp.Body.Close()
+						if retryResp.StatusCode < 400 {
+							// Success! Update key for billing and continue to response handling
+							key = newKey
+							resp = retryResp
+							log.Printf("✅ [OpenHands] Retry successful with key: %s", newKey.ID)
+							goto handleMessagesResponse
+						}
+						// Retry also failed
+						retryBody, _ := io.ReadAll(retryResp.Body)
+						log.Printf("❌ [OpenHands] Retry also failed (status=%d): %s", retryResp.StatusCode, string(retryBody))
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(retryResp.StatusCode)
+						w.Write(retryBody)
+						return
+					}
+				}
+			}
+		}
+
 		// Return error to client
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
@@ -1494,13 +1315,14 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		return
 	}
 
+handleMessagesResponse:
+
 	// Usage callback for billing (with cache support)
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
 		// Update OpenHands key usage stats in MongoDB
-		// (similar to OhmyGPT pattern - update tokens used in database)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		db.OpenHandsKeysCollection().UpdateByID(ctx, key.ID, bson.M{
@@ -1525,14 +1347,14 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 				InputTokens:      input,
 				OutputTokens:     output,
 				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
+				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
+		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
 	}
 
 	// Handle response using maintarget handlers (same format as Anthropic)
@@ -1642,13 +1464,58 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		errorBody := string(bodyBytes)
 		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, errorBody)
-		openhandsPool.CheckAndRotateOnError(key.ID, resp.StatusCode, errorBody)
+
+		// Check if this is a rotatable error (budget exceeded, auth error, etc.)
+		isBudgetExceeded := strings.Contains(errorBody, "ExceededBudget") ||
+			strings.Contains(strings.ToLower(errorBody), "budget_exceeded") ||
+			strings.Contains(strings.ToLower(errorBody), "over budget")
+		isAuthError := resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 402
+
+		if isBudgetExceeded || isAuthError {
+			// Rotate the key
+			openhandsPool.CheckAndRotateOnError(key.ID, resp.StatusCode, errorBody)
+
+			// For non-streaming requests, retry with new key
+			if !isStreaming {
+				newKey, retryErr := openhandsPool.SelectKey()
+				if retryErr == nil && newKey.ID != key.ID {
+					log.Printf("🔄 [OpenHands-OpenAI] Retrying with new key: %s", newKey.ID)
+
+					// Create new request with new key
+					retryReq, _ := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/chat/completions", bytes.NewBuffer(requestBody))
+					retryReq.Header.Set("Content-Type", "application/json")
+					retryReq.Header.Set("Authorization", "Bearer "+newKey.APIKey)
+
+					retryResp, retryDoErr := httpClient.Do(retryReq)
+					if retryDoErr == nil {
+						defer retryResp.Body.Close()
+						if retryResp.StatusCode < 400 {
+							// Success! Update key for billing and continue to response handling
+							key = newKey
+							resp = retryResp
+							log.Printf("✅ [OpenHands-OpenAI] Retry successful with key: %s", newKey.ID)
+							goto handleOpenAIResponse
+						}
+						// Retry also failed
+						retryBody, _ := io.ReadAll(retryResp.Body)
+						log.Printf("❌ [OpenHands-OpenAI] Retry also failed (status=%d): %s", retryResp.StatusCode, string(retryBody))
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(retryResp.StatusCode)
+						w.Write(retryBody)
+						return
+					}
+				}
+			}
+		}
+
 		// Return error to client
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(bodyBytes)
 		return
 	}
+
+handleOpenAIResponse:
 
 	// Usage callback for billing (with cache support)
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
@@ -1680,14 +1547,14 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 				InputTokens:      input,
 				OutputTokens:     output,
 				CacheWriteTokens: cacheWrite,
-				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
+				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d (discounted=%d) cost=$%.6f", input, output, cacheWrite, cacheHit, config.EffectiveCacheHit(cacheHit), billingCost)
+		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f", input, output, cacheWrite, cacheHit, billingCost)
 	}
 
 	// Estimate input tokens from request (rough: 1 token ≈ 4 chars)
@@ -2841,12 +2708,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For "ohmygpt" upstream: forward via TrollProxy/OhmyGPT
-	if upstreamConfig.KeyID == "ohmygpt" {
-		handleOhmyGPTMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
-		return
-	}
-
 	// For "openhands" upstream: forward via OpenHands LLM Proxy
 	if upstreamConfig.KeyID == "openhands" {
 		handleOpenHandsMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
@@ -3448,22 +3309,22 @@ func main() {
 		log.Printf("⚠️ Main Target Server not configured (Sonnet/Haiku will use Troll Key)")
 	}
 
-	// Load OhmyGPT configuration via TrollProxy (from MongoDB)
-	if err := ohmygpt.ConfigureOhmyGPT(); err != nil {
-		log.Printf("⚠️ OhmyGPT configuration failed: %v", err)
+	// Load OpenHands configuration via TrollProxy (from MongoDB)
+	if err := openhands.ConfigureOpenHands(); err != nil {
+		log.Printf("⚠️ OpenHands configuration failed: %v", err)
 	} else {
-		ohmygptProvider := ohmygpt.GetOhmyGPT()
-		if ohmygptProvider.GetKeyCount() > 0 {
-			// Start auto-reload for OhmyGPT keys
-			ohmygptProvider.StartAutoReload(reloadInterval)
-			log.Printf("✅ OhmyGPT key pool loaded: %d keys", ohmygptProvider.GetKeyCount())
+		openhandsProvider := openhands.GetOpenHands()
+		if openhandsProvider.GetKeyCount() > 0 {
+			// Start auto-reload for OpenHands keys
+			openhandsProvider.StartAutoReload(reloadInterval)
+			log.Printf("✅ OpenHands key pool loaded: %d keys", openhandsProvider.GetKeyCount())
 
-			// Set proxy pool for OhmyGPT (use same pool as Troll)
+			// Set proxy pool for OpenHands (use same pool as Troll)
 			if proxyPool != nil && proxyPool.HasProxies() {
-				ohmygptProvider.SetProxyPool(proxyPool)
+				openhandsProvider.SetProxyPool(proxyPool)
 			}
 		} else {
-			log.Printf("⚠️ OhmyGPT not configured (no keys in ohmygpt_keys collection)")
+			log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 		}
 	}
 
@@ -3513,11 +3374,10 @@ func main() {
 	// Setup routes with CORS middleware
 	http.HandleFunc("/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/keys/status", corsMiddleware(keysStatusHandler))
-	http.HandleFunc("/ohmygpt/backup-keys", corsMiddleware(ohmygptBackupKeysHandler))
+	http.HandleFunc("/openhands/backup-keys", corsMiddleware(openhandsBackupKeysHandler))
 	http.HandleFunc("/v1/models", corsMiddleware(modelsHandler))
 	http.HandleFunc("/v1/chat/completions", corsMiddleware(chatCompletionsHandler))
 	http.HandleFunc("/v1/messages", corsMiddleware(handleAnthropicMessagesEndpoint))
-	http.HandleFunc("/docs", corsMiddleware(docsHandler))
 
 	// Manual reload endpoint for admin to trigger binding refresh
 	http.HandleFunc("/reload", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
@@ -3545,16 +3405,16 @@ func main() {
 			log.Printf("⚠️ Troll key pool reload failed: %v", err)
 		}
 
-		// Reload OhmyGPT keys and bindings
-		ohmygptReloaded := false
-		ohmygptKeyCount := 0
-		if ohmygptProv := ohmygpt.GetOhmyGPT(); ohmygptProv != nil {
-			if err := ohmygptProv.Reload(); err != nil {
-				log.Printf("⚠️ OhmyGPT reload failed: %v", err)
+		// Reload OpenHands keys and bindings
+		openhandsReloaded := false
+		openhandsKeyCount := 0
+		if openhandsProv := openhands.GetOpenHands(); openhandsProv != nil {
+			if err := openhandsProv.Reload(); err != nil {
+				log.Printf("⚠️ OpenHands reload failed: %v", err)
 			} else {
-				ohmygptReloaded = true
-				ohmygptKeyCount = ohmygptProv.GetKeyCount()
-				log.Printf("✅ OhmyGPT reloaded: %d keys", ohmygptKeyCount)
+				openhandsReloaded = true
+				openhandsKeyCount = openhandsProv.GetKeyCount()
+				log.Printf("✅ OpenHands reloaded: %d keys", openhandsKeyCount)
 			}
 		}
 
@@ -3564,8 +3424,8 @@ func main() {
 			"message":          "All pools reloaded successfully",
 			"proxy_count":      proxyPool.GetProxyCount(),
 			"bindings":         proxyPool.GetBindingsInfo(),
-			"ohmygpt_reloaded": ohmygptReloaded,
-			"ohmygpt_keys":     ohmygptKeyCount,
+			"openhands_reloaded": openhandsReloaded,
+			"openhands_keys":     openhandsKeyCount,
 		})
 	}))
 

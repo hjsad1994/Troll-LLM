@@ -188,6 +188,7 @@ export async function getDetailedUsage(period: '1h' | '24h' | '7d' | '30d' = '24
 export interface RequestLogItem {
   id: string
   model: string
+  upstream?: string
   inputTokens: number
   outputTokens: number
   cacheWriteTokens: number

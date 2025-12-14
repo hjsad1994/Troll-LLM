@@ -57,9 +57,11 @@ export default function UserDashboard() {
   const [showRotateConfirm, setShowRotateConfirm] = useState(false)
   const [copied, setCopied] = useState(false)
   const [providerCopied, setProviderCopied] = useState(false)
+  const [priorityProviderCopied, setPriorityProviderCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const [usageLoading, setUsageLoading] = useState(false)
   const [logsLoading, setLogsLoading] = useState(false)
+  const [logsFilter, setLogsFilter] = useState<'all' | 'main' | 'openhands'>('all')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
   const { user } = useAuth()
@@ -166,6 +168,16 @@ export default function UserDashboard() {
       await navigator.clipboard.writeText('https://chat.trollllm.xyz')
       setProviderCopied(true)
       setTimeout(() => setProviderCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const handleCopyPriorityProvider = async () => {
+    try {
+      await navigator.clipboard.writeText('https://priority-chat.trollllm.xyz')
+      setPriorityProviderCopied(true)
+      setTimeout(() => setPriorityProviderCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy:', err)
     }
@@ -311,17 +323,40 @@ export default function UserDashboard() {
                     <span className="text-sm font-medium text-[var(--theme-text)]">{t.dashboard.aiProvider.title}</span>
                     <span className="text-xs text-[var(--theme-text-subtle)] hidden sm:inline">({t.dashboard.aiProvider.subtitle})</span>
                   </div>
-                  <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-2.5 sm:p-3">
-                    <div className="flex items-center justify-between gap-2 sm:gap-3">
-                      <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-xs sm:text-sm font-mono truncate">
-                        https://chat.trollllm.xyz
-                      </code>
-                      <button
-                        onClick={handleCopyProvider}
-                        className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--theme-text)] text-slate-700 dark:text-[var(--theme-bg)] border border-slate-300 dark:border-transparent text-xs font-medium hover:bg-slate-50 dark:hover:opacity-90 transition-colors"
-                      >
-                        {providerCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
-                      </button>
+                  <div className="space-y-2">
+                    {/* Standard Endpoint */}
+                    <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-2.5 sm:p-3">
+                      <div className="flex items-center justify-between gap-2 sm:gap-3">
+                        <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-xs sm:text-sm font-mono truncate">
+                          https://chat.trollllm.xyz
+                        </code>
+                        <button
+                          onClick={handleCopyProvider}
+                          className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--theme-text)] text-slate-700 dark:text-[var(--theme-bg)] border border-slate-300 dark:border-transparent text-xs font-medium hover:bg-slate-50 dark:hover:opacity-90 transition-colors"
+                        >
+                          {providerCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
+                        </button>
+                      </div>
+                    </div>
+                    {/* Priority Endpoint */}
+                    <div className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 dark:from-amber-500/10 dark:to-orange-500/10 rounded-lg border border-amber-500/20 p-2.5 sm:p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{t.dashboard.aiProvider.priorityEndpoint}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 sm:gap-3">
+                        <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-xs sm:text-sm font-mono truncate">
+                          https://priority-chat.trollllm.xyz
+                        </code>
+                        <button
+                          onClick={handleCopyPriorityProvider}
+                          className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500 text-white border border-amber-500 text-xs font-medium hover:bg-amber-600 transition-colors"
+                        >
+                          {priorityProviderCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -577,6 +612,42 @@ export default function UserDashboard() {
                 </p>
               </div>
             </div>
+            {/* Upstream Filter Tabs */}
+            <div className="flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 self-start sm:self-auto">
+              <button
+                onClick={() => setLogsFilter('all')}
+                className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  logsFilter === 'all'
+                    ? 'bg-indigo-500 text-white'
+                    : 'text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setLogsFilter('main')}
+                className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  logsFilter === 'main'
+                    ? 'bg-emerald-500 text-white'
+                    : 'text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10'
+                }`}
+              >
+                Standard
+              </button>
+              <button
+                onClick={() => setLogsFilter('openhands')}
+                className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1 ${
+                  logsFilter === 'openhands'
+                    ? 'bg-amber-500 text-white'
+                    : 'text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10'
+                }`}
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Priority
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -585,6 +656,7 @@ export default function UserDashboard() {
                 <tr className="border-b border-slate-200 dark:border-white/10">
                   <th className="text-left px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Time</th>
                   <th className="text-left px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Model</th>
+                  <th className="text-left px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Upstream</th>
                   <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Input</th>
                   <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Output</th>
                   <th className="text-right px-3 py-2 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Cache Write</th>
@@ -597,19 +669,25 @@ export default function UserDashboard() {
                 {logsLoading ? (
                   [...Array(5)].map((_, i) => (
                     <tr key={i}>
-                      <td colSpan={8} className="px-3 py-3">
+                      <td colSpan={9} className="px-3 py-3">
                         <div className="h-4 bg-slate-100 dark:bg-white/5 rounded animate-pulse" />
                       </td>
                     </tr>
                   ))
-                ) : requestLogs?.requests.length === 0 ? (
+                ) : !requestLogs?.requests || requestLogs.requests.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={9} className="px-3 py-8 text-center text-slate-500 dark:text-slate-400">
                       No requests found in this period
                     </td>
                   </tr>
                 ) : (
-                  requestLogs?.requests.map((log) => (
+                  requestLogs.requests
+                    .filter(log => {
+                      if (logsFilter === 'all') return true;
+                      if (logsFilter === 'openhands') return log.upstream === 'openhands';
+                      return log.upstream !== 'openhands';
+                    })
+                    .map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
                       <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-sm whitespace-nowrap">
                         {formatDateTime(log.createdAt)}
@@ -618,6 +696,20 @@ export default function UserDashboard() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400">
                           {getModelShortName(log.model)}
                         </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        {log.upstream === 'openhands' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Priority
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                            Standard
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-mono text-blue-600 dark:text-blue-400">
                         {formatLargeNumber(log.inputTokens)}

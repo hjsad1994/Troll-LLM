@@ -1,4 +1,4 @@
-package ohmygpt
+package openhands
 
 import (
 	"bufio"
@@ -21,28 +21,28 @@ import (
 )
 
 const (
-	OhmyGPTBaseURL             = "https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg"
-	OhmyGPTMessagesEndpoint    = OhmyGPTBaseURL + "/v1/messages"
-	OhmyGPTCompletionsEndpoint = OhmyGPTBaseURL + "/v1/chat/completions"
-	OhmyGPTEndpoint            = OhmyGPTCompletionsEndpoint // default for OpenAI format
-	OhmyGPTName                = "ohmygpt"
+	OpenHandsBaseURL             = "https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg"
+	OpenHandsMessagesEndpoint    = OpenHandsBaseURL + "/v1/messages"
+	OpenHandsCompletionsEndpoint = OpenHandsBaseURL + "/v1/chat/completions"
+	OpenHandsEndpoint            = OpenHandsCompletionsEndpoint // default for OpenAI format
+	OpenHandsName                = "openhands"
 )
 
-// OhmyGPTKeyStatus represents the health status of an API key
-type OhmyGPTKeyStatus string
+// OpenHandsKeyStatus represents the health status of an API key
+type OpenHandsKeyStatus string
 
 const (
-	OhmyGPTStatusHealthy     OhmyGPTKeyStatus = "healthy"
-	OhmyGPTStatusRateLimited OhmyGPTKeyStatus = "rate_limited"
-	OhmyGPTStatusExhausted   OhmyGPTKeyStatus = "exhausted"
-	OhmyGPTStatusError       OhmyGPTKeyStatus = "error"
+	OpenHandsStatusHealthy     OpenHandsKeyStatus = "healthy"
+	OpenHandsStatusRateLimited OpenHandsKeyStatus = "rate_limited"
+	OpenHandsStatusExhausted   OpenHandsKeyStatus = "exhausted"
+	OpenHandsStatusError       OpenHandsKeyStatus = "error"
 )
 
-// OhmyGPTKey represents a single API key stored in MongoDB
-type OhmyGPTKey struct {
+// OpenHandsKey represents a single API key stored in MongoDB
+type OpenHandsKey struct {
 	ID            string           `bson:"_id" json:"id"`
 	APIKey        string           `bson:"apiKey" json:"api_key"`
-	Status        OhmyGPTKeyStatus `bson:"status" json:"status"`
+	Status        OpenHandsKeyStatus `bson:"status" json:"status"`
 	TokensUsed    int64            `bson:"tokensUsed" json:"tokens_used"`
 	RequestsCount int64            `bson:"requestsCount" json:"requests_count"`
 	LastError     string           `bson:"lastError,omitempty" json:"last_error,omitempty"`
@@ -51,11 +51,11 @@ type OhmyGPTKey struct {
 }
 
 // IsAvailable returns true if the key is available for use
-func (k *OhmyGPTKey) IsAvailable() bool {
-	if k.Status == OhmyGPTStatusExhausted {
+func (k *OpenHandsKey) IsAvailable() bool {
+	if k.Status == OpenHandsStatusExhausted {
 		return false
 	}
-	if k.Status != OhmyGPTStatusHealthy {
+	if k.Status != OpenHandsStatusHealthy {
 		if k.CooldownUntil != nil && time.Now().After(*k.CooldownUntil) {
 			return true // Cooldown expired
 		}
@@ -64,19 +64,19 @@ func (k *OhmyGPTKey) IsAvailable() bool {
 	return true
 }
 
-// OhmyGPTKeyBinding represents a proxy-key binding
-type OhmyGPTKeyBinding struct {
-	ProxyID     string    `bson:"proxyId" json:"proxy_id"`
-	OhmyGPTKeyID string   `bson:"ohmygptKeyId" json:"ohmygpt_key_id"`
-	Priority    int       `bson:"priority" json:"priority"`
-	IsActive    bool      `bson:"isActive" json:"is_active"`
-	CreatedAt   time.Time `bson:"createdAt" json:"created_at"`
+// OpenHandsKeyBinding represents a proxy-key binding
+type OpenHandsKeyBinding struct {
+	ProxyID        string    `bson:"proxyId" json:"proxy_id"`
+	OpenHandsKeyID string    `bson:"openhandsKeyId" json:"openhands_key_id"`
+	Priority       int       `bson:"priority" json:"priority"`
+	IsActive       bool      `bson:"isActive" json:"is_active"`
+	CreatedAt      time.Time `bson:"createdAt" json:"created_at"`
 }
 
-// OhmyGPTProvider implements Provider interface for OhmyGPT with MongoDB key pool
-type OhmyGPTProvider struct {
-	keys           []*OhmyGPTKey
-	bindings       map[string][]*OhmyGPTKeyBinding // proxyId -> bindings
+// OpenHandsProvider implements Provider interface for OpenHands with MongoDB key pool
+type OpenHandsProvider struct {
+	keys           []*OpenHandsKey
+	bindings       map[string][]*OpenHandsKeyBinding // proxyId -> bindings
 	current        int
 	keyIndex       map[string]int // proxyId -> current key index for rotation
 	lastUsedKeyID  string
@@ -87,56 +87,56 @@ type OhmyGPTProvider struct {
 	mu             sync.Mutex
 }
 
-var ohmygptInstance *OhmyGPTProvider
-var ohmygptOnce sync.Once
+var openhandsInstance *OpenHandsProvider
+var openhandsOnce sync.Once
 
-// GetOhmyGPT returns the singleton OhmyGPT provider instance
-func GetOhmyGPT() *OhmyGPTProvider {
-	ohmygptOnce.Do(func() {
-		ohmygptInstance = &OhmyGPTProvider{
-			keys:     make([]*OhmyGPTKey, 0),
-			bindings: make(map[string][]*OhmyGPTKeyBinding),
+// GetOpenHands returns the singleton OpenHands provider instance
+func GetOpenHands() *OpenHandsProvider {
+	openhandsOnce.Do(func() {
+		openhandsInstance = &OpenHandsProvider{
+			keys:     make([]*OpenHandsKey, 0),
+			bindings: make(map[string][]*OpenHandsKeyBinding),
 			keyIndex: make(map[string]int),
 			current:  0,
 		}
 	})
-	return ohmygptInstance
+	return openhandsInstance
 }
 
-// ConfigureOhmyGPT initializes the OhmyGPT provider and loads keys from MongoDB
-func ConfigureOhmyGPT() error {
-	provider := GetOhmyGPT()
-	provider.client = createOhmyGPTClient()
+// ConfigureOpenHands initializes the OpenHands provider and loads keys from MongoDB
+func ConfigureOpenHands() error {
+	provider := GetOpenHands()
+	provider.client = createOpenHandsClient()
 	
 	if err := provider.LoadKeys(); err != nil {
 		return err
 	}
 
 	// Register with TrollProxy registry
-	RegisterProvider(OhmyGPTName, provider)
+	RegisterProvider(OpenHandsName, provider)
 	return nil
 }
 
 // SetProxyPool sets the proxy pool to use for requests
-func (p *OhmyGPTProvider) SetProxyPool(pool *proxy.ProxyPool) {
+func (p *OpenHandsProvider) SetProxyPool(pool *proxy.ProxyPool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.proxyPool = pool
 	p.useProxy = pool != nil && pool.HasProxies()
 	if p.useProxy {
-		log.Printf("✅ [TrollProxy/OhmyGPT] Proxy pool enabled (%d proxies)", pool.GetProxyCount())
+		log.Printf("✅ [OpenHands] Proxy pool enabled (%d proxies)", pool.GetProxyCount())
 	} else {
-		log.Printf("ℹ️ [TrollProxy/OhmyGPT] Running without proxy (direct connection)")
+		log.Printf("ℹ️ [OpenHands] Running without proxy (direct connection)")
 	}
 }
 
-// LoadKeys loads OhmyGPT keys and bindings from MongoDB
-func (p *OhmyGPTProvider) LoadKeys() error {
+// LoadKeys loads OpenHands keys and bindings from MongoDB
+func (p *OpenHandsProvider) LoadKeys() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Load keys
-	cursor, err := db.OhmyGPTKeysCollection().Find(ctx, bson.M{})
+	cursor, err := db.OpenHandsKeysCollection().Find(ctx, bson.M{})
 	if err != nil {
 		return err
 	}
@@ -145,27 +145,27 @@ func (p *OhmyGPTProvider) LoadKeys() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.keys = make([]*OhmyGPTKey, 0)
+	p.keys = make([]*OpenHandsKey, 0)
 	for cursor.Next(ctx) {
-		var key OhmyGPTKey
+		var key OpenHandsKey
 		if err := cursor.Decode(&key); err != nil {
-			log.Printf("⚠️ [TrollProxy/OhmyGPT] Failed to decode key: %v", err)
+			log.Printf("⚠️ [OpenHands] Failed to decode key: %v", err)
 			continue
 		}
 		p.keys = append(p.keys, &key)
 	}
 
-	// Load bindings from ohmygpt_key_bindings collection
-	p.bindings = make(map[string][]*OhmyGPTKeyBinding)
-	bindingsCol := db.GetCollection("ohmygpt_key_bindings")
+	// Load bindings from openhands_bindings collection
+	p.bindings = make(map[string][]*OpenHandsKeyBinding)
+	bindingsCol := db.GetCollection("openhands_bindings")
 	if bindingsCol != nil {
 		bindingsCursor, err := bindingsCol.Find(ctx, bson.M{"isActive": true})
 		if err == nil {
 			defer bindingsCursor.Close(ctx)
 			for bindingsCursor.Next(ctx) {
-				var binding OhmyGPTKeyBinding
+				var binding OpenHandsKeyBinding
 				if err := bindingsCursor.Decode(&binding); err != nil {
-					log.Printf("⚠️ [TrollProxy/OhmyGPT] Failed to decode binding: %v", err)
+					log.Printf("⚠️ [OpenHands] Failed to decode binding: %v", err)
 					continue
 				}
 				p.bindings[binding.ProxyID] = append(p.bindings[binding.ProxyID], &binding)
@@ -173,40 +173,40 @@ func (p *OhmyGPTProvider) LoadKeys() error {
 		}
 	}
 
-	log.Printf("✅ [TrollProxy/OhmyGPT] Loaded %d keys, %d proxy bindings from MongoDB", len(p.keys), len(p.bindings))
+	log.Printf("✅ [OpenHands] Loaded %d keys, %d proxy bindings from MongoDB", len(p.keys), len(p.bindings))
 	return nil
 }
 
 // Reload refreshes the key pool from database
-func (p *OhmyGPTProvider) Reload() error {
+func (p *OpenHandsProvider) Reload() error {
 	return p.LoadKeys()
 }
 
 // StartAutoReload starts a background goroutine that periodically reloads keys
-func (p *OhmyGPTProvider) StartAutoReload(interval time.Duration) {
+func (p *OpenHandsProvider) StartAutoReload(interval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 [TrollProxy/OhmyGPT] Auto-reload started (interval: %v)", interval)
+		log.Printf("🔄 [OpenHands] Auto-reload started (interval: %v)", interval)
 
 		for range ticker.C {
 			if err := p.LoadKeys(); err != nil {
-				log.Printf("⚠️ [TrollProxy/OhmyGPT] Auto-reload failed: %v", err)
+				log.Printf("⚠️ [OpenHands] Auto-reload failed: %v", err)
 			} else {
-				log.Printf("🔄 [TrollProxy/OhmyGPT] Auto-reloaded keys (%d keys)", p.GetKeyCount())
+				log.Printf("🔄 [OpenHands] Auto-reloaded keys (%d keys)", p.GetKeyCount())
 			}
 		}
 	}()
 }
 
 // SelectKey selects the next available key using round-robin
-func (p *OhmyGPTProvider) SelectKey() (*OhmyGPTKey, error) {
+func (p *OpenHandsProvider) SelectKey() (*OpenHandsKey, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if len(p.keys) == 0 {
-		return nil, fmt.Errorf("no OhmyGPT keys configured")
+		return nil, fmt.Errorf("no OpenHands keys configured")
 	}
 
 	startIdx := p.current
@@ -221,11 +221,11 @@ func (p *OhmyGPTProvider) SelectKey() (*OhmyGPTKey, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("no healthy OhmyGPT keys available")
+	return nil, fmt.Errorf("no healthy OpenHands keys available")
 }
 
 // MarkStatus updates key status in memory and database
-func (p *OhmyGPTProvider) MarkStatus(keyID string, status OhmyGPTKeyStatus, cooldown time.Duration, lastError string) {
+func (p *OpenHandsProvider) MarkStatus(keyID string, status OpenHandsKeyStatus, cooldown time.Duration, lastError string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -247,7 +247,7 @@ func (p *OhmyGPTProvider) MarkStatus(keyID string, status OhmyGPTKeyStatus, cool
 	}
 }
 
-func (p *OhmyGPTProvider) updateKeyStatus(keyID string, status OhmyGPTKeyStatus, cooldownUntil *time.Time, lastError string) {
+func (p *OpenHandsProvider) updateKeyStatus(keyID string, status OpenHandsKeyStatus, cooldownUntil *time.Time, lastError string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -259,38 +259,47 @@ func (p *OhmyGPTProvider) updateKeyStatus(keyID string, status OhmyGPTKeyStatus,
 		},
 	}
 
-	_, err := db.OhmyGPTKeysCollection().UpdateByID(ctx, keyID, update)
+	_, err := db.OpenHandsKeysCollection().UpdateByID(ctx, keyID, update)
 	if err != nil {
-		log.Printf("⚠️ [TrollProxy/OhmyGPT] Failed to update key status: %v", err)
+		log.Printf("⚠️ [OpenHands] Failed to update key status: %v", err)
 	}
 }
 
-func (p *OhmyGPTProvider) MarkHealthy(keyID string) {
-	p.MarkStatus(keyID, OhmyGPTStatusHealthy, 0, "")
-	log.Printf("✅ [TrollProxy/OhmyGPT] Key %s marked healthy", keyID)
+func (p *OpenHandsProvider) MarkHealthy(keyID string) {
+	p.MarkStatus(keyID, OpenHandsStatusHealthy, 0, "")
+	log.Printf("✅ [OpenHands] Key %s marked healthy", keyID)
 }
 
-func (p *OhmyGPTProvider) MarkRateLimited(keyID string) {
-	p.MarkStatus(keyID, OhmyGPTStatusRateLimited, 60*time.Second, "Rate limited by upstream")
-	log.Printf("⚠️ [TrollProxy/OhmyGPT] Key %s rate limited (cooldown: 60s)", keyID)
+func (p *OpenHandsProvider) MarkRateLimited(keyID string) {
+	p.MarkStatus(keyID, OpenHandsStatusRateLimited, 60*time.Second, "Rate limited by upstream")
+	log.Printf("⚠️ [OpenHands] Key %s rate limited (cooldown: 60s)", keyID)
 }
 
-func (p *OhmyGPTProvider) MarkExhausted(keyID string) {
-	p.MarkStatus(keyID, OhmyGPTStatusExhausted, 24*time.Hour, "Token quota exhausted")
-	log.Printf("❌ [TrollProxy/OhmyGPT] Key %s exhausted (cooldown: 24h)", keyID)
+func (p *OpenHandsProvider) MarkExhausted(keyID string) {
+	p.MarkStatus(keyID, OpenHandsStatusExhausted, 24*time.Hour, "Token quota exhausted")
+	log.Printf("❌ [OpenHands] Key %s exhausted (cooldown: 24h)", keyID)
 }
 
-func (p *OhmyGPTProvider) MarkError(keyID string, err string) {
-	p.MarkStatus(keyID, OhmyGPTStatusError, 30*time.Second, err)
-	log.Printf("⚠️ [TrollProxy/OhmyGPT] Key %s error: %s", keyID, err)
+func (p *OpenHandsProvider) MarkError(keyID string, err string) {
+	p.MarkStatus(keyID, OpenHandsStatusError, 30*time.Second, err)
+	log.Printf("⚠️ [OpenHands] Key %s error: %s", keyID, err)
 }
 
 // CheckAndRotateOnError checks response and rotates key if needed
-func (p *OhmyGPTProvider) CheckAndRotateOnError(keyID string, statusCode int, body string) {
+func (p *OpenHandsProvider) CheckAndRotateOnError(keyID string, statusCode int, body string) {
 	shouldRotate := false
 	reason := ""
 
 	switch statusCode {
+	case 400:
+		// Handle budget exceeded error (OpenHands specific)
+		if strings.Contains(body, "ExceededBudget") || strings.Contains(body, "budget_exceeded") || strings.Contains(body, "over budget") {
+			shouldRotate = true
+			reason = "budget_exceeded"
+		} else {
+			p.MarkError(keyID, "Bad request")
+			return
+		}
 	case 429:
 		if strings.Contains(body, "quota") || strings.Contains(body, "exhausted") {
 			shouldRotate = true
@@ -316,28 +325,28 @@ func (p *OhmyGPTProvider) CheckAndRotateOnError(keyID string, statusCode int, bo
 	}
 
 	if shouldRotate {
-		log.Printf("🚫 [OhmyGPT] Key %s needs rotation (reason: %s)", keyID, reason)
+		log.Printf("🚫 [OpenHands] Key %s needs rotation (reason: %s)", keyID, reason)
 
-		backupCount := GetOhmyGPTBackupKeyCount()
+		backupCount := GetOpenHandsBackupKeyCount()
 		if backupCount > 0 {
-			log.Printf("🔄 [OhmyGPT] Found %d backup keys, rotating...", backupCount)
+			log.Printf("🔄 [OpenHands] Found %d backup keys, rotating...", backupCount)
 			newKeyID, err := p.RotateKey(keyID, reason)
 			if err != nil {
-				log.Printf("❌ [OhmyGPT] Rotation failed: %v", err)
+				log.Printf("❌ [OpenHands] Rotation failed: %v", err)
 				p.MarkExhausted(keyID)
 			} else {
-				log.Printf("✅ [OhmyGPT] Key %s replaced with %s", keyID, newKeyID)
+				log.Printf("✅ [OpenHands] Key %s replaced with %s", keyID, newKeyID)
 			}
 		} else {
-			log.Printf("⚠️ [OhmyGPT] No backup keys available")
+			log.Printf("⚠️ [OpenHands] No backup keys available")
 			p.MarkExhausted(keyID)
-			log.Printf("🚨 [OhmyGPT] Key %s marked as exhausted - add backup keys!", keyID)
+			log.Printf("🚨 [OpenHands] Key %s marked as exhausted - add backup keys!", keyID)
 		}
 	}
 }
 
 // GetStats returns key pool statistics
-func (p *OhmyGPTProvider) GetStats() map[string]int {
+func (p *OpenHandsProvider) GetStats() map[string]int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -351,13 +360,13 @@ func (p *OhmyGPTProvider) GetStats() map[string]int {
 
 	for _, key := range p.keys {
 		switch key.Status {
-		case OhmyGPTStatusHealthy:
+		case OpenHandsStatusHealthy:
 			stats["healthy"]++
-		case OhmyGPTStatusRateLimited:
+		case OpenHandsStatusRateLimited:
 			stats["rate_limited"]++
-		case OhmyGPTStatusExhausted:
+		case OpenHandsStatusExhausted:
 			stats["exhausted"]++
-		case OhmyGPTStatusError:
+		case OpenHandsStatusError:
 			stats["error"]++
 		}
 	}
@@ -366,7 +375,7 @@ func (p *OhmyGPTProvider) GetStats() map[string]int {
 }
 
 // GetAllKeysStatus returns all keys with their status
-func (p *OhmyGPTProvider) GetAllKeysStatus() []map[string]interface{} {
+func (p *OpenHandsProvider) GetAllKeysStatus() []map[string]interface{} {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -388,13 +397,13 @@ func (p *OhmyGPTProvider) GetAllKeysStatus() []map[string]interface{} {
 	return result
 }
 
-func (p *OhmyGPTProvider) GetKeyCount() int {
+func (p *OpenHandsProvider) GetKeyCount() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return len(p.keys)
 }
 
-func (p *OhmyGPTProvider) GetKeyByID(keyID string) *OhmyGPTKey {
+func (p *OpenHandsProvider) GetKeyByID(keyID string) *OpenHandsKey {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -406,7 +415,7 @@ func (p *OhmyGPTProvider) GetKeyByID(keyID string) *OhmyGPTKey {
 	return nil
 }
 
-func (p *OhmyGPTProvider) GetAPIKey(keyID string) string {
+func (p *OpenHandsProvider) GetAPIKey(keyID string) string {
 	key := p.GetKeyByID(keyID)
 	if key != nil {
 		return key.APIKey
@@ -415,15 +424,15 @@ func (p *OhmyGPTProvider) GetAPIKey(keyID string) string {
 }
 
 // UpdateKeyUsage updates tokensUsed and requestsCount for a key in MongoDB
-func (p *OhmyGPTProvider) UpdateKeyUsage(keyID string, inputTokens, outputTokens int64) error {
+func (p *OpenHandsProvider) UpdateKeyUsage(keyID string, inputTokens, outputTokens int64) error {
 	totalTokens := inputTokens + outputTokens
 	if totalTokens <= 0 {
 		return nil
 	}
 
-	collection := db.OhmyGPTKeysCollection()
+	collection := db.OpenHandsKeysCollection()
 	if collection == nil {
-		return fmt.Errorf("ohmygpt_keys collection not available")
+		return fmt.Errorf("openhands_keys collection not available")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -441,22 +450,22 @@ func (p *OhmyGPTProvider) UpdateKeyUsage(keyID string, inputTokens, outputTokens
 
 	_, err := collection.UpdateByID(ctx, keyID, update)
 	if err != nil {
-		log.Printf("❌ [TrollProxy/OhmyGPT] Failed to update key usage: %v", err)
+		log.Printf("❌ [OpenHands] Failed to update key usage: %v", err)
 		return err
 	}
 
-	log.Printf("📈 [TrollProxy/OhmyGPT] Updated key %s: +%d tokens, +1 request", keyID, totalTokens)
+	log.Printf("📈 [OpenHands] Updated key %s: +%d tokens, +1 request", keyID, totalTokens)
 	return nil
 }
 
 // GetLastUsedKeyID returns the ID of the last used key
-func (p *OhmyGPTProvider) GetLastUsedKeyID() string {
+func (p *OpenHandsProvider) GetLastUsedKeyID() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.lastUsedKeyID
 }
 
-func createOhmyGPTClient() *http.Client {
+func createOpenHandsClient() *http.Client {
 	transport := &http.Transport{
 		TLSClientConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
 		ForceAttemptHTTP2:     true,
@@ -473,31 +482,31 @@ func createOhmyGPTClient() *http.Client {
 }
 
 // Name returns the provider name
-func (p *OhmyGPTProvider) Name() string {
-	return OhmyGPTName
+func (p *OpenHandsProvider) Name() string {
+	return OpenHandsName
 }
 
 // IsConfigured returns true if the provider is configured
-func (p *OhmyGPTProvider) IsConfigured() bool {
+func (p *OpenHandsProvider) IsConfigured() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return len(p.keys) > 0 && p.client != nil
 }
 
-// ForwardRequest forwards request to OhmyGPT chat/completions endpoint (OpenAI format)
-func (p *OhmyGPTProvider) ForwardRequest(body []byte, isStreaming bool) (*http.Response, error) {
-	return p.forwardToEndpoint(OhmyGPTCompletionsEndpoint, body, isStreaming)
+// ForwardRequest forwards request to OpenHands chat/completions endpoint (OpenAI format)
+func (p *OpenHandsProvider) ForwardRequest(body []byte, isStreaming bool) (*http.Response, error) {
+	return p.forwardToEndpoint(OpenHandsCompletionsEndpoint, body, isStreaming)
 }
 
-// ForwardMessagesRequest forwards request to OhmyGPT messages endpoint (Anthropic format)
-func (p *OhmyGPTProvider) ForwardMessagesRequest(body []byte, isStreaming bool) (*http.Response, error) {
-	return p.forwardToEndpoint(OhmyGPTMessagesEndpoint, body, isStreaming)
+// ForwardMessagesRequest forwards request to OpenHands messages endpoint (Anthropic format)
+func (p *OpenHandsProvider) ForwardMessagesRequest(body []byte, isStreaming bool) (*http.Response, error) {
+	return p.forwardToEndpoint(OpenHandsMessagesEndpoint, body, isStreaming)
 }
 
 // forwardToEndpoint forwards request to specified endpoint with key rotation and optional proxy
-func (p *OhmyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStreaming bool) (*http.Response, error) {
+func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isStreaming bool) (*http.Response, error) {
 	if !p.IsConfigured() {
-		return nil, fmt.Errorf("OhmyGPT not configured")
+		return nil, fmt.Errorf("OpenHands not configured")
 	}
 
 	// Select proxy and key together (with binding support)
@@ -520,9 +529,9 @@ func (p *OhmyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStre
 
 	// Log request
 	if proxyName != "" {
-		log.Printf("📤 [TrollProxy/OhmyGPT] POST %s (key=%s, proxy=%s, stream=%v)", endpoint, key.ID, proxyName, isStreaming)
+		log.Printf("📤 [OpenHands] POST %s (key=%s, proxy=%s, stream=%v)", endpoint, key.ID, proxyName, isStreaming)
 	} else {
-		log.Printf("📤 [TrollProxy/OhmyGPT] POST %s (key=%s, direct, stream=%v)", endpoint, key.ID, isStreaming)
+		log.Printf("📤 [OpenHands] POST %s (key=%s, direct, stream=%v)", endpoint, key.ID, isStreaming)
 	}
 
 	startTime := time.Now()
@@ -530,25 +539,35 @@ func (p *OhmyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStre
 	elapsed := time.Since(startTime)
 	if err != nil {
 		// Log detailed error with timing to help debug proxy vs upstream timeouts
-		log.Printf("⏱️ [TrollProxy/OhmyGPT] Request failed after %v (proxy=%s): %v", elapsed, proxyName, err)
+		log.Printf("⏱️ [OpenHands] Request failed after %v (proxy=%s): %v", elapsed, proxyName, err)
 		return nil, err
 	}
 
-	// Check for rate limit or quota errors
-	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 {
+	// Check for rate limit, quota errors, or budget exceeded (400 with ExceededBudget)
+	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 || resp.StatusCode == 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyStr := string(bodyBytes)
 		resp.Body.Close()
-		p.CheckAndRotateOnError(key.ID, resp.StatusCode, string(bodyBytes))
-		
+
+		// For 400, only handle budget_exceeded errors - other 400s should pass through
+		if resp.StatusCode == 400 && !strings.Contains(bodyStr, "ExceededBudget") && !strings.Contains(bodyStr, "budget_exceeded") && !strings.Contains(bodyStr, "over budget") {
+			// Not a budget error, return as-is with reconstructed body
+			resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			return resp, nil
+		}
+
+		p.CheckAndRotateOnError(key.ID, resp.StatusCode, bodyStr)
+
 		// IMPORTANT: Only retry for non-streaming requests
 		// For streaming, retrying would cause double response (partial + new full response)
 		if !isStreaming {
-			log.Printf("⚠️ [TrollProxy/OhmyGPT] Non-streaming request failed (HTTP %d), retrying with next key...", resp.StatusCode)
+			log.Printf("⚠️ [OpenHands] Non-streaming request failed (HTTP %d), retrying with next key...", resp.StatusCode)
 			return p.retryWithNextKeyToEndpoint(endpoint, body, isStreaming, 2)
 		} else {
-			log.Printf("🚫 [TrollProxy/OhmyGPT] Streaming request got HTTP %d - CANNOT RETRY to prevent double response!", resp.StatusCode)
+			log.Printf("🚫 [OpenHands] Streaming request got HTTP %d - CANNOT RETRY to prevent double response!", resp.StatusCode)
 			// Return error response - handler will sanitize and forward to client
 			// Don't retry to avoid double response
+			resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 			return resp, nil
 		}
 	}
@@ -558,7 +577,7 @@ func (p *OhmyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStre
 
 // selectProxyAndKey selects a proxy and corresponding key based on bindings
 // Returns: client, proxyName, key, error
-func (p *OhmyGPTProvider) selectProxyAndKey() (*http.Client, string, *OhmyGPTKey, error) {
+func (p *OpenHandsProvider) selectProxyAndKey() (*http.Client, string, *OpenHandsKey, error) {
 	p.mu.Lock()
 	useProxy := p.useProxy
 	pool := p.proxyPool
@@ -577,7 +596,7 @@ func (p *OhmyGPTProvider) selectProxyAndKey() (*http.Client, string, *OhmyGPTKey
 	// Select proxy from pool
 	selectedProxy, err := pool.SelectProxy()
 	if err != nil {
-		log.Printf("⚠️ [TrollProxy/OhmyGPT] Failed to select proxy, using direct: %v", err)
+		log.Printf("⚠️ [OpenHands] Failed to select proxy, using direct: %v", err)
 		key, err := p.SelectKey()
 		if err != nil {
 			return nil, "", nil, err
@@ -588,7 +607,7 @@ func (p *OhmyGPTProvider) selectProxyAndKey() (*http.Client, string, *OhmyGPTKey
 	// Create transport with proxy
 	transport, err := selectedProxy.CreateHTTPTransport()
 	if err != nil {
-		log.Printf("⚠️ [TrollProxy/OhmyGPT] Failed to create proxy transport, using direct: %v", err)
+		log.Printf("⚠️ [OpenHands] Failed to create proxy transport, using direct: %v", err)
 		key, err := p.SelectKey()
 		if err != nil {
 			return nil, "", nil, err
@@ -602,7 +621,7 @@ func (p *OhmyGPTProvider) selectProxyAndKey() (*http.Client, string, *OhmyGPTKey
 	proxyBindings, hasBindings := bindings[selectedProxy.ID]
 	if hasBindings && len(proxyBindings) > 0 {
 		// Get active bindings
-		activeBindings := make([]*OhmyGPTKeyBinding, 0)
+		activeBindings := make([]*OpenHandsKeyBinding, 0)
 		for _, b := range proxyBindings {
 			if b.IsActive {
 				activeBindings = append(activeBindings, b)
@@ -619,7 +638,7 @@ func (p *OhmyGPTProvider) selectProxyAndKey() (*http.Client, string, *OhmyGPTKey
 			p.mu.Unlock()
 
 			// Find the key
-			key := p.GetKeyByID(binding.OhmyGPTKeyID)
+			key := p.GetKeyByID(binding.OpenHandsKeyID)
 			if key != nil && key.IsAvailable() {
 				p.mu.Lock()
 				p.lastUsedKeyID = key.ID
@@ -643,15 +662,15 @@ func (p *OhmyGPTProvider) selectProxyAndKey() (*http.Client, string, *OhmyGPTKey
 }
 
 // getClientWithProxy returns an HTTP client, optionally configured with a proxy (legacy method)
-func (p *OhmyGPTProvider) getClientWithProxy() (*http.Client, string) {
+func (p *OpenHandsProvider) getClientWithProxy() (*http.Client, string) {
 	client, proxyName, _, _ := p.selectProxyAndKey()
 	return client, proxyName
 }
 
 // retryWithNextKeyToEndpoint attempts request with remaining keys to specified endpoint
-func (p *OhmyGPTProvider) retryWithNextKeyToEndpoint(endpoint string, body []byte, isStreaming bool, retriesLeft int) (*http.Response, error) {
+func (p *OpenHandsProvider) retryWithNextKeyToEndpoint(endpoint string, body []byte, isStreaming bool, retriesLeft int) (*http.Response, error) {
 	if retriesLeft <= 0 {
-		return nil, fmt.Errorf("all OhmyGPT keys exhausted or rate limited")
+		return nil, fmt.Errorf("all OpenHands keys exhausted or rate limited")
 	}
 
 	// Select proxy and key together (with binding support)
@@ -673,35 +692,43 @@ func (p *OhmyGPTProvider) retryWithNextKeyToEndpoint(endpoint string, body []byt
 	}
 
 	if proxyName != "" {
-		log.Printf("📤 [TrollProxy/OhmyGPT] RETRY POST %s (key=%s, proxy=%s, stream=%v, retries=%d)", endpoint, key.ID, proxyName, isStreaming, retriesLeft)
+		log.Printf("📤 [OpenHands] RETRY POST %s (key=%s, proxy=%s, stream=%v, retries=%d)", endpoint, key.ID, proxyName, isStreaming, retriesLeft)
 	} else {
-		log.Printf("📤 [TrollProxy/OhmyGPT] RETRY POST %s (key=%s, direct, stream=%v, retries=%d)", endpoint, key.ID, isStreaming, retriesLeft)
+		log.Printf("📤 [OpenHands] RETRY POST %s (key=%s, direct, stream=%v, retries=%d)", endpoint, key.ID, isStreaming, retriesLeft)
 	}
 
 	startTime := time.Now()
 	resp, err := client.Do(req)
 	elapsed := time.Since(startTime)
 	if err != nil {
-		log.Printf("⏱️ [TrollProxy/OhmyGPT] RETRY failed after %v (proxy=%s): %v", elapsed, proxyName, err)
+		log.Printf("⏱️ [OpenHands] RETRY failed after %v (proxy=%s): %v", elapsed, proxyName, err)
 		return nil, err
 	}
 
-	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 {
+	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 || resp.StatusCode == 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyStr := string(bodyBytes)
 		resp.Body.Close()
-		p.CheckAndRotateOnError(key.ID, resp.StatusCode, string(bodyBytes))
+
+		// For 400, only handle budget_exceeded errors - other 400s should pass through
+		if resp.StatusCode == 400 && !strings.Contains(bodyStr, "ExceededBudget") && !strings.Contains(bodyStr, "budget_exceeded") && !strings.Contains(bodyStr, "over budget") {
+			resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			return resp, nil
+		}
+
+		p.CheckAndRotateOnError(key.ID, resp.StatusCode, bodyStr)
 		return p.retryWithNextKeyToEndpoint(endpoint, body, isStreaming, retriesLeft-1)
 	}
 
 	return resp, nil
 }
 
-// HandleStreamResponse handles streaming response from OhmyGPT (pure passthrough)
+// HandleStreamResponse handles streaming response from OpenHands (pure passthrough)
 // Supports both OpenAI and Anthropic streaming formats
-func (p *OhmyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
+func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ [OhmyGPT] Error %d", resp.StatusCode)
+		log.Printf("❌ [OpenHands] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))
@@ -799,21 +826,21 @@ func (p *OhmyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Printf("⚠️ [OhmyGPT] Scanner error: %v", err)
+		log.Printf("⚠️ [OpenHands] Scanner error: %v", err)
 	}
 
 	if cacheCreation > 0 || cacheRead > 0 {
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cache_create=%d cache_read=%d ⚡", totalInput, totalOutput, cacheCreation, cacheRead)
+		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_create=%d cache_read=%d ⚡", totalInput, totalOutput, cacheCreation, cacheRead)
 	} else {
-		log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d", totalInput, totalOutput)
+		log.Printf("📊 [OpenHands] Usage: in=%d out=%d", totalInput, totalOutput)
 	}
 	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
 		onUsage(totalInput, totalOutput, cacheCreation, cacheRead)
 	}
 }
 
-// HandleNonStreamResponse handles non-streaming response from OhmyGPT (pure passthrough)
-func (p *OhmyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
+// HandleNonStreamResponse handles non-streaming response from OpenHands (pure passthrough)
+func (p *OpenHandsProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"error":"failed to read response"}`, http.StatusInternalServerError)
@@ -821,7 +848,7 @@ func (p *OhmyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *h
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("❌ [OhmyGPT] Error %d", resp.StatusCode)
+		log.Printf("❌ [OpenHands] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))
@@ -846,9 +873,9 @@ func (p *OhmyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *h
 				}
 			}
 			if cachedTokens > 0 {
-				log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d cached=%d ⚡", input, output, cachedTokens)
+				log.Printf("📊 [OpenHands] Usage: in=%d out=%d cached=%d ⚡", input, output, cachedTokens)
 			} else {
-				log.Printf("📊 [OhmyGPT] Usage: in=%d out=%d", input, output)
+				log.Printf("📊 [OpenHands] Usage: in=%d out=%d", input, output)
 			}
 			if onUsage != nil && (input > 0 || output > 0) {
 				onUsage(input, output, 0, cachedTokens)
