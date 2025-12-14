@@ -339,18 +339,44 @@ router.post('/backup-keys/:id/restore', async (req: Request, res: Response) => {
 // POST /admin/openhands/reload - Reload all pools on goproxy
 router.post('/reload', async (_req: Request, res: Response) => {
   try {
-    const proxyPort = process.env.PROXY_PORT || '8003';
-    const goproxyUrl = process.env.GOPROXY_URL || `http://localhost:${proxyPort}`;
-    const response = await fetch(`${goproxyUrl}/reload`, { method: 'POST' });
+    // Try GOPROXY_URL first, then OPENHANDS_PROXY_PORT, then default ports
+    const goproxyUrl = process.env.GOPROXY_URL;
+    const openhandsPort = process.env.OPENHANDS_PROXY_PORT || '8004';
+    const defaultPort = process.env.PROXY_PORT || '8003';
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Goproxy reload failed:', errorText);
-      return res.status(response.status).json({ error: 'Failed to reload goproxy', details: errorText });
+    // URLs to try in order
+    const urlsToTry = goproxyUrl
+      ? [`${goproxyUrl}/reload`]
+      : [
+          `http://localhost:${openhandsPort}/reload`,  // OpenHands port first
+          `http://localhost:${defaultPort}/reload`,    // Default port fallback
+        ];
+
+    let lastError: string | null = null;
+
+    for (const url of urlsToTry) {
+      try {
+        console.log(`[OpenHands] Trying reload at: ${url}`);
+        const response = await fetch(url, {
+          method: 'POST',
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`[OpenHands] Reload successful at ${url}`);
+          return res.json(data);
+        }
+
+        lastError = await response.text();
+        console.error(`[OpenHands] Reload failed at ${url}:`, lastError);
+      } catch (error: any) {
+        lastError = error.message;
+        console.error(`[OpenHands] Connection failed to ${url}:`, error.message);
+      }
     }
 
-    const data = await response.json();
-    res.json(data);
+    res.status(500).json({ error: 'Failed to connect to goproxy', details: lastError });
   } catch (error: any) {
     console.error('Error reloading goproxy:', error);
     res.status(500).json({ error: 'Failed to connect to goproxy', details: error.message });
