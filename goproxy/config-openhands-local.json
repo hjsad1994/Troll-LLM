@@ -123,19 +123,6 @@
       "billing_multiplier": 1.0,
       "upstream": "openhands",
       "upstream_model_id": "kimi-k2-thinking"
-    },
-    {
-      "name": "Claude Haiku 4.5",
-      "id": "claude-haiku-4-5-20251001",
-      "type": "claude",
-      "reasoning": "high",
-      "input_price_per_mtok": 1.0,
-      "output_price_per_mtok": 5.0,
-      "cache_write_price_per_mtok": 1.25,
-      "cache_hit_price_per_mtok": 0.1,
-      "billing_multiplier": 1.0,
-      "upstream": "main",
-      "upstream_model_id": "claude-haiku-4-5-20251001"
     }
   ],
   "system_prompt": "",
