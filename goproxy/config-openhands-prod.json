@@ -48,7 +48,7 @@
       "input_price_per_mtok": 2.0,
       "output_price_per_mtok": 12.0,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.15,
+      "billing_multiplier": 1.13,
       "upstream": "openhands",
       "upstream_model_id": "gemini-3-pro-preview"
     },
