@@ -77,6 +77,19 @@
       "billing_multiplier": 1.15,
       "upstream": "openhands",
       "upstream_model_id": "claude-haiku-4-5-20251001"
+    },
+    {
+      "name": "GPT-5.1 Codex Max",
+      "id": "gpt-5.1-codex-max",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 1.25,
+      "output_price_per_mtok": 10.0,
+      "cache_write_price_per_mtok": 1.56,
+      "cache_hit_price_per_mtok": 0.13,
+      "billing_multiplier": 1.13,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1-codex-max"
     }
   ],
   "system_prompt": "",
