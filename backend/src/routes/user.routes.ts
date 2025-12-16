@@ -171,6 +171,28 @@ router.get('/request-logs', jwtAuth, async (req: Request, res: Response) => {
   }
 });
 
+router.patch('/discord-id', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { discordId } = req.body as { discordId?: string };
+
+    // Allow empty string or null to clear Discord ID
+    const normalizedDiscordId = discordId?.trim() || null;
+
+    const result = await userService.updateDiscordId(username, normalizedDiscordId);
+    res.json(result);
+  } catch (error: any) {
+    if (error.message === 'Invalid Discord ID format') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Referral system disabled
 // router.get('/referral', jwtAuth, async (req: Request, res: Response) => {
 //   try {

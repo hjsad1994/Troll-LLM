@@ -309,6 +309,14 @@ export class UserNewRepository {
   async countDocuments(): Promise<number> {
     return UserNew.countDocuments();
   }
+
+  async updateDiscordId(username: string, discordId: string | null): Promise<IUserNew | null> {
+    return UserNew.findByIdAndUpdate(
+      username,
+      { discordId },
+      { new: true }
+    ).lean();
+  }
 }
 
 export const userNewRepository = new UserNewRepository();

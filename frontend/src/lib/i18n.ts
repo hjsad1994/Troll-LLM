@@ -178,6 +178,14 @@ export const translations = {
         copied: 'Copied!',
         priorityEndpoint: 'Priority Endpoint',
       },
+      discordIntegration: {
+        title: 'Discord ID',
+        subtitle: 'Link your Discord account',
+        placeholder: 'Enter your Discord ID',
+        save: 'Save',
+        saved: 'Saved',
+        note: 'Link your Discord for priority support & exclusive giveaways',
+      },
       credits: {
         title: 'Credits',
         subtitle: 'Your usage this period',
@@ -744,7 +752,7 @@ export const translations = {
         title: 'Discord Integration',
         optional: 'Optional',
         description: 'Enter your Discord User ID to automatically receive your role after payment. You must be a member of our Discord server first.',
-        shortDesc: 'Enter your Discord ID to receive Dev/Pro role automatically after payment',
+        shortDesc: 'Link your Discord for priority support & exclusive giveaways',
         placeholder: 'Enter your Discord User ID (e.g., 123456789012345678)',
         howToFind: 'How to find your Discord ID?',
         joinServer: 'Join our Discord server',
@@ -983,6 +991,7 @@ export const translations = {
         lastLogin: 'Last Login',
         created: 'Created',
         actions: 'Actions',
+        discordId: 'Discord ID',
       },
       expired: 'Expired',
       confirmModal: {
@@ -1007,6 +1016,18 @@ export const translations = {
         addFailed: 'Failed to add credits',
       },
       resetExpiration: 'Reset Expiration',
+      discordIdEdit: {
+        title: 'Edit Discord ID',
+        placeholder: 'Enter Discord ID (17-19 digits)',
+        save: 'Save',
+        clear: 'Clear',
+        cancel: 'Cancel',
+        saving: 'Saving...',
+        success: 'Discord ID updated successfully',
+        error: 'Failed to update Discord ID',
+        invalidFormat: 'Invalid format. Discord ID must be 17-19 digits.',
+        notSet: 'Not set',
+      },
     },
     // Friend Key Page
     friendKey: {
@@ -1371,6 +1392,14 @@ export const translations = {
         copy: 'Sao chép URL',
         copied: 'Đã sao chép!',
         priorityEndpoint: 'Endpoint Ưu tiên',
+      },
+      discordIntegration: {
+        title: 'Discord ID',
+        subtitle: 'Liên kết tài khoản Discord',
+        placeholder: 'Nhập Discord ID của bạn',
+        save: 'Lưu',
+        saved: 'Đã lưu',
+        note: 'Liên kết Discord để được ưu tiên hỗ trợ & tham gia giveaway',
       },
       credits: {
         title: 'Credits',
@@ -1938,7 +1967,7 @@ export const translations = {
         title: 'Tích hợp Discord',
         optional: 'Tùy chọn',
         description: 'Nhập Discord User ID của bạn để tự động nhận role sau khi thanh toán. Bạn phải là thành viên của Discord server trước.',
-        shortDesc: 'Nhập Discord ID để tự động nhận role Dev/Pro sau khi thanh toán',
+        shortDesc: 'Liên kết Discord để được ưu tiên hỗ trợ & tham gia giveaway',
         placeholder: 'Nhập Discord User ID (VD: 123456789012345678)',
         howToFind: 'Cách tìm Discord ID?',
         joinServer: 'Tham gia Discord server',
@@ -2177,6 +2206,7 @@ export const translations = {
         lastLogin: 'Đăng nhập',
         created: 'Ngày tạo',
         actions: 'Thao tác',
+        discordId: 'Discord ID',
       },
       expired: 'Đã hết hạn',
       confirmModal: {
@@ -2201,6 +2231,18 @@ export const translations = {
         addFailed: 'Không thể thêm credits',
       },
       resetExpiration: 'Reset thời hạn',
+      discordIdEdit: {
+        title: 'Sửa Discord ID',
+        placeholder: 'Nhập Discord ID (17-19 chữ số)',
+        save: 'Lưu',
+        clear: 'Xóa',
+        cancel: 'Hủy',
+        saving: 'Đang lưu...',
+        success: 'Cập nhật Discord ID thành công',
+        error: 'Không thể cập nhật Discord ID',
+        invalidFormat: 'Định dạng không hợp lệ. Discord ID phải có 17-19 chữ số.',
+        notSet: 'Chưa thiết lập',
+      },
     },
     // Friend Key Page
     friendKey: {

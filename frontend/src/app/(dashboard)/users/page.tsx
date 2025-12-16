@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { fetchWithAuth, updateUserCredits, addUserCredits, AdminUser } from '@/lib/api'
+import { fetchWithAuth, updateUserCredits, addUserCredits, updateUserDiscordId, AdminUser } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 
 function formatDateTime(dateStr: string | undefined): string {
@@ -73,6 +73,13 @@ export default function UsersPage() {
     amount: number
   } | null>(null)
   const [resetExpiration, setResetExpiration] = useState(false)
+  const [discordIdModal, setDiscordIdModal] = useState<{
+    isOpen: boolean
+    username: string
+    currentDiscordId: string | null
+  } | null>(null)
+  const [discordIdInput, setDiscordIdInput] = useState('')
+  const [savingDiscordId, setSavingDiscordId] = useState(false)
 
   const roleStats = useMemo(() => {
     const adminCount = users.filter(u => u.role === 'admin').length
@@ -214,6 +221,50 @@ export default function UsersPage() {
       alert(err.message || (type === 'set' ? t.users.errors.setFailed : t.users.errors.addFailed))
     } finally {
       setUpdating(null)
+    }
+  }
+
+  const openDiscordIdModal = (username: string, currentDiscordId: string | null | undefined) => {
+    setDiscordIdInput(currentDiscordId || '')
+    setDiscordIdModal({ isOpen: true, username, currentDiscordId: currentDiscordId || null })
+  }
+
+  const handleSaveDiscordId = async () => {
+    if (!discordIdModal) return
+    const { username } = discordIdModal
+    const trimmedInput = discordIdInput.trim()
+
+    // Validate format if not empty
+    if (trimmedInput && !/^\d{17,19}$/.test(trimmedInput)) {
+      alert(t.users.discordIdEdit.invalidFormat)
+      return
+    }
+
+    setSavingDiscordId(true)
+    try {
+      await updateUserDiscordId(username, trimmedInput || null)
+      await loadUsers(search || undefined)
+      setDiscordIdModal(null)
+    } catch (err: any) {
+      alert(err.message || t.users.discordIdEdit.error)
+    } finally {
+      setSavingDiscordId(false)
+    }
+  }
+
+  const handleClearDiscordId = async () => {
+    if (!discordIdModal) return
+    const { username } = discordIdModal
+
+    setSavingDiscordId(true)
+    try {
+      await updateUserDiscordId(username, null)
+      await loadUsers(search || undefined)
+      setDiscordIdModal(null)
+    } catch (err: any) {
+      alert(err.message || t.users.discordIdEdit.error)
+    } finally {
+      setSavingDiscordId(false)
     }
   }
 
@@ -399,9 +450,25 @@ export default function UsersPage() {
                   </p>
 
                   {/* Last Login */}
-                  <p className="text-xs text-slate-500 mb-4">
+                  <p className="text-xs text-slate-500 mb-1">
                     {t.users.table.lastLogin}: {formatDateTime(u.lastActivity)}
                   </p>
+
+                  {/* Discord ID */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <p className="text-xs text-slate-500">
+                      {t.users.table.discordId}: {u.discordId || t.users.discordIdEdit.notSet}
+                    </p>
+                    <button
+                      onClick={() => openDiscordIdModal(username, u.discordId)}
+                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                      title={t.users.discordIdEdit.title}
+                    >
+                      <svg className="w-3 h-3 text-slate-500 hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  </div>
 
                   {/* Actions */}
                   <div className="flex flex-col gap-2">
@@ -452,12 +519,13 @@ export default function UsersPage() {
 
         {/* Desktop Table Layout */}
         <div className="hidden md:block rounded-xl border border-slate-300 dark:border-white/10 overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px]">
             <thead>
               <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/60">
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.user}</th>
+                <th className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.user}</th>
                 <th
-                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
                   onClick={() => handleSort('credits')}
                 >
                   <span className="flex items-center gap-1">
@@ -469,9 +537,9 @@ export default function UsersPage() {
                     )}
                   </span>
                 </th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.refCredits}</th>
+                <th className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.refCredits}</th>
                 <th
-                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
                   onClick={() => handleSort('burned')}
                 >
                   <span className="flex items-center gap-1">
@@ -484,7 +552,7 @@ export default function UsersPage() {
                   </span>
                 </th>
                 <th
-                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
                   onClick={() => handleSort('expires')}
                 >
                   <span className="flex items-center gap-1">
@@ -497,7 +565,7 @@ export default function UsersPage() {
                   </span>
                 </th>
                 <th
-                  className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
+                  className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors select-none"
                   onClick={() => handleSort('lastLogin')}
                 >
                   <span className="flex items-center gap-1">
@@ -509,14 +577,15 @@ export default function UsersPage() {
                     )}
                   </span>
                 </th>
-                <th className="text-left px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.created}</th>
-                <th className="text-right px-4 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.actions}</th>
+                <th className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.created}</th>
+                <th className="text-left px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.discordId}</th>
+                <th className="text-right px-3 py-3 text-slate-700 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">{t.users.table.actions}</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-black/40">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center">
+                  <td colSpan={9} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-indigo-200 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
                       <span className="text-slate-600 dark:text-slate-500 text-sm">{t.users.loading}</span>
@@ -525,7 +594,7 @@ export default function UsersPage() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
                     {t.users.noUsersFound}
                   </td>
                 </tr>
@@ -539,9 +608,9 @@ export default function UsersPage() {
 
                   return (
                     <tr key={username} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
                             u.role === 'admin'
                               ? 'bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400'
                               : 'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
@@ -556,22 +625,22 @@ export default function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2">
                         <span className={`font-semibold text-sm ${credits > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
                           ${credits.toFixed(2)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2">
                         <span className={`font-semibold text-sm ${refCredits > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
                           ${refCredits.toFixed(2)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2">
                         <span className={`font-semibold text-sm ${creditsBurned > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400'}`}>
                           ${creditsBurned.toFixed(2)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2">
                         {(() => {
                           const expires = getDaysRemaining(u.purchasedAt, u.expiresAt, t.users.expired)
                           return (
@@ -581,14 +650,30 @@ export default function UsersPage() {
                           )
                         })()}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
+                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs whitespace-nowrap">
                         {formatDateTime(u.lastActivity)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-sm">
+                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs whitespace-nowrap">
                         {formatDateTime(u.createdAt)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-600 dark:text-slate-400 text-xs truncate max-w-[100px]" title={u.discordId || ''}>
+                            {u.discordId || <span className="text-slate-400 italic text-xs">{t.users.discordIdEdit.notSet}</span>}
+                          </span>
+                          <button
+                            onClick={() => openDiscordIdModal(username, u.discordId)}
+                            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+                            title={t.users.discordIdEdit.title}
+                          >
+                            <svg className="w-3 h-3 text-slate-500 hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <div className="flex items-center gap-1">
                             <input
                               type="number"
@@ -597,13 +682,13 @@ export default function UsersPage() {
                               placeholder="$"
                               value={setAmounts[username] || ''}
                               onChange={(e) => setSetAmounts(prev => ({ ...prev, [username]: e.target.value }))}
-                              className="w-16 px-2 py-1 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs focus:outline-none focus:border-amber-400"
+                              className="w-14 px-1.5 py-1 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs focus:outline-none focus:border-amber-400"
                               disabled={isUpdating}
                             />
                             <button
                               onClick={() => handleSetCredits(username)}
                               disabled={isUpdating || !setAmounts[username]}
-                              className="px-2 py-1 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                              className="px-1.5 py-1 rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50"
                             >
                               SET
                             </button>
@@ -616,13 +701,13 @@ export default function UsersPage() {
                               placeholder="$"
                               value={addAmounts[username] || ''}
                               onChange={(e) => setAddAmounts(prev => ({ ...prev, [username]: e.target.value }))}
-                              className="w-16 px-2 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs focus:outline-none focus:border-emerald-400"
+                              className="w-14 px-1.5 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs focus:outline-none focus:border-emerald-400"
                               disabled={isUpdating}
                             />
                             <button
                               onClick={() => handleAddCredits(username)}
                               disabled={isUpdating || !addAmounts[username]}
-                              className="px-2 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                              className="px-1.5 py-1 rounded border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
                             >
                               ADD
                             </button>
@@ -635,6 +720,7 @@ export default function UsersPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -727,6 +813,117 @@ export default function UsersPage() {
               >
                 {confirmModal.type === 'set' ? t.users.confirmModal.setCredits : t.users.confirmModal.addCredits}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discord ID Edit Modal */}
+      {discordIdModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !savingDiscordId && setDiscordIdModal(null)}
+          />
+          <div className="relative bg-white dark:bg-[#313338] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#1e1f22] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Header with Discord branding */}
+            <div className="bg-gradient-to-r from-[#5865F2] to-[#7289da] px-6 py-5">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    {t.users.discordIdEdit.title}
+                  </h3>
+                  <p className="text-white/80 text-sm font-medium">
+                    @{discordIdModal.username}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5">
+              {/* Current Discord ID display */}
+              {discordIdModal.currentDiscordId && (
+                <div className="mb-4 p-3 rounded-lg bg-slate-100 dark:bg-[#2b2d31] border border-slate-200 dark:border-[#1e1f22]">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Current Discord ID</p>
+                  <p className="font-mono text-sm text-slate-700 dark:text-slate-200">{discordIdModal.currentDiscordId}</p>
+                </div>
+              )}
+
+              {/* Input field */}
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={discordIdInput}
+                  onChange={(e) => setDiscordIdInput(e.target.value)}
+                  placeholder={t.users.discordIdEdit.placeholder}
+                  className="w-full pl-11 pr-4 py-3.5 rounded-xl border-2 border-slate-200 dark:border-[#1e1f22] bg-slate-50 dark:bg-[#1e1f22] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5865F2] focus:ring-4 focus:ring-[#5865F2]/20 transition-all font-mono"
+                  disabled={savingDiscordId}
+                  autoFocus
+                />
+              </div>
+
+              {/* Helper text */}
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Discord ID is a 17-19 digit number
+              </p>
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-[#2b2d31] border-t border-slate-200 dark:border-[#1e1f22] flex items-center justify-between gap-3">
+              <button
+                onClick={() => setDiscordIdModal(null)}
+                disabled={savingDiscordId}
+                className="px-4 py-2.5 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-[#404249] transition-colors disabled:opacity-50"
+              >
+                {t.users.discordIdEdit.cancel}
+              </button>
+              <div className="flex items-center gap-2">
+                {discordIdModal.currentDiscordId && (
+                  <button
+                    onClick={handleClearDiscordId}
+                    disabled={savingDiscordId}
+                    className="px-4 py-2.5 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {t.users.discordIdEdit.clear}
+                  </button>
+                )}
+                <button
+                  onClick={handleSaveDiscordId}
+                  disabled={savingDiscordId}
+                  className="px-5 py-2.5 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {savingDiscordId ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {t.users.discordIdEdit.saving}
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {t.users.discordIdEdit.save}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

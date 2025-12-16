@@ -114,18 +114,18 @@ router.patch('/users/:username/credits', requireAdmin, async (req: Request, res:
 router.patch('/users/:username/refCredits', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { refCredits } = req.body;
-    
+
     if (typeof refCredits !== 'number' || refCredits < 0) {
       return res.status(400).json({ error: 'RefCredits must be a non-negative number' });
     }
-    
+
     const user = await userRepository.updateRefCredits(req.params.username, refCredits);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: `Updated ${req.params.username} refCredits to $${refCredits}`,
       user: {
         username: user._id,
@@ -135,6 +135,36 @@ router.patch('/users/:username/refCredits', requireAdmin, async (req: Request, r
   } catch (error) {
     console.error('Failed to update user refCredits:', error);
     res.status(500).json({ error: 'Failed to update user refCredits' });
+  }
+});
+
+router.patch('/users/:username/discord-id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { discordId } = req.body;
+
+    // Validate discordId format: null to clear, or 17-19 digits
+    if (discordId !== null && discordId !== '') {
+      if (typeof discordId !== 'string' || !/^\d{17,19}$/.test(discordId)) {
+        return res.status(400).json({ error: 'Discord ID must be 17-19 digits or null to clear' });
+      }
+    }
+
+    const user = await userRepository.updateDiscordId(req.params.username, discordId || null);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: discordId ? `Updated Discord ID for ${req.params.username}` : `Cleared Discord ID for ${req.params.username}`,
+      user: {
+        username: user._id,
+        discordId: user.discordId,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to update user Discord ID:', error);
+    res.status(500).json({ error: 'Failed to update user Discord ID' });
   }
 });
 

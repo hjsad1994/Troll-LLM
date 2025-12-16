@@ -1400,7 +1400,30 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	// Fix tool-related issues for Anthropic/Claude models
 	// 1. If no tools param but messages contain tool_calls/tool messages, strip them
 	// 2. Convert tool messages without tool_call_id to user messages
+	// 3. Ensure tool_use and tool_result are always in sync (both present or both stripped)
 	hasToolsParam := len(openaiReq.Tools) > 0
+
+	// First pass: collect all valid tool_call_ids from assistant messages
+	// This ensures we only keep tool results that have matching tool_use blocks
+	validToolCallIDs := make(map[string]bool)
+	if hasToolsParam {
+		for _, msg := range openaiReq.Messages {
+			if msg.Role == "assistant" && msg.ToolCalls != nil {
+				// ToolCalls is interface{}, need to extract IDs via type assertion
+				if toolCalls, ok := msg.ToolCalls.([]interface{}); ok {
+					for _, tc := range toolCalls {
+						if tcMap, ok := tc.(map[string]interface{}); ok {
+							if id, ok := tcMap["id"].(string); ok && id != "" {
+								validToolCallIDs[id] = true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Second pass: filter and fix messages
 	fixedMessages := make([]transformers.OpenAIMessage, 0, len(openaiReq.Messages))
 
 	for _, msg := range openaiReq.Messages {
@@ -1411,9 +1434,13 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 				content = c
 			}
 
-			if !hasToolsParam || msg.ToolCallID == "" {
-				// No tools param or missing tool_call_id - convert to user message
-				log.Printf("⚠️ [OpenHands-OpenAI] Converting tool message to user message (hasTools=%v, hasToolCallID=%v)", hasToolsParam, msg.ToolCallID != "")
+			// Convert to user message if:
+			// 1. No tools param, OR
+			// 2. Missing tool_call_id, OR
+			// 3. tool_call_id doesn't match any tool_use in assistant messages (orphaned result)
+			if !hasToolsParam || msg.ToolCallID == "" || !validToolCallIDs[msg.ToolCallID] {
+				log.Printf("⚠️ [OpenHands-OpenAI] Converting tool message to user message (hasTools=%v, hasToolCallID=%v, validID=%v)",
+					hasToolsParam, msg.ToolCallID != "", validToolCallIDs[msg.ToolCallID])
 				fixedMessages = append(fixedMessages, transformers.OpenAIMessage{
 					Role:    "user",
 					Content: "[Tool Result]\n" + content,

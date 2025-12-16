@@ -16,6 +16,7 @@ export interface UserProfile {
   totalOutputTokens: number;
   purchasedAt: Date | null;
   expiresAt: Date | null;
+  discordId: string | null;
 }
 
 export interface BillingInfo {
@@ -46,6 +47,7 @@ export class UserService {
       totalOutputTokens: (user as any).totalOutputTokens || 0,
       purchasedAt: user.purchasedAt || null,
       expiresAt: user.expiresAt || null,
+      discordId: user.discordId || null,
     };
   }
 
@@ -109,6 +111,23 @@ export class UserService {
 
   isCreditsExpired(user: IUser): boolean {
     return isCreditsExpired(user);
+  }
+
+  async updateDiscordId(username: string, discordId: string | null): Promise<{ success: boolean; discordId: string | null }> {
+    // Validate Discord ID format if provided (17-19 digits)
+    if (discordId && !/^\d{17,19}$/.test(discordId)) {
+      throw new Error('Invalid Discord ID format');
+    }
+
+    const user = await userRepository.updateDiscordId(username, discordId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return {
+      success: true,
+      discordId: user.discordId || null,
+    };
   }
 }
 

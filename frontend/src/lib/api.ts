@@ -101,6 +101,7 @@ export interface UserProfile {
   totalOutputTokens: number
   purchasedAt: string | null
   expiresAt: string | null
+  discordId: string | null
 }
 
 export interface BillingInfo {
@@ -147,6 +148,19 @@ export async function getBillingInfo(): Promise<BillingInfo> {
   if (!resp.ok) {
     const data = await resp.json()
     throw new Error(data.error || 'Failed to get billing info')
+  }
+  return resp.json()
+}
+
+export async function updateDiscordId(discordId: string | null): Promise<{ success: boolean; discordId: string | null }> {
+  const resp = await fetchWithAuth('/api/user/discord-id', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ discordId })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update Discord ID')
   }
   return resp.json()
 }
@@ -239,6 +253,7 @@ export interface AdminUser {
   creditsBurned: number
   purchasedAt?: string
   expiresAt?: string
+  discordId?: string
 }
 
 
@@ -283,6 +298,19 @@ export async function updateUserRefCredits(username: string, refCredits: number)
   if (!resp.ok) {
     const data = await resp.json()
     throw new Error(data.error || 'Failed to update user refCredits')
+  }
+  return resp.json()
+}
+
+export async function updateUserDiscordId(username: string, discordId: string | null): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/discord-id`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ discordId })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update user Discord ID')
   }
   return resp.json()
 }
