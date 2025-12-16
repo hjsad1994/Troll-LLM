@@ -72,7 +72,7 @@ export default function UsersPage() {
     username: string
     amount: number
   } | null>(null)
-  const [resetExpiration, setResetExpiration] = useState(true)
+  const [resetExpiration, setResetExpiration] = useState(false)
 
   const roleStats = useMemo(() => {
     const adminCount = users.filter(u => u.role === 'admin').length
@@ -182,6 +182,7 @@ export default function UsersPage() {
       alert(t.users.validation.invalidAmount)
       return
     }
+    setResetExpiration(false)
     setConfirmModal({ isOpen: true, type: 'set', username, amount })
   }
 
@@ -191,6 +192,7 @@ export default function UsersPage() {
       alert(t.users.validation.invalidAmount)
       return
     }
+    setResetExpiration(false)
     setConfirmModal({ isOpen: true, type: 'add', username, amount })
   }
 
@@ -323,17 +325,6 @@ export default function UsersPage() {
               </span>
             </button>
           </div>
-          <label className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-black/40 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={resetExpiration}
-              onChange={(e) => setResetExpiration(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
-            />
-            <span className="text-slate-700 dark:text-slate-300 text-sm whitespace-nowrap">
-              {t.users.resetExpiration || 'Reset Expiration'}
-            </span>
-          </label>
         </div>
 
         <p className="text-slate-600 dark:text-slate-500 text-sm">
@@ -700,12 +691,24 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
               {confirmModal.type === 'set'
                 ? `${t.users.confirmModal.setDescription} ${confirmModal.username}.`
                 : `${t.users.confirmModal.addDescription} $${confirmModal.amount.toFixed(2)} ${t.users.confirmModal.addDescriptionSuffix} ${confirmModal.username}.`
               }
             </p>
+
+            <label className="flex items-center gap-3 p-3 mb-6 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <input
+                type="checkbox"
+                checked={resetExpiration}
+                onChange={(e) => setResetExpiration(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
+              />
+              <span className="text-slate-700 dark:text-slate-300 text-sm">
+                {t.users.resetExpiration || 'Reset Expiration'}
+              </span>
+            </label>
 
             <div className="flex gap-3">
               <button
