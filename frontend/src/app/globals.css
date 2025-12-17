@@ -579,6 +579,22 @@ input[type="range"].slider-thumb::-moz-range-thumb:hover {
 }
 
 /* LED Border Animation */
+/* Floating button pulse animation */
+@keyframes floatPulse {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px -5px rgba(168, 85, 247, 0.5);
+  }
+}
+
+.animate-float-pulse {
+  animation: floatPulse 2s ease-in-out infinite;
+}
+
 @keyframes ledBorder {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }

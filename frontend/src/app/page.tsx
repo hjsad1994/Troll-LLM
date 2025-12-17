@@ -543,6 +543,17 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Buy Now Button */}
+      <Link
+        href="/checkout"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 sm:px-5 sm:py-3.5 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-semibold shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60 hover:scale-105 transition-all duration-300 animate-float-pulse"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        <span className="text-sm sm:text-base">{t.pricing.buyNow}</span>
+      </Link>
     </div>
   )
 }
