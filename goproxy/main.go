@@ -581,10 +581,6 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, `{"error": {"message": "Friend Key has been deactivated", "type": "authentication_error"}}`, http.StatusUnauthorized)
 			case userkey.ErrFriendKeyOwnerInactive:
 				http.Error(w, `{"error": {"message": "Friend Key owner account is inactive", "type": "authentication_error"}}`, http.StatusUnauthorized)
-			case userkey.ErrFriendKeyOwnerFreeTier:
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte(`{"error": {"message": "Friend Key owner must upgrade plan", "type": "free_tier_restricted"}}`))
 			case userkey.ErrFriendKeyOwnerNoCredits:
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
@@ -2668,10 +2664,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key has been deactivated"}}`, http.StatusUnauthorized)
 			case userkey.ErrFriendKeyOwnerInactive:
 				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key owner account is inactive"}}`, http.StatusUnauthorized)
-			case userkey.ErrFriendKeyOwnerFreeTier:
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte(`{"type":"error","error":{"type":"free_tier_restricted","message":"Friend Key owner must upgrade plan"}}`))
 			case userkey.ErrFriendKeyOwnerNoCredits:
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)

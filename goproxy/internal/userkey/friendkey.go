@@ -95,12 +95,7 @@ func ValidateFriendKeyBasic(apiKey string) (*FriendKeyValidationResult, error) {
 		return nil, ErrFriendKeyOwnerInactive
 	}
 
-	// 5. Check if owner is free tier
-	if owner.Plan == "free" || owner.Plan == "" {
-		return nil, ErrFriendKeyOwnerFreeTier
-	}
-
-	// 6. Check if owner has credits
+	// 5. Check if owner has credits (no longer checking plan - only credits matter)
 	if owner.Credits <= 0 && owner.RefCredits <= 0 {
 		return nil, ErrFriendKeyOwnerNoCredits
 	}
@@ -186,17 +181,12 @@ func ValidateFriendKey(apiKey string, modelID string) (*FriendKeyValidationResul
 		return nil, ErrFriendKeyOwnerInactive
 	}
 
-	// 5. Check if owner is free tier
-	if owner.Plan == "free" || owner.Plan == "" {
-		return nil, ErrFriendKeyOwnerFreeTier
-	}
-
-	// 6. Check if owner has credits
+	// 5. Check if owner has credits (no longer checking plan - only credits matter)
 	if owner.Credits <= 0 && owner.RefCredits <= 0 {
 		return nil, ErrFriendKeyOwnerNoCredits
 	}
 
-	// 7. Check model limit
+	// 6. Check model limit
 	var modelLimit *ModelLimit
 	for i := range friendKey.ModelLimits {
 		if friendKey.ModelLimits[i].ModelID == modelID {
