@@ -265,6 +265,23 @@ export interface UsersResponse {
   }
 }
 
+export interface RateLimitMetrics {
+  total_429: number
+  user_key_429: number
+  friend_key_429: number
+  period: string
+  timestamp: string
+}
+
+export async function getRateLimitMetrics(period: string = 'all'): Promise<RateLimitMetrics> {
+  const resp = await fetchWithAuth(`/admin/metrics/rate-limit?period=${period}`)
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to get rate limit metrics')
+  }
+  return resp.json()
+}
+
 export async function getAdminUsers(search?: string): Promise<UsersResponse> {
   const url = search ? `/admin/users?search=${encodeURIComponent(search)}` : '/admin/users'
   const resp = await fetchWithAuth(url)

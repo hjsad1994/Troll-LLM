@@ -40,7 +40,6 @@ interface UserKey {
   _id?: string
   id?: string
   name: string
-  tier: string
   tokensUsed: number
   isActive: boolean
 }

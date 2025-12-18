@@ -46,10 +46,10 @@ export class UserKeyController {
       const input = CreateUserKeyDTO.parse(req.body);
       const key = await userKeyService.createUserKey(input);
 
+      // Note: tier removed from response as part of tier system deprecation (Story 3.2)
       res.status(201).json({
         id: key._id,
         name: key.name,
-        tier: key.tier,
         created_at: key.createdAt,
       });
     } catch (error) {

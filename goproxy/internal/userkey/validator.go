@@ -3,6 +3,7 @@ package userkey
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -238,4 +239,80 @@ func GetUserCreditsWithRef(username string) (credits float64, refCredits float64
 	}
 
 	return user.Credits, user.RefCredits, nil
+}
+
+// =============================================================================
+// Story 2.2: Zero-Debt Policy Enforcement - Pre-deduction Balance Check
+// =============================================================================
+
+// AffordabilityResult contains the result of pre-request affordability check
+type AffordabilityResult struct {
+	CanAfford        bool    // true if user can afford the request
+	Credits          float64 // main credits balance (USD)
+	RefCredits       float64 // referral credits balance (USD)
+	TotalBalance     float64 // credits + refCredits
+	RequestCost      float64 // cost of the request
+	RemainingBalance float64 // balance after deduction (if affordable)
+}
+
+// CanAffordRequest checks if user has sufficient credits for a specific request cost
+// Returns AffordabilityResult with balance details for error messages
+// AC1: Block request if cost > balance (before processing)
+func CanAffordRequest(username string, cost float64) (*AffordabilityResult, error) {
+	// Zero cost always passes
+	if cost <= 0 {
+		return &AffordabilityResult{
+			CanAfford:   true,
+			RequestCost: cost,
+		}, nil
+	}
+
+	// Empty username bypasses check (env-based auth)
+	if username == "" {
+		return &AffordabilityResult{
+			CanAfford:   true,
+			RequestCost: cost,
+		}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user UserCredits
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// User not found = no credits
+			return &AffordabilityResult{
+				CanAfford:    false,
+				RequestCost:  cost,
+				TotalBalance: 0,
+			}, ErrInsufficientCredits
+		}
+		return nil, err
+	}
+
+	totalBalance := user.Credits + user.RefCredits
+	canAfford := totalBalance >= cost
+
+	result := &AffordabilityResult{
+		CanAfford:        canAfford,
+		Credits:          user.Credits,
+		RefCredits:       user.RefCredits,
+		TotalBalance:     totalBalance,
+		RequestCost:      cost,
+		RemainingBalance: totalBalance - cost,
+	}
+
+	if !canAfford {
+		return result, InsufficientCreditsForRequest(cost, totalBalance)
+	}
+
+	return result, nil
+}
+
+// InsufficientCreditsForRequest creates an error with cost and balance details
+// Error message format: "insufficient credits for request. Cost: $X.XX, Balance: $Y.YY"
+func InsufficientCreditsForRequest(cost, balance float64) error {
+	return fmt.Errorf("insufficient credits for request. Cost: $%.2f, Balance: $%.2f", cost, balance)
 }

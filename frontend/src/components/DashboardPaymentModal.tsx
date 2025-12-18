@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createCheckout, getPaymentStatus } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
+import { isPromoActive, getTimeRemaining, calculateBonusCredits, getBonusAmount, PROMO_CONFIG } from '@/lib/promo'
 
 interface DashboardPaymentModalProps {
   isOpen: boolean
@@ -29,6 +30,8 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
     expiresAt: string
   } | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const [promoActive, setPromoActive] = useState(isPromoActive())
+  const [promoTimeLeft, setPromoTimeLeft] = useState(getTimeRemaining())
 
   const dp = t.dashboardPayment
 
@@ -41,7 +44,21 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
       setError(null)
       setPaymentData(null)
       setRemainingSeconds(0)
+      setPromoActive(isPromoActive())
+      setPromoTimeLeft(getTimeRemaining())
     }
+  }, [isOpen])
+
+  // Promo countdown timer
+  useEffect(() => {
+    if (!isOpen) return
+
+    const timer = setInterval(() => {
+      setPromoActive(isPromoActive())
+      setPromoTimeLeft(getTimeRemaining())
+    }, 1000)
+
+    return () => clearInterval(timer)
   }, [isOpen])
 
   // Poll payment status
@@ -173,6 +190,26 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
           {/* Step 1: Amount Selection */}
           {step === 'select' && (
             <div className="space-y-6">
+              {/* Promo Banner - Only show when active */}
+              {promoActive && promoTimeLeft.total > 0 && (
+                <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10 border border-emerald-500/30">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                                        <span className="text-emerald-400 font-bold">
+                      {dp?.promoTitle || 'BONUS +15% CREDITS!'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1 text-xs text-emerald-300">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>
+                      {dp?.promoEndsIn || 'Ends in'}: {promoTimeLeft.days > 0 && `${promoTimeLeft.days}d `}
+                      {String(promoTimeLeft.hours).padStart(2, '0')}:{String(promoTimeLeft.minutes).padStart(2, '0')}:{String(promoTimeLeft.seconds).padStart(2, '0')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Amount Slider */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-3">
@@ -182,6 +219,11 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                 {/* Amount Display */}
                 <div className="text-center mb-4">
                   <span className="text-4xl font-bold text-emerald-400">${selectedAmount}</span>
+                  {promoActive && (
+                    <span className="ml-2 text-lg text-emerald-300">
+                      → ${calculateBonusCredits(selectedAmount).toFixed(0)} {dp?.credits || 'credits'}
+                    </span>
+                  )}
                   <p className="text-slate-400 text-sm mt-1">{formatPrice(selectedAmount * 1000)} VND</p>
                 </div>
 
@@ -252,6 +294,18 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">{dp?.amount || 'Amount'}</span>
                   <span className="text-white font-semibold">${selectedAmount}</span>
+                </div>
+                {promoActive && (
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-emerald-400">{dp?.bonus || 'Bonus'} +{PROMO_CONFIG.bonusPercent}%</span>
+                    <span className="text-emerald-400 font-semibold">+${getBonusAmount(selectedAmount).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/50">
+                  <span className="text-slate-400">{dp?.youReceive || 'You receive'}</span>
+                  <span className="text-emerald-400 font-bold text-lg">
+                    ${promoActive ? calculateBonusCredits(selectedAmount).toFixed(2) : selectedAmount} {dp?.credits || 'credits'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-slate-400">{dp?.vnd || 'VND'}</span>

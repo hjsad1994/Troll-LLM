@@ -61,6 +61,12 @@ export const translations = {
       hours: 'Hours',
       minutes: 'Minutes',
       seconds: 'Seconds',
+      promo: {
+        bonusTitle: 'BONUS +15% CREDITS!',
+        bonusDesc: 'Buy $20 → Get $23 credits',
+        endsIn: 'Ends in',
+        getBonus: '→ Get $23 credits (+15% bonus)',
+      },
       features: {
         allModels: 'Access to all AI models',
         openaiApi: 'OpenAI-compatible API',
@@ -233,6 +239,10 @@ export const translations = {
         unhealthy: 'Down',
         loading: 'Loading...',
       },
+      rateLimit: {
+        title: 'Rate Limit',
+        value: '600 RPM',
+      },
     },
     // Dashboard Test Page
     dashboardTest: {
@@ -244,6 +254,7 @@ export const translations = {
         cacheWrite: 'Cache Write',
         cacheHit: 'Cache Hit',
         creditsBurned: 'Credits Burned',
+        totalCreditsUsed: 'Total Used',
         requests: 'Requests',
       },
       requestLogs: {
@@ -965,6 +976,10 @@ export const translations = {
       generateNewQr: 'Generate New QR Code',
       credits: 'credits',
       buyCredits: 'Buy Credits',
+      promoTitle: 'BONUS +15% CREDITS!',
+      promoEndsIn: 'Ends in',
+      bonus: 'Bonus',
+      youReceive: 'You receive',
     },
     // Users Page
     users: {
@@ -1084,6 +1099,10 @@ export const translations = {
         cancel: 'Cancel',
         confirm: 'Delete Key',
         deleting: 'Deleting...',
+      },
+      rateLimit: {
+        title: 'Rate Limit',
+        value: '60 RPM',
       },
     },
     // Legal Pages
@@ -1276,6 +1295,12 @@ export const translations = {
       hours: 'Giờ',
       minutes: 'Phút',
       seconds: 'Giây',
+      promo: {
+        bonusTitle: 'TẶNG THÊM 15% CREDITS!',
+        bonusDesc: 'Mua $20 → Nhận $23 credits',
+        endsIn: 'Kết thúc sau',
+        getBonus: '→ Nhận $23 credits (+15% bonus)',
+      },
       features: {
         allModels: 'Truy cập tất cả mô hình AI',
         openaiApi: 'API tương thích OpenAI',
@@ -1448,6 +1473,10 @@ export const translations = {
         unhealthy: 'Down',
         loading: 'Đang tải...',
       },
+      rateLimit: {
+        title: 'Giới hạn tốc độ',
+        value: '600 RPM',
+      },
     },
     // Dashboard Test Page
     dashboardTest: {
@@ -1459,6 +1488,7 @@ export const translations = {
         cacheWrite: 'Cache Write',
         cacheHit: 'Cache Hit',
         creditsBurned: 'Credits đã dùng',
+        totalCreditsUsed: 'Tổng đã dùng',
         requests: 'Requests',
       },
       requestLogs: {
@@ -2180,6 +2210,10 @@ export const translations = {
       generateNewQr: 'Tạo mã QR mới',
       credits: 'credits',
       buyCredits: 'Mua Credits',
+      promoTitle: 'TẶNG THÊM 15% CREDITS!',
+      promoEndsIn: 'Kết thúc sau',
+      bonus: 'Bonus',
+      youReceive: 'Bạn nhận',
     },
     // Users Page
     users: {
@@ -2299,6 +2333,10 @@ export const translations = {
         cancel: 'Hủy',
         confirm: 'Xóa Key',
         deleting: 'Đang xóa...',
+      },
+      rateLimit: {
+        title: 'Giới hạn tốc độ',
+        value: '60 RPM',
       },
     },
     // Legal Pages

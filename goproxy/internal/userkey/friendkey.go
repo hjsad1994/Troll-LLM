@@ -19,7 +19,6 @@ var (
 	ErrFriendKeyModelDisabled   = errors.New("model disabled for friend key")
 	ErrFriendKeyModelLimitExceeded = errors.New("friend key model limit exceeded")
 	ErrFriendKeyOwnerNoCredits = errors.New("friend key owner has no credits")
-	ErrFriendKeyOwnerFreeTier  = errors.New("friend key owner is free tier")
 )
 
 type ModelLimit struct {
@@ -216,19 +215,6 @@ func ValidateFriendKey(apiKey string, modelID string) (*FriendKeyValidationResul
 		Owner:         &owner,
 		UseRefCredits: useRefCredits,
 	}, nil
-}
-
-func GetFriendKeyOwnerRPM(owner *FriendKeyOwner) int {
-	switch owner.Plan {
-	case "pro-troll":
-		return 600
-	case "pro":
-		return 300
-	case "dev":
-		return 150
-	default:
-		return 0
-	}
 }
 
 func UpdateFriendKeyUsage(apiKey string, modelID string, costUsd float64) error {

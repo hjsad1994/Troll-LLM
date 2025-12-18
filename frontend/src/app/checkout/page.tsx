@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createCheckout, getPaymentStatus, isAuthenticated } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
+import { isPromoActive, getTimeRemaining, calculateBonusCredits, getBonusAmount, PROMO_CONFIG } from '@/lib/promo'
 
 const MIN_AMOUNT = 20
 const MAX_AMOUNT = 100
@@ -30,6 +31,8 @@ function CheckoutContent() {
   } | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [discordRoleAssigned, setDiscordRoleAssigned] = useState(false)
+  const [promoActive, setPromoActive] = useState(isPromoActive())
+  const [promoTimeLeft, setPromoTimeLeft] = useState(getTimeRemaining())
 
   const vndAmount = customAmount * VND_RATE
 
@@ -38,6 +41,16 @@ function CheckoutContent() {
       router.push('/login?redirect=/checkout')
     }
   }, [router])
+
+  // Promo countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPromoActive(isPromoActive())
+      setPromoTimeLeft(getTimeRemaining())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
 
   const handleCheckout = async () => {
     if (customAmount < MIN_AMOUNT || customAmount > MAX_AMOUNT) {
@@ -160,6 +173,26 @@ function CheckoutContent() {
 
             {/* Main Card */}
             <div className="bg-white dark:bg-white/[0.02] rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-200 dark:border-white/5 overflow-hidden">
+              {/* Promo Banner */}
+              {promoActive && promoTimeLeft.total > 0 && (
+                <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10 border-b border-emerald-500/20">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+                      {t.pricing.promo?.bonusTitle || 'BONUS +15% CREDITS!'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1 text-sm text-emerald-700 dark:text-emerald-300">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>
+                      {t.pricing.promo?.endsIn || 'Ends in'}: {promoTimeLeft.days > 0 && `${promoTimeLeft.days}d `}
+                      {String(promoTimeLeft.hours).padStart(2, '0')}:{String(promoTimeLeft.minutes).padStart(2, '0')}:{String(promoTimeLeft.seconds).padStart(2, '0')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Amount Section */}
               <div className="p-6 border-b border-gray-100 dark:border-white/5">
                 <div className="text-center mb-6">
@@ -167,9 +200,15 @@ function CheckoutContent() {
                     <span className="text-4xl font-bold text-[var(--theme-text)]">${customAmount}</span>
                     <span className="text-[var(--theme-text-muted)] text-sm">USD</span>
                   </div>
-                  <p className="text-sm text-indigo-500 dark:text-indigo-400 mt-1">
-                    = {formatPrice(vndAmount)} VND
-                  </p>
+                  {promoActive ? (
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                      → {language === 'vi' ? 'Nhận' : 'Get'} ${calculateBonusCredits(customAmount).toFixed(0)} credits (+{PROMO_CONFIG.bonusPercent}% bonus)
+                    </p>
+                  ) : (
+                    <p className="text-sm text-indigo-500 dark:text-indigo-400 mt-1">
+                      = {formatPrice(vndAmount)} VND
+                    </p>
+                  )}
                 </div>
 
                 {/* Quick Select */}
@@ -234,9 +273,29 @@ function CheckoutContent() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[var(--theme-text-subtle)]">{t.checkout.summary.total}</span>
-                  <span className="text-xl font-bold text-[var(--theme-text)]">{formatPrice(vndAmount)} VND</span>
+                {/* Summary with bonus */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Số tiền' : 'Amount'}</span>
+                    <span className="font-semibold text-[var(--theme-text)]">${customAmount}</span>
+                  </div>
+                  {promoActive && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-emerald-600 dark:text-emerald-400">Bonus +{PROMO_CONFIG.bonusPercent}%</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">+${getBonusAmount(customAmount).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="h-px bg-gray-200 dark:bg-white/10" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Bạn nhận' : 'You receive'}</span>
+                    <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                      ${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[var(--theme-text-subtle)]">{t.checkout.summary.total}</span>
+                    <span className="text-lg font-bold text-[var(--theme-text)]">{formatPrice(vndAmount)} VND</span>
+                  </div>
                 </div>
 
                 <button
@@ -365,15 +424,31 @@ function CheckoutContent() {
               {t.checkout.success.title}
             </h1>
             <p className="text-[var(--theme-text-subtle)] mb-6">
-              {language === 'vi' ? `+$${customAmount} credits` : `+$${customAmount} credits added`}
+              {language === 'vi'
+                ? `+$${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits`
+                : `+$${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits added`}
+              {promoActive && <span className="text-emerald-500 ml-1">(+{PROMO_CONFIG.bonusPercent}% bonus!)</span>}
             </p>
 
             {/* Summary Card */}
             <div className="bg-white dark:bg-white/[0.02] rounded-2xl shadow-lg border border-gray-200 dark:border-white/5 p-6 mb-6">
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-[var(--theme-text-subtle)]">Credits</span>
+                  <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Số tiền' : 'Amount'}</span>
                   <span className="font-semibold text-[var(--theme-text)]">${customAmount}</span>
+                </div>
+                {promoActive && (
+                  <div className="flex justify-between">
+                    <span className="text-emerald-600 dark:text-emerald-400">Bonus +{PROMO_CONFIG.bonusPercent}%</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">+${getBonusAmount(customAmount).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="h-px bg-gray-100 dark:bg-white/5" />
+                <div className="flex justify-between">
+                  <span className="text-[var(--theme-text-subtle)]">Credits</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    ${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Hiệu lực' : 'Valid for'}</span>

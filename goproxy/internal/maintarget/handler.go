@@ -62,25 +62,26 @@ func getClient() *http.Client {
 }
 
 // sanitizeError returns a generic error message (OpenAI format)
+// Story 4.1: Added "code" field to all error responses for OpenAI SDK compatibility
 func sanitizeError(statusCode int, originalError []byte) []byte {
 	log.Printf("🔒 [MainTarget] Original error (hidden): %s", string(originalError))
 	switch statusCode {
 	case 400:
-		return []byte(`{"error":{"message":"Bad request","type":"invalid_request_error"}}`)
+		return []byte(`{"error":{"message":"Bad request","type":"invalid_request_error","code":"invalid_request_error"}}`)
 	case 401:
-		return []byte(`{"error":{"message":"Authentication failed","type":"authentication_error"}}`)
+		return []byte(`{"error":{"message":"Authentication failed","type":"authentication_error","code":"invalid_api_key"}}`)
 	case 402:
-		return []byte(`{"error":{"message":"Service temporarily unavailable. Please contact admin.","type":"service_error"}}`)
+		return []byte(`{"error":{"message":"Insufficient credits. Please purchase credits to continue.","type":"insufficient_quota","code":"insufficient_credits"}}`)
 	case 403:
-		return []byte(`{"error":{"message":"Access denied","type":"permission_error"}}`)
+		return []byte(`{"error":{"message":"Access denied","type":"permission_error","code":"permission_denied"}}`)
 	case 404:
-		return []byte(`{"error":{"message":"Resource not found","type":"not_found_error"}}`)
+		return []byte(`{"error":{"message":"Resource not found","type":"not_found_error","code":"not_found"}}`)
 	case 429:
-		return []byte(`{"error":{"message":"Rate limit exceeded","type":"rate_limit_error"}}`)
+		return []byte(`{"error":{"message":"Rate limit exceeded","type":"rate_limit_error","code":"rate_limit_exceeded"}}`)
 	case 500, 502, 503, 504:
-		return []byte(`{"error":{"message":"Upstream service unavailable","type":"server_error"}}`)
+		return []byte(`{"error":{"message":"Upstream service unavailable","type":"server_error","code":"server_error"}}`)
 	default:
-		return []byte(`{"error":{"message":"Request failed","type":"api_error"}}`)
+		return []byte(`{"error":{"message":"Request failed","type":"api_error","code":"api_error"}}`)
 	}
 }
 
@@ -93,7 +94,8 @@ func sanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 	case 401:
 		return []byte(`{"type":"error","error":{"type":"authentication_error","message":"Authentication failed"}}`)
 	case 402:
-		return []byte(`{"type":"error","error":{"type":"service_error","message":"Service temporarily unavailable. Please contact admin."}}`)
+		// Story 4.2: Use insufficient_credits type for payment required errors
+		return []byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Please purchase credits to continue."}}`)
 	case 403:
 		return []byte(`{"type":"error","error":{"type":"permission_error","message":"Access denied"}}`)
 	case 404:

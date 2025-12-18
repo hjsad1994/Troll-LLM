@@ -11,6 +11,7 @@ import {
   generateQRCodeUrl
 } from '../models/payment.model.js';
 import { UserKey } from '../models/user-key.model.js';
+import { expirationSchedulerService } from './expiration-scheduler.service.js';
 
 export interface CheckoutResult {
   paymentId: string;
@@ -304,6 +305,9 @@ export class PaymentService {
     }
 
     console.log(`[Payment] ✅ Added $${credits} credits to ${userId}, expires: ${expiresAt}`);
+
+    // Schedule expiration timer
+    expirationSchedulerService.scheduleExpiration(userId, expiresAt);
   }
 
   private async awardReferralBonus(userId: string, credits: number): Promise<void> {

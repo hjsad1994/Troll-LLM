@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { fetchWithAuth, getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getPaymentHistory, UserProfile, BillingInfo, PaymentHistoryItem } from '@/lib/api'
+import { fetchWithAuth, getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getPaymentHistory, getRateLimitMetrics, UserProfile, BillingInfo, PaymentHistoryItem, RateLimitMetrics } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import DashboardPaymentModal from '@/components/DashboardPaymentModal'
 
@@ -30,7 +30,6 @@ interface UserKey {
   _id?: string
   id?: string
   name: string
-  tier: string
   tokensUsed: number
   isActive: boolean
 }
@@ -143,6 +142,8 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
+  const [rateLimitMetrics, setRateLimitMetrics] = useState<RateLimitMetrics | null>(null)
+  const [rateLimitPeriod, setRateLimitPeriod] = useState<string>('24h')
   const { user } = useAuth()
 
   const loadUserData = useCallback(async () => {
@@ -255,6 +256,8 @@ export default function Dashboard() {
       if (isAdmin) {
         setFactoryKeys((factoryData.keys || []).slice(0, 5))
         setProxies((proxiesData.proxies || []).slice(0, 5))
+        // Load rate limit metrics for admin
+        getRateLimitMetrics(rateLimitPeriod).then(setRateLimitMetrics).catch(console.error)
       }
       setRecentLogs(metricsData.recent_logs || [])
 
@@ -272,6 +275,13 @@ export default function Dashboard() {
     const interval = setInterval(loadDashboard, 30000)
     return () => clearInterval(interval)
   }, [loadDashboard, loadUserData])
+
+  // Reload rate limit metrics when period changes
+  useEffect(() => {
+    if (isAdmin) {
+      getRateLimitMetrics(rateLimitPeriod).then(setRateLimitMetrics).catch(console.error)
+    }
+  }, [rateLimitPeriod, isAdmin])
 
   // Calculate some derived metrics
   const activeKeys = userKeys.filter(k => k.isActive).length
@@ -655,6 +665,69 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Rate Limit Metrics - Admin only */}
+      {isAdmin && (
+        <div className="rounded-2xl bg-gradient-to-br from-violet-900/40 to-slate-900/60 border border-violet-500/30 overflow-hidden">
+          <div className="px-6 py-4 border-b border-violet-500/20 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white">Rate Limit Metrics</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {['1h', '24h', '7d', '30d', 'all'].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setRateLimitPeriod(p)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    rateLimitPeriod === p
+                      ? 'bg-violet-500 text-white'
+                      : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                  }`}
+                >
+                  {p === 'all' ? 'All' : p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="p-6">
+            {rateLimitMetrics ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-800/50 rounded-xl p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">Total 429 Responses</p>
+                  <p className="text-3xl font-bold text-violet-400">{rateLimitMetrics.total_429.toLocaleString()}</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-xl p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">User Key (sk-troll-*)</p>
+                  <p className="text-2xl font-bold text-blue-400">{rateLimitMetrics.user_key_429.toLocaleString()}</p>
+                  {rateLimitMetrics.total_429 > 0 && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {((rateLimitMetrics.user_key_429 / rateLimitMetrics.total_429) * 100).toFixed(1)}%
+                    </p>
+                  )}
+                </div>
+                <div className="bg-slate-800/50 rounded-xl p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">Friend Key (fk-*)</p>
+                  <p className="text-2xl font-bold text-amber-400">{rateLimitMetrics.friend_key_429.toLocaleString()}</p>
+                  {rateLimitMetrics.total_429 > 0 && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {((rateLimitMetrics.friend_key_429 / rateLimitMetrics.total_429) * 100).toFixed(1)}%
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                <p>Loading rate limit metrics...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Proxies Section */}
       <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">

@@ -1,5 +1,7 @@
 import { userNewRepository, isCreditsExpired } from '../repositories/user-new.repository.js';
 import { maskApiKey, IUserNew } from '../models/user-new.model.js';
+import { expirationSchedulerService } from './expiration-scheduler.service.js';
+import { ResetTrigger } from '../models/credits-reset-log.model.js';
 
 export interface UserNewProfile {
   username: string;
@@ -88,8 +90,18 @@ export class UserNewService {
     return userNewRepository.findByApiKey(apiKey);
   }
 
-  async checkAndResetExpiredCredits(username: string): Promise<{ wasExpired: boolean; user: IUserNew | null }> {
-    return userNewRepository.checkAndResetExpiredCredits(username);
+  async checkAndResetExpiredCredits(username: string, triggeredBy: ResetTrigger = 'login'): Promise<{ wasExpired: boolean; user: IUserNew | null }> {
+    const user = await userNewRepository.findById(username);
+    if (!user) return { wasExpired: false, user: null };
+
+    if (isCreditsExpired(user) && user.credits > 0) {
+      // Use scheduler service to reset and log
+      await expirationSchedulerService.resetAndLog(username, triggeredBy);
+      const updatedUser = await userNewRepository.findById(username);
+      return { wasExpired: true, user: updatedUser };
+    }
+
+    return { wasExpired: false, user };
   }
 
   isCreditsExpired(user: IUserNew): boolean {

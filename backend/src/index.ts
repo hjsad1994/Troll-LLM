@@ -13,6 +13,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import modelsRoutes from './routes/models.routes.js';
 import friendKeyRoutes from './routes/friend-key.routes.js';
 import openhandsRoutes from './routes/openhands.routes.js';
+import { expirationSchedulerService } from './services/expiration-scheduler.service.js';
 
 const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
@@ -128,6 +129,10 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function main() {
   try {
     await connectDB();
+
+    // Initialize expiration scheduler after DB connection
+    const { scheduled, resetImmediately, cleanedUp } = await expirationSchedulerService.init();
+    console.log(`[Startup] Expiration scheduler: ${scheduled} scheduled, ${resetImmediately} reset, ${cleanedUp} cleaned up`);
 
     app.listen(PORT, () => {
       console.log(`F-Proxy Backend started at http://localhost:${PORT}`);

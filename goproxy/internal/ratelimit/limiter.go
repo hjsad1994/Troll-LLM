@@ -5,10 +5,36 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"goproxy/internal/userkey"
 )
 
-// DefaultRPM is the rate limit for all API keys (300 requests per minute - Dev tier default)
+// DefaultRPM is the fallback rate limit for unknown key types
 const DefaultRPM = 300
+
+// UserKeyRPM is the rate limit for User Keys (sk-troll-* or sk-trollllm-*)
+const UserKeyRPM = 600
+
+// FriendKeyRPM is the rate limit for Friend Keys (sk-trollllm-friend-*)
+const FriendKeyRPM = 60
+
+// GetRPMForKeyType returns the RPM limit for a given key type
+func GetRPMForKeyType(keyType userkey.KeyType) int {
+	switch keyType {
+	case userkey.KeyTypeUser:
+		return UserKeyRPM
+	case userkey.KeyTypeFriend:
+		return FriendKeyRPM
+	default:
+		return DefaultRPM
+	}
+}
+
+// GetRPMForAPIKey returns the RPM limit for an API key based on its prefix
+// This is a convenience function that combines GetKeyType and GetRPMForKeyType
+func GetRPMForAPIKey(apiKey string) int {
+	return GetRPMForKeyType(userkey.GetKeyType(apiKey))
+}
 
 // UseOptimizedLimiter controls whether to use the optimized limiter
 // Set to true for production (O(1) sliding window)
@@ -162,7 +188,7 @@ func (r *RateLimiter) Remaining(key string, limit int) int {
 	return remaining
 }
 
-// GetLimit returns the default rate limit (5 RPM)
+// GetLimit returns the default rate limit (300 RPM for unknown key types)
 func GetLimit() int {
 	return DefaultRPM
 }

@@ -21,10 +21,11 @@ router.get('/usage', async (req: Request, res: Response) => {
     }
 
     // Return usage info with masked key
+    // Note: tier field removed as part of tier system deprecation (Story 3.2)
+    // All User Keys now get 600 RPM (unified rate limit from Epic 1)
     res.json({
       key: userKeyService.maskKey(apiKey),
-      tier: key.tier,
-      rpm_limit: key.tier === 'pro' ? 1000 : 300, // Dev: 300 RPM, Pro: 1000 RPM
+      rpm_limit: 600, // Unified rate limit for all User Keys (Epic 1)
       tokens_used: key.tokensUsed,
       requests_count: key.requestsCount,
       is_active: key.isActive,

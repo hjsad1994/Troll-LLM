@@ -338,9 +338,17 @@ export default function UserDashboard() {
                   </button>
                 </div>
 
-                <p className="text-[var(--theme-text-subtle)] text-xs">
-                  Created {new Date(userProfile.apiKeyCreatedAt).toLocaleDateString()}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[var(--theme-text-subtle)] text-xs">
+                    Created {new Date(userProfile.apiKeyCreatedAt).toLocaleDateString()}
+                  </p>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-500/10 border border-violet-500/20">
+                    <svg className="w-3 h-3 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span className="text-violet-400 text-xs font-medium">{t.dashboard.rateLimit?.value || '600 RPM'}</span>
+                  </div>
+                </div>
 
                 {/* AI Provider Section */}
                 <div className="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-slate-200 dark:border-white/10">
@@ -656,10 +664,18 @@ export default function UserDashboard() {
               </div>
               <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
                 <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
-                  {t.dashboardTest?.detailedUsage?.creditsBurned || 'Credits Burned'}
+                  {t.dashboardTest?.detailedUsage?.creditsBurned || 'Credits Burned'} ({usagePeriod})
                 </p>
                 <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
                   ${(detailedUsage?.creditsBurned || 0).toFixed(4)}
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
+                <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
+                  {t.dashboardTest?.detailedUsage?.totalCreditsUsed || 'Total Used'}
+                </p>
+                <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
+                  ${(userProfile?.creditsUsed || 0).toFixed(4)}
                 </p>
               </div>
               <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">

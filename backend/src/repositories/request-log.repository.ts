@@ -396,6 +396,47 @@ export class RequestLogRepository {
     });
     return map;
   }
+
+  async getRateLimitMetrics(since?: Date): Promise<{
+    total429: number;
+    userKey429: number;
+    friendKey429: number;
+  }> {
+    const match: any = { statusCode: 429 };
+    if (since) {
+      match.createdAt = { $gte: since };
+    }
+
+    const result = await RequestLog.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $and: [{ $ne: ['$friendKeyId', null] }, { $ne: ['$friendKeyId', ''] }] },
+              'friendKey',
+              'userKey'
+            ]
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    let userKey429 = 0;
+    let friendKey429 = 0;
+
+    result.forEach((r) => {
+      if (r._id === 'userKey') userKey429 = r.count;
+      if (r._id === 'friendKey') friendKey429 = r.count;
+    });
+
+    return {
+      total429: userKey429 + friendKey429,
+      userKey429,
+      friendKey429,
+    };
+  }
 }
 
 export const requestLogRepository = new RequestLogRepository();

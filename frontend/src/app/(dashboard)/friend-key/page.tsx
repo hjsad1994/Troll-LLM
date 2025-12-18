@@ -396,7 +396,7 @@ export default function FriendKeyPage() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
                 <div>
                   <p className="text-xs text-[var(--theme-text-subtle)]">{t.friendKey.keyCard.totalUsed}</p>
                   <p className="text-lg font-semibold text-[var(--theme-text)]">${friendKey.totalUsedUsd.toFixed(2)}</p>
@@ -404,6 +404,15 @@ export default function FriendKeyPage() {
                 <div>
                   <p className="text-xs text-[var(--theme-text-subtle)]">{t.friendKey.keyCard.requests}</p>
                   <p className="text-lg font-semibold text-[var(--theme-text)]">{friendKey.requestsCount}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--theme-text-subtle)]">{t.friendKey.rateLimit?.title || 'Rate Limit'}</p>
+                  <div className="flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <p className="text-lg font-semibold text-violet-400">{t.friendKey.rateLimit?.value || '60 RPM'}</p>
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-[var(--theme-text-subtle)]">{t.friendKey.keyCard.created}</p>

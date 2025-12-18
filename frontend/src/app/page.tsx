@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
+import { isPromoActive, getTimeRemaining, calculateBonusCredits, PROMO_CONFIG } from '@/lib/promo'
 
 
 // ===== CODE TEMPLATES WITH DIFFERENT MODELS PER LANGUAGE =====
@@ -203,6 +204,37 @@ function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: strin
   return <span>{displayed}{suffix}</span>
 }
 
+// ===== PROMO COUNTDOWN =====
+function PromoCountdown({ labelEndsIn }: { labelEndsIn: string }) {
+  const [timeLeft, setTimeLeft] = useState(getTimeRemaining())
+  const [promoActive, setPromoActive] = useState(isPromoActive())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const remaining = getTimeRemaining()
+      setTimeLeft(remaining)
+      setPromoActive(isPromoActive())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  if (!promoActive || timeLeft.total <= 0) return null
+
+  const pad = (n: number) => n.toString().padStart(2, '0')
+
+  return (
+    <div className="flex items-center justify-center gap-1 text-sm">
+      <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span className="text-amber-600 dark:text-amber-400 font-medium">
+        {labelEndsIn}: {timeLeft.days > 0 && `${timeLeft.days}d `}{pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
+      </span>
+    </div>
+  )
+}
+
 // ===== FEATURE ICONS =====
 const featureIcons = [
   <svg key="1" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -382,24 +414,43 @@ export default function LandingPage() {
 
           {/* Simple Pricing Card */}
           <div className="p-8 sm:p-10 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02]">
-            {/* Exchange Rate Banner */}
-            <div className="mb-6 -mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <p className="text-center text-amber-600 dark:text-amber-400 font-semibold text-sm">
-                {t.pricing.rate}
-              </p>
-            </div>
+            {/* Promo Banner - Only show when active */}
+            {isPromoActive() && (
+              <div className="mb-6 -mt-2 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10 border border-emerald-500/20">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+                    {t.pricing.promo?.bonusTitle || 'BONUS +15% CREDITS!'}
+                  </span>
+                </div>
+                <p className="text-center text-emerald-700 dark:text-emerald-300 text-sm mb-2">
+                  {t.pricing.promo?.bonusDesc || 'Buy $20 → Get $23 credits'}
+                </p>
+                <PromoCountdown labelEndsIn={t.pricing.promo?.endsIn || 'Ends in'} />
+              </div>
+            )}
+
+            {/* Exchange Rate Banner - Only show when promo not active */}
+            {!isPromoActive() && (
+              <div className="mb-6 -mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <p className="text-center text-amber-600 dark:text-amber-400 font-semibold text-sm">
+                  {t.pricing.rate}
+                </p>
+              </div>
+            )}
 
             {/* Price */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 mb-3">
-                <span className="text-[var(--theme-text-muted)] line-through">$30</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-medium">-33%</span>
-              </div>
               <div className="flex items-baseline justify-center">
                 <span className="text-5xl sm:text-6xl font-bold text-[var(--theme-text)]">$20</span>
                 <span className="text-[var(--theme-text-muted)] ml-2">min</span>
               </div>
-              <p className="text-[var(--theme-text-subtle)] text-sm mt-2">{t.pricing.tagline}</p>
+              {isPromoActive() ? (
+                <p className="text-emerald-600 dark:text-emerald-400 text-sm mt-2 font-medium">
+                  {t.pricing.promo?.getBonus || '→ Get $23 credits (+15% bonus)'}
+                </p>
+              ) : (
+                <p className="text-[var(--theme-text-subtle)] text-sm mt-2">{t.pricing.tagline}</p>
+              )}
             </div>
 
             {/* Features - Simple list */}

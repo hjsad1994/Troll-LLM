@@ -16,13 +16,16 @@ export class UserKeyRepository {
   }
 
   async create(data: CreateUserKeyInput): Promise<IUserKey> {
-    const prefix = data.tier === 'pro' ? 'sk-pro-' : 'sk-dev-';
+    // Note: Unified prefix for all keys as part of tier system removal (Story 3.2)
+    // Previously: tier-based prefix (sk-pro- / sk-dev-)
+    // Now: consistent sk-troll- prefix for all User Keys
+    const prefix = 'sk-troll-';
     const id = prefix + nanoid(24);
-    
+
     const key = await UserKey.create({
       _id: id,
       name: data.name,
-      tier: data.tier,
+      // tier defaults to 'dev' in schema - soft deprecated, not used in logic
       notes: data.notes,
     });
     return key.toObject();
