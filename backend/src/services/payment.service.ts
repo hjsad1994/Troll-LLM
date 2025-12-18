@@ -13,6 +13,25 @@ import {
 import { UserKey } from '../models/user-key.model.js';
 import { expirationSchedulerService } from './expiration-scheduler.service.js';
 
+// Promo Configuration - must match frontend promo.ts
+const PROMO_CONFIG = {
+  startDate: new Date('2025-12-18T00:00:00+07:00'),
+  endDate: new Date('2025-12-20T22:00:00+07:00'),
+  bonusPercent: 15,
+};
+
+function isPromoActive(): boolean {
+  const now = new Date();
+  return now >= PROMO_CONFIG.startDate && now < PROMO_CONFIG.endDate;
+}
+
+function calculateCreditsWithBonus(credits: number): number {
+  if (isPromoActive()) {
+    return credits * (1 + PROMO_CONFIG.bonusPercent / 100);
+  }
+  return credits;
+}
+
 export interface CheckoutResult {
   paymentId: string;
   orderCode: string;
@@ -180,22 +199,31 @@ export class PaymentService {
       payload.id.toString()
     );
 
+    // Calculate credits with promo bonus if active
+    const baseCredits = payment.credits;
+    const finalCredits = calculateCreditsWithBonus(baseCredits);
+    const promoApplied = finalCredits > baseCredits;
+
+    if (promoApplied) {
+      console.log(`[Payment Webhook] Promo active! Base: $${baseCredits} → Final: $${finalCredits.toFixed(2)} (+${PROMO_CONFIG.bonusPercent}%)`);
+    }
+
     console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
 
-    // Add credits to user (also saves discordId if provided)
-    await this.addCredits(payment.userId, payment.credits, payment.discordId, payment._id.toString());
+    // Add credits to user (with bonus if promo active)
+    await this.addCredits(payment.userId, finalCredits, payment.discordId, payment._id.toString());
 
-    // Send webhook to Discord bot
+    // Send webhook to Discord bot (show final credits with bonus)
     await this.notifyDiscordBot({
       discordId: payment.discordId || '',
-      credits: `$${payment.credits}`,
+      credits: promoApplied ? `$${finalCredits.toFixed(2)} (includes +${PROMO_CONFIG.bonusPercent}% bonus)` : `$${baseCredits}`,
       username: payment.userId,
       orderCode: payment.orderCode || orderCode,
       amount: payment.amount,
       transactionId: payload.id.toString(),
     });
 
-    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Credits: $${payment.credits}`);
+    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Credits: $${finalCredits.toFixed(2)}${promoApplied ? ` (base: $${baseCredits})` : ''}`);
     return { processed: true, message: 'Payment processed successfully' };
   }
 
