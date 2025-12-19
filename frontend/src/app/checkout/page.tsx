@@ -197,8 +197,8 @@ function CheckoutContent() {
               <div className="p-6 border-b border-gray-100 dark:border-white/5">
                 <div className="text-center mb-6">
                   <div className="inline-flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-[var(--theme-text)]">${customAmount}</span>
-                    <span className="text-[var(--theme-text-muted)] text-sm">USD</span>
+                    <span className="text-4xl font-bold text-[var(--theme-text)]">{formatPrice(vndAmount)}</span>
+                    <span className="text-[var(--theme-text-muted)] text-sm">VND</span>
                   </div>
                   {promoActive ? (
                     <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
@@ -206,7 +206,7 @@ function CheckoutContent() {
                     </p>
                   ) : (
                     <p className="text-sm text-indigo-500 dark:text-indigo-400 mt-1">
-                      = {formatPrice(vndAmount)} VND
+                      = ${customAmount} credits
                     </p>
                   )}
                 </div>
@@ -223,7 +223,7 @@ function CheckoutContent() {
                           : 'bg-gray-100 dark:bg-white/5 text-[var(--theme-text-muted)] hover:bg-gray-200 dark:hover:bg-white/10'
                       }`}
                     >
-                      ${amount}
+                      {formatPrice(amount * VND_RATE)}
                     </button>
                   ))}
                 </div>
@@ -239,8 +239,8 @@ function CheckoutContent() {
                     className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg"
                   />
                   <div className="flex justify-between text-xs text-[var(--theme-text-muted)] mt-1">
-                    <span>${MIN_AMOUNT}</span>
-                    <span>${MAX_AMOUNT}</span>
+                    <span>{formatPrice(MIN_AMOUNT * VND_RATE)} VND</span>
+                    <span>{formatPrice(MAX_AMOUNT * VND_RATE)} VND</span>
                   </div>
                 </div>
               </div>
@@ -275,17 +275,6 @@ function CheckoutContent() {
 
                 {/* Summary with bonus */}
                 <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Số tiền' : 'Amount'}</span>
-                    <span className="font-semibold text-[var(--theme-text)]">${customAmount}</span>
-                  </div>
-                  {promoActive && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-emerald-600 dark:text-emerald-400">Bonus +{PROMO_CONFIG.bonusPercent}%</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">+${getBonusAmount(customAmount).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="h-px bg-gray-200 dark:bg-white/10" />
                   <div className="flex items-center justify-between">
                     <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Bạn nhận' : 'You receive'}</span>
                     <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">

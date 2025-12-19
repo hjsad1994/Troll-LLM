@@ -100,6 +100,7 @@ export const translations = {
       buyNow: 'Buy Now',
       unavailable: 'Unavailable',
       updating: 'Updating',
+      min: 'min',
       minPurchase: 'Minimum: $20',
       validity: 'Valid for 1 week',
       rate: '1,000 VND = $1',
@@ -1334,6 +1335,7 @@ export const translations = {
       buyNow: 'Mua ngay',
       unavailable: 'Ngưng nhận Thanh toán',
       updating: 'Đang cập nhật',
+      min: 'tối thiểu',
       minPurchase: 'Mua tối thiểu: $20',
       validity: 'Hiệu lực 1 tuần',
       rate: '1.000 VND = $1',
@@ -2471,4 +2473,4 @@ export const translations = {
   },
 }
 
-export type TranslationKey = keyof typeof translations.en
+export type TranslationKey = keyof typeof translations.vi

@@ -447,8 +447,8 @@ export default function LandingPage() {
             {/* Price */}
             <div className="text-center mb-8">
               <div className="flex items-baseline justify-center">
-                <span className="text-5xl sm:text-6xl font-bold text-[var(--theme-text)]">$20</span>
-                <span className="text-[var(--theme-text-muted)] ml-2">min</span>
+                <span className="text-5xl sm:text-6xl font-bold text-[var(--theme-text)]">20.000</span>
+                <span className="text-[var(--theme-text-muted)] ml-2">VND {t.pricing.min}</span>
               </div>
               {isPromoActive() ? (
                 <p className="text-emerald-600 dark:text-emerald-400 text-sm mt-2 font-medium">
@@ -483,7 +483,7 @@ export default function LandingPage() {
               {t.pricing.buyNow}
             </Link>
 
-            {/* Note */}
+            {/* Notes */}
             <p className="text-center text-[var(--theme-text-muted)] text-xs mt-4">
               {t.pricing.securePayment}
             </p>

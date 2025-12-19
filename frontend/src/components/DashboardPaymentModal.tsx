@@ -218,13 +218,16 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
                 {/* Amount Display */}
                 <div className="text-center mb-4">
-                  <span className="text-4xl font-bold text-emerald-400">${selectedAmount}</span>
+                  <span className="text-4xl font-bold text-emerald-400">{formatPrice(selectedAmount * 1000)}</span>
+                  <span className="ml-1 text-lg text-emerald-300">VND</span>
                   {promoActive && (
                     <span className="ml-2 text-lg text-emerald-300">
                       → ${calculateBonusCredits(selectedAmount).toFixed(0)} {dp?.credits || 'credits'}
                     </span>
                   )}
-                  <p className="text-slate-400 text-sm mt-1">{formatPrice(selectedAmount * 1000)} VND</p>
+                  {!promoActive && (
+                    <p className="text-slate-400 text-sm mt-1">= ${selectedAmount} credits</p>
+                  )}
                 </div>
 
                 {/* Slider */}
@@ -292,22 +295,12 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               {/* Summary */}
               <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">{dp?.amount || 'Amount'}</span>
-                  <span className="text-white font-semibold">${selectedAmount}</span>
-                </div>
-                {promoActive && (
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-emerald-400">{dp?.bonus || 'Bonus'} +{PROMO_CONFIG.bonusPercent}%</span>
-                    <span className="text-emerald-400 font-semibold">+${getBonusAmount(selectedAmount).toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/50">
                   <span className="text-slate-400">{dp?.youReceive || 'You receive'}</span>
                   <span className="text-emerald-400 font-bold text-lg">
                     ${promoActive ? calculateBonusCredits(selectedAmount).toFixed(2) : selectedAmount} {dp?.credits || 'credits'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/50">
                   <span className="text-slate-400">{dp?.vnd || 'VND'}</span>
                   <span className="text-white font-semibold">{formatPrice(selectedAmount * 1000)} VND</span>
                 </div>
