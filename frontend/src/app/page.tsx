@@ -206,10 +206,14 @@ function AnimatedCounter({ value, suffix = '' }: { value: string; suffix?: strin
 
 // ===== PROMO COUNTDOWN =====
 function PromoCountdown({ labelEndsIn }: { labelEndsIn: string }) {
-  const [timeLeft, setTimeLeft] = useState(getTimeRemaining())
-  const [promoActive, setPromoActive] = useState(isPromoActive())
+  const [timeLeft, setTimeLeft] = useState<ReturnType<typeof getTimeRemaining> | null>(null)
+  const [promoActive, setPromoActive] = useState<boolean | null>(null)
 
   useEffect(() => {
+    // Initialize on client side only to avoid hydration mismatch
+    setTimeLeft(getTimeRemaining())
+    setPromoActive(isPromoActive())
+
     const timer = setInterval(() => {
       const remaining = getTimeRemaining()
       setTimeLeft(remaining)
@@ -219,6 +223,8 @@ function PromoCountdown({ labelEndsIn }: { labelEndsIn: string }) {
     return () => clearInterval(timer)
   }, [])
 
+  // Don't render until client-side hydration is complete
+  if (timeLeft === null || promoActive === null) return null
   if (!promoActive || timeLeft.total <= 0) return null
 
   const pad = (n: number) => n.toString().padStart(2, '0')

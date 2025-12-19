@@ -289,9 +289,16 @@ router.get('/model-stats', requireAdmin, async (req: Request, res: Response) => 
       case '8h':
         since = new Date(now.getTime() - 8 * 60 * 60 * 1000);
         break;
-      case '24h':
-        since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      case '24h': {
+        // Start of today in Vietnam timezone (UTC+7)
+        // Midnight VN = 17:00 UTC previous day
+        const vnOffsetMs = 7 * 60 * 60 * 1000;
+        const nowInVN = now.getTime() + vnOffsetMs;
+        const startOfTodayVN = new Date(nowInVN);
+        startOfTodayVN.setUTCHours(0, 0, 0, 0);
+        since = new Date(startOfTodayVN.getTime() - vnOffsetMs);
         break;
+      }
       case '7d':
         since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
@@ -344,9 +351,16 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
         case '3h':
           since = new Date(now.getTime() - 3 * 60 * 60 * 1000);
           break;
-        case '24h':
-          since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        case '24h': {
+          // Start of today in Vietnam timezone (UTC+7)
+          // Midnight VN = 17:00 UTC previous day
+          const vnOffsetMs = 7 * 60 * 60 * 1000;
+          const nowInVN = now.getTime() + vnOffsetMs;
+          const startOfTodayVN = new Date(nowInVN);
+          startOfTodayVN.setUTCHours(0, 0, 0, 0);
+          since = new Date(startOfTodayVN.getTime() - vnOffsetMs);
           break;
+        }
         case '7d':
           since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
