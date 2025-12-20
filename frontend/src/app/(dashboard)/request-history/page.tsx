@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 // TEMPORARILY DISABLED - request history feature
 export default function RequestHistoryPage() {
   return (

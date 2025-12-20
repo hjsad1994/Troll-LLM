@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { fetchWithAuth } from '@/lib/api'
 import { useToast } from '@/components/Toast'

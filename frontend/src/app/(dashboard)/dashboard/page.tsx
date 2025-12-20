@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState, useCallback } from 'react'
 import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getDetailedUsage, getRequestLogs, getPaymentHistory, updateDiscordId, UserProfile, BillingInfo, DetailedUsage, RequestLogItem, RequestLogsResponse, PaymentHistoryItem } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'

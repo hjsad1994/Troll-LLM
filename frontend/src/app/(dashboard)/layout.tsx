@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useState, useEffect, useCallback } from 'react'
+import { ReactNode, useState, useEffect, Suspense, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import Sidebar from '@/components/Sidebar'
@@ -62,11 +62,24 @@ function clearBannerDismissState(): void {
   localStorage.removeItem(BANNER_DISMISS_KEY)
 }
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { isLoggedIn, loading } = useAuth()
-  const { t } = useLanguage()
+// Separate component that uses useSearchParams
+function PaymentSuccessHandler({ onPaymentSuccess }: { onPaymentSuccess: () => void }) {
   const searchParams = useSearchParams()
   const router = useRouter()
+
+  useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      onPaymentSuccess()
+      router.replace('/dashboard', { scroll: false })
+    }
+  }, [searchParams, router, onPaymentSuccess])
+
+  return null
+}
+
+function DashboardLayoutContent({ children }: { children: ReactNode }) {
+  const { isLoggedIn, loading } = useAuth()
+  const { t } = useLanguage()
   const [balance, setBalance] = useState<number | null>(null)
   const [estimatedRequests, setEstimatedRequests] = useState<number | null>(null)
   const [isBannerDismissed, setIsBannerDismissed] = useState(false)
@@ -97,21 +110,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }
 
-  // Handle payment success - show toast and trigger immediate fetch
-  useEffect(() => {
-    if (searchParams.get('payment') === 'success') {
-      // Show success toast
-      setShowPaymentToast(true)
-
-      // Clear URL param (clean URL)
-      router.replace('/dashboard', { scroll: false })
-
-      // Auto-dismiss toast after 4 seconds
-      const toastTimer = setTimeout(() => setShowPaymentToast(false), 4000)
-
-      return () => clearTimeout(toastTimer)
-    }
-  }, [searchParams, router])
+  // Handle payment success
+  const handlePaymentSuccess = useCallback(() => {
+    setShowPaymentToast(true)
+    setTimeout(() => setShowPaymentToast(false), 4000)
+  }, [])
 
   useEffect(() => {
     if (!isLoggedIn) return
@@ -193,6 +196,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-white dark:bg-black relative">
+      {/* Payment Success Handler - wrapped in Suspense */}
+      <Suspense fallback={null}>
+        <PaymentSuccessHandler onPaymentSuccess={handlePaymentSuccess} />
+      </Suspense>
+
       {/* Payment Success Toast */}
       {showPaymentToast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
@@ -228,4 +236,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </div>
     </div>
   )
+}
+
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return <DashboardLayoutContent>{children}</DashboardLayoutContent>
 }
