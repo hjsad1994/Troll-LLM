@@ -192,13 +192,13 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
             <div className="space-y-6">
               {/* Promo Banner - Only show when active */}
               {promoActive && promoTimeLeft.total > 0 && (
-                <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10 border border-emerald-500/30">
+                <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-purple-500/30">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                                        <span className="text-emerald-400 font-bold">
+                                        <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent font-bold">
                       {dp?.promoTitle || 'BONUS +15% CREDITS!'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-center gap-1 text-xs text-emerald-300">
+                  <div className="flex items-center justify-center gap-1 text-xs text-purple-300">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -218,10 +218,10 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
                 {/* Amount Display */}
                 <div className="text-center mb-4">
-                  <span className="text-4xl font-bold text-emerald-400">{formatPrice(selectedAmount * 1000)}</span>
-                  <span className="ml-1 text-lg text-emerald-300">VND</span>
+                  <span className="text-4xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">{formatPrice(selectedAmount * 1000)}</span>
+                  <span className="ml-1 text-lg text-purple-300">VND</span>
                   {promoActive && (
-                    <span className="ml-2 text-lg text-emerald-300">
+                    <span className="ml-2 text-lg text-purple-300">
                       → ${calculateBonusCredits(selectedAmount).toFixed(0)} {dp?.credits || 'credits'}
                     </span>
                   )}
@@ -241,7 +241,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                     onChange={(e) => setSelectedAmount(parseInt(e.target.value))}
                     className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider-thumb"
                     style={{
-                      background: `linear-gradient(to right, #10b981 0%, #10b981 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 100%)`
+                      background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 100%)`
                     }}
                   />
                   <div className="flex justify-between mt-2 text-xs text-slate-500">
@@ -258,7 +258,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                       onClick={() => setSelectedAmount(amount)}
                       className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                         selectedAmount === amount
-                          ? 'bg-emerald-500 text-white'
+                          ? 'bg-purple-500 text-white'
                           : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                       }`}
                     >
@@ -278,7 +278,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                   value={discordId}
                   onChange={(e) => setDiscordId(e.target.value.replace(/\D/g, ''))}
                   placeholder={dp?.discordIdPlaceholder || '123456789012345678'}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   maxLength={19}
                 />
                 <p className="mt-2 text-xs text-slate-500">
@@ -296,7 +296,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">{dp?.youReceive || 'You receive'}</span>
-                  <span className="text-emerald-400 font-bold text-lg">
+                  <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent font-bold text-lg">
                     ${promoActive ? calculateBonusCredits(selectedAmount).toFixed(2) : selectedAmount} {dp?.credits || 'credits'}
                   </span>
                 </div>
@@ -314,7 +314,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               <button
                 onClick={handleCreatePayment}
                 disabled={loading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-semibold hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -389,8 +389,8 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
           {/* Success State */}
           {step === 'success' && (
             <div className="text-center py-4">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <svg className="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                <svg className="w-10 h-10 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
@@ -402,7 +402,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               </p>
               <button
                 onClick={handleClose}
-                className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors font-medium"
+                className="px-6 py-3 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors font-medium"
               >
                 {dp?.done || 'Done'}
               </button>
@@ -425,7 +425,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               </p>
               <button
                 onClick={handleRetry}
-                className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors font-medium"
+                className="px-6 py-3 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors font-medium"
               >
                 {dp?.generateNewQr || 'Generate New QR Code'}
               </button>

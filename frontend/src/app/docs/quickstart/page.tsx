@@ -68,34 +68,41 @@ function CodeBlock({
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
 
+    // Use inline styles to avoid potential issues
+    const purple = '<b style="color:#c084fc;font-weight:normal">'
+    const blue = '<b style="color:#60a5fa;font-weight:normal">'
+    const green = '<b style="color:#34d399;font-weight:normal">'
+    const gray = '<b style="color:#6b7280;font-weight:normal">'
+    const yellow = '<b style="color:#fbbf24;font-weight:normal">'
+    const cyan = '<b style="color:#22d3ee;font-weight:normal">'
+    const amber = '<b style="color:#f59e0b;font-weight:normal">'
+    const end = '</b>'
+
     if (lang === 'python') {
       escaped = escaped
-        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/("([^"]*)"|'([^']*)')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(#.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+        .replace(/(#.*$)/gm, `${gray}$1${end}`)
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, `${purple}$1${end}`)
+        .replace(/\b(requests|response|json|os|environ|post|get|headers|data|print|content|text|choices|message|model|role|max_tokens)\b/g, `${blue}$1${end}`)
     } else if (lang === 'javascript' || lang === 'typescript') {
       escaped = escaped
-        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/("([^"]*)"|'([^']*)'|`([^`]*)`)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+        .replace(/(\/\/.*$)/gm, `${gray}$1${end}`)
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, `${purple}$1${end}`)
+        .replace(/\b(fetch|response|json|JSON|stringify|headers|body|method|process|env|console|log|data|choices|message|content|model|role|max_tokens|text)\b/g, `${blue}$1${end}`)
     } else if (lang === 'bash' || lang === 'shell') {
       escaped = escaped
-        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-600 dark:text-yellow-400">$1</span>')
-        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>')
+        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, `${yellow}$1${end}`)
+        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, `${cyan}$1${end}`)
     } else if (lang === 'json') {
       escaped = escaped
-        .replace(/("([^"]*)")(\\s*:)/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>$2')
-        .replace(/:\\s*("([^"]*)")/g, ': <span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-600 dark:text-amber-400">$1</span>')
+        .replace(/("(?:[^"\\]|\\.)*")(\s*:)/g, `${cyan}$1${end}$2`)
+        .replace(/:\s*("(?:[^"\\]|\\.)*")/g, `: ${green}$1${end}`)
+        .replace(/\b(true|false|null)\b/g, `${purple}$1${end}`)
+        .replace(/\b(\d+\.?\d*)\b/g, `${amber}$1${end}`)
     } else if (lang === 'go') {
       escaped = escaped
-        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/("([^"]*)")/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, `${purple}$1${end}`)
+        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, `${blue}$1${end}`)
+        .replace(/(\/\/.*$)/gm, `${gray}$1${end}`)
     }
 
     return escaped
@@ -156,34 +163,41 @@ function TabbedCodeBlock({
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
 
+    // Use inline styles to avoid potential issues
+    const purple = '<b style="color:#c084fc;font-weight:normal">'
+    const blue = '<b style="color:#60a5fa;font-weight:normal">'
+    const green = '<b style="color:#34d399;font-weight:normal">'
+    const gray = '<b style="color:#6b7280;font-weight:normal">'
+    const yellow = '<b style="color:#fbbf24;font-weight:normal">'
+    const cyan = '<b style="color:#22d3ee;font-weight:normal">'
+    const amber = '<b style="color:#f59e0b;font-weight:normal">'
+    const end = '</b>'
+
     if (lang === 'python') {
       escaped = escaped
-        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/(\"[^\"]*\"|'[^']*')/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|base_url|api_key|model|role|content|print|choices|max_tokens|baseURL|apiKey)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(#.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+        .replace(/(#.*$)/gm, `${gray}$1${end}`)
+        .replace(/\b(from|import|def|class|return|if|else|elif|for|while|with|as|try|except|finally|raise|async|await|lambda|yield|break|continue|pass|None|True|False)\b/g, `${purple}$1${end}`)
+        .replace(/\b(requests|response|json|os|environ|post|get|headers|data|print|content|text|choices|message|model|role|max_tokens)\b/g, `${blue}$1${end}`)
     } else if (lang === 'javascript' || lang === 'typescript') {
       escaped = escaped
-        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/(\"[^\"]*\"|'[^']*'|`[^`]*`)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(OpenAI|Anthropic|client|response|chat|completions|create|messages|message|baseURL|apiKey|model|role|content|console|log|max_tokens)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+        .replace(/(\/\/.*$)/gm, `${gray}$1${end}`)
+        .replace(/\b(const|let|var|function|async|await|return|if|else|for|while|import|export|default|class|extends|new|this|try|catch|finally|throw)\b/g, `${purple}$1${end}`)
+        .replace(/\b(fetch|response|json|JSON|stringify|headers|body|method|process|env|console|log|data|choices|message|content|model|role|max_tokens|text)\b/g, `${blue}$1${end}`)
     } else if (lang === 'bash' || lang === 'shell') {
       escaped = escaped
-        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, '<span class="text-yellow-600 dark:text-yellow-400">$1</span>')
-        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>')
+        .replace(/^(curl|echo|export|cd|ls|mkdir|rm|cp|mv|cat|grep|sed|awk|node|npm|python|pip)\b/gm, `${yellow}$1${end}`)
+        .replace(/\b(OPENAI_BASE_URL|OPENAI_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_API_KEY|TROLLLLM_API_KEY)\b/g, `${cyan}$1${end}`)
     } else if (lang === 'json') {
       escaped = escaped
-        .replace(/(\"[^\"]*\")(\\s*:)/g, '<span class="text-cyan-600 dark:text-cyan-400">$1</span>$2')
-        .replace(/:\\s*(\"[^\"]*\")/g, ': <span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(true|false|null)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-600 dark:text-amber-400">$1</span>')
+        .replace(/("(?:[^"\\]|\\.)*")(\s*:)/g, `${cyan}$1${end}$2`)
+        .replace(/:\s*("(?:[^"\\]|\\.)*")/g, `: ${green}$1${end}`)
+        .replace(/\b(true|false|null)\b/g, `${purple}$1${end}`)
+        .replace(/\b(\d+\.?\d*)\b/g, `${amber}$1${end}`)
     } else if (lang === 'go') {
       escaped = escaped
-        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, '<span class="text-purple-600 dark:text-purple-400">$1</span>')
-        .replace(/(\"[^\"]*\")/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, '<span class="text-blue-600 dark:text-blue-400">$1</span>')
-        .replace(/(\/\/.*$)/gm, '<span class="text-gray-400 dark:text-slate-500">$1</span>')
+        .replace(/\b(package|import|func|var|const|type|struct|interface|map|chan|return|if|else|for|range|switch|case|default|defer|go|select)\b/g, `${purple}$1${end}`)
+        .replace(/\b(http|json|fmt|os|bytes|NewRequest|NewBuffer|Marshal|Header|Set|Client|Do|Close|Decode|Println|Getenv)\b/g, `${blue}$1${end}`)
+        .replace(/(\/\/.*$)/gm, `${gray}$1${end}`)
     }
 
     return escaped
@@ -317,15 +331,13 @@ function APIFormatSelector() {
   const configs = {
     openai: {
       baseUrl: 'https://chat.trollllm.xyz/v1',
-      envVars: `OPENAI_BASE_URL=https://chat.trollllm.xyz/v1
-OPENAI_API_KEY=your-api-key`,
-      description: 'Compatible with OpenAI SDK and tools that support custom base URLs.'
+      envVars: `TROLLLLM_API_KEY=your-api-key`,
+      description: 'Use direct HTTP requests to the OpenAI-compatible endpoint.'
     },
     anthropic: {
       baseUrl: 'https://chat.trollllm.xyz',
-      envVars: `ANTHROPIC_BASE_URL=https://chat.trollllm.xyz
-ANTHROPIC_API_KEY=your-api-key`,
-      description: 'Native Anthropic format for Claude-specific features and tools.'
+      envVars: `TROLLLLM_API_KEY=your-api-key`,
+      description: 'Use direct HTTP requests to the Anthropic-compatible endpoint.'
     }
   }
 
@@ -447,43 +459,48 @@ export default function QuickstartPage() {
   const openaiExamples = {
     curl: `curl https://chat.trollllm.xyz/v1/chat/completions \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer $OPENAI_API_KEY" \\
+  -H "Authorization: Bearer $TROLLLLM_API_KEY" \\
   -d '{
     "model": "gpt-5.1",
     "messages": [
       {"role": "user", "content": "Hello! What can you help me with?"}
     ]
   }'`,
-    python: `from openai import OpenAI
+    python: `import requests
+import os
 
-client = OpenAI(
-    base_url="https://chat.trollllm.xyz/v1",
-    api_key="your-api-key"
+response = requests.post(
+    "https://chat.trollllm.xyz/v1/chat/completions",
+    headers={
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {os.environ['TROLLLLM_API_KEY']}"
+    },
+    json={
+        "model": "gpt-5.1",
+        "messages": [
+            {"role": "user", "content": "Hello! What can you help me with?"}
+        ]
+    }
 )
 
-response = client.chat.completions.create(
-    model="gpt-5.1",
-    messages=[
-        {"role": "user", "content": "Hello! What can you help me with?"}
+data = response.json()
+print(data["choices"][0]["message"]["content"])`,
+    javascript: `const response = await fetch('https://chat.trollllm.xyz/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': \`Bearer \${process.env.TROLLLLM_API_KEY}\`
+  },
+  body: JSON.stringify({
+    model: 'gpt-5.1',
+    messages: [
+      { role: 'user', content: 'Hello! What can you help me with?' }
     ]
-)
-
-print(response.choices[0].message.content)`,
-    javascript: `import OpenAI from 'openai';
-
-const client = new OpenAI({
-  baseURL: 'https://chat.trollllm.xyz/v1',
-  apiKey: 'your-api-key'
+  })
 });
 
-const response = await client.chat.completions.create({
-  model: 'gpt-5.1',
-  messages: [
-    { role: 'user', content: 'Hello! What can you help me with?' }
-  ]
-});
-
-console.log(response.choices[0].message.content);`,
+const data = await response.json();
+console.log(data.choices[0].message.content);`,
     go: `package main
 
 import (
@@ -507,7 +524,7 @@ func main() {
     jsonData, _ := json.Marshal(payload)
     req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
     req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENAI_API_KEY"))
+    req.Header.Set("Authorization", "Bearer "+os.Getenv("TROLLLLM_API_KEY"))
 
     client := &http.Client{}
     resp, _ := client.Do(req)
@@ -522,7 +539,7 @@ func main() {
   const anthropicExamples = {
     curl: `curl https://chat.trollllm.xyz/v1/messages \\
   -H "Content-Type: application/json" \\
-  -H "x-api-key: $ANTHROPIC_API_KEY" \\
+  -H "x-api-key: $TROLLLLM_API_KEY" \\
   -H "anthropic-version: 2023-06-01" \\
   -d '{
     "model": "claude-sonnet-4-5-20250929",
@@ -531,38 +548,45 @@ func main() {
       {"role": "user", "content": "Hello! What can you help me with?"}
     ]
   }'`,
-    python: `import anthropic
+    python: `import requests
+import os
 
-client = anthropic.Anthropic(
-    base_url="https://chat.trollllm.xyz",
-    api_key="your-api-key"
+response = requests.post(
+    "https://chat.trollllm.xyz/v1/messages",
+    headers={
+        "Content-Type": "application/json",
+        "x-api-key": os.environ["TROLLLLM_API_KEY"],
+        "anthropic-version": "2023-06-01"
+    },
+    json={
+        "model": "claude-sonnet-4-5-20250929",
+        "max_tokens": 1024,
+        "messages": [
+            {"role": "user", "content": "Hello! What can you help me with?"}
+        ]
+    }
 )
 
-message = client.messages.create(
-    model="claude-sonnet-4-5-20250929",
-    max_tokens=1024,
-    messages=[
-        {"role": "user", "content": "Hello! What can you help me with?"}
+data = response.json()
+print(data["content"][0]["text"])`,
+    javascript: `const response = await fetch('https://chat.trollllm.xyz/v1/messages', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.TROLLLLM_API_KEY,
+    'anthropic-version': '2023-06-01'
+  },
+  body: JSON.stringify({
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 1024,
+    messages: [
+      { role: 'user', content: 'Hello! What can you help me with?' }
     ]
-)
-
-print(message.content[0].text)`,
-    javascript: `import Anthropic from '@anthropic-ai/sdk';
-
-const client = new Anthropic({
-  baseURL: 'https://chat.trollllm.xyz',
-  apiKey: 'your-api-key'
+  })
 });
 
-const message = await client.messages.create({
-  model: 'claude-sonnet-4-5-20250929',
-  max_tokens: 1024,
-  messages: [
-    { role: 'user', content: 'Hello! What can you help me with?' }
-  ]
-});
-
-console.log(message.content[0].text);`,
+const data = await response.json();
+console.log(data.content[0].text);`,
     go: `package main
 
 import (
@@ -587,7 +611,7 @@ func main() {
     jsonData, _ := json.Marshal(payload)
     req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
     req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("x-api-key", os.Getenv("ANTHROPIC_API_KEY"))
+    req.Header.Set("x-api-key", os.Getenv("TROLLLLM_API_KEY"))
     req.Header.Set("anthropic-version", "2023-06-01")
 
     client := &http.Client{}
@@ -779,11 +803,7 @@ func main() {
                 </p>
 
                 <CodeBlock
-                  code={apiFormat === 'openai'
-                    ? `OPENAI_BASE_URL=https://chat.trollllm.xyz/v1
-OPENAI_API_KEY=your-api-key`
-                    : `ANTHROPIC_BASE_URL=https://chat.trollllm.xyz
-ANTHROPIC_API_KEY=your-api-key`}
+                  code="TROLLLLM_API_KEY=your-api-key"
                   language="bash"
                   title=".env"
                 />

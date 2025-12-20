@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import CreditsStatusWidget from '@/components/CreditsStatusWidget'
 
 interface HeaderProps {
   activeLink?: 'models' | 'features' | 'pricing' | 'faq' | 'docs'
@@ -86,6 +87,7 @@ export default function Header({ activeLink, hideAuthButtons }: HeaderProps) {
         <div className="flex items-center gap-2 sm:gap-4">
           <ThemeToggle />
           <LanguageSwitcher />
+          {isLoggedIn && <CreditsStatusWidget size="sm" />}
           {isLoggedIn ? (
             <div className="relative user-menu-container">
               <button

@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrollLLM - UX Design Directions</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --background: #ffffff;
+            --foreground: #0a0a0a;
+            --muted: #f5f5f5;
+            --muted-foreground: #737373;
+            --border: #e5e5e5;
+            --status-ok: #22c55e;
+            --status-warning: #eab308;
+            --status-critical: #ef4444;
+            --primary: #0a0a0a;
+            --primary-foreground: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--muted);
+            color: var(--foreground);
+            line-height: 1.5;
+        }
+
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--foreground);
+            color: var(--primary-foreground);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .nav h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--primary-foreground);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover, .nav-tab.active {
+            background: var(--primary-foreground);
+            color: var(--foreground);
+        }
+
+        .container {
+            margin-top: 80px;
+            padding: 24px;
+        }
+
+        .direction {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .direction.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .direction-header {
+            background: var(--background);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .direction-header h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .direction-header p {
+            color: var(--muted-foreground);
+        }
+
+        .tags {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .tag {
+            padding: 4px 12px;
+            background: var(--muted);
+            border-radius: 100px;
+            font-size: 12px;
+            color: var(--muted-foreground);
+        }
+
+        /* Direction 1: Minimal Clean */
+        .d1-dashboard {
+            background: var(--background);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .d1-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .d1-logo {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .d1-status-widget {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--muted);
+            border-radius: 100px;
+        }
+
+        .d1-status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--status-ok);
+        }
+
+        .d1-status-dot.warning { background: var(--status-warning); }
+        .d1-status-dot.critical { background: var(--status-critical); }
+
+        .d1-balance {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .d1-estimate {
+            color: var(--muted-foreground);
+            font-size: 13px;
+        }
+
+        .d1-content {
+            padding: 48px 32px;
+            max-width: 800px;
+        }
+
+        .d1-section-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted-foreground);
+            margin-bottom: 16px;
+        }
+
+        .d1-api-key {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--muted);
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .d1-key-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .d1-copy-btn {
+            padding: 8px 16px;
+            background: var(--foreground);
+            color: var(--primary-foreground);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        /* Direction 2: Card-Based */
+        .d2-dashboard {
+            background: var(--background);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .d2-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--foreground);
+            color: var(--primary-foreground);
+        }
+
+        .d2-content {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .d2-card {
+            padding: 20px;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .d2-card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted-foreground);
+            margin-bottom: 12px;
+        }
+
+        .d2-status-card {
+            grid-column: span 3;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 24px;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 2px solid var(--status-ok);
+        }
+
+        .d2-status-card.warning {
+            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            border-color: var(--status-warning);
+        }
+
+        .d2-status-card.critical {
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            border-color: var(--status-critical);
+        }
+
+        .d2-big-dot {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--status-ok);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .d2-status-info h3 {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .d2-status-info p {
+            color: var(--muted-foreground);
+        }
+
+        .d2-topup-btn {
+            margin-left: auto;
+            padding: 12px 24px;
+            background: var(--foreground);
+            color: var(--primary-foreground);
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Direction 3: Dense Dashboard */
+        .d3-dashboard {
+            background: var(--background);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .d3-sidebar {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+        }
+
+        .d3-nav {
+            background: var(--foreground);
+            color: var(--primary-foreground);
+            padding: 20px;
+        }
+
+        .d3-nav-logo {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .d3-nav-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 4px;
+        }
+
+        .d3-nav-item:hover, .d3-nav-item.active {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .d3-main {
+            padding: 20px;
+        }
+
+        .d3-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .d3-status-inline {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .d3-status-inline .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--status-ok);
+        }
+
+        .d3-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .d3-stat {
+            padding: 16px;
+            background: var(--muted);
+            border-radius: 8px;
+        }
+
+        .d3-stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted-foreground);
+            margin-bottom: 4px;
+        }
+
+        .d3-stat-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* Direction 4: Widget-Centric */
+        .d4-dashboard {
+            background: var(--background);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .d4-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .d4-content {
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .d4-hero-widget {
+            text-align: center;
+            padding: 48px;
+            background: linear-gradient(180deg, #f0fdf4 0%, var(--background) 100%);
+            border-radius: 16px;
+            margin-bottom: 32px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .d4-hero-widget.warning {
+            background: linear-gradient(180deg, #fefce8 0%, var(--background) 100%);
+        }
+
+        .d4-hero-widget.critical {
+            background: linear-gradient(180deg, #fef2f2 0%, var(--background) 100%);
+        }
+
+        .d4-giant-dot {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--status-ok);
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.2);
+        }
+
+        .d4-giant-dot svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+
+        .d4-balance-big {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .d4-estimate-big {
+            font-size: 18px;
+            color: var(--muted-foreground);
+        }
+
+        .d4-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .d4-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+
+        .d4-btn-primary {
+            background: var(--foreground);
+            color: var(--primary-foreground);
+        }
+
+        .d4-btn-secondary {
+            background: var(--muted);
+            color: var(--foreground);
+        }
+
+        .d4-secondary-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .d4-mini-card {
+            padding: 16px;
+            background: var(--muted);
+            border-radius: 8px;
+        }
+
+        .d4-mini-card h4 {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            margin-bottom: 8px;
+        }
+
+        /* Critical Banner Preview */
+        .banner-preview {
+            margin-top: 24px;
+            padding: 16px;
+            background: #fef2f2;
+            border: 1px solid var(--status-critical);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .banner-preview.hidden {
+            display: none;
+        }
+
+        .banner-icon {
+            width: 20px;
+            height: 20px;
+            color: var(--status-critical);
+        }
+
+        .banner-text {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .banner-text strong {
+            color: var(--status-critical);
+        }
+
+        .banner-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--muted-foreground);
+            padding: 4px;
+        }
+
+        /* State Switcher */
+        .state-switcher {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--muted);
+            border-radius: 8px;
+        }
+
+        .state-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .state-btn.active {
+            background: var(--background);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .state-btn.green { color: var(--status-ok); }
+        .state-btn.yellow { color: var(--status-warning); }
+        .state-btn.red { color: var(--status-critical); }
+
+        /* Comparison Section */
+        .comparison {
+            margin-top: 48px;
+            background: var(--background);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .comparison h3 {
+            margin-bottom: 16px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .comparison-item {
+            text-align: center;
+        }
+
+        .comparison-item img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+
+        .comparison-item h4 {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <h1>TrollLLM - UX Design Directions</h1>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showDirection(1)">Direction 1</button>
+            <button class="nav-tab" onclick="showDirection(2)">Direction 2</button>
+            <button class="nav-tab" onclick="showDirection(3)">Direction 3</button>
+            <button class="nav-tab" onclick="showDirection(4)">Direction 4</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Direction 1: Minimal Clean -->
+        <div class="direction active" id="direction-1">
+            <div class="direction-header">
+                <h2>Direction 1: Minimal Clean</h2>
+                <p>Ultra-minimal design with maximum white space. Focus on essential information only. Perfect for developers who want zero distractions.</p>
+                <div class="tags">
+                    <span class="tag">Minimal</span>
+                    <span class="tag">Clean</span>
+                    <span class="tag">Developer-focused</span>
+                    <span class="tag">Pill Status</span>
+                </div>
+            </div>
+
+            <div class="d1-dashboard">
+                <div class="d1-header">
+                    <div class="d1-logo">TrollLLM</div>
+                    <div class="d1-status-widget" id="d1-widget">
+                        <div class="d1-status-dot" id="d1-dot"></div>
+                        <span class="d1-balance" id="d1-balance">$15.50</span>
+                        <span class="d1-estimate" id="d1-estimate">~450 requests</span>
+                    </div>
+                </div>
+                <div class="d1-content">
+                    <div class="d1-section-title">Your API Key</div>
+                    <div class="d1-api-key">
+                        <span class="d1-key-value">sk-troll-xxxxxxxxxxxxxxxxxxxxxxxx</span>
+                        <button class="d1-copy-btn">Copy</button>
+                    </div>
+                    <div class="d1-section-title">Rate Limit</div>
+                    <p style="color: var(--muted-foreground);">600 requests per minute</p>
+                </div>
+            </div>
+
+            <div class="state-switcher">
+                <span style="font-size: 12px; color: var(--muted-foreground); margin-right: 8px;">Preview state:</span>
+                <button class="state-btn green active" onclick="setD1State('ok')">OK (>$5)</button>
+                <button class="state-btn yellow" onclick="setD1State('warning')">Low ($2-5)</button>
+                <button class="state-btn red" onclick="setD1State('critical')">Critical (<$2)</button>
+            </div>
+
+            <div class="banner-preview hidden" id="d1-banner">
+                <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span class="banner-text"><strong>Low credits!</strong> You have ~35 requests remaining. <a href="#">Top up now</a></span>
+                <button class="banner-close" onclick="this.parentElement.classList.add('hidden')">x</button>
+            </div>
+        </div>
+
+        <!-- Direction 2: Card-Based -->
+        <div class="direction" id="direction-2">
+            <div class="direction-header">
+                <h2>Direction 2: Card-Based</h2>
+                <p>Information organized in distinct cards with a prominent status hero section. Great for visual hierarchy and scannability.</p>
+                <div class="tags">
+                    <span class="tag">Cards</span>
+                    <span class="tag">Hero Status</span>
+                    <span class="tag">Colorful</span>
+                    <span class="tag">Scannable</span>
+                </div>
+            </div>
+
+            <div class="d2-dashboard">
+                <div class="d2-header">
+                    <div style="font-weight: 600;">TrollLLM</div>
+                    <div style="font-size: 14px;">Dashboard</div>
+                </div>
+                <div class="d2-content">
+                    <div class="d2-card d2-status-card" id="d2-status-card">
+                        <div class="d2-big-dot" id="d2-dot">OK</div>
+                        <div class="d2-status-info">
+                            <h3 id="d2-balance">$15.50</h3>
+                            <p id="d2-estimate">~450 requests remaining</p>
+                        </div>
+                        <button class="d2-topup-btn">Top Up Credits</button>
+                    </div>
+                    <div class="d2-card">
+                        <div class="d2-card-title">API Key</div>
+                        <div style="font-family: 'JetBrains Mono'; font-size: 13px; margin-bottom: 12px;">sk-troll-xxxx...xxxx</div>
+                        <button class="d1-copy-btn">Copy Key</button>
+                    </div>
+                    <div class="d2-card">
+                        <div class="d2-card-title">Rate Limit</div>
+                        <div style="font-size: 24px; font-weight: 600;">600</div>
+                        <div style="color: var(--muted-foreground); font-size: 13px;">requests/min</div>
+                    </div>
+                    <div class="d2-card">
+                        <div class="d2-card-title">Friend Keys</div>
+                        <div style="font-size: 24px; font-weight: 600;">2</div>
+                        <div style="color: var(--muted-foreground); font-size: 13px;">active keys</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="state-switcher">
+                <span style="font-size: 12px; color: var(--muted-foreground); margin-right: 8px;">Preview state:</span>
+                <button class="state-btn green active" onclick="setD2State('ok')">OK (>$5)</button>
+                <button class="state-btn yellow" onclick="setD2State('warning')">Low ($2-5)</button>
+                <button class="state-btn red" onclick="setD2State('critical')">Critical (<$2)</button>
+            </div>
+        </div>
+
+        <!-- Direction 3: Dense Dashboard -->
+        <div class="direction" id="direction-3">
+            <div class="direction-header">
+                <h2>Direction 3: Dense Dashboard</h2>
+                <p>Compact sidebar navigation with dense information display. Maximizes screen real estate for power users.</p>
+                <div class="tags">
+                    <span class="tag">Sidebar Nav</span>
+                    <span class="tag">Dense</span>
+                    <span class="tag">Power User</span>
+                    <span class="tag">Compact</span>
+                </div>
+            </div>
+
+            <div class="d3-dashboard">
+                <div class="d3-sidebar">
+                    <div class="d3-nav">
+                        <div class="d3-nav-logo">TrollLLM</div>
+                        <div class="d3-nav-item active">Dashboard</div>
+                        <div class="d3-nav-item">API Keys</div>
+                        <div class="d3-nav-item">Friend Keys</div>
+                        <div class="d3-nav-item">Payments</div>
+                        <div class="d3-nav-item">Settings</div>
+                    </div>
+                    <div class="d3-main">
+                        <div class="d3-topbar">
+                            <h2 style="font-size: 18px;">Dashboard</h2>
+                            <div class="d3-status-inline" id="d3-status">
+                                <div class="dot" id="d3-dot"></div>
+                                <span id="d3-balance">$15.50</span>
+                                <span style="color: var(--muted-foreground);" id="d3-estimate">~450 req</span>
+                            </div>
+                        </div>
+                        <div class="d3-grid">
+                            <div class="d3-stat">
+                                <div class="d3-stat-label">Balance</div>
+                                <div class="d3-stat-value" id="d3-balance2">$15.50</div>
+                            </div>
+                            <div class="d3-stat">
+                                <div class="d3-stat-label">Est. Requests</div>
+                                <div class="d3-stat-value" id="d3-requests">~450</div>
+                            </div>
+                            <div class="d3-stat">
+                                <div class="d3-stat-label">Rate Limit</div>
+                                <div class="d3-stat-value">600/min</div>
+                            </div>
+                            <div class="d3-stat">
+                                <div class="d3-stat-label">Friend Keys</div>
+                                <div class="d3-stat-value">2</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="state-switcher">
+                <span style="font-size: 12px; color: var(--muted-foreground); margin-right: 8px;">Preview state:</span>
+                <button class="state-btn green active" onclick="setD3State('ok')">OK (>$5)</button>
+                <button class="state-btn yellow" onclick="setD3State('warning')">Low ($2-5)</button>
+                <button class="state-btn red" onclick="setD3State('critical')">Critical (<$2)</button>
+            </div>
+        </div>
+
+        <!-- Direction 4: Widget-Centric -->
+        <div class="direction" id="direction-4">
+            <div class="direction-header">
+                <h2>Direction 4: Widget-Centric</h2>
+                <p>Traffic Light Widget as the hero element. Credits status is the star of the show with large, bold display.</p>
+                <div class="tags">
+                    <span class="tag">Hero Widget</span>
+                    <span class="tag">Bold</span>
+                    <span class="tag">Status-first</span>
+                    <span class="tag">Centered</span>
+                </div>
+            </div>
+
+            <div class="d4-dashboard">
+                <div class="d4-header">
+                    <div style="font-weight: 600;">TrollLLM</div>
+                    <button class="d4-btn d4-btn-secondary">Settings</button>
+                </div>
+                <div class="d4-content">
+                    <div class="d4-hero-widget" id="d4-widget">
+                        <div class="d4-giant-dot" id="d4-dot">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <div class="d4-balance-big" id="d4-balance">$15.50</div>
+                        <div class="d4-estimate-big" id="d4-estimate">~450 requests remaining</div>
+                        <div class="d4-actions">
+                            <button class="d4-btn d4-btn-primary">Top Up Credits</button>
+                            <button class="d4-btn d4-btn-secondary">View History</button>
+                        </div>
+                    </div>
+                    <div class="d4-secondary-cards">
+                        <div class="d4-mini-card">
+                            <h4>API Key</h4>
+                            <div style="font-family: 'JetBrains Mono'; font-size: 12px;">sk-troll-xxxx</div>
+                        </div>
+                        <div class="d4-mini-card">
+                            <h4>Rate Limit</h4>
+                            <div style="font-weight: 600;">600/min</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="state-switcher">
+                <span style="font-size: 12px; color: var(--muted-foreground); margin-right: 8px;">Preview state:</span>
+                <button class="state-btn green active" onclick="setD4State('ok')">OK (>$5)</button>
+                <button class="state-btn yellow" onclick="setD4State('warning')">Low ($2-5)</button>
+                <button class="state-btn red" onclick="setD4State('critical')">Critical (<$2)</button>
+            </div>
+        </div>
+
+        <!-- Comparison -->
+        <div class="comparison">
+            <h3>Quick Comparison</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <th style="text-align: left; padding: 12px 8px;">Aspect</th>
+                        <th style="text-align: left; padding: 12px 8px;">Direction 1</th>
+                        <th style="text-align: left; padding: 12px 8px;">Direction 2</th>
+                        <th style="text-align: left; padding: 12px 8px;">Direction 3</th>
+                        <th style="text-align: left; padding: 12px 8px;">Direction 4</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 12px 8px; font-weight: 500;">Style</td>
+                        <td style="padding: 12px 8px;">Ultra-minimal</td>
+                        <td style="padding: 12px 8px;">Card-based</td>
+                        <td style="padding: 12px 8px;">Dense sidebar</td>
+                        <td style="padding: 12px 8px;">Widget-centric</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 12px 8px; font-weight: 500;">Status Visibility</td>
+                        <td style="padding: 12px 8px;">Header pill</td>
+                        <td style="padding: 12px 8px;">Hero card</td>
+                        <td style="padding: 12px 8px;">Inline compact</td>
+                        <td style="padding: 12px 8px;">Giant centered</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 12px 8px; font-weight: 500;">Best For</td>
+                        <td style="padding: 12px 8px;">Minimalists</td>
+                        <td style="padding: 12px 8px;">Visual scanners</td>
+                        <td style="padding: 12px 8px;">Power users</td>
+                        <td style="padding: 12px 8px;">Status-focused</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 12px 8px; font-weight: 500;">Complexity</td>
+                        <td style="padding: 12px 8px;">Low</td>
+                        <td style="padding: 12px 8px;">Medium</td>
+                        <td style="padding: 12px 8px;">Medium</td>
+                        <td style="padding: 12px 8px;">Low</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 8px; font-weight: 500;">Recommendation</td>
+                        <td style="padding: 12px 8px; color: var(--status-ok);">Best for MVP</td>
+                        <td style="padding: 12px 8px;">Good alternative</td>
+                        <td style="padding: 12px 8px;">If need sidebar</td>
+                        <td style="padding: 12px 8px; color: var(--status-ok);">Best for impact</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function showDirection(num) {
+            document.querySelectorAll('.direction').forEach(d => d.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('direction-' + num).classList.add('active');
+            document.querySelectorAll('.nav-tab')[num - 1].classList.add('active');
+        }
+
+        // Direction 1 State
+        function setD1State(state) {
+            const dot = document.getElementById('d1-dot');
+            const balance = document.getElementById('d1-balance');
+            const estimate = document.getElementById('d1-estimate');
+            const banner = document.getElementById('d1-banner');
+
+            document.querySelectorAll('#direction-1 .state-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            dot.className = 'd1-status-dot';
+            banner.classList.add('hidden');
+
+            if (state === 'ok') {
+                balance.textContent = '$15.50';
+                estimate.textContent = '~450 requests';
+            } else if (state === 'warning') {
+                dot.classList.add('warning');
+                balance.textContent = '$3.20';
+                estimate.textContent = '~95 requests';
+            } else {
+                dot.classList.add('critical');
+                balance.textContent = '$1.15';
+                estimate.textContent = '~35 requests';
+                banner.classList.remove('hidden');
+            }
+        }
+
+        // Direction 2 State
+        function setD2State(state) {
+            const card = document.getElementById('d2-status-card');
+            const dot = document.getElementById('d2-dot');
+            const balance = document.getElementById('d2-balance');
+            const estimate = document.getElementById('d2-estimate');
+
+            document.querySelectorAll('#direction-2 .state-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            card.className = 'd2-card d2-status-card';
+            dot.style.background = 'var(--status-ok)';
+            dot.textContent = 'OK';
+
+            if (state === 'ok') {
+                balance.textContent = '$15.50';
+                estimate.textContent = '~450 requests remaining';
+            } else if (state === 'warning') {
+                card.classList.add('warning');
+                dot.style.background = 'var(--status-warning)';
+                dot.textContent = 'Low';
+                balance.textContent = '$3.20';
+                estimate.textContent = '~95 requests remaining';
+            } else {
+                card.classList.add('critical');
+                dot.style.background = 'var(--status-critical)';
+                dot.textContent = '!';
+                balance.textContent = '$1.15';
+                estimate.textContent = '~35 requests remaining';
+            }
+        }
+
+        // Direction 3 State
+        function setD3State(state) {
+            const dot = document.getElementById('d3-dot');
+            const balance = document.getElementById('d3-balance');
+            const balance2 = document.getElementById('d3-balance2');
+            const estimate = document.getElementById('d3-estimate');
+            const requests = document.getElementById('d3-requests');
+
+            document.querySelectorAll('#direction-3 .state-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            dot.style.background = 'var(--status-ok)';
+
+            if (state === 'ok') {
+                balance.textContent = '$15.50';
+                balance2.textContent = '$15.50';
+                estimate.textContent = '~450 req';
+                requests.textContent = '~450';
+            } else if (state === 'warning') {
+                dot.style.background = 'var(--status-warning)';
+                balance.textContent = '$3.20';
+                balance2.textContent = '$3.20';
+                estimate.textContent = '~95 req';
+                requests.textContent = '~95';
+            } else {
+                dot.style.background = 'var(--status-critical)';
+                balance.textContent = '$1.15';
+                balance2.textContent = '$1.15';
+                estimate.textContent = '~35 req';
+                requests.textContent = '~35';
+            }
+        }
+
+        // Direction 4 State
+        function setD4State(state) {
+            const widget = document.getElementById('d4-widget');
+            const dot = document.getElementById('d4-dot');
+            const balance = document.getElementById('d4-balance');
+            const estimate = document.getElementById('d4-estimate');
+
+            document.querySelectorAll('#direction-4 .state-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            widget.className = 'd4-hero-widget';
+            dot.style.background = 'var(--status-ok)';
+            dot.style.boxShadow = '0 0 0 8px rgba(34, 197, 94, 0.2)';
+            dot.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+            if (state === 'ok') {
+                balance.textContent = '$15.50';
+                estimate.textContent = '~450 requests remaining';
+            } else if (state === 'warning') {
+                widget.classList.add('warning');
+                dot.style.background = 'var(--status-warning)';
+                dot.style.boxShadow = '0 0 0 8px rgba(234, 179, 8, 0.2)';
+                dot.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+                balance.textContent = '$3.20';
+                estimate.textContent = '~95 requests remaining';
+            } else {
+                widget.classList.add('critical');
+                dot.style.background = 'var(--status-critical)';
+                dot.style.boxShadow = '0 0 0 8px rgba(239, 68, 68, 0.2)';
+                dot.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+                balance.textContent = '$1.15';
+                estimate.textContent = '~35 requests remaining';
+            }
+        }
+    </script>
+</body>
+</html>

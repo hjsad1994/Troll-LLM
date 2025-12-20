@@ -175,13 +175,13 @@ function CheckoutContent() {
             <div className="bg-white dark:bg-white/[0.02] rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-200 dark:border-white/5 overflow-hidden">
               {/* Promo Banner */}
               {promoActive && promoTimeLeft.total > 0 && (
-                <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10 border-b border-emerald-500/20">
+                <div className="p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border-b border-purple-500/20">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                                        <span className="text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+                                        <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold text-lg">
                       {t.pricing.promo?.bonusTitle || 'BONUS +15% CREDITS!'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-center gap-1 text-sm text-emerald-700 dark:text-emerald-300">
+                  <div className="flex items-center justify-center gap-1 text-sm text-purple-600 dark:text-purple-400">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -201,7 +201,7 @@ function CheckoutContent() {
                     <span className="text-[var(--theme-text-muted)] text-sm">VND</span>
                   </div>
                   {promoActive ? (
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                    <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1 font-medium">
                       → {language === 'vi' ? 'Nhận' : 'Get'} ${calculateBonusCredits(customAmount).toFixed(0)} credits (+{PROMO_CONFIG.bonusPercent}% bonus)
                     </p>
                   ) : (
@@ -219,7 +219,7 @@ function CheckoutContent() {
                       onClick={() => setCustomAmount(amount)}
                       className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
                         customAmount === amount
-                          ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                          ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
                           : 'bg-gray-100 dark:bg-white/5 text-[var(--theme-text-muted)] hover:bg-gray-200 dark:hover:bg-white/10'
                       }`}
                     >
@@ -236,11 +236,11 @@ function CheckoutContent() {
                     max={MAX_AMOUNT}
                     value={customAmount}
                     onChange={(e) => setCustomAmount(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg"
+                    className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg"
                   />
                   <div className="flex justify-between text-xs text-[var(--theme-text-muted)] mt-1">
-                    <span>{formatPrice(MIN_AMOUNT * VND_RATE)} VND</span>
-                    <span>{formatPrice(MAX_AMOUNT * VND_RATE)} VND</span>
+                    <span>{language === 'vi' ? 'Tối thiểu' : 'Min'} {formatPrice(MIN_AMOUNT * VND_RATE)} VND</span>
+                    <span>{language === 'vi' ? 'Tối đa' : 'Max'} {formatPrice(MAX_AMOUNT * VND_RATE)} VND</span>
                   </div>
                 </div>
               </div>
@@ -259,10 +259,20 @@ function CheckoutContent() {
                   value={discordId}
                   onChange={(e) => setDiscordId(e.target.value.replace(/\D/g, ''))}
                   placeholder={t.checkout.discord.placeholder}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[var(--theme-text)] text-sm placeholder-[var(--theme-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[var(--theme-text)] text-sm placeholder-[var(--theme-text-muted)] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
                   maxLength={19}
                 />
-                <p className="text-xs text-[var(--theme-text-muted)] mt-2">{t.checkout.discord.shortDesc}</p>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <p className="text-xs text-[var(--theme-text-muted)]">{t.checkout.discord.shortDesc}</p>
+                  <a
+                    href="https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 hover:underline whitespace-nowrap shrink-0"
+                  >
+                    {language === 'vi' ? 'Lấy Discord ID?' : 'Get Discord ID?'}
+                  </a>
+                </div>
               </div>
 
               {/* Summary & Pay */}
@@ -277,7 +287,7 @@ function CheckoutContent() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Bạn nhận' : 'You receive'}</span>
-                    <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="text-lg font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                       ${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits
                     </span>
                   </div>
@@ -290,7 +300,7 @@ function CheckoutContent() {
                 <button
                   onClick={handleCheckout}
                   disabled={loading}
-                  className="w-full py-4 rounded-xl bg-[var(--theme-text)] hover:opacity-90 text-[var(--theme-bg)] font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25"
                 >
                   {loading ? (
                     <>
@@ -310,19 +320,19 @@ function CheckoutContent() {
                 {/* Features */}
                 <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-[var(--theme-text-muted)]">
                   <span className="flex items-center gap-1">
-                    <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-3 h-3 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     {t.checkout.features.allModels}
                   </span>
                   <span className="flex items-center gap-1">
-                    <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-3 h-3 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     7 days
                   </span>
                   <span className="flex items-center gap-1">
-                    <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-3 h-3 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     1:1 Warranty
@@ -403,8 +413,8 @@ function CheckoutContent() {
         {step === 'success' && (
           <div className="w-full max-w-md text-center">
             {/* Success Icon */}
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
-              <svg className="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 flex items-center justify-center">
+              <svg className="w-10 h-10 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
@@ -416,7 +426,7 @@ function CheckoutContent() {
               {language === 'vi'
                 ? `+$${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits`
                 : `+$${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits added`}
-              {promoActive && <span className="text-emerald-500 ml-1">(+{PROMO_CONFIG.bonusPercent}% bonus!)</span>}
+              {promoActive && <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent ml-1">(+{PROMO_CONFIG.bonusPercent}% bonus!)</span>}
             </p>
 
             {/* Summary Card */}
@@ -428,14 +438,14 @@ function CheckoutContent() {
                 </div>
                 {promoActive && (
                   <div className="flex justify-between">
-                    <span className="text-emerald-600 dark:text-emerald-400">Bonus +{PROMO_CONFIG.bonusPercent}%</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">+${getBonusAmount(customAmount).toFixed(2)}</span>
+                    <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Bonus +{PROMO_CONFIG.bonusPercent}%</span>
+                    <span className="font-semibold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">+${getBonusAmount(customAmount).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="h-px bg-gray-100 dark:bg-white/5" />
                 <div className="flex justify-between">
                   <span className="text-[var(--theme-text-subtle)]">Credits</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="font-semibold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                     ${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount}
                   </span>
                 </div>
@@ -461,8 +471,8 @@ function CheckoutContent() {
             )}
 
             <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-[var(--theme-text)] hover:opacity-90 text-[var(--theme-bg)] font-semibold transition-all"
+              href="/dashboard?payment=success"
+              className="inline-flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white font-semibold transition-all shadow-lg shadow-purple-500/25"
             >
               {t.checkout.success.goToDashboard}
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

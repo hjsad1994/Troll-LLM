@@ -512,8 +512,8 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                {/* Credits Period Section - for users with credits */}
-                {((userProfile.credits || 0) > 0) && billingInfo?.expiresAt && (
+                {/* Credits Period Section - for users with billing info */}
+                {billingInfo?.expiresAt && (
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
                     <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                       <div className="flex items-center gap-2">
@@ -562,7 +562,7 @@ export default function UserDashboard() {
                 {/* Buy Credits Button */}
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-medium text-sm hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -576,7 +576,7 @@ export default function UserDashboard() {
                 {/* Buy Credits Button - always visible */}
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-medium text-sm hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

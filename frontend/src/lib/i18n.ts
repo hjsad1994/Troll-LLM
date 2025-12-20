@@ -490,8 +490,8 @@ export const translations = {
         step2Desc: 'TrollLLM supports two API formats. Choose based on your existing tools and preferences:',
         openaiFormat: 'OpenAI Format',
         anthropicFormat: 'Anthropic Format',
-        openaiDesc: 'Compatible with OpenAI SDK and tools that support custom base URLs.',
-        anthropicDesc: 'Native Anthropic format for Claude-specific features and tools.',
+        openaiDesc: 'Use direct HTTP requests (requests/fetch) to the OpenAI-compatible endpoint.',
+        anthropicDesc: 'Use direct HTTP requests (requests/fetch) to the Anthropic-compatible endpoint.',
         step3Title: 'Make Your First Request',
         step3Desc: 'Use your preferred language or tool to make your first API call:',
         step4Title: 'Verify Your Setup',
@@ -764,7 +764,7 @@ export const translations = {
         title: 'Discord Integration',
         optional: 'Optional',
         description: 'Enter your Discord User ID to automatically receive your role after payment. You must be a member of our Discord server first.',
-        shortDesc: 'Link your Discord for priority support & exclusive giveaways',
+        shortDesc: 'Priority support & giveaways',
         placeholder: 'Enter your Discord User ID (e.g., 123456789012345678)',
         howToFind: 'How to find your Discord ID?',
         joinServer: 'Join our Discord server',
@@ -930,6 +930,19 @@ export const translations = {
         deleteSuccess: 'Backup key deleted',
         deleteFailed: 'Failed to delete key',
       },
+    },
+    // Critical Credits Banner
+    criticalBanner: {
+      creditsLow: 'Credits running low!',
+      balance: 'Balance',
+      requestsRemaining: 'requests remaining',
+      topUpNow: 'Top-up Now',
+      dismiss: 'Dismiss critical credits alert',
+    },
+    // Dashboard Layout
+    dashboardLayout: {
+      loading: 'Loading...',
+      creditsAdded: 'Credits added!',
     },
     // Sidebar
     sidebar: {
@@ -1725,8 +1738,8 @@ export const translations = {
         step2Desc: 'TrollLLM hỗ trợ hai định dạng API. Chọn dựa trên các công cụ và sở thích hiện có của bạn:',
         openaiFormat: 'Định dạng OpenAI',
         anthropicFormat: 'Định dạng Anthropic',
-        openaiDesc: 'Tương thích với OpenAI SDK và các công cụ hỗ trợ base URL tùy chỉnh.',
-        anthropicDesc: 'Định dạng Anthropic gốc cho các tính năng và công cụ dành riêng cho Claude.',
+        openaiDesc: 'Sử dụng HTTP requests trực tiếp (requests/fetch) đến endpoint tương thích OpenAI.',
+        anthropicDesc: 'Sử dụng HTTP requests trực tiếp (requests/fetch) đến endpoint tương thích Anthropic.',
         step3Title: 'Thực hiện Yêu cầu Đầu tiên',
         step3Desc: 'Sử dụng ngôn ngữ hoặc công cụ ưa thích của bạn để thực hiện yêu cầu API đầu tiên:',
         step4Title: 'Xác minh Thiết lập',
@@ -1999,7 +2012,7 @@ export const translations = {
         title: 'Tích hợp Discord',
         optional: 'Tùy chọn',
         description: 'Nhập Discord User ID của bạn để tự động nhận role sau khi thanh toán. Bạn phải là thành viên của Discord server trước.',
-        shortDesc: 'Liên kết Discord để được ưu tiên hỗ trợ & tham gia giveaway',
+        shortDesc: 'Ưu tiên hỗ trợ & giveaway',
         placeholder: 'Nhập Discord User ID (VD: 123456789012345678)',
         howToFind: 'Cách tìm Discord ID?',
         joinServer: 'Tham gia Discord server',
@@ -2165,6 +2178,19 @@ export const translations = {
         deleteSuccess: 'Đã xóa backup key',
         deleteFailed: 'Không thể xóa key',
       },
+    },
+    // Critical Credits Banner
+    criticalBanner: {
+      creditsLow: 'Sắp hết credits!',
+      balance: 'Số dư',
+      requestsRemaining: 'request còn lại',
+      topUpNow: 'Nạp ngay',
+      dismiss: 'Đóng cảnh báo',
+    },
+    // Dashboard Layout
+    dashboardLayout: {
+      loading: 'Đang tải...',
+      creditsAdded: 'Đã nạp credits!',
     },
     // Sidebar
     sidebar: {
