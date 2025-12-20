@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getUserProfile, getDetailedUsage } from '@/lib/api'
+import { useLanguage } from '@/components/LanguageProvider'
 
 export type CreditsStatusType = 'ok' | 'low' | 'critical'
 
@@ -70,6 +71,7 @@ export default function CreditsStatusWidget({
   size = 'md',
   onClick
 }: CreditsStatusWidgetProps) {
+  const { t } = useLanguage()
   const [balance, setBalance] = useState<number | null>(propBalance ?? null)
   const [estimatedRequests, setEstimatedRequests] = useState<number | null>(propEstimatedRequests ?? null)
   const [avgCostPerRequest, setAvgCostPerRequest] = useState<number | null>(propAvgCost ?? null)
@@ -159,6 +161,15 @@ export default function CreditsStatusWidget({
 
   const sizes = sizeClasses[size]
 
+  // Get translated status label
+  const getStatusLabel = (statusType: CreditsStatusType) => {
+    switch (statusType) {
+      case 'ok': return t.creditsStatus.statusOk
+      case 'low': return t.creditsStatus.statusLow
+      case 'critical': return t.creditsStatus.statusCritical
+    }
+  }
+
   // Loading state - with proper accessibility and responsive sizing
   if (loading) {
     return (
@@ -166,12 +177,12 @@ export default function CreditsStatusWidget({
         className={`flex items-center ${sizes.gap} ${sizes.padding} rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700`}
         role="status"
         aria-live="polite"
-        aria-label="Loading credits..."
+        aria-label={t.creditsStatus.loadingAria}
       >
         <div className={`${sizes.dot} rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse`} />
         {showLabel && (
           <span className={`${sizes.text} text-slate-400 animate-pulse`}>
-            Loading...
+            {t.creditsStatus.loading}
           </span>
         )}
       </div>
@@ -185,12 +196,12 @@ export default function CreditsStatusWidget({
         className={`flex items-center ${sizes.gap} ${sizes.padding} rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600`}
         role="alert"
         aria-live="polite"
-        aria-label="Unable to load credits. Retrying automatically."
+        aria-label={t.creditsStatus.unableToLoadAria}
       >
         <div className={`${sizes.dot} rounded-full bg-slate-400 dark:bg-slate-500`} />
         {showLabel && (
           <span className={`${sizes.text} text-slate-500 dark:text-slate-400`}>
-            Unable to load
+            {t.creditsStatus.unableToLoad}
           </span>
         )}
       </div>
@@ -198,6 +209,7 @@ export default function CreditsStatusWidget({
   }
 
   const status = getCreditsStatus(balance ?? 0)
+  const translatedStatusLabel = getStatusLabel(status.status)
 
   const StatusIndicator = () => (
     <div
@@ -217,8 +229,8 @@ export default function CreditsStatusWidget({
 
   // Build aria-label with estimated requests if available
   const ariaLabel = estimatedRequests !== null
-    ? `Credit status: ${status.label}. Balance: $${balance?.toFixed(2)}. Approximately ${estimatedRequests} requests remaining.`
-    : `Credit status: ${status.label}. Balance: $${balance?.toFixed(2)}`
+    ? `${t.creditsStatus.status}: ${translatedStatusLabel}. ${t.creditsStatus.creditsBalance}: $${balance?.toFixed(2)}. ~${estimatedRequests} ${t.creditsStatus.requestsRemaining}.`
+    : `${t.creditsStatus.status}: ${translatedStatusLabel}. ${t.creditsStatus.creditsBalance}: $${balance?.toFixed(2)}`
 
   const content = (
     <div
@@ -243,38 +255,38 @@ export default function CreditsStatusWidget({
             </span>
           )}
           <span className={`${sizes.text} ${status.color} opacity-70 hidden sm:inline md:hidden`}>
-            {status.label}
+            {translatedStatusLabel}
           </span>
         </>
       )}
 
       {/* Enhanced Tooltip with estimated requests */}
       {showTooltip && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 dark:bg-slate-800 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 dark:bg-slate-800 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50 pointer-events-none">
           <div className="flex flex-col gap-1">
-            <span className="font-medium">Credits Balance</span>
+            <span className="font-medium">{t.creditsStatus.creditsBalance}</span>
             <span className="text-slate-300">${balance?.toFixed(4)}</span>
             <span className={`${
               status.status === 'ok' ? 'text-emerald-400' :
               status.status === 'low' ? 'text-amber-400' :
               'text-red-400'
             }`}>
-              Status: {status.label}
+              {t.creditsStatus.status}: {translatedStatusLabel}
             </span>
             {/* Estimated requests in tooltip */}
             {estimatedRequests !== null && (
               <>
                 <div className="border-t border-slate-700 my-1" />
                 <span className="text-slate-300">
-                  {formatEstimatedRequests(estimatedRequests)} requests remaining
+                  {formatEstimatedRequests(estimatedRequests)} {t.creditsStatus.requestsRemaining}
                 </span>
                 {avgCostPerRequest !== null && (
                   <span className="text-slate-400 text-[10px]">
-                    Avg: ${avgCostPerRequest.toFixed(4)}/req
+                    {t.creditsStatus.avgPerReq}: ${avgCostPerRequest.toFixed(4)}/req
                   </span>
                 )}
                 <span className="text-slate-500 text-[10px]">
-                  Based on last 7 days
+                  {t.creditsStatus.basedOnLast7Days}
                 </span>
               </>
             )}
@@ -282,7 +294,7 @@ export default function CreditsStatusWidget({
               <>
                 <div className="border-t border-slate-700 my-1" />
                 <span className="text-slate-400 text-[10px]">
-                  No usage history yet
+                  {t.creditsStatus.noUsageHistory}
                 </span>
               </>
             )}

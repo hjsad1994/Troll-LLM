@@ -41,15 +41,15 @@ story_location: _bmad-output/stories
 
 development_status:
   # Epic 1: Credit Status Visibility
-  epic-1: in-progress
+  epic-1: done
   1-1-display-credit-balance-in-dashboard-header: done
   1-2-traffic-light-status-indicator: done
   1-3-estimated-requests-remaining: done
-  1-4-widget-loading-and-error-states: review
+  1-4-widget-loading-and-error-states: done
   epic-1-retrospective: optional
 
   # Epic 2: Proactive Credit Alerts
-  epic-2: in-progress
+  epic-2: done
   2-1-critical-credits-banner-display: done
   2-2-dismiss-and-persist-banner-state: done
   2-3-top-up-navigation-from-widget-and-banner: done

@@ -939,6 +939,24 @@ export const translations = {
       topUpNow: 'Top-up Now',
       dismiss: 'Dismiss critical credits alert',
     },
+    // Credits Status Widget
+    creditsStatus: {
+      loading: 'Loading...',
+      loadingAria: 'Loading credits...',
+      unableToLoad: 'Unable to load',
+      unableToLoadAria: 'Unable to load credits. Retrying automatically.',
+      creditsBalance: 'Credits Balance',
+      status: 'Status',
+      statusOk: 'OK',
+      statusLow: 'Low',
+      statusCritical: 'Critical',
+      requestsRemaining: 'requests remaining',
+      avgPerReq: 'Avg',
+      basedOnLast7Days: 'Based on last 7 days',
+      noUsageHistory: 'No usage history yet',
+      ariaLabel: 'Credit status: {status}. Balance: ${balance}',
+      ariaLabelWithRequests: 'Credit status: {status}. Balance: ${balance}. Approximately {requests} requests remaining.',
+    },
     // Dashboard Layout
     dashboardLayout: {
       loading: 'Loading...',
@@ -2186,6 +2204,24 @@ export const translations = {
       requestsRemaining: 'request còn lại',
       topUpNow: 'Nạp ngay',
       dismiss: 'Đóng cảnh báo',
+    },
+    // Credits Status Widget
+    creditsStatus: {
+      loading: 'Đang tải...',
+      loadingAria: 'Đang tải credits...',
+      unableToLoad: 'Không thể tải',
+      unableToLoadAria: 'Không thể tải credits. Đang tự động thử lại.',
+      creditsBalance: 'Số dư Credits',
+      status: 'Trạng thái',
+      statusOk: 'OK',
+      statusLow: 'Thấp',
+      statusCritical: 'Nguy hiểm',
+      requestsRemaining: 'request còn lại',
+      avgPerReq: 'TB',
+      basedOnLast7Days: 'Dựa trên 7 ngày qua',
+      noUsageHistory: 'Chưa có lịch sử sử dụng',
+      ariaLabel: 'Trạng thái credits: {status}. Số dư: ${balance}',
+      ariaLabelWithRequests: 'Trạng thái credits: {status}. Số dư: ${balance}. Còn khoảng {requests} request.',
     },
     // Dashboard Layout
     dashboardLayout: {
