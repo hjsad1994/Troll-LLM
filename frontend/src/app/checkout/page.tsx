@@ -6,10 +6,10 @@ import Link from 'next/link'
 import { createCheckout, getPaymentStatus, isAuthenticated } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
-import { isPromoActive, getTimeRemaining, calculateBonusCredits, getBonusAmount, PROMO_CONFIG } from '@/lib/promo'
+import { isPromoActive, getTimeRemaining, calculateBonusCredits, getBonusAmount, PROMO_CONFIG, getTierBonus, hasTierBonus, TIER_BONUS_CONFIG } from '@/lib/promo'
 
 const MIN_AMOUNT = 20
-const MAX_AMOUNT = 100
+const MAX_AMOUNT = 200
 const VND_RATE = 1000
 
 function CheckoutContent() {
@@ -173,7 +173,22 @@ function CheckoutContent() {
 
             {/* Main Card */}
             <div className="bg-white dark:bg-white/[0.02] rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-200 dark:border-white/5 overflow-hidden">
-              {/* Promo Banner */}
+              {/* Tier Bonus Banner - Always show */}
+              <div className="p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border-b border-purple-500/20">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold text-lg">
+                    +{TIER_BONUS_CONFIG.bonusPercent}% BONUS!
+                  </span>
+                </div>
+                <p className="text-center text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                  {language === 'vi'
+                    ? `Mua từ $${TIER_BONUS_CONFIG.threshold} trở lên được +${TIER_BONUS_CONFIG.bonusPercent}% bonus`
+                    : `Buy $${TIER_BONUS_CONFIG.threshold}+ and get +${TIER_BONUS_CONFIG.bonusPercent}% bonus`
+                  }
+                </p>
+              </div>
+
+              {/* Promo Banner - Only show when active (currently disabled) */}
               {promoActive && promoTimeLeft.total > 0 && (
                 <div className="p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border-b border-purple-500/20">
                   <div className="flex items-center justify-center gap-2 mb-1">
@@ -200,20 +215,20 @@ function CheckoutContent() {
                     <span className="text-4xl font-bold text-[var(--theme-text)]">{formatPrice(vndAmount)}</span>
                     <span className="text-[var(--theme-text-muted)] text-sm">VND</span>
                   </div>
-                  {promoActive ? (
+                  {hasTierBonus(customAmount) ? (
                     <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1 font-medium">
-                      → {language === 'vi' ? 'Nhận' : 'Get'} ${calculateBonusCredits(customAmount).toFixed(0)} credits (+{PROMO_CONFIG.bonusPercent}% bonus)
+                      {language === 'vi' ? 'Nhận' : 'Get'} ${calculateBonusCredits(customAmount)} credits (+${getTierBonus(customAmount)} bonus!)
                     </p>
                   ) : (
-                    <p className="text-sm text-indigo-500 dark:text-indigo-400 mt-1">
-                      = ${customAmount} credits
+                    <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1">
+                      {language === 'vi' ? 'Nhận' : 'Get'} ${customAmount} credits
                     </p>
                   )}
                 </div>
 
                 {/* Quick Select */}
                 <div className="flex gap-2 mb-4">
-                  {[20, 50, 75, 100].map((amount) => (
+                  {[20, 50, 100, 200].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setCustomAmount(amount)}
@@ -224,6 +239,11 @@ function CheckoutContent() {
                       }`}
                     >
                       {formatPrice(amount * VND_RATE)}
+                      {hasTierBonus(amount) && (
+                        <span className={`ml-1 text-xs ${customAmount === amount ? 'text-pink-200' : 'text-purple-500 dark:text-purple-400'}`}>
+                          +{getTierBonus(amount)}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -288,7 +308,8 @@ function CheckoutContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Bạn nhận' : 'You receive'}</span>
                     <span className="text-lg font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                      ${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits
+                      ${calculateBonusCredits(customAmount)} credits
+                      {hasTierBonus(customAmount) && <span className="text-sm ml-1">(+${getTierBonus(customAmount)})</span>}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -423,10 +444,12 @@ function CheckoutContent() {
               {t.checkout.success.title}
             </h1>
             <p className="text-[var(--theme-text-subtle)] mb-6">
-              {language === 'vi'
-                ? `+$${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits`
-                : `+$${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount} credits added`}
-              {promoActive && <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent ml-1">(+{PROMO_CONFIG.bonusPercent}% bonus!)</span>}
+              <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent font-medium">
+                {language === 'vi'
+                  ? `+$${calculateBonusCredits(customAmount)} credits`
+                  : `+$${calculateBonusCredits(customAmount)} credits added`}
+                {hasTierBonus(customAmount) && ` (+$${getTierBonus(customAmount)} bonus!)`}
+              </span>
             </p>
 
             {/* Summary Card */}
@@ -436,17 +459,17 @@ function CheckoutContent() {
                   <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Số tiền' : 'Amount'}</span>
                   <span className="font-semibold text-[var(--theme-text)]">${customAmount}</span>
                 </div>
-                {promoActive && (
+                {hasTierBonus(customAmount) && (
                   <div className="flex justify-between">
-                    <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Bonus +{PROMO_CONFIG.bonusPercent}%</span>
-                    <span className="font-semibold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">+${getBonusAmount(customAmount).toFixed(2)}</span>
+                    <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Bonus +{TIER_BONUS_CONFIG.bonusPercent}%</span>
+                    <span className="font-semibold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">+${getTierBonus(customAmount)}</span>
                   </div>
                 )}
                 <div className="h-px bg-gray-100 dark:bg-white/5" />
                 <div className="flex justify-between">
                   <span className="text-[var(--theme-text-subtle)]">Credits</span>
                   <span className="font-semibold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                    ${promoActive ? calculateBonusCredits(customAmount).toFixed(2) : customAmount}
+                    ${calculateBonusCredits(customAmount)}
                   </span>
                 </div>
                 <div className="flex justify-between">

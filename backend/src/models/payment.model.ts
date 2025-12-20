@@ -6,7 +6,22 @@ export type PaymentMethod = 'sepay';
 
 // Constants for credit purchases
 export const MIN_CREDITS = 20;
-export const MAX_CREDITS = 100;
+export const MAX_CREDITS = 200;
+
+// Bonus tier: 10% bonus for purchases >= $100
+export const BONUS_THRESHOLD = 100;
+export const BONUS_PERCENT = 10;
+
+export function calculateTierBonus(credits: number): number {
+  if (credits >= BONUS_THRESHOLD) {
+    return Math.floor(credits * BONUS_PERCENT / 100);
+  }
+  return 0;
+}
+
+export function calculateTotalCredits(credits: number): number {
+  return credits + calculateTierBonus(credits);
+}
 export const VND_RATE = 1000; // 1000 VND = $1
 export const VALIDITY_DAYS = 7;
 

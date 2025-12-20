@@ -8,29 +8,35 @@ import {
   VALIDITY_DAYS,
   calculateRefBonus,
   generateOrderCode,
-  generateQRCodeUrl
+  generateQRCodeUrl,
+  calculateTotalCredits,
+  calculateTierBonus
 } from '../models/payment.model.js';
 import { UserKey } from '../models/user-key.model.js';
 import { expirationSchedulerService } from './expiration-scheduler.service.js';
 
-// Promo Configuration - must match frontend promo.ts
-const PROMO_CONFIG = {
-  startDate: new Date('2025-12-18T00:00:00+07:00'),
-  endDate: new Date('2025-12-20T22:00:00+07:00'),
-  bonusPercent: 15,
-};
+// ============================================================
+// PROMO CONFIGURATION - DISABLED (kept for future use)
+// Uncomment below and the calculateCreditsWithBonus call in processWebhook to enable
+// ============================================================
+// const PROMO_CONFIG = {
+//   startDate: new Date('2025-12-18T00:00:00+07:00'),
+//   endDate: new Date('2025-12-20T22:00:00+07:00'),
+//   bonusPercent: 15,
+// };
 
-function isPromoActive(): boolean {
-  const now = new Date();
-  return now >= PROMO_CONFIG.startDate && now < PROMO_CONFIG.endDate;
-}
+// function isPromoActive(): boolean {
+//   const now = new Date();
+//   return now >= PROMO_CONFIG.startDate && now < PROMO_CONFIG.endDate;
+// }
 
-function calculateCreditsWithBonus(credits: number): number {
-  if (isPromoActive()) {
-    return credits * (1 + PROMO_CONFIG.bonusPercent / 100);
-  }
-  return credits;
-}
+// function calculateCreditsWithBonus(credits: number): number {
+//   if (isPromoActive()) {
+//     return credits * (1 + PROMO_CONFIG.bonusPercent / 100);
+//   }
+//   return credits;
+// }
+// ============================================================
 
 export interface CheckoutResult {
   paymentId: string;
@@ -199,13 +205,18 @@ export class PaymentService {
       payload.id.toString()
     );
 
-    // Calculate credits with promo bonus if active
+    // Calculate credits with tier bonus (100→+10, 200→+20)
     const baseCredits = payment.credits;
-    const finalCredits = calculateCreditsWithBonus(baseCredits);
-    const promoApplied = finalCredits > baseCredits;
+    const tierBonus = calculateTierBonus(baseCredits);
+    const finalCredits = calculateTotalCredits(baseCredits);
+    const bonusApplied = tierBonus > 0;
 
-    if (promoApplied) {
-      console.log(`[Payment Webhook] Promo active! Base: $${baseCredits} → Final: $${finalCredits.toFixed(2)} (+${PROMO_CONFIG.bonusPercent}%)`);
+    // PROMO DISABLED - Uncomment below to enable promo bonus instead of tier bonus
+    // const finalCredits = calculateCreditsWithBonus(baseCredits);
+    // const promoApplied = finalCredits > baseCredits;
+
+    if (bonusApplied) {
+      console.log(`[Payment Webhook] Tier bonus! Base: $${baseCredits} + $${tierBonus} bonus → Final: $${finalCredits}`);
     }
 
     console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
@@ -216,14 +227,14 @@ export class PaymentService {
     // Send webhook to Discord bot (show final credits with bonus)
     await this.notifyDiscordBot({
       discordId: payment.discordId || '',
-      credits: promoApplied ? `$${finalCredits.toFixed(2)} (includes +${PROMO_CONFIG.bonusPercent}% bonus)` : `$${baseCredits}`,
+      credits: bonusApplied ? `$${finalCredits} (includes +$${tierBonus} bonus)` : `$${baseCredits}`,
       username: payment.userId,
       orderCode: payment.orderCode || orderCode,
       amount: payment.amount,
       transactionId: payload.id.toString(),
     });
 
-    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Credits: $${finalCredits.toFixed(2)}${promoApplied ? ` (base: $${baseCredits})` : ''}`);
+    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Credits: $${finalCredits}${bonusApplied ? ` (base: $${baseCredits}, bonus: +$${tierBonus})` : ''}`);
     return { processed: true, message: 'Payment processed successfully' };
   }
 

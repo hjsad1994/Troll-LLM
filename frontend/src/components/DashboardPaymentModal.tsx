@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createCheckout, getPaymentStatus } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
-import { isPromoActive, getTimeRemaining, calculateBonusCredits, getBonusAmount, PROMO_CONFIG } from '@/lib/promo'
+import { isPromoActive, getTimeRemaining, calculateBonusCredits, getBonusAmount, PROMO_CONFIG, getTierBonus, hasTierBonus, TIER_BONUS_CONFIG } from '@/lib/promo'
 
 interface DashboardPaymentModalProps {
   isOpen: boolean
@@ -12,7 +12,7 @@ interface DashboardPaymentModalProps {
 }
 
 const MIN_AMOUNT = 20
-const MAX_AMOUNT = 100
+const MAX_AMOUNT = 200
 
 export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: DashboardPaymentModalProps) {
   const { t } = useLanguage()
@@ -167,19 +167,19 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-slate-700/50">
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-200 dark:border-slate-700/50">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/50 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {step === 'success' ? dp?.paymentSuccess || 'Payment Successful!' :
              step === 'expired' ? dp?.paymentExpired || 'Payment Expired' :
              step === 'payment' ? dp?.scanToPay || 'Scan to Pay' : dp?.title || 'Buy Credits'}
           </h2>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
-            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -190,15 +190,27 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
           {/* Step 1: Amount Selection */}
           {step === 'select' && (
             <div className="space-y-6">
-              {/* Promo Banner - Only show when active */}
+              {/* Tier Bonus Banner - Always show */}
+              <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-purple-500/30">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold">
+                    +{TIER_BONUS_CONFIG.bonusPercent}% BONUS!
+                  </span>
+                </div>
+                <p className="text-center text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                  Mua từ ${TIER_BONUS_CONFIG.threshold} trở lên được +{TIER_BONUS_CONFIG.bonusPercent}% bonus
+                </p>
+              </div>
+
+              {/* Promo Banner - Only show when active (currently disabled) */}
               {promoActive && promoTimeLeft.total > 0 && (
                 <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-purple-500/30">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                                        <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent font-bold">
+                    <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold">
                       {dp?.promoTitle || 'BONUS +15% CREDITS!'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-center gap-1 text-xs text-purple-300">
+                  <div className="flex items-center justify-center gap-1 text-xs text-purple-600 dark:text-purple-300">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -212,21 +224,22 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
               {/* Amount Slider */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                   {dp?.selectAmount || 'Select Amount'}
                 </label>
 
                 {/* Amount Display */}
                 <div className="text-center mb-4">
-                  <span className="text-4xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">{formatPrice(selectedAmount * 1000)}</span>
-                  <span className="ml-1 text-lg text-purple-300">VND</span>
-                  {promoActive && (
-                    <span className="ml-2 text-lg text-purple-300">
-                      → ${calculateBonusCredits(selectedAmount).toFixed(0)} {dp?.credits || 'credits'}
-                    </span>
-                  )}
-                  {!promoActive && (
-                    <p className="text-slate-400 text-sm mt-1">= ${selectedAmount} credits</p>
+                  <span className="text-4xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">{formatPrice(selectedAmount * 1000)}</span>
+                  <span className="ml-1 text-lg text-purple-600 dark:text-purple-300">VND</span>
+                  {hasTierBonus(selectedAmount) ? (
+                    <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1 font-medium">
+                      Nhận ${calculateBonusCredits(selectedAmount)} {dp?.credits || 'credits'} (+${getTierBonus(selectedAmount)} bonus!)
+                    </p>
+                  ) : (
+                    <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1">
+                      Nhận ${selectedAmount} {dp?.credits || 'credits'}
+                    </p>
                   )}
                 </div>
 
@@ -239,12 +252,12 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                     step={1}
                     value={selectedAmount}
                     onChange={(e) => setSelectedAmount(parseInt(e.target.value))}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider-thumb"
+                    className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider-thumb"
                     style={{
-                      background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, #334155 100%)`
+                      background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, ${typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? '#334155' : '#e5e7eb'} ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, ${typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? '#334155' : '#e5e7eb'} 100%)`
                     }}
                   />
-                  <div className="flex justify-between mt-2 text-xs text-slate-500">
+                  <div className="flex justify-between mt-2 text-xs text-gray-500 dark:text-slate-500">
                     <span>${MIN_AMOUNT}</span>
                     <span>${MAX_AMOUNT}</span>
                   </div>
@@ -252,17 +265,22 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
                 {/* Quick Select Buttons */}
                 <div className="flex gap-2 mt-4">
-                  {[20, 50, 75, 100].map((amount) => (
+                  {[20, 50, 100, 200].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setSelectedAmount(amount)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all relative ${
                         selectedAmount === amount
                           ? 'bg-purple-500 text-white'
-                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                          : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700'
                       }`}
                     >
                       ${amount}
+                      {hasTierBonus(amount) && (
+                        <span className={`ml-1 text-xs ${selectedAmount === amount ? 'text-pink-200' : 'text-purple-500 dark:text-purple-400'}`}>
+                          +{getTierBonus(amount)}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -270,43 +288,44 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
               {/* Discord ID Input */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  {dp?.discordId || 'Discord User ID'} <span className="text-slate-500">({dp?.discordIdOptional || 'Optional'})</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  {dp?.discordId || 'Discord User ID'} <span className="text-gray-400 dark:text-slate-500">({dp?.discordIdOptional || 'Optional'})</span>
                 </label>
                 <input
                   type="text"
                   value={discordId}
                   onChange={(e) => setDiscordId(e.target.value.replace(/\D/g, ''))}
                   placeholder={dp?.discordIdPlaceholder || '123456789012345678'}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   maxLength={19}
                 />
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-gray-500 dark:text-slate-500">
                   {dp?.discordIdHelp || 'Enter your Discord User ID to receive role after payment.'}
                 </p>
               </div>
 
               {error && (
-                <div className="p-3 rounded-lg bg-red-500/20 text-red-400 text-sm">
+                <div className="p-3 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-sm">
                   {error}
                 </div>
               )}
 
               {/* Summary */}
-              <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">{dp?.youReceive || 'You receive'}</span>
-                  <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent font-bold text-lg">
-                    ${promoActive ? calculateBonusCredits(selectedAmount).toFixed(2) : selectedAmount} {dp?.credits || 'credits'}
+                  <span className="text-gray-600 dark:text-slate-400">{dp?.youReceive || 'You receive'}</span>
+                  <span className="font-bold text-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                    ${calculateBonusCredits(selectedAmount)} {dp?.credits || 'credits'}
+                    {hasTierBonus(selectedAmount) && <span className="text-sm ml-1">(+${getTierBonus(selectedAmount)})</span>}
                   </span>
                 </div>
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/50">
-                  <span className="text-slate-400">{dp?.vnd || 'VND'}</span>
-                  <span className="text-white font-semibold">{formatPrice(selectedAmount * 1000)} VND</span>
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-slate-700/50">
+                  <span className="text-gray-600 dark:text-slate-400">{dp?.vnd || 'VND'}</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{formatPrice(selectedAmount * 1000)} VND</span>
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-slate-400">{dp?.validity || 'Validity'}</span>
-                  <span className="text-white font-semibold">{dp?.validityDays || '7 days'}</span>
+                  <span className="text-gray-600 dark:text-slate-400">{dp?.validity || 'Validity'}</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{dp?.validityDays || '7 days'}</span>
                 </div>
               </div>
 
@@ -337,7 +356,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
           {step === 'payment' && paymentData && (
             <div className="text-center space-y-4">
               {/* QR Code */}
-              <div className="bg-white p-4 rounded-xl inline-block">
+              <div className="bg-white p-4 rounded-xl inline-block shadow-lg">
                 <img
                   src={paymentData.qrCodeUrl}
                   alt="Payment QR Code"
@@ -347,10 +366,10 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
               {/* Amount */}
               <div>
-                <p className="text-3xl font-bold text-white">
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(paymentData.amount)} VND
                 </p>
-                <p className="text-slate-400">
+                <p className="text-gray-500 dark:text-slate-400">
                   ${paymentData.credits.toFixed(2)} {dp?.credits || 'credits'} / {dp?.validityDays || '7 days'}
                 </p>
               </div>
@@ -358,8 +377,8 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               {/* Timer */}
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
                 remainingSeconds < 60
-                  ? 'bg-red-500/20 text-red-400'
-                  : 'bg-amber-500/20 text-amber-400'
+                  ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                  : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
               }`}>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -368,9 +387,9 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               </div>
 
               {/* Instructions */}
-              <div className="bg-slate-800/50 rounded-xl p-4 text-left border border-slate-700/50">
-                <p className="text-sm text-slate-300 mb-2 font-medium">{dp?.instructions || 'Instructions:'}</p>
-                <ol className="text-sm text-slate-400 space-y-1 list-decimal list-inside">
+              <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 text-left border border-gray-200 dark:border-slate-700/50">
+                <p className="text-sm text-gray-700 dark:text-slate-300 mb-2 font-medium">{dp?.instructions || 'Instructions:'}</p>
+                <ol className="text-sm text-gray-500 dark:text-slate-400 space-y-1 list-decimal list-inside">
                   <li>{dp?.instruction1 || 'Open your banking app'}</li>
                   <li>{dp?.instruction2 || 'Scan the QR code above'}</li>
                   <li>{dp?.instruction3 || 'Confirm the payment'}</li>
@@ -379,7 +398,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               </div>
 
               {/* Status indicator */}
-              <div className="flex items-center justify-center gap-2 text-slate-400">
+              <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-slate-400">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span className="text-sm">{dp?.waitingForPayment || 'Waiting for payment...'}</span>
               </div>
@@ -394,10 +413,10 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 {dp?.paymentSuccess || 'Payment Successful!'}
               </h3>
-              <p className="text-slate-400 mb-6">
+              <p className="text-gray-500 dark:text-slate-400 mb-6">
                 {dp?.creditsAdded || 'Your credits have been added to your account.'}
               </p>
               <button
@@ -412,15 +431,15 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
           {/* Expired State */}
           {step === 'expired' && (
             <div className="text-center py-4">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-slate-700/50 flex items-center justify-center">
-                <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-slate-700/50 flex items-center justify-center">
+                <svg className="w-10 h-10 text-gray-400 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 {dp?.paymentExpired || 'QR Code Expired'}
               </h3>
-              <p className="text-slate-400 mb-6">
+              <p className="text-gray-500 dark:text-slate-400 mb-6">
                 {dp?.qrExpired || 'The payment session has expired. Please try again.'}
               </p>
               <button
