@@ -70,6 +70,7 @@ export default function UserDashboard() {
   const [discordIdSaving, setDiscordIdSaving] = useState(false)
   const [discordIdSaved, setDiscordIdSaved] = useState(false)
   const [discordIdError, setDiscordIdError] = useState<string | null>(null)
+  const [discordConfirm, setDiscordConfirm] = useState<{ show: boolean; type: 'remove' | 'change'; newId?: string }>({ show: false, type: 'remove' })
   const { user } = useAuth()
   const { t } = useLanguage()
 
@@ -136,6 +137,13 @@ export default function UserDashboard() {
   useEffect(() => {
     loadUserData()
   }, [loadUserData])
+
+  // Sync discordIdInput with userProfile.discordId
+  useEffect(() => {
+    if (userProfile?.discordId !== undefined) {
+      setDiscordIdInput(userProfile.discordId || '')
+    }
+  }, [userProfile?.discordId])
 
   useEffect(() => {
     if (!loading) {
@@ -216,9 +224,24 @@ export default function UserDashboard() {
       return
     }
 
+    // Show confirmation dialog
+    const currentDiscordId = userProfile?.discordId || null
+    if (!trimmedId) {
+      setDiscordConfirm({ show: true, type: 'remove' })
+      return
+    } else if (currentDiscordId && trimmedId !== currentDiscordId) {
+      setDiscordConfirm({ show: true, type: 'change', newId: trimmedId })
+      return
+    }
+
+    // No confirmation needed for first-time setting
+    await executeDiscordSave(trimmedId)
+  }
+
+  const executeDiscordSave = async (idToSave: string | null) => {
     setDiscordIdSaving(true)
     try {
-      await updateDiscordId(trimmedId || null)
+      await updateDiscordId(idToSave)
       setDiscordIdSaved(true)
       setTimeout(() => setDiscordIdSaved(false), 2000)
     } catch (err: any) {
@@ -227,6 +250,12 @@ export default function UserDashboard() {
     } finally {
       setDiscordIdSaving(false)
     }
+  }
+
+  const handleDiscordConfirm = async () => {
+    setDiscordConfirm({ show: false, type: 'remove' })
+    const trimmedId = discordIdInput.trim()
+    await executeDiscordSave(trimmedId || null)
   }
 
   if (loading) {
@@ -427,11 +456,11 @@ export default function UserDashboard() {
                           className={`shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                             discordIdSaved
                               ? 'bg-emerald-500 text-white'
-                              : 'bg-[#5865F2] text-white hover:bg-[#4752C4]'
+                              : 'bg-white dark:bg-white/10 text-slate-700 dark:text-white border border-slate-300 dark:border-white/20 hover:bg-slate-100 dark:hover:bg-white/20'
                           } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                           {discordIdSaving ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <div className="w-4 h-4 border-2 border-slate-300 dark:border-white/30 border-t-slate-600 dark:border-t-white rounded-full animate-spin" />
                           ) : discordIdSaved ? (
                             t.dashboard.discordIntegration.saved
                           ) : (
@@ -909,6 +938,89 @@ export default function UserDashboard() {
           loadUserData()
         }}
       />
+
+      {/* Discord Confirm Modal */}
+      {discordConfirm.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setDiscordConfirm({ show: false, type: 'remove' })}
+          />
+          <div className="relative bg-white dark:bg-[#1a1a1a] rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl w-full max-w-md overflow-hidden">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  discordConfirm.type === 'remove'
+                    ? 'bg-red-500/10 border border-red-500/20'
+                    : 'bg-amber-500/10 border border-amber-500/20'
+                }`}>
+                  {discordConfirm.type === 'remove' ? (
+                    <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--theme-text)]">
+                    {discordConfirm.type === 'remove'
+                      ? (t.dashboard.discordIntegration.confirmRemoveTitle || 'Xóa Discord ID?')
+                      : (t.dashboard.discordIntegration.confirmChangeTitle || 'Đổi Discord ID?')
+                    }
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5">
+              <p className="text-[var(--theme-text-subtle)] text-sm leading-relaxed">
+                {discordConfirm.type === 'remove'
+                  ? (t.dashboard.discordIntegration.confirmRemove)
+                  : (t.dashboard.discordIntegration.confirmChange)
+                }
+              </p>
+              {discordConfirm.type === 'change' && discordConfirm.newId && (
+                <div className="mt-3 p-3 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                  <p className="text-xs text-[var(--theme-text-subtle)] mb-1">{t.dashboard.discordIntegration.newIdLabel || 'Discord ID mới:'}</p>
+                  <p className="font-mono text-sm text-[var(--theme-text)]">{discordConfirm.newId}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="p-5 pt-0 flex gap-3">
+              <button
+                onClick={() => setDiscordConfirm({ show: false, type: 'remove' })}
+                className="flex-1 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 text-[var(--theme-text)] font-medium text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+              >
+                {t.dashboard.rotateModal.cancel || 'Hủy'}
+              </button>
+              <button
+                onClick={handleDiscordConfirm}
+                disabled={discordIdSaving}
+                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                  discordConfirm.type === 'remove'
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-[#5865F2] text-white hover:bg-[#4752C4]'
+                }`}
+              >
+                {discordIdSaving ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  discordConfirm.type === 'remove'
+                    ? (t.dashboard.discordIntegration.removeConfirmBtn || 'Xóa')
+                    : (t.dashboard.discordIntegration.changeConfirmBtn || 'Đổi')
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
