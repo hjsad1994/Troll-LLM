@@ -622,8 +622,8 @@ export default function UserDashboard() {
           </div>
 
           {usageLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-              {[...Array(6)].map((_, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
+              {[...Array(7)].map((_, i) => (
                 <div key={i} className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
                   <div className="h-4 bg-slate-200 dark:bg-white/10 rounded animate-pulse mb-2" />
                   <div className="h-6 bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
@@ -631,7 +631,7 @@ export default function UserDashboard() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
               <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10">
                 <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">
                   {t.dashboardTest?.detailedUsage?.inputTokens || 'Input Tokens'}

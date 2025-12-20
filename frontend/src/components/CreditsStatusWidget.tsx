@@ -77,7 +77,6 @@ export default function CreditsStatusWidget({
   const [avgCostPerRequest, setAvgCostPerRequest] = useState<number | null>(propAvgCost ?? null)
   const [loading, setLoading] = useState(propBalance === undefined)
   const [error, setError] = useState(false)
-  const [showTooltip, setShowTooltip] = useState(false)
 
   useEffect(() => {
     if (propBalance !== undefined) {
@@ -239,8 +238,6 @@ export default function CreditsStatusWidget({
       aria-label={ariaLabel}
       className={`flex items-center ${sizes.gap} ${sizes.padding} rounded-lg ${status.bgColor} border ${status.borderColor} cursor-pointer hover:opacity-80 transition-opacity relative`}
       onClick={onClick}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
     >
       <StatusIndicator />
       {showLabel && (
@@ -258,49 +255,6 @@ export default function CreditsStatusWidget({
             {translatedStatusLabel}
           </span>
         </>
-      )}
-
-      {/* Enhanced Tooltip with estimated requests */}
-      {showTooltip && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 dark:bg-slate-800 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50 pointer-events-none">
-          <div className="flex flex-col gap-1">
-            <span className="font-medium">{t.creditsStatus.creditsBalance}</span>
-            <span className="text-slate-300">${balance?.toFixed(4)}</span>
-            <span className={`${
-              status.status === 'ok' ? 'text-emerald-400' :
-              status.status === 'low' ? 'text-amber-400' :
-              'text-red-400'
-            }`}>
-              {t.creditsStatus.status}: {translatedStatusLabel}
-            </span>
-            {/* Estimated requests in tooltip */}
-            {estimatedRequests !== null && (
-              <>
-                <div className="border-t border-slate-700 my-1" />
-                <span className="text-slate-300">
-                  {formatEstimatedRequests(estimatedRequests)} {t.creditsStatus.requestsRemaining}
-                </span>
-                {avgCostPerRequest !== null && (
-                  <span className="text-slate-400 text-[10px]">
-                    {t.creditsStatus.avgPerReq}: ${avgCostPerRequest.toFixed(4)}/req
-                  </span>
-                )}
-                <span className="text-slate-500 text-[10px]">
-                  {t.creditsStatus.basedOnLast7Days}
-                </span>
-              </>
-            )}
-            {estimatedRequests === null && (
-              <>
-                <div className="border-t border-slate-700 my-1" />
-                <span className="text-slate-400 text-[10px]">
-                  {t.creditsStatus.noUsageHistory}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-800" />
-        </div>
       )}
     </div>
   )
