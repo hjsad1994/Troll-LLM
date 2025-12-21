@@ -43,44 +43,7 @@
 // }
 // ============================================================
 
-// TIER BONUS CONFIGURATION - Active
-// 10% bonus for purchases >= $100
-export const TIER_BONUS_CONFIG = {
-  threshold: 100,
-  bonusPercent: 10,
-}
-
-/**
- * Get tier bonus for a specific credit amount
- * @param credits - Amount of credits being purchased
- * @returns Bonus credits (10% for >= $100, 0 otherwise)
- */
-export function getTierBonus(credits: number): number {
-  if (credits >= TIER_BONUS_CONFIG.threshold) {
-    return Math.floor(credits * TIER_BONUS_CONFIG.bonusPercent / 100)
-  }
-  return 0
-}
-
-/**
- * Calculate total credits including tier bonus
- * @param credits - Amount of credits being purchased
- * @returns Total credits after bonus
- */
-export function calculateTotalWithTierBonus(credits: number): number {
-  return credits + getTierBonus(credits)
-}
-
-/**
- * Check if a credit amount has a bonus tier
- * @param credits - Amount to check
- * @returns true if amount qualifies for bonus (>= $100)
- */
-export function hasTierBonus(credits: number): boolean {
-  return credits >= TIER_BONUS_CONFIG.threshold
-}
-
-// Legacy exports for compatibility (always return false/0 when promo disabled)
+// Legacy exports for compatibility (always return false/0 when bonus disabled)
 export function isPromoActive(): boolean {
   return false
 }
@@ -90,11 +53,11 @@ export function getTimeRemaining() {
 }
 
 export function calculateBonusCredits(amount: number): number {
-  return calculateTotalWithTierBonus(amount)
+  return amount
 }
 
 export function getBonusAmount(amount: number): number {
-  return getTierBonus(amount)
+  return 0
 }
 
 export const PROMO_CONFIG = {

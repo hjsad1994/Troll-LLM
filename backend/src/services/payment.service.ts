@@ -9,8 +9,6 @@ import {
   calculateRefBonus,
   generateOrderCode,
   generateQRCodeUrl,
-  calculateTotalCredits,
-  calculateTierBonus
 } from '../models/payment.model.js';
 import { UserKey } from '../models/user-key.model.js';
 import { expirationSchedulerService } from './expiration-scheduler.service.js';
@@ -205,36 +203,25 @@ export class PaymentService {
       payload.id.toString()
     );
 
-    // Calculate credits with tier bonus (100→+10, 200→+20)
-    const baseCredits = payment.credits;
-    const tierBonus = calculateTierBonus(baseCredits);
-    const finalCredits = calculateTotalCredits(baseCredits);
-    const bonusApplied = tierBonus > 0;
-
-    // PROMO DISABLED - Uncomment below to enable promo bonus instead of tier bonus
-    // const finalCredits = calculateCreditsWithBonus(baseCredits);
-    // const promoApplied = finalCredits > baseCredits;
-
-    if (bonusApplied) {
-      console.log(`[Payment Webhook] Tier bonus! Base: $${baseCredits} + $${tierBonus} bonus → Final: $${finalCredits}`);
-    }
+    // Credits = base amount (no bonus)
+    const finalCredits = payment.credits;
 
     console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
 
-    // Add credits to user (with bonus if promo active)
+    // Add credits to user
     await this.addCredits(payment.userId, finalCredits, payment.discordId, payment._id.toString());
 
-    // Send webhook to Discord bot (show final credits with bonus)
+    // Send webhook to Discord bot
     await this.notifyDiscordBot({
       discordId: payment.discordId || '',
-      credits: bonusApplied ? `$${finalCredits} (includes +$${tierBonus} bonus)` : `$${baseCredits}`,
+      credits: `$${finalCredits}`,
       username: payment.userId,
       orderCode: payment.orderCode || orderCode,
       amount: payment.amount,
       transactionId: payload.id.toString(),
     });
 
-    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Credits: $${finalCredits}${bonusApplied ? ` (base: $${baseCredits}, bonus: +$${tierBonus})` : ''}`);
+    console.log(`[Payment Webhook] Success: ${orderCode} - User: ${payment.userId} - Credits: $${finalCredits}`);
     return { processed: true, message: 'Payment processed successfully' };
   }
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createCheckout, getPaymentStatus } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
-import { isPromoActive, getTimeRemaining, calculateBonusCredits, getBonusAmount, PROMO_CONFIG, getTierBonus, hasTierBonus, TIER_BONUS_CONFIG } from '@/lib/promo'
+import { isPromoActive, getTimeRemaining, PROMO_CONFIG } from '@/lib/promo'
 
 interface DashboardPaymentModalProps {
   isOpen: boolean
@@ -12,7 +12,7 @@ interface DashboardPaymentModalProps {
 }
 
 const MIN_AMOUNT = 20
-const MAX_AMOUNT = 200
+const MAX_AMOUNT = 100
 
 export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: DashboardPaymentModalProps) {
   const { t } = useLanguage()
@@ -190,18 +190,6 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
           {/* Step 1: Amount Selection */}
           {step === 'select' && (
             <div className="space-y-6">
-              {/* Tier Bonus Banner - Always show */}
-              <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-purple-500/30">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold">
-                    +{TIER_BONUS_CONFIG.bonusPercent}% BONUS!
-                  </span>
-                </div>
-                <p className="text-center text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                  Mua từ ${TIER_BONUS_CONFIG.threshold} trở lên được +{TIER_BONUS_CONFIG.bonusPercent}% bonus
-                </p>
-              </div>
-
               {/* Promo Banner - Only show when active (currently disabled) */}
               {promoActive && promoTimeLeft.total > 0 && (
                 <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-purple-500/30">
@@ -232,15 +220,9 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                 <div className="text-center mb-4">
                   <span className="text-4xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">{formatPrice(selectedAmount * 1000)}</span>
                   <span className="ml-1 text-lg text-purple-600 dark:text-purple-300">VND</span>
-                  {hasTierBonus(selectedAmount) ? (
-                    <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1 font-medium">
-                      Nhận ${calculateBonusCredits(selectedAmount)} {dp?.credits || 'credits'} (+${getTierBonus(selectedAmount)} bonus!)
-                    </p>
-                  ) : (
-                    <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1">
-                      Nhận ${selectedAmount} {dp?.credits || 'credits'}
-                    </p>
-                  )}
+                  <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1">
+                    Nhận ${selectedAmount} {dp?.credits || 'credits'}
+                  </p>
                 </div>
 
                 {/* Slider */}
@@ -265,7 +247,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
                 {/* Quick Select Buttons */}
                 <div className="flex gap-2 mt-4">
-                  {[20, 50, 100, 200].map((amount) => (
+                  {[20, 50, 100].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setSelectedAmount(amount)}
@@ -276,11 +258,6 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                       }`}
                     >
                       ${amount}
-                      {hasTierBonus(amount) && (
-                        <span className={`ml-1 text-xs ${selectedAmount === amount ? 'text-pink-200' : 'text-purple-500 dark:text-purple-400'}`}>
-                          +{getTierBonus(amount)}
-                        </span>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -315,8 +292,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-slate-400">{dp?.youReceive || 'You receive'}</span>
                   <span className="font-bold text-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                    ${calculateBonusCredits(selectedAmount)} {dp?.credits || 'credits'}
-                    {hasTierBonus(selectedAmount) && <span className="text-sm ml-1">(+${getTierBonus(selectedAmount)})</span>}
+                    ${selectedAmount} {dp?.credits || 'credits'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-slate-700/50">
