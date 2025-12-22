@@ -1215,7 +1215,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 
 	// Inject and merge system prompt
 	configSystemPrompt := config.GetSystemPrompt()
-	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.System))
+	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.GetSystemAsArray()))
 	var systemEntries []map[string]interface{}
 
 	// Add config system prompt first (higher priority)
@@ -2865,7 +2865,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	endpointURL := upstreamConfig.EndpointURL
 
 	// Add system prompt if not present (Factory AI requires this)
-	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.System))
+	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.GetSystemAsArray()))
 	// Combine proxy system prompt + user system prompt (sanitized)
 	systemPrompt := config.GetSystemPrompt()
 	var systemEntries []map[string]interface{}

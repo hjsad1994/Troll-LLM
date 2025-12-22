@@ -138,15 +138,55 @@ type CacheControl struct {
 
 // AnthropicRequest represents Anthropic request format
 type AnthropicRequest struct {
-	Model       string                   `json:"model"`
-	Messages    []AnthropicMessage       `json:"messages"`
-	System      []map[string]interface{} `json:"system,omitempty"`
-	MaxTokens   int                      `json:"max_tokens"`
-	Temperature float64                  `json:"temperature,omitempty"`
-	Stream      bool                     `json:"stream,omitempty"`
-	Thinking    *ThinkingConfig          `json:"thinking,omitempty"`
-	Tools       []interface{}            `json:"tools,omitempty"`
-	ToolChoice  interface{}              `json:"tool_choice,omitempty"`
+	Model       string             `json:"model"`
+	Messages    []AnthropicMessage `json:"messages"`
+	System      interface{}        `json:"system,omitempty"` // Can be string or []map[string]interface{}
+	MaxTokens   int                `json:"max_tokens"`
+	Temperature float64            `json:"temperature,omitempty"`
+	Stream      bool               `json:"stream,omitempty"`
+	Thinking    *ThinkingConfig    `json:"thinking,omitempty"`
+	Tools       []interface{}      `json:"tools,omitempty"`
+	ToolChoice  interface{}        `json:"tool_choice,omitempty"`
+}
+
+// GetSystemAsArray returns the System field as []map[string]interface{}, converting from string if needed
+func (r *AnthropicRequest) GetSystemAsArray() []map[string]interface{} {
+	if r.System == nil {
+		return nil
+	}
+
+	// If it's already an array
+	if arr, ok := r.System.([]interface{}); ok {
+		result := make([]map[string]interface{}, 0, len(arr))
+		for _, item := range arr {
+			if m, ok := item.(map[string]interface{}); ok {
+				result = append(result, m)
+			}
+		}
+		return result
+	}
+
+	// If it's already []map[string]interface{}
+	if arr, ok := r.System.([]map[string]interface{}); ok {
+		return arr
+	}
+
+	// If it's a string, convert to array format
+	if str, ok := r.System.(string); ok && str != "" {
+		return []map[string]interface{}{
+			{
+				"type": "text",
+				"text": str,
+			},
+		}
+	}
+
+	return nil
+}
+
+// SetSystemAsArray sets the System field as an array
+func (r *AnthropicRequest) SetSystemAsArray(system []map[string]interface{}) {
+	r.System = system
 }
 
 // ThinkingConfig represents Anthropic thinking configuration
@@ -375,9 +415,10 @@ func TransformToOpenAI(req *AnthropicRequest) *OpenAIRequest {
 	}
 
 	// Handle system messages
-	if len(req.System) > 0 {
+	systemArray := req.GetSystemAsArray()
+	if len(systemArray) > 0 {
 		var systemText string
-		for _, sys := range req.System {
+		for _, sys := range systemArray {
 			if text, ok := sys["text"].(string); ok {
 				if systemText != "" {
 					systemText += "\n"
