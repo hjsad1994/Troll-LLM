@@ -135,6 +135,51 @@ func RestoreOpenHandsBackupKey(id string) error {
 	return err
 }
 
+// CleanupUsedBackupKeys deletes backup keys that have been used for more than 12 hours
+// This runs periodically to keep the database clean
+func CleanupUsedBackupKeys() (int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Calculate cutoff time (12 hours ago)
+	cutoffTime := time.Now().Add(-12 * time.Hour)
+
+	// Delete keys where isUsed=true AND usedAt < cutoffTime
+	result, err := OpenHandsBackupKeysCollection().DeleteMany(ctx, bson.M{
+		"isUsed": true,
+		"usedAt": bson.M{"$lt": cutoffTime},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return result.DeletedCount, nil
+}
+
+// StartBackupKeyCleanupJob starts a goroutine that periodically cleans up used backup keys
+func StartBackupKeyCleanupJob(interval time.Duration) {
+	go func() {
+		log.Printf("🧹 [OpenHands/Cleanup] Started backup key cleanup job (interval: %v)", interval)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		// Run immediately on startup
+		if deleted, err := CleanupUsedBackupKeys(); err != nil {
+			log.Printf("⚠️ [OpenHands/Cleanup] Initial cleanup failed: %v", err)
+		} else if deleted > 0 {
+			log.Printf("🗑️ [OpenHands/Cleanup] Initial cleanup: deleted %d expired backup keys", deleted)
+		}
+
+		for range ticker.C {
+			if deleted, err := CleanupUsedBackupKeys(); err != nil {
+				log.Printf("⚠️ [OpenHands/Cleanup] Cleanup failed: %v", err)
+			} else if deleted > 0 {
+				log.Printf("🗑️ [OpenHands/Cleanup] Deleted %d expired backup keys (used > 12h)", deleted)
+			}
+		}
+	}()
+}
+
 // RotateOpenHandsKey replaces a failed key with a backup key:
 // 1. Find available backup key
 // 2. DELETE the old openhands_key document completely

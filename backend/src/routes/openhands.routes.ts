@@ -265,18 +265,29 @@ router.get('/backup-keys', async (_req: Request, res: Response) => {
       openhandsService.listBackupKeys(),
       openhandsService.getBackupKeyStats(),
     ]);
-    
-    // Mask API keys
-    const maskedKeys = keys.map(k => ({
-      id: k._id,
-      maskedApiKey: k.apiKey ? `${k.apiKey.slice(0, 8)}...${k.apiKey.slice(-4)}` : '***',
-      isUsed: k.isUsed,
-      activated: k.activated,
-      usedFor: k.usedFor,
-      usedAt: k.usedAt,
-      createdAt: k.createdAt,
-    }));
-    
+
+    // Mask API keys and add deletesAt for used keys
+    const maskedKeys = keys.map(k => {
+      const keyData: any = {
+        id: k._id,
+        maskedApiKey: k.apiKey ? `${k.apiKey.slice(0, 8)}...${k.apiKey.slice(-4)}` : '***',
+        isUsed: k.isUsed,
+        activated: k.activated,
+        usedFor: k.usedFor,
+        usedAt: k.usedAt,
+        createdAt: k.createdAt,
+      };
+
+      // Add deletesAt for used keys (usedAt + 12 hours)
+      if (k.isUsed && k.usedAt) {
+        const deletesAt = new Date(k.usedAt);
+        deletesAt.setHours(deletesAt.getHours() + 12);
+        keyData.deletesAt = deletesAt;
+      }
+
+      return keyData;
+    });
+
     res.json({ keys: maskedKeys, ...stats });
   } catch (error) {
     console.error('Error listing backup keys:', error);

@@ -482,15 +482,15 @@ func keysStatusHandler(w http.ResponseWriter, r *http.Request) {
 func openhandsBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	keys, stats := openhands.ListOpenHandsBackupKeys()
-	
-	// Mask API keys
+
+	// Mask API keys and add deletesAt for used keys
 	maskedKeys := make([]map[string]interface{}, len(keys))
 	for i, k := range keys {
 		masked := k.APIKey
 		if len(masked) > 12 {
 			masked = masked[:8] + "..." + masked[len(masked)-4:]
 		}
-		maskedKeys[i] = map[string]interface{}{
+		keyData := map[string]interface{}{
 			"id":           k.ID,
 			"maskedApiKey": masked,
 			"isUsed":       k.IsUsed,
@@ -498,8 +498,16 @@ func openhandsBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
 			"usedFor":      k.UsedFor,
 			"createdAt":    k.CreatedAt,
 		}
+		// Add usedAt and deletesAt for used keys
+		if k.IsUsed && k.UsedAt != nil {
+			keyData["usedAt"] = k.UsedAt
+			// deletesAt = usedAt + 12 hours
+			deletesAt := k.UsedAt.Add(12 * time.Hour)
+			keyData["deletesAt"] = deletesAt
+		}
+		maskedKeys[i] = keyData
 	}
-	
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"keys":      maskedKeys,
 		"total":     stats.Total,
@@ -3472,6 +3480,9 @@ func main() {
 	} else {
 		log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 	}
+
+	// Start OpenHands backup key cleanup job (runs every 1 minute, deletes keys used > 12h)
+	openhands.StartBackupKeyCleanupJob(1 * time.Minute)
 
 	// NEW MODEL-BASED ROUTING - END
 

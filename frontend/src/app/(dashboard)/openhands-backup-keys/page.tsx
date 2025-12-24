@@ -18,6 +18,7 @@ interface BackupKey {
   activated: boolean
   usedFor?: string
   usedAt?: string
+  deletesAt?: string
   createdAt: string
 }
 
@@ -44,6 +45,23 @@ export default function OpenHandsBackupKeysPage() {
   const [form, setForm] = useState({ id: '', apiKey: '' })
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
+
+  // Helper function to calculate time until deletion
+  function getDeleteCountdown(deletesAt: string): string {
+    const now = new Date()
+    const deleteTime = new Date(deletesAt)
+    const diffMs = deleteTime.getTime() - now.getTime()
+
+    if (diffMs <= 0) return 'Deleting soon...'
+
+    const hours = Math.floor(diffMs / (1000 * 60 * 60))
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+
+    if (hours > 0) {
+      return `Deletes in ${hours}h ${minutes}m`
+    }
+    return `Deletes in ${minutes}m`
+  }
 
   useEffect(() => {
     if (user && !isAdmin) {
@@ -364,7 +382,15 @@ export default function OpenHandsBackupKeysPage() {
                             <span className={`w-1.5 h-1.5 rounded-full ${key.isUsed ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                             {key.isUsed ? (t.openhandsBackupKeys?.table?.statusUsed || 'Used') : (t.openhandsBackupKeys?.table?.statusAvailable || 'Available')}
                           </span>
-                          {key.activated && (
+                          {key.isUsed && key.deletesAt && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {getDeleteCountdown(key.deletesAt)}
+                            </span>
+                          )}
+                          {key.activated && !key.deletesAt && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400">
                               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
