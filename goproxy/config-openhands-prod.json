@@ -102,6 +102,29 @@
       "billing_multiplier": 1.04,
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.1"
+    },
+    {
+      "name": "GPT-5.2",
+      "id": "gpt-5.2",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 1.75,
+      "output_price_per_mtok": 14.00,
+      "cache_hit_price_per_mtok": 0.17,
+      "billing_multiplier": 1.04,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.2"
+    },
+    {
+      "name": "Kimi K2 Thinking",
+      "id": "kimi-k2-thinking",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.6,
+      "output_price_per_mtok": 2.5,
+      "billing_multiplier": 1.04,
+      "upstream": "openhands",
+      "upstream_model_id": "kimi-k2-thinking"
     }
   ],
   "system_prompt": "",

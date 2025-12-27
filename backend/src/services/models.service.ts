@@ -6,9 +6,14 @@ export interface ModelConfig {
   id: string;
   type: string;
   reasoning?: string;
+  thinking_budget?: number;
   input_price_per_mtok: number;
   output_price_per_mtok: number;
+  cache_write_price_per_mtok?: number;
+  cache_hit_price_per_mtok?: number;
+  billing_multiplier?: number;
   upstream?: string;
+  upstream_model_id?: string;
 }
 
 interface GoproxyConfig {

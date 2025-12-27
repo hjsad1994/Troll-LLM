@@ -2,198 +2,56 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useLanguage } from '@/components/LanguageProvider'
+
+interface ApiModel {
+  id: string
+  name: string
+  type: string
+  reasoning?: string
+  inputPricePerMTok: number
+  outputPricePerMTok: number
+  cacheWritePricePerMTok: number
+  cacheHitPricePerMTok: number
+  billingMultiplier: number
+}
 
 interface Model {
   name: string
   id: string
-  type: 'anthropic' | 'openai' | 'google' | 'openhands'
+  type: 'anthropic' | 'openai' | 'google' | 'other'
   reasoning: string
-  thinking_budget?: number
   input_price_per_mtok: number
   output_price_per_mtok: number
   cache_write_price_per_mtok: number
   cache_hit_price_per_mtok: number
   billing_multiplier: number
-  upstream: string
-  upstream_model_id?: string
-  context?: string
-  capabilities?: string[]
-  description?: string
-  isPriority?: boolean
-  priorityMultiplier?: number
 }
 
-// Models configuration from goproxy config
-const models: Model[] = [
-  {
-    name: 'Claude Opus 4.5',
-    id: 'claude-opus-4-5-20251101',
-    type: 'anthropic',
-    reasoning: 'high',
-    thinking_budget: 31999,
-    input_price_per_mtok: 5.0,
-    output_price_per_mtok: 25.0,
-    cache_write_price_per_mtok: 6.25,
-    cache_hit_price_per_mtok: 0.50,
-    billing_multiplier: 1.1,
-    upstream: 'main',
-    upstream_model_id: 'claude-opus-4.5',
-    context: '200K',
-    capabilities: ['Vision', 'Function-calling', 'Reasoning'],
-    description: 'Most powerful. Exceptional for highly complex tasks',
-    priorityMultiplier: 1.1
-  },
-  {
-    name: 'Claude Sonnet 4.5',
-    id: 'claude-sonnet-4-5-20250929',
-    type: 'anthropic',
-    reasoning: 'high',
-    thinking_budget: 31999,
-    input_price_per_mtok: 3.0,
-    output_price_per_mtok: 15.0,
-    cache_write_price_per_mtok: 3.75,
-    cache_hit_price_per_mtok: 0.30,
-    billing_multiplier: 1.1,
-    upstream: 'main',
-    upstream_model_id: 'claude-sonnet-4.5',
-    context: '200K',
-    capabilities: ['Vision', 'Function-calling', 'Code'],
-    description: 'Best balance. Ideal for enterprise workloads and coding',
-    priorityMultiplier: 1.1
-  },
-  {
-    name: 'Claude Haiku 4.5',
-    id: 'claude-haiku-4-5-20251001',
-    type: 'anthropic',
-    reasoning: 'high',
-    thinking_budget: 8000,
-    input_price_per_mtok: 1.0,
-    output_price_per_mtok: 5.0,
-    cache_write_price_per_mtok: 1.25,
-    cache_hit_price_per_mtok: 0.10,
-    billing_multiplier: 1.3,
-    upstream: 'troll',
-    context: '200K',
-    capabilities: ['Vision', 'Function-calling', 'Code'],
-    description: 'Fastest and most affordable for high-volume tasks',
-    priorityMultiplier: 1.1
-  },
-  {
-    name: 'GPT-5.1',
-    id: 'gpt-5.1',
-    type: 'openai',
-    reasoning: 'high',
-    input_price_per_mtok: 1.25,
-    output_price_per_mtok: 10.0,
-    cache_write_price_per_mtok: 1.4625,
-    cache_hit_price_per_mtok: 0.125,
-    billing_multiplier: 1.05,
-    upstream: 'main',
-    context: '128K',
-    capabilities: ['Vision', 'Function-calling', 'Reasoning'],
-    description: 'Advanced reasoning model for complex problem-solving',
-    priorityMultiplier: 1.05
-  },
-  {
-    name: 'GPT-5.1 Codex Max',
-    id: 'gpt-5.1-codex-max',
-    type: 'openai',
-    reasoning: 'high',
-    input_price_per_mtok: 2.0,
-    output_price_per_mtok: 16.0,
-    cache_write_price_per_mtok: 0,
-    cache_hit_price_per_mtok: 0.2,
-    billing_multiplier: 1.1,
-    upstream: 'openhands',
-    context: '128K',
-    capabilities: ['Code', 'Reasoning'],
-    description: 'Enhanced GPT-5.1 optimized for code generation',
-    isPriority: true,
-    priorityMultiplier: 1.1
-  },
-  {
-    name: 'Gemini 3 Pro Preview',
-    id: 'gemini-3-pro-preview',
-    type: 'google',
-    reasoning: 'high',
-    input_price_per_mtok: 2.0,
-    output_price_per_mtok: 12.0,
-    cache_write_price_per_mtok: 0,
-    cache_hit_price_per_mtok: 0.2,
-    billing_multiplier: 1.1,
-    upstream: 'main',
-    context: '1000K',
-    capabilities: ['Vision', 'Function-calling', 'Reasoning', 'Multimodal'],
-    description: 'Next-gen Google model with exceptional reasoning',
-    priorityMultiplier: 1.1
-  },
-  {
-    name: 'Qwen3 Coder 480B',
-    id: 'qwen3-coder-480b',
-    type: 'openhands',
-    reasoning: 'high',
-    input_price_per_mtok: 0.5,
-    output_price_per_mtok: 2.0,
-    cache_write_price_per_mtok: 0,
-    cache_hit_price_per_mtok: 0.05,
-    billing_multiplier: 1.0,
-    upstream: 'openhands',
-    context: '128K',
-    capabilities: ['Code', 'Reasoning'],
-    description: 'Alibaba massive coding model with 480B parameters',
-    isPriority: true
-  },
-  {
-    name: 'Kimi K2',
-    id: 'kimi-k2-0711-preview',
-    type: 'openhands',
-    reasoning: 'high',
-    input_price_per_mtok: 0.3,
-    output_price_per_mtok: 1.5,
-    cache_write_price_per_mtok: 0,
-    cache_hit_price_per_mtok: 0.03,
-    billing_multiplier: 1.0,
-    upstream: 'openhands',
-    context: '128K',
-    capabilities: ['Code', 'Reasoning'],
-    description: 'Moonshot AI powerful reasoning and coding model',
-    isPriority: true
-  },
-  {
-    name: 'Kimi K2 Thinking',
-    id: 'kimi-k2-thinking',
-    type: 'openhands',
-    reasoning: 'high',
-    input_price_per_mtok: 0.5,
-    output_price_per_mtok: 2.5,
-    cache_write_price_per_mtok: 0,
-    cache_hit_price_per_mtok: 0.05,
-    billing_multiplier: 1.0,
-    upstream: 'openhands',
-    context: '128K',
-    capabilities: ['Code', 'Reasoning', 'Chain-of-thought'],
-    description: 'Kimi K2 with enhanced thinking capabilities',
-    isPriority: true
-  },
-  {
-    name: 'GLM-4.6',
-    id: 'glm-4.6',
-    type: 'openhands',
-    reasoning: 'medium',
-    input_price_per_mtok: 0.2,
-    output_price_per_mtok: 1.0,
-    cache_write_price_per_mtok: 0,
-    cache_hit_price_per_mtok: 0.02,
-    billing_multiplier: 1.0,
-    upstream: 'openhands',
-    context: '128K',
-    capabilities: ['Code', 'Multilingual'],
-    description: 'Zhipu AI efficient model for general tasks',
-    isPriority: true
+function getProviderFromId(id: string, apiType?: string): 'anthropic' | 'openai' | 'google' | 'other' {
+  if (id.startsWith('claude-')) return 'anthropic'
+  if (id.startsWith('gpt-') || id.startsWith('o3') || id.startsWith('o4')) return 'openai'
+  if (id.startsWith('gemini-')) return 'google'
+  if (apiType === 'anthropic') return 'anthropic'
+  if (apiType === 'openai') return 'openai'
+  if (apiType === 'google') return 'google'
+  return 'other'
+}
+
+function transformApiModel(apiModel: ApiModel): Model {
+  return {
+    name: apiModel.name,
+    id: apiModel.id,
+    type: getProviderFromId(apiModel.id, apiModel.type),
+    reasoning: apiModel.reasoning || 'medium',
+    input_price_per_mtok: apiModel.inputPricePerMTok,
+    output_price_per_mtok: apiModel.outputPricePerMTok,
+    cache_write_price_per_mtok: apiModel.cacheWritePricePerMTok,
+    cache_hit_price_per_mtok: apiModel.cacheHitPricePerMTok,
+    billing_multiplier: apiModel.billingMultiplier,
   }
-]
+}
 
 function getProviderColor(type: string) {
   switch (type) {
@@ -203,7 +61,7 @@ function getProviderColor(type: string) {
       return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
     case 'google':
       return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
-    case 'openhands':
+    case 'other':
       return 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20'
     default:
       return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
@@ -219,7 +77,6 @@ function getProviderIcon(type: string) {
     )
   }
   if (type === 'google') {
-    // Google/Gemini icon
     return (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -229,8 +86,7 @@ function getProviderIcon(type: string) {
       </svg>
     )
   }
-  if (type === 'openhands') {
-    // OpenHands/Priority icon (lightning bolt)
+  if (type === 'other') {
     return (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -253,8 +109,8 @@ function getProviderName(type: string) {
       return 'OpenAI'
     case 'google':
       return 'Google'
-    case 'openhands':
-      return 'Priority'
+    case 'other':
+      return 'Other'
     default:
       return type
   }
@@ -263,16 +119,49 @@ function getProviderName(type: string) {
 export default function ModelsPage() {
   const [filter, setFilter] = useState<'all' | 'anthropic' | 'openai' | 'google' | 'other'>('all')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [models, setModels] = useState<Model[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { t } = useLanguage()
 
-  // Filter out openhands/priority-only models temporarily
-  const visibleModels = models.filter(m => m.type !== 'openhands')
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        setLoading(true)
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.trollllm.xyz'
+        const res = await fetch(`${apiUrl}/api/models`)
+        if (!res.ok) throw new Error('Failed to fetch models')
+        const data = await res.json()
+        const transformedModels = data.models.map(transformApiModel)
+        setModels(transformedModels)
+        setError(null)
+      } catch (err) {
+        console.error('Error fetching models, using fallback data:', err)
+        // Fallback data from config-openhands-prod.json
+        const fallbackModels: ApiModel[] = [
+          { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', type: 'openhands', reasoning: 'high', inputPricePerMTok: 5.0, outputPricePerMTok: 25.0, cacheWritePricePerMTok: 6.25, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.04 },
+          { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', type: 'openhands', reasoning: 'high', inputPricePerMTok: 3.0, outputPricePerMTok: 15.0, cacheWritePricePerMTok: 3.75, cacheHitPricePerMTok: 0.3, billingMultiplier: 1.04 },
+          { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', type: 'openhands', reasoning: 'high', inputPricePerMTok: 2.0, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.04 },
+          { id: 'glm-4.6', name: 'GLM-4.6', type: 'openhands', reasoning: 'medium', inputPricePerMTok: 0.6, outputPricePerMTok: 2.2, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.08, billingMultiplier: 1.04 },
+          { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', type: 'openhands', reasoning: 'low', inputPricePerMTok: 1.0, outputPricePerMTok: 5.0, cacheWritePricePerMTok: 1.25, cacheHitPricePerMTok: 0.1, billingMultiplier: 1.04 },
+          { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 1.56, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
+          { id: 'gpt-5.1', name: 'GPT 5.1', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
+          { id: 'gpt-5.2', name: 'GPT-5.2', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.17, billingMultiplier: 1.04 },
+          { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', type: 'openhands', reasoning: 'high', inputPricePerMTok: 0.6, outputPricePerMTok: 2.5, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.04 },
+        ]
+        setModels(fallbackModels.map(transformApiModel))
+        setError(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchModels()
+  }, [])
 
-  const filteredModels = filter === 'all'
-    ? visibleModels
-    : filter === 'other'
-      ? visibleModels.filter(m => m.type === 'openhands')
-      : visibleModels.filter(m => m.type === filter)
+  const filteredModels = useMemo(() => {
+    if (filter === 'all') return models
+    return models.filter(m => m.type === filter)
+  }, [models, filter])
 
   const handleCopyId = async (id: string) => {
     await navigator.clipboard.writeText(id)
@@ -280,10 +169,36 @@ export default function ModelsPage() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  const anthropicCount = visibleModels.filter(m => m.type === 'anthropic').length
-  const openaiCount = visibleModels.filter(m => m.type === 'openai').length
-  const googleCount = visibleModels.filter(m => m.type === 'google').length
-  const otherCount = visibleModels.filter(m => m.type === 'openhands').length
+  const counts = useMemo(() => ({
+    total: models.length,
+    anthropic: models.filter(m => m.type === 'anthropic').length,
+    openai: models.filter(m => m.type === 'openai').length,
+    google: models.filter(m => m.type === 'google').length,
+    other: models.filter(m => m.type === 'other').length,
+  }), [models])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+        <span className="ml-3 text-[var(--theme-text-muted)]">Loading models...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <svg className="w-12 h-12 text-red-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <h3 className="text-lg font-medium text-[var(--theme-text)] mb-1">Error loading models</h3>
+          <p className="text-[var(--theme-text-subtle)] text-sm">{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen">
@@ -305,8 +220,8 @@ export default function ModelsPage() {
           </p>
         </header>
 
-        {/* Stats Cards - Updated to 4 columns since Other is hidden */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 opacity-0 animate-fade-in-up animation-delay-100">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 opacity-0 animate-fade-in-up animation-delay-100">
           <div className="p-3 sm:p-4 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.04]">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
@@ -315,7 +230,7 @@ export default function ModelsPage() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{visibleModels.length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{counts.total}</p>
                 <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-sm truncate">{t.dashboardModels.stats.total}</p>
               </div>
             </div>
@@ -328,7 +243,7 @@ export default function ModelsPage() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{anthropicCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{counts.anthropic}</p>
                 <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-sm truncate">{t.dashboardModels.stats.anthropic}</p>
               </div>
             </div>
@@ -341,7 +256,7 @@ export default function ModelsPage() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{openaiCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{counts.openai}</p>
                 <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-sm truncate">{t.dashboardModels.stats.openai}</p>
               </div>
             </div>
@@ -357,13 +272,12 @@ export default function ModelsPage() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{googleCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{counts.google}</p>
                 <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-sm truncate">{t.dashboardModels.stats.google}</p>
               </div>
             </div>
           </div>
-          {/* Other stat card - Temporarily hidden */}
-          {/* <div className="p-3 sm:p-4 rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-purple-500/5 dark:from-violet-500/10 dark:to-purple-500/10">
+          <div className="p-3 sm:p-4 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.04]">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 shrink-0">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -371,11 +285,11 @@ export default function ModelsPage() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{otherCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--theme-text)]">{counts.other}</p>
                 <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-sm truncate">Other</p>
               </div>
             </div>
-          </div> */}
+          </div>
         </div>
 
         {/* Filter Tabs */}
@@ -388,7 +302,7 @@ export default function ModelsPage() {
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10'
             }`}
           >
-            {t.dashboardModels.filters.all} ({visibleModels.length})
+            {t.dashboardModels.filters.all} ({counts.total})
           </button>
           <button
             onClick={() => setFilter('anthropic')}
@@ -398,7 +312,7 @@ export default function ModelsPage() {
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10'
             }`}
           >
-            Anthropic ({anthropicCount})
+            Anthropic ({counts.anthropic})
           </button>
           <button
             onClick={() => setFilter('openai')}
@@ -408,7 +322,7 @@ export default function ModelsPage() {
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10'
             }`}
           >
-            OpenAI ({openaiCount})
+            OpenAI ({counts.openai})
           </button>
           <button
             onClick={() => setFilter('google')}
@@ -418,19 +332,20 @@ export default function ModelsPage() {
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10'
             }`}
           >
-            Google ({googleCount})
+            Google ({counts.google})
           </button>
-          {/* Other filter tab - Temporarily hidden */}
-          {/* <button
-            onClick={() => setFilter('other')}
-            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-              filter === 'other'
-                ? 'bg-violet-500 text-white'
-                : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10'
-            }`}
-          >
-            Other ({otherCount})
-          </button> */}
+          {counts.other > 0 && (
+            <button
+              onClick={() => setFilter('other')}
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                filter === 'other'
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-[var(--theme-text-muted)] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10'
+              }`}
+            >
+              Other ({counts.other})
+            </button>
+          )}
         </div>
 
         {/* Models Grid */}
@@ -458,30 +373,6 @@ export default function ModelsPage() {
                           Reasoning
                         </span>
                       )}
-                      {/* Priority Only badge - Temporarily hidden */}
-                      {/* {model.isPriority && (
-                        <span
-                          className="px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 cursor-help"
-                          title="Model này chỉ có trên Priority Endpoint (priority-chat.trollllm.xyz)"
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                          Priority Only
-                        </span>
-                      )} */}
-                      {/* +Priority badge - Temporarily hidden */}
-                      {/* {model.priorityMultiplier && !model.isPriority && (
-                        <span
-                          className="px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 flex items-center gap-1 cursor-help"
-                          title={`Model này hỗ trợ Priority Endpoint với hệ số nhân ${model.priorityMultiplier}x`}
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                          +Priority
-                        </span>
-                      )} */}
                     </div>
                   </div>
                 </div>
@@ -530,18 +421,6 @@ export default function ModelsPage() {
                   <p className="text-[var(--theme-text)] text-xs sm:text-sm font-semibold">${model.cache_hit_price_per_mtok.toFixed(2)}<span className="text-[10px] sm:text-xs text-[var(--theme-text-subtle)] font-normal">{t.dashboardModels.card.perMTok}</span></p>
                 </div>
               </div>
-
-              {/* Priority Note - Temporarily hidden */}
-              {/* {model.priorityMultiplier && (
-                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/10">
-                  <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-xs flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-cyan-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span>Hỗ trợ Priority Endpoint với hệ số nhân <strong className="text-cyan-600 dark:text-cyan-400">{model.priorityMultiplier}x</strong></span>
-                  </p>
-                </div>
-              )} */}
             </div>
           ))}
         </div>

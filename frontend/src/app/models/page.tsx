@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
 
@@ -33,9 +33,29 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
-// ===== MODEL DATA =====
-type Provider = 'anthropic' | 'openai' | 'google'
-type ModelTier = 'opus' | 'sonnet' | 'haiku' | 'gpt-5' | 'gemini-pro'
+function OtherIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  )
+}
+
+// ===== TYPES =====
+type Provider = 'anthropic' | 'openai' | 'google' | 'other'
+type ModelTier = 'opus' | 'sonnet' | 'haiku' | 'gpt-5' | 'gemini-pro' | 'other'
+
+interface ApiModel {
+  id: string
+  name: string
+  type: string
+  reasoning?: string
+  inputPricePerMTok: number
+  outputPricePerMTok: number
+  cacheWritePricePerMTok: number
+  cacheHitPricePerMTok: number
+  billingMultiplier: number
+}
 
 interface Model {
   id: string
@@ -53,96 +73,97 @@ interface Model {
   speed: 'fast' | 'balanced' | 'powerful'
 }
 
-const models: Model[] = [
-  {
-    id: 'claude-opus-4-5-20251101',
-    name: 'Claude Opus 4.5',
-    provider: 'anthropic',
-    tier: 'opus',
-    description: 'Most powerful. Exceptional for highly complex tasks and deep analysis.',
-    contextLength: 200000,
-    inputPrice: 5,
-    outputPrice: 25,
-    cacheWritePrice: 6.25,
-    cacheHitPrice: 0.50,
-    billingMultiplier: 1.25,
-    capabilities: ['vision', 'function-calling', 'reasoning', 'code'],
-    speed: 'powerful',
-  },
-  {
-    id: 'claude-sonnet-4-5-20250929',
-    name: 'Claude Sonnet 4.5',
-    provider: 'anthropic',
-    tier: 'sonnet',
-    description: 'Best balance. Ideal for enterprise workloads and coding tasks.',
-    contextLength: 200000,
-    inputPrice: 3,
-    outputPrice: 15,
-    cacheWritePrice: 3.75,
-    cacheHitPrice: 0.30,
-    billingMultiplier: 1.2,
-    capabilities: ['vision', 'function-calling', 'code'],
-    speed: 'balanced',
-  },
-  {
-    id: 'claude-haiku-4-5-20251001',
-    name: 'Claude Haiku 4.5',
-    provider: 'anthropic',
-    tier: 'haiku',
-    description: 'Fastest and most affordable. Perfect for quick, high-volume tasks.',
-    contextLength: 200000,
-    inputPrice: 1,
-    outputPrice: 5,
-    cacheWritePrice: 1.25,
-    cacheHitPrice: 0.10,
-    billingMultiplier: 1.1,
-    capabilities: ['vision', 'function-calling', 'code'],
-    speed: 'fast',
-  },
-  {
-    id: 'gpt-5.1',
-    name: 'GPT-5.1',
-    provider: 'openai',
-    tier: 'gpt-5',
-    description: 'Advanced reasoning model. Perfect for complex problem-solving and deep analysis.',
-    contextLength: 128000,
-    inputPrice: 1.25,
-    outputPrice: 10.0,
-    cacheWritePrice: 1.5625,
-    cacheHitPrice: 0.125,
-    billingMultiplier: 1.1,
-    capabilities: ['vision', 'function-calling', 'reasoning', 'code'],
-    speed: 'balanced',
-  },
-  {
-    id: 'gemini-3-pro-preview',
-    name: 'Gemini 3 Pro Preview',
-    provider: 'google',
-    tier: 'gemini-pro',
-    description: 'Next-gen Google model. Exceptional reasoning and multimodal capabilities.',
-    contextLength: 1000000,
-    inputPrice: 2.0,
-    outputPrice: 12.0,
-    cacheWritePrice: 0,
-    cacheHitPrice: 0,
-    billingMultiplier: 1.1,
-    capabilities: ['vision', 'function-calling', 'reasoning', 'code', 'multimodal'],
-    speed: 'powerful',
-  },
-]
+// ===== HELPER FUNCTIONS =====
+function getProviderFromId(id: string, type?: string): Provider {
+  if (id.startsWith('claude-')) return 'anthropic'
+  if (id.startsWith('gpt-') || id.startsWith('o3') || id.startsWith('o4')) return 'openai'
+  if (id.startsWith('gemini-')) return 'google'
+  if (type === 'anthropic') return 'anthropic'
+  if (type === 'openai') return 'openai'
+  if (type === 'google') return 'google'
+  return 'other'
+}
 
-const tierColors = {
+function getTierFromId(id: string): ModelTier {
+  if (id.includes('opus')) return 'opus'
+  if (id.includes('sonnet')) return 'sonnet'
+  if (id.includes('haiku')) return 'haiku'
+  if (id.startsWith('gpt-')) return 'gpt-5'
+  if (id.startsWith('gemini-')) return 'gemini-pro'
+  return 'other'
+}
+
+function getContextLength(id: string): number {
+  if (id.startsWith('claude-')) return 200000
+  if (id.startsWith('gemini-')) return 1000000
+  return 128000
+}
+
+function getCapabilities(id: string, reasoning?: string): string[] {
+  const caps = ['code']
+  if (id.startsWith('claude-') || id.startsWith('gpt-') || id.startsWith('gemini-')) {
+    caps.push('vision', 'function-calling')
+  }
+  if (reasoning === 'high') {
+    caps.push('reasoning')
+  }
+  if (id.startsWith('gemini-')) {
+    caps.push('multimodal')
+  }
+  return caps
+}
+
+function getSpeed(id: string): 'fast' | 'balanced' | 'powerful' {
+  if (id.includes('haiku')) return 'fast'
+  if (id.includes('opus') || id.startsWith('gemini-')) return 'powerful'
+  return 'balanced'
+}
+
+function getDescription(id: string, name: string): string {
+  if (id.includes('opus')) return 'Most powerful. Exceptional for highly complex tasks and deep analysis.'
+  if (id.includes('sonnet')) return 'Best balance. Ideal for enterprise workloads and coding tasks.'
+  if (id.includes('haiku')) return 'Fastest and most affordable. Perfect for quick, high-volume tasks.'
+  if (id.startsWith('gpt-5.2')) return 'Latest GPT-5 series. Advanced reasoning and coding capabilities.'
+  if (id.startsWith('gpt-5.1')) return 'Advanced reasoning model. Perfect for complex problem-solving.'
+  if (id.startsWith('gemini-')) return 'Next-gen Google model. Exceptional reasoning and multimodal capabilities.'
+  if (id.startsWith('glm-')) return 'Zhipu AI efficient model for general tasks.'
+  if (id.startsWith('kimi-')) return 'Moonshot AI powerful reasoning and coding model.'
+  return `${name} - High performance LLM model.`
+}
+
+function transformApiModel(apiModel: ApiModel): Model {
+  const provider = getProviderFromId(apiModel.id, apiModel.type)
+  return {
+    id: apiModel.id,
+    name: apiModel.name,
+    provider,
+    tier: getTierFromId(apiModel.id),
+    description: getDescription(apiModel.id, apiModel.name),
+    contextLength: getContextLength(apiModel.id),
+    inputPrice: apiModel.inputPricePerMTok,
+    outputPrice: apiModel.outputPricePerMTok,
+    cacheWritePrice: apiModel.cacheWritePricePerMTok,
+    cacheHitPrice: apiModel.cacheHitPricePerMTok,
+    billingMultiplier: apiModel.billingMultiplier,
+    capabilities: getCapabilities(apiModel.id, apiModel.reasoning),
+    speed: getSpeed(apiModel.id),
+  }
+}
+
+const tierColors: Record<ModelTier, { bg: string; text: string; border: string; glow: string }> = {
   opus: { bg: 'from-amber-500 to-orange-600', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/20', glow: 'shadow-amber-500/10' },
   sonnet: { bg: 'from-violet-500 to-purple-600', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/20', glow: 'shadow-violet-500/10' },
   haiku: { bg: 'from-emerald-500 to-teal-600', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/10' },
   'gpt-5': { bg: 'from-cyan-500 to-blue-600', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500/20', glow: 'shadow-cyan-500/10' },
   'gemini-pro': { bg: 'from-pink-500 to-rose-600', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-500/20', glow: 'shadow-pink-500/10' },
+  'other': { bg: 'from-violet-500 to-purple-600', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/20', glow: 'shadow-violet-500/10' },
 }
 
-const providerColors = {
+const providerColors: Record<Provider, string> = {
   anthropic: 'text-orange-600 dark:text-orange-400',
   openai: 'text-cyan-600 dark:text-cyan-400',
   google: 'text-pink-600 dark:text-pink-400',
+  other: 'text-violet-600 dark:text-violet-400',
 }
 
 function getProviderIcon(provider: Provider, className?: string) {
@@ -153,12 +174,15 @@ function getProviderIcon(provider: Provider, className?: string) {
       return <OpenAIIcon className={className} />
     case 'google':
       return <GoogleIcon className={className} />
+    case 'other':
+      return <OtherIcon className={className} />
   }
 }
 
 function formatPrice(price: number): string {
   if (price < 1) return `$${price.toFixed(2)}`
-  return `$${price.toFixed(0)}`
+  if (Number.isInteger(price)) return `$${price.toFixed(0)}`
+  return `$${price.toFixed(2)}`
 }
 
 // ===== PROVIDER FILTER =====
@@ -167,13 +191,51 @@ const providers: { id: Provider | 'all'; name: string; icon?: React.ReactNode }[
   { id: 'anthropic', name: 'Anthropic', icon: <AnthropicIcon className="w-4 h-4" /> },
   { id: 'openai', name: 'OpenAI', icon: <OpenAIIcon className="w-4 h-4" /> },
   { id: 'google', name: 'Google', icon: <GoogleIcon className="w-4 h-4" /> },
+  { id: 'other', name: 'Other', icon: <OtherIcon className="w-4 h-4" /> },
 ]
 
 // ===== MAIN PAGE =====
 export default function ModelsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProvider, setSelectedProvider] = useState<Provider | 'all'>('all')
+  const [models, setModels] = useState<Model[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { t } = useLanguage()
+
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        setLoading(true)
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.trollllm.xyz'
+        const res = await fetch(`${apiUrl}/api/models`)
+        if (!res.ok) throw new Error('Failed to fetch models')
+        const data = await res.json()
+        const transformedModels = data.models.map(transformApiModel)
+        setModels(transformedModels)
+        setError(null)
+      } catch (err) {
+        console.error('Error fetching models, using fallback data:', err)
+        // Fallback data from config-openhands-prod.json
+        const fallbackModels: ApiModel[] = [
+          { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', type: 'openhands', reasoning: 'high', inputPricePerMTok: 5.0, outputPricePerMTok: 25.0, cacheWritePricePerMTok: 6.25, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.04 },
+          { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', type: 'openhands', reasoning: 'high', inputPricePerMTok: 3.0, outputPricePerMTok: 15.0, cacheWritePricePerMTok: 3.75, cacheHitPricePerMTok: 0.3, billingMultiplier: 1.04 },
+          { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', type: 'openhands', reasoning: 'high', inputPricePerMTok: 2.0, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.04 },
+          { id: 'glm-4.6', name: 'GLM-4.6', type: 'openhands', reasoning: 'medium', inputPricePerMTok: 0.6, outputPricePerMTok: 2.2, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.08, billingMultiplier: 1.04 },
+          { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', type: 'openhands', reasoning: 'low', inputPricePerMTok: 1.0, outputPricePerMTok: 5.0, cacheWritePricePerMTok: 1.25, cacheHitPricePerMTok: 0.1, billingMultiplier: 1.04 },
+          { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 1.56, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
+          { id: 'gpt-5.1', name: 'GPT 5.1', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
+          { id: 'gpt-5.2', name: 'GPT-5.2', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.17, billingMultiplier: 1.04 },
+          { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', type: 'openhands', reasoning: 'high', inputPricePerMTok: 0.6, outputPricePerMTok: 2.5, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.04 },
+        ]
+        setModels(fallbackModels.map(transformApiModel))
+        setError(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchModels()
+  }, [])
 
   const filteredModels = useMemo(() => {
     let result = models
@@ -195,7 +257,22 @@ export default function ModelsPage() {
     }
 
     return result
-  }, [searchQuery, selectedProvider])
+  }, [models, searchQuery, selectedProvider])
+
+  const providerCounts = useMemo(() => {
+    return {
+      all: models.length,
+      anthropic: models.filter(m => m.provider === 'anthropic').length,
+      openai: models.filter(m => m.provider === 'openai').length,
+      google: models.filter(m => m.provider === 'google').length,
+      other: models.filter(m => m.provider === 'other').length,
+    }
+  }, [models])
+
+  const uniqueProviders = useMemo(() => {
+    const providerSet = new Set(models.map(m => m.provider))
+    return providerSet.size
+  }, [models])
 
   return (
     <div className="min-h-screen bg-[var(--theme-bg)]">
@@ -234,12 +311,12 @@ export default function ModelsPage() {
           {/* Quick Stats */}
           <div className="flex items-center justify-center gap-8 mb-8">
             <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--theme-text)]">{models.length}</div>
+              <div className="text-2xl font-bold text-[var(--theme-text)]">{loading ? '...' : models.length}</div>
               <div className="text-[var(--theme-text-subtle)] text-sm">{t.models.stats.models}</div>
             </div>
             <div className="h-8 w-px bg-gray-300 dark:bg-white/10" />
             <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--theme-text)]">3</div>
+              <div className="text-2xl font-bold text-[var(--theme-text)]">{loading ? '...' : uniqueProviders}</div>
               <div className="text-[var(--theme-text-subtle)] text-sm">{t.models.stats.providers}</div>
             </div>
             <div className="h-8 w-px bg-gray-300 dark:bg-white/10" />
@@ -255,7 +332,7 @@ export default function ModelsPage() {
 
           {/* Provider Filter Tabs */}
           <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
-            {providers.map((provider) => (
+            {providers.filter(p => p.id === 'all' || providerCounts[p.id] > 0).map((provider) => (
               <button
                 key={provider.id}
                 onClick={() => setSelectedProvider(provider.id)}
@@ -267,16 +344,9 @@ export default function ModelsPage() {
               >
                 {provider.icon && <span className={selectedProvider === provider.id ? 'text-[var(--theme-bg)]' : providerColors[provider.id as Provider]}>{provider.icon}</span>}
                 {provider.name}
-                {provider.id === 'all' && (
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${selectedProvider === 'all' ? 'bg-[var(--theme-bg)]/20 text-[var(--theme-bg)]' : 'bg-gray-100 dark:bg-white/10 text-[var(--theme-text-subtle)]'}`}>
-                    {models.length}
-                  </span>
-                )}
-                {provider.id !== 'all' && (
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${selectedProvider === provider.id ? 'bg-[var(--theme-bg)]/20 text-[var(--theme-bg)]' : 'bg-gray-100 dark:bg-white/10 text-[var(--theme-text-subtle)]'}`}>
-                    {models.filter(m => m.provider === provider.id).length}
-                  </span>
-                )}
+                <span className={`px-1.5 py-0.5 rounded text-xs ${selectedProvider === provider.id ? 'bg-[var(--theme-bg)]/20 text-[var(--theme-bg)]' : 'bg-gray-100 dark:bg-white/10 text-[var(--theme-text-subtle)]'}`}>
+                  {providerCounts[provider.id]}
+                </span>
               </button>
             ))}
           </div>
@@ -300,112 +370,127 @@ export default function ModelsPage() {
       {/* Models Table */}
       <section className="py-12">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden bg-white dark:bg-transparent shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-white/[0.03]">
-                    <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.model}</th>
-                    <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden sm:table-cell">{t.models.table.provider}</th>
-                    <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.context}</th>
-                    <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.input}</th>
-                    <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.output}</th>
-                    <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden md:table-cell">{t.models.table.speed}</th>
-                    <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden lg:table-cell">{t.models.table.capabilities}</th>
-                    <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden xl:table-cell">{t.models.table.apiId}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                  {filteredModels.map((model) => {
-                    const colors = tierColors[model.tier]
-                    const providerColor = providerColors[model.provider]
-                    return (
-                      <tr key={model.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-                        {/* Model Name */}
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center flex-shrink-0 sm:hidden">
-                              {getProviderIcon(model.provider, `w-4 h-4 ${providerColor}`)}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[var(--theme-text)] font-medium">{model.name}</span>
-                                {(model.id === 'gpt-5.1' || model.id === 'gemini-3-pro-preview') && (
-                                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium">New</span>
-                                )}
-                              </div>
-                              <p className="text-[var(--theme-text-subtle)] text-xs mt-0.5 max-w-[200px] truncate hidden sm:block">{model.description}</p>
-                            </div>
-                          </div>
-                        </td>
-                        {/* Provider */}
-                        <td className="px-4 py-4 hidden sm:table-cell">
-                          <div className="flex items-center gap-2">
-                            {getProviderIcon(model.provider, `w-4 h-4 ${providerColor}`)}
-                            <span className="text-[var(--theme-text-muted)] text-sm capitalize">{model.provider}</span>
-                          </div>
-                        </td>
-                        {/* Context Length */}
-                        <td className="px-4 py-4 text-center">
-                          <span className="text-[var(--theme-text)] text-sm">{(model.contextLength / 1000).toFixed(0)}K</span>
-                        </td>
-                        {/* Input Price */}
-                        <td className="px-4 py-4 text-right">
-                          <span className={`font-medium text-sm ${colors.text}`}>{formatPrice(model.inputPrice)}</span>
-                        </td>
-                        {/* Output Price */}
-                        <td className="px-4 py-4 text-right">
-                          <span className={`font-medium text-sm ${colors.text}`}>{formatPrice(model.outputPrice)}</span>
-                        </td>
-                        {/* Speed */}
-                        <td className="px-4 py-4 text-center hidden md:table-cell">
-                          <div className="flex items-center justify-center gap-1">
-                            {['fast', 'balanced', 'powerful'].map((speed, i) => (
-                              <div
-                                key={speed}
-                                className={`w-2 h-2 rounded-full ${
-                                  (model.speed === 'fast' && i === 0) ||
-                                  (model.speed === 'balanced' && i <= 1) ||
-                                  (model.speed === 'powerful' && i <= 2)
-                                    ? `bg-gradient-to-r ${colors.bg}`
-                                    : 'bg-gray-200 dark:bg-white/10'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </td>
-                        {/* Capabilities */}
-                        <td className="px-4 py-4 hidden lg:table-cell">
-                          <div className="flex flex-wrap gap-1 justify-center">
-                            {model.capabilities.slice(0, 3).map((cap) => (
-                              <span
-                                key={cap}
-                                className="px-2 py-0.5 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-subtle)] text-[10px] capitalize font-semibold shadow-sm"
-                              >
-                                {cap}
-                              </span>
-                            ))}
-                            {model.capabilities.length > 3 && (
-                              <span className="px-2 py-0.5 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-subtle)] text-[10px] font-semibold shadow-sm">
-                                +{model.capabilities.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        {/* API ID */}
-                        <td className="px-4 py-4 hidden xl:table-cell whitespace-nowrap">
-                          <code className="px-2 py-1 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-muted)] text-xs font-mono shadow-sm whitespace-nowrap">{model.id}</code>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+              <span className="ml-3 text-[var(--theme-text-muted)]">Loading models...</span>
             </div>
-          </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <svg className="w-12 h-12 text-red-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h3 className="text-lg font-medium text-[var(--theme-text)] mb-1">Error loading models</h3>
+              <p className="text-[var(--theme-text-subtle)] text-sm">{error}</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden bg-white dark:bg-transparent shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-white/[0.03]">
+                      <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.model}</th>
+                      <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden sm:table-cell">{t.models.table.provider}</th>
+                      <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.context}</th>
+                      <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.input}</th>
+                      <th className="text-right px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium">{t.models.table.output}</th>
+                      <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden md:table-cell">{t.models.table.speed}</th>
+                      <th className="text-center px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden lg:table-cell">{t.models.table.capabilities}</th>
+                      <th className="text-left px-4 py-4 text-[var(--theme-text-muted)] text-xs uppercase tracking-wider font-medium hidden xl:table-cell">{t.models.table.apiId}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                    {filteredModels.map((model) => {
+                      const colors = tierColors[model.tier]
+                      const providerColor = providerColors[model.provider]
+                      return (
+                        <tr key={model.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+                          {/* Model Name */}
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center flex-shrink-0 sm:hidden">
+                                {getProviderIcon(model.provider, `w-4 h-4 ${providerColor}`)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[var(--theme-text)] font-medium">{model.name}</span>
+                                  {(model.id.includes('5.2') || model.id.includes('kimi') || model.id.includes('glm')) && (
+                                    <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium">New</span>
+                                  )}
+                                </div>
+                                <p className="text-[var(--theme-text-subtle)] text-xs mt-0.5 max-w-[200px] truncate hidden sm:block">{model.description}</p>
+                              </div>
+                            </div>
+                          </td>
+                          {/* Provider */}
+                          <td className="px-4 py-4 hidden sm:table-cell">
+                            <div className="flex items-center gap-2">
+                              {getProviderIcon(model.provider, `w-4 h-4 ${providerColor}`)}
+                              <span className="text-[var(--theme-text-muted)] text-sm capitalize">{model.provider}</span>
+                            </div>
+                          </td>
+                          {/* Context Length */}
+                          <td className="px-4 py-4 text-center">
+                            <span className="text-[var(--theme-text)] text-sm">{(model.contextLength / 1000).toFixed(0)}K</span>
+                          </td>
+                          {/* Input Price */}
+                          <td className="px-4 py-4 text-right">
+                            <span className={`font-medium text-sm ${colors.text}`}>{formatPrice(model.inputPrice)}</span>
+                          </td>
+                          {/* Output Price */}
+                          <td className="px-4 py-4 text-right">
+                            <span className={`font-medium text-sm ${colors.text}`}>{formatPrice(model.outputPrice)}</span>
+                          </td>
+                          {/* Speed */}
+                          <td className="px-4 py-4 text-center hidden md:table-cell">
+                            <div className="flex items-center justify-center gap-1">
+                              {['fast', 'balanced', 'powerful'].map((speed, i) => (
+                                <div
+                                  key={speed}
+                                  className={`w-2 h-2 rounded-full ${
+                                    (model.speed === 'fast' && i === 0) ||
+                                    (model.speed === 'balanced' && i <= 1) ||
+                                    (model.speed === 'powerful' && i <= 2)
+                                      ? `bg-gradient-to-r ${colors.bg}`
+                                      : 'bg-gray-200 dark:bg-white/10'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </td>
+                          {/* Capabilities */}
+                          <td className="px-4 py-4 hidden lg:table-cell">
+                            <div className="flex flex-wrap gap-1 justify-center">
+                              {model.capabilities.slice(0, 3).map((cap) => (
+                                <span
+                                  key={cap}
+                                  className="px-2 py-0.5 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-subtle)] text-[10px] capitalize font-semibold shadow-sm"
+                                >
+                                  {cap}
+                                </span>
+                              ))}
+                              {model.capabilities.length > 3 && (
+                                <span className="px-2 py-0.5 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-subtle)] text-[10px] font-semibold shadow-sm">
+                                  +{model.capabilities.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          {/* API ID */}
+                          <td className="px-4 py-4 hidden xl:table-cell whitespace-nowrap">
+                            <code className="px-2 py-1 rounded-md bg-white dark:bg-white/5 border-2 border-gray-400 dark:border-white/20 text-gray-800 dark:text-[var(--theme-text-muted)] text-xs font-mono shadow-sm whitespace-nowrap">{model.id}</code>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Empty State */}
-          {filteredModels.length === 0 && (
+          {!loading && !error && filteredModels.length === 0 && (
             <div className="text-center py-16">
               <svg className="w-12 h-12 text-[var(--theme-text-subtle)] mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

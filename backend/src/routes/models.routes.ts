@@ -15,6 +15,9 @@ router.get('/', async (_req: Request, res: Response) => {
         reasoning: m.reasoning,
         inputPricePerMTok: m.input_price_per_mtok,
         outputPricePerMTok: m.output_price_per_mtok,
+        cacheWritePricePerMTok: m.cache_write_price_per_mtok || 0,
+        cacheHitPricePerMTok: m.cache_hit_price_per_mtok || 0,
+        billingMultiplier: m.billing_multiplier || 1.0,
       })),
       count: models.length,
     });

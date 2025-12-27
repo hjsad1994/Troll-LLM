@@ -236,6 +236,7 @@ export default function CreditsStatusWidget({
       role="status"
       aria-live="polite"
       aria-label={ariaLabel}
+      title={`$${balance?.toFixed(2)}`}
       className={`flex items-center ${sizes.gap} ${sizes.padding} rounded-lg ${status.bgColor} border ${status.borderColor} cursor-pointer hover:opacity-80 transition-opacity relative`}
       onClick={onClick}
     >
