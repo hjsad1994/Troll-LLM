@@ -425,7 +425,7 @@ export default function LandingPage() {
               <div className="mb-6 -mt-2 p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-purple-500/20">
                 <div className="flex items-center justify-center gap-2 mb-2">
                                     <span className="text-purple-600 dark:text-purple-400 font-bold text-lg">
-                    {t.pricing.promo?.bonusTitle || 'BONUS +15% CREDITS!'}
+                    {t.pricing.promo?.bonusTitle || 'BONUS +20% CREDITS!'}
                   </span>
                 </div>
                 <p className="text-center text-purple-700 dark:text-purple-300 text-sm mb-2">
@@ -452,7 +452,7 @@ export default function LandingPage() {
               </div>
               {isPromoActive() ? (
                 <p className="text-purple-600 dark:text-purple-400 text-sm mt-2 font-medium">
-                  {t.pricing.promo?.getBonus || '→ Get $23 credits (+15% bonus)'}
+                  {t.pricing.promo?.getBonus || '→ Get $24 credits (+20% bonus)'}
                 </p>
               ) : (
                 <p className="text-[var(--theme-text-subtle)] text-sm mt-2">{t.pricing.tagline}</p>

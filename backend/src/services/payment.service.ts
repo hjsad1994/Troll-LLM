@@ -14,26 +14,25 @@ import { UserKey } from '../models/user-key.model.js';
 import { expirationSchedulerService } from './expiration-scheduler.service.js';
 
 // ============================================================
-// PROMO CONFIGURATION - DISABLED (kept for future use)
-// Uncomment below and the calculateCreditsWithBonus call in processWebhook to enable
+// PROMO CONFIGURATION - ENABLED
 // ============================================================
-// const PROMO_CONFIG = {
-//   startDate: new Date('2025-12-18T00:00:00+07:00'),
-//   endDate: new Date('2025-12-20T22:00:00+07:00'),
-//   bonusPercent: 15,
-// };
+const PROMO_CONFIG = {
+  startDate: new Date('2026-01-01T00:00:00+07:00'),
+  endDate: new Date('2026-01-03T00:00:00+07:00'),
+  bonusPercent: 20,
+};
 
-// function isPromoActive(): boolean {
-//   const now = new Date();
-//   return now >= PROMO_CONFIG.startDate && now < PROMO_CONFIG.endDate;
-// }
+function isPromoActive(): boolean {
+  const now = new Date();
+  return now >= PROMO_CONFIG.startDate && now < PROMO_CONFIG.endDate;
+}
 
-// function calculateCreditsWithBonus(credits: number): number {
-//   if (isPromoActive()) {
-//     return credits * (1 + PROMO_CONFIG.bonusPercent / 100);
-//   }
-//   return credits;
-// }
+function calculateCreditsWithBonus(credits: number): number {
+  if (isPromoActive()) {
+    return credits * (1 + PROMO_CONFIG.bonusPercent / 100);
+  }
+  return credits;
+}
 // ============================================================
 
 export interface CheckoutResult {
@@ -203,8 +202,8 @@ export class PaymentService {
       payload.id.toString()
     );
 
-    // Credits = base amount (no bonus)
-    const finalCredits = payment.credits;
+    // Credits = base amount + promo bonus (if active)
+    const finalCredits = calculateCreditsWithBonus(payment.credits);
 
     console.log(`[Payment Webhook] Calling addCredits for ${payment.userId}...`);
 

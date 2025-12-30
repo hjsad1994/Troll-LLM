@@ -178,7 +178,7 @@ function CheckoutContent() {
                 <div className="p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border-b border-purple-500/20">
                   <div className="flex items-center justify-center gap-2 mb-1">
                                         <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold text-lg">
-                      {t.pricing.promo?.bonusTitle || 'BONUS +15% CREDITS!'}
+                      {t.pricing.promo?.bonusTitle || 'BONUS +20% CREDITS!'}
                     </span>
                   </div>
                   <div className="flex items-center justify-center gap-1 text-sm text-purple-600 dark:text-purple-400">
