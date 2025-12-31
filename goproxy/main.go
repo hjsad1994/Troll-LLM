@@ -1386,7 +1386,14 @@ handleMessagesResponse:
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OpenHands] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f)", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID))
+		// Get remaining credits for logging
+		remainingCredits := 0.0
+		if username != "" {
+			if credits, refCredits, err := userkey.GetUserCreditsWithRef(username); err == nil {
+				remainingCredits = credits + refCredits
+			}
+		}
+		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
 	}
 
 	// Handle response using maintarget handlers (same format as Anthropic)
@@ -1666,7 +1673,14 @@ handleOpenAIResponse:
 				LatencyMs:        latencyMs,
 			})
 		}
-		log.Printf("📊 [OpenHands] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f)", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID))
+		// Get remaining credits for logging
+		remainingCredits := 0.0
+		if username != "" {
+			if credits, refCredits, err := userkey.GetUserCreditsWithRef(username); err == nil {
+				remainingCredits = credits + refCredits
+			}
+		}
+		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
 	}
 
 	// Estimate input tokens from request (rough: 1 token ≈ 4 chars)
