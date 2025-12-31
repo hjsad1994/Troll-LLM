@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createCheckout, getPaymentStatus, isAuthenticated } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
-import { isPromoActive, getTimeRemaining, PROMO_CONFIG } from '@/lib/promo'
+import { isPromoActive, getTimeRemaining, PROMO_CONFIG, getBonusAmount } from '@/lib/promo'
 
 const MIN_AMOUNT = 20
 const MAX_AMOUNT = 100
@@ -202,6 +202,11 @@ function CheckoutContent() {
                   </div>
                   <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1">
                     {language === 'vi' ? 'Nhận' : 'Get'} ${customAmount} credits
+                    {promoActive && (
+                      <span className="ml-1 text-green-500 font-semibold">
+                        + ${getBonusAmount(customAmount).toFixed(0)} bonus
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -281,9 +286,16 @@ function CheckoutContent() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[var(--theme-text-subtle)]">{language === 'vi' ? 'Bạn nhận' : 'You receive'}</span>
-                    <span className="text-lg font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                      ${customAmount} credits
-                    </span>
+                    <div className="text-right">
+                      <span className="text-lg font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                        ${promoActive ? (customAmount + getBonusAmount(customAmount)).toFixed(0) : customAmount} credits
+                      </span>
+                      {promoActive && (
+                        <div className="text-xs text-green-500">
+                          (${customAmount} + ${getBonusAmount(customAmount).toFixed(0)} bonus)
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[var(--theme-text-subtle)]">{t.checkout.summary.total}</span>

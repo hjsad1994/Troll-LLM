@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createCheckout, getPaymentStatus } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
-import { isPromoActive, getTimeRemaining, PROMO_CONFIG } from '@/lib/promo'
+import { isPromoActive, getTimeRemaining, PROMO_CONFIG, getBonusAmount } from '@/lib/promo'
 
 interface DashboardPaymentModalProps {
   isOpen: boolean
@@ -222,6 +222,11 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                   <span className="ml-1 text-lg text-purple-600 dark:text-purple-300">VND</span>
                   <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1">
                     Nhận ${selectedAmount} {dp?.credits || 'credits'}
+                    {promoActive && (
+                      <span className="ml-1 text-green-500 font-semibold">
+                        + ${getBonusAmount(selectedAmount).toFixed(0)} bonus
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -291,9 +296,16 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
               <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-slate-400">{dp?.youReceive || 'You receive'}</span>
-                  <span className="font-bold text-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                    ${selectedAmount} {dp?.credits || 'credits'}
-                  </span>
+                  <div className="text-right">
+                    <span className="font-bold text-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                      ${promoActive ? (selectedAmount + getBonusAmount(selectedAmount)).toFixed(0) : selectedAmount} {dp?.credits || 'credits'}
+                    </span>
+                    {promoActive && (
+                      <div className="text-xs text-green-500">
+                        (${selectedAmount} + ${getBonusAmount(selectedAmount).toFixed(0)} bonus)
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-slate-700/50">
                   <span className="text-gray-600 dark:text-slate-400">{dp?.vnd || 'VND'}</span>
@@ -346,7 +358,15 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                   {formatPrice(paymentData.amount)} VND
                 </p>
                 <p className="text-gray-500 dark:text-slate-400">
-                  ${paymentData.credits.toFixed(2)} {dp?.credits || 'credits'} / {dp?.validityDays || '7 days'}
+                  ${paymentData.credits.toFixed(2)} {dp?.credits || 'credits'}
+                  {promoActive && (
+                    <span className="ml-1 text-green-500 font-semibold">
+                      (đã bao gồm +{PROMO_CONFIG.bonusPercent}% bonus)
+                    </span>
+                  )}
+                </p>
+                <p className="text-gray-400 dark:text-slate-500 text-sm">
+                  {dp?.validityDays || '7 days'}
                 </p>
               </div>
 
