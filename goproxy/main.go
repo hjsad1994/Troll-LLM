@@ -1193,7 +1193,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	// Select a key from the pool
 	key, err := openhandsPool.SelectKey()
 	if err != nil {
-		log.Printf("❌ [OpenHands] No healthy keys available: %v", err)
+		log.Printf("❌ [Troll-LLM] No healthy keys available: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"No healthy OpenHands keys available"}}`, http.StatusServiceUnavailable)
 		return
 	}
@@ -1201,7 +1201,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	// Parse request to inject system prompt
 	var anthropicReq transformers.AnthropicRequest
 	if err := json.Unmarshal(originalBody, &anthropicReq); err != nil {
-		log.Printf("❌ [OpenHands] Failed to parse request: %v", err)
+		log.Printf("❌ [Troll-LLM] Failed to parse request: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Invalid JSON"}}`, http.StatusBadRequest)
 		return
 	}
@@ -1217,7 +1217,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	_, hasTemperature := rawRequest["temperature"]
 	_, hasTopP := rawRequest["top_p"]
 	if hasTemperature && hasTopP {
-		log.Printf("⚠️ [OpenHands] Removing top_p - Claude doesn't allow both temperature and top_p")
+		log.Printf("⚠️ [Troll-LLM] Removing top_p - Claude doesn't allow both temperature and top_p")
 		delete(rawRequest, "top_p")
 	}
 
@@ -1232,7 +1232,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 			"type": "text",
 			"text": configSystemPrompt,
 		})
-		log.Printf("✅ [OpenHands] Injected config system prompt (%d chars)", len(configSystemPrompt))
+		log.Printf("✅ [Troll-LLM] Injected config system prompt (%d chars)", len(configSystemPrompt))
 	}
 
 	// Add user system prompt (sanitized to remove blocked content)
@@ -1243,7 +1243,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 				"type": "text",
 				"text": sanitizedUserSystem,
 			})
-			log.Printf("✅ [OpenHands] Merged user system prompt (%d chars)", len(sanitizedUserSystem))
+			log.Printf("✅ [Troll-LLM] Merged user system prompt (%d chars)", len(sanitizedUserSystem))
 		}
 	}
 
@@ -1256,13 +1256,13 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	// Serialize modified request
 	requestBody, err := json.Marshal(anthropicReq)
 	if err != nil {
-		log.Printf("❌ [OpenHands] Failed to serialize request: %v", err)
+		log.Printf("❌ [Troll-LLM] Failed to serialize request: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Failed to serialize request"}}`, http.StatusInternalServerError)
 		return
 	}
 
 	if upstreamModelID != modelID {
-		log.Printf("🔀 [OpenHands] Model mapping: %s -> %s", modelID, upstreamModelID)
+		log.Printf("🔀 [Troll-LLM] Model mapping: %s -> %s", modelID, upstreamModelID)
 	}
 
 	log.Printf("📤 [OpenHands-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, key=%s)", upstreamModelID, isStreaming, key.ID)
@@ -1270,7 +1270,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	// Create HTTP request
 	req, err := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/messages", bytes.NewBuffer(requestBody))
 	if err != nil {
-		log.Printf("❌ [OpenHands] Failed to create request: %v", err)
+		log.Printf("❌ [Troll-LLM] Failed to create request: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request creation failed"}}`, http.StatusInternalServerError)
 		return
 	}
@@ -1284,7 +1284,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	requestStartTime := time.Now()
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Printf("❌ [OpenHands] Request failed after %v: %v", time.Since(requestStartTime), err)
+		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OpenHands failed"}}`, http.StatusBadGateway)
 		return
 	}
@@ -1294,7 +1294,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		errorBody := string(bodyBytes)
-		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, truncateErrorLog(errorBody, 300))
+		log.Printf("⚠️ [Troll-LLM] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, truncateErrorLog(errorBody, 300))
 
 		// Check if this is a rotatable error (budget exceeded, auth error, etc.)
 		isBudgetExceeded := strings.Contains(errorBody, "ExceededBudget") ||
@@ -1310,7 +1310,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 			if !isStreaming {
 				newKey, retryErr := openhandsPool.SelectKey()
 				if retryErr == nil && newKey.ID != key.ID {
-					log.Printf("🔄 [OpenHands] Retrying with new key: %s", newKey.ID)
+					log.Printf("🔄 [Troll-LLM] Retrying with new key: %s", newKey.ID)
 
 					// Create new request with new key
 					retryReq, _ := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/messages", bytes.NewBuffer(requestBody))
@@ -1325,12 +1325,12 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 							// Success! Update key for billing and continue to response handling
 							key = newKey
 							resp = retryResp
-							log.Printf("✅ [OpenHands] Retry successful with key: %s", newKey.ID)
+							log.Printf("✅ [Troll-LLM] Retry successful with key: %s", newKey.ID)
 							goto handleMessagesResponse
 						}
 						// Retry also failed
 						retryBody, _ := io.ReadAll(retryResp.Body)
-						log.Printf("❌ [OpenHands] Retry also failed (status=%d): %s", retryResp.StatusCode, string(retryBody))
+						log.Printf("❌ [Troll-LLM] Retry also failed (status=%d): %s", retryResp.StatusCode, string(retryBody))
 						w.Header().Set("Content-Type", "application/json")
 						w.WriteHeader(retryResp.StatusCode)
 						w.Write(openhands.SanitizeAnthropicError(retryResp.StatusCode, retryBody))
@@ -1416,7 +1416,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	// Select a key from the pool
 	key, err := openhandsPool.SelectKey()
 	if err != nil {
-		log.Printf("❌ [OpenHands] No healthy keys available: %v", err)
+		log.Printf("❌ [Troll-LLM] No healthy keys available: %v", err)
 		http.Error(w, `{"error": {"message": "No healthy OpenHands keys available", "type": "server_error"}}`, http.StatusServiceUnavailable)
 		return
 	}
@@ -1559,7 +1559,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	// Create HTTP request
 	req, err := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/chat/completions", bytes.NewBuffer(requestBody))
 	if err != nil {
-		log.Printf("❌ [OpenHands] Failed to create request: %v", err)
+		log.Printf("❌ [Troll-LLM] Failed to create request: %v", err)
 		http.Error(w, `{"error": {"message": "Request creation failed", "type": "server_error"}}`, http.StatusInternalServerError)
 		return
 	}
@@ -1572,7 +1572,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	requestStartTime := time.Now()
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Printf("❌ [OpenHands] Request failed after %v: %v", time.Since(requestStartTime), err)
+		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"error": {"message": "Request to OpenHands failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
@@ -1582,7 +1582,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		errorBody := string(bodyBytes)
-		log.Printf("⚠️ [OpenHands] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, truncateErrorLog(errorBody, 300))
+		log.Printf("⚠️ [Troll-LLM] Error response (status=%d, key=%s): %s", resp.StatusCode, key.ID, truncateErrorLog(errorBody, 300))
 
 		// Check if this is a rotatable error (budget exceeded, auth error, etc.)
 		isBudgetExceeded := strings.Contains(errorBody, "ExceededBudget") ||

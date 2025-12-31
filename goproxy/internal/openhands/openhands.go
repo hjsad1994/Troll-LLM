@@ -125,9 +125,9 @@ func (p *OpenHandsProvider) SetProxyPool(pool *proxy.ProxyPool) {
 	p.proxyPool = pool
 	p.useProxy = pool != nil && pool.HasProxies()
 	if p.useProxy {
-		log.Printf("✅ [OpenHands] Proxy pool enabled (%d proxies)", pool.GetProxyCount())
+		log.Printf("✅ [Troll-LLM] Proxy pool enabled (%d proxies)", pool.GetProxyCount())
 	} else {
-		log.Printf("ℹ️ [OpenHands] Running without proxy (direct connection)")
+		log.Printf("ℹ️ [Troll-LLM] Running without proxy (direct connection)")
 	}
 }
 
@@ -150,7 +150,7 @@ func (p *OpenHandsProvider) LoadKeys() error {
 	for cursor.Next(ctx) {
 		var key OpenHandsKey
 		if err := cursor.Decode(&key); err != nil {
-			log.Printf("⚠️ [OpenHands] Failed to decode key: %v", err)
+			log.Printf("⚠️ [Troll-LLM] Failed to decode key: %v", err)
 			continue
 		}
 		p.keys = append(p.keys, &key)
@@ -166,7 +166,7 @@ func (p *OpenHandsProvider) LoadKeys() error {
 			for bindingsCursor.Next(ctx) {
 				var binding OpenHandsKeyBinding
 				if err := bindingsCursor.Decode(&binding); err != nil {
-					log.Printf("⚠️ [OpenHands] Failed to decode binding: %v", err)
+					log.Printf("⚠️ [Troll-LLM] Failed to decode binding: %v", err)
 					continue
 				}
 				p.bindings[binding.ProxyID] = append(p.bindings[binding.ProxyID], &binding)
@@ -174,7 +174,7 @@ func (p *OpenHandsProvider) LoadKeys() error {
 		}
 	}
 
-	log.Printf("✅ [OpenHands] Loaded %d keys, %d proxy bindings from MongoDB", len(p.keys), len(p.bindings))
+	log.Printf("✅ [Troll-LLM] Loaded %d keys, %d proxy bindings from MongoDB", len(p.keys), len(p.bindings))
 	return nil
 }
 
@@ -189,13 +189,13 @@ func (p *OpenHandsProvider) StartAutoReload(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 [OpenHands] Auto-reload started (interval: %v)", interval)
+		log.Printf("🔄 [Troll-LLM] Auto-reload started (interval: %v)", interval)
 
 		for range ticker.C {
 			if err := p.LoadKeys(); err != nil {
-				log.Printf("⚠️ [OpenHands] Auto-reload failed: %v", err)
+				log.Printf("⚠️ [Troll-LLM] Auto-reload failed: %v", err)
 			} else {
-				log.Printf("🔄 [OpenHands] Auto-reloaded keys (%d keys)", p.GetKeyCount())
+				log.Printf("🔄 [Troll-LLM] Auto-reloaded keys (%d keys)", p.GetKeyCount())
 			}
 		}
 	}()
@@ -262,28 +262,28 @@ func (p *OpenHandsProvider) updateKeyStatus(keyID string, status OpenHandsKeySta
 
 	_, err := db.OpenHandsKeysCollection().UpdateByID(ctx, keyID, update)
 	if err != nil {
-		log.Printf("⚠️ [OpenHands] Failed to update key status: %v", err)
+		log.Printf("⚠️ [Troll-LLM] Failed to update key status: %v", err)
 	}
 }
 
 func (p *OpenHandsProvider) MarkHealthy(keyID string) {
 	p.MarkStatus(keyID, OpenHandsStatusHealthy, 0, "")
-	log.Printf("✅ [OpenHands] Key %s marked healthy", keyID)
+	log.Printf("✅ [Troll-LLM] Key %s marked healthy", keyID)
 }
 
 func (p *OpenHandsProvider) MarkRateLimited(keyID string) {
 	p.MarkStatus(keyID, OpenHandsStatusRateLimited, 60*time.Second, "Rate limited by upstream")
-	log.Printf("⚠️ [OpenHands] Key %s rate limited (cooldown: 60s)", keyID)
+	log.Printf("⚠️ [Troll-LLM] Key %s rate limited (cooldown: 60s)", keyID)
 }
 
 func (p *OpenHandsProvider) MarkExhausted(keyID string) {
 	p.MarkStatus(keyID, OpenHandsStatusExhausted, 24*time.Hour, "Token quota exhausted")
-	log.Printf("❌ [OpenHands] Key %s exhausted (cooldown: 24h)", keyID)
+	log.Printf("❌ [Troll-LLM] Key %s exhausted (cooldown: 24h)", keyID)
 }
 
 func (p *OpenHandsProvider) MarkError(keyID string, err string) {
 	p.MarkStatus(keyID, OpenHandsStatusError, 30*time.Second, err)
-	log.Printf("⚠️ [OpenHands] Key %s error: %s", keyID, err)
+	log.Printf("⚠️ [Troll-LLM] Key %s error: %s", keyID, err)
 }
 
 // CheckAndRotateOnError checks response and rotates key if needed
@@ -298,7 +298,7 @@ func (p *OpenHandsProvider) CheckAndRotateOnError(keyID string, statusCode int, 
 		if strings.Contains(body, "ExceededBudget") || strings.Contains(body, "budget_exceeded") || strings.Contains(body, "over budget") {
 			shouldRotate = true
 			reason = "budget_exceeded"
-			log.Printf("🚨 [OpenHands] Key %s budget exceeded, triggering rotation", keyID)
+			log.Printf("🚨 [Troll-LLM] Key %s budget exceeded, triggering rotation", keyID)
 		}
 	case 401:
 		shouldRotate = true
@@ -315,19 +315,19 @@ func (p *OpenHandsProvider) CheckAndRotateOnError(keyID string, statusCode int, 
 	}
 
 	if shouldRotate {
-		log.Printf("🚫 [OpenHands] Key %s error %d, rotating...", keyID, statusCode)
+		log.Printf("🚫 [Troll-LLM] Key %s error %d, rotating...", keyID, statusCode)
 		backupCount := GetOpenHandsBackupKeyCount()
 		if backupCount > 0 {
 			newKeyID, err := p.RotateKey(keyID, reason)
 			if err != nil {
-				log.Printf("❌ [OpenHands] Rotation failed: %v", err)
+				log.Printf("❌ [Troll-LLM] Rotation failed: %v", err)
 				p.MarkExhausted(keyID)
 			} else {
-				log.Printf("✅ [OpenHands] Rotated: %s -> %s", keyID, newKeyID)
+				log.Printf("✅ [Troll-LLM] Rotated: %s -> %s", keyID, newKeyID)
 			}
 		} else {
 			p.MarkExhausted(keyID)
-			log.Printf("🚨 [OpenHands] No backup keys, %s disabled", keyID)
+			log.Printf("🚨 [Troll-LLM] No backup keys, %s disabled", keyID)
 		}
 	}
 }
@@ -437,11 +437,11 @@ func (p *OpenHandsProvider) UpdateKeyUsage(keyID string, inputTokens, outputToke
 
 	_, err := collection.UpdateByID(ctx, keyID, update)
 	if err != nil {
-		log.Printf("❌ [OpenHands] Failed to update key usage: %v", err)
+		log.Printf("❌ [Troll-LLM] Failed to update key usage: %v", err)
 		return err
 	}
 
-	log.Printf("📈 [OpenHands] Updated key %s: +%d tokens, +1 request", keyID, totalTokens)
+	log.Printf("📈 [Troll-LLM] Updated key %s: +%d tokens, +1 request", keyID, totalTokens)
 	return nil
 }
 
@@ -516,9 +516,9 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 
 	// Log request
 	if proxyName != "" {
-		log.Printf("📤 [OpenHands] POST %s (key=%s, proxy=%s, stream=%v)", endpoint, key.ID, proxyName, isStreaming)
+		log.Printf("📤 [Troll-LLM] POST %s (key=%s, proxy=%s, stream=%v)", endpoint, key.ID, proxyName, isStreaming)
 	} else {
-		log.Printf("📤 [OpenHands] POST %s (key=%s, direct, stream=%v)", endpoint, key.ID, isStreaming)
+		log.Printf("📤 [Troll-LLM] POST %s (key=%s, direct, stream=%v)", endpoint, key.ID, isStreaming)
 	}
 
 	startTime := time.Now()
@@ -526,7 +526,7 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 	elapsed := time.Since(startTime)
 	if err != nil {
 		// Log detailed error with timing to help debug proxy vs upstream timeouts
-		log.Printf("⏱️ [OpenHands] Request failed after %v (proxy=%s): %v", elapsed, proxyName, err)
+		log.Printf("⏱️ [Troll-LLM] Request failed after %v (proxy=%s): %v", elapsed, proxyName, err)
 		return nil, err
 	}
 
@@ -548,10 +548,10 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 		// IMPORTANT: Only retry for non-streaming requests
 		// For streaming, retrying would cause double response (partial + new full response)
 		if !isStreaming {
-			log.Printf("⚠️ [OpenHands] Non-streaming request failed (HTTP %d), retrying with next key...", resp.StatusCode)
+			log.Printf("⚠️ [Troll-LLM] Non-streaming request failed (HTTP %d), retrying with next key...", resp.StatusCode)
 			return p.retryWithNextKeyToEndpoint(endpoint, body, isStreaming, 2)
 		} else {
-			log.Printf("🚫 [OpenHands] Streaming request got HTTP %d - CANNOT RETRY to prevent double response!", resp.StatusCode)
+			log.Printf("🚫 [Troll-LLM] Streaming request got HTTP %d - CANNOT RETRY to prevent double response!", resp.StatusCode)
 			// Return sanitized error response - handler will forward to client
 			// Don't retry to avoid double response
 			resp.Body = io.NopCloser(bytes.NewReader(SanitizeError(resp.StatusCode, bodyBytes)))
@@ -583,7 +583,7 @@ func (p *OpenHandsProvider) selectProxyAndKey() (*http.Client, string, *OpenHand
 	// Select proxy from pool
 	selectedProxy, err := pool.SelectProxy()
 	if err != nil {
-		log.Printf("⚠️ [OpenHands] Failed to select proxy, using direct: %v", err)
+		log.Printf("⚠️ [Troll-LLM] Failed to select proxy, using direct: %v", err)
 		key, err := p.SelectKey()
 		if err != nil {
 			return nil, "", nil, err
@@ -594,7 +594,7 @@ func (p *OpenHandsProvider) selectProxyAndKey() (*http.Client, string, *OpenHand
 	// Create transport with proxy
 	transport, err := selectedProxy.CreateHTTPTransport()
 	if err != nil {
-		log.Printf("⚠️ [OpenHands] Failed to create proxy transport, using direct: %v", err)
+		log.Printf("⚠️ [Troll-LLM] Failed to create proxy transport, using direct: %v", err)
 		key, err := p.SelectKey()
 		if err != nil {
 			return nil, "", nil, err
@@ -679,16 +679,16 @@ func (p *OpenHandsProvider) retryWithNextKeyToEndpoint(endpoint string, body []b
 	}
 
 	if proxyName != "" {
-		log.Printf("📤 [OpenHands] RETRY POST %s (key=%s, proxy=%s, stream=%v, retries=%d)", endpoint, key.ID, proxyName, isStreaming, retriesLeft)
+		log.Printf("📤 [Troll-LLM] RETRY POST %s (key=%s, proxy=%s, stream=%v, retries=%d)", endpoint, key.ID, proxyName, isStreaming, retriesLeft)
 	} else {
-		log.Printf("📤 [OpenHands] RETRY POST %s (key=%s, direct, stream=%v, retries=%d)", endpoint, key.ID, isStreaming, retriesLeft)
+		log.Printf("📤 [Troll-LLM] RETRY POST %s (key=%s, direct, stream=%v, retries=%d)", endpoint, key.ID, isStreaming, retriesLeft)
 	}
 
 	startTime := time.Now()
 	resp, err := client.Do(req)
 	elapsed := time.Since(startTime)
 	if err != nil {
-		log.Printf("⏱️ [OpenHands] RETRY failed after %v (proxy=%s): %v", elapsed, proxyName, err)
+		log.Printf("⏱️ [Troll-LLM] RETRY failed after %v (proxy=%s): %v", elapsed, proxyName, err)
 		return nil, err
 	}
 
@@ -715,7 +715,7 @@ func (p *OpenHandsProvider) retryWithNextKeyToEndpoint(endpoint string, body []b
 func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ [OpenHands] Error %d", resp.StatusCode)
+		log.Printf("❌ [Troll-LLM] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))
@@ -813,13 +813,13 @@ func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *ht
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Printf("⚠️ [OpenHands] Scanner error: %v", err)
+		log.Printf("⚠️ [Troll-LLM] Scanner error: %v", err)
 	}
 
 	if cacheCreation > 0 || cacheRead > 0 {
-		log.Printf("📊 [OpenHands] Usage: in=%d out=%d cache_create=%d cache_read=%d ⚡", totalInput, totalOutput, cacheCreation, cacheRead)
+		log.Printf("📊 [Troll-LLM] Usage: in=%d out=%d cache_create=%d cache_read=%d ⚡", totalInput, totalOutput, cacheCreation, cacheRead)
 	} else {
-		log.Printf("📊 [OpenHands] Usage: in=%d out=%d", totalInput, totalOutput)
+		log.Printf("📊 [Troll-LLM] Usage: in=%d out=%d", totalInput, totalOutput)
 	}
 	if onUsage != nil && (totalInput > 0 || totalOutput > 0) {
 		onUsage(totalInput, totalOutput, cacheCreation, cacheRead)
@@ -835,7 +835,7 @@ func (p *OpenHandsProvider) HandleNonStreamResponse(w http.ResponseWriter, resp 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("❌ [OpenHands] Error %d", resp.StatusCode)
+		log.Printf("❌ [Troll-LLM] Error %d", resp.StatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))
@@ -860,9 +860,9 @@ func (p *OpenHandsProvider) HandleNonStreamResponse(w http.ResponseWriter, resp 
 				}
 			}
 			if cachedTokens > 0 {
-				log.Printf("📊 [OpenHands] Usage: in=%d out=%d cached=%d ⚡", input, output, cachedTokens)
+				log.Printf("📊 [Troll-LLM] Usage: in=%d out=%d cached=%d ⚡", input, output, cachedTokens)
 			} else {
-				log.Printf("📊 [OpenHands] Usage: in=%d out=%d", input, output)
+				log.Printf("📊 [Troll-LLM] Usage: in=%d out=%d", input, output)
 			}
 			if onUsage != nil && (input > 0 || output > 0) {
 				onUsage(input, output, 0, cachedTokens)
