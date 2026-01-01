@@ -74,7 +74,7 @@
       "output_price_per_mtok": 5.0,
       "cache_write_price_per_mtok": 1.25,
       "cache_hit_price_per_mtok": 0.1,
-      "billing_multiplier": 1.04,
+      "billing_multiplier": 1.08,
       "upstream": "openhands",
       "upstream_model_id": "claude-haiku-4-5-20251001"
     },
