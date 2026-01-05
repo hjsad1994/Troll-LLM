@@ -154,7 +154,7 @@ func initHTTPClient() {
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   15 * time.Second,
 		ExpectContinueTimeout: 2 * time.Second,
-		ResponseHeaderTimeout: 180 * time.Second,
+		ResponseHeaderTimeout: 360 * time.Second,
 		DisableKeepAlives:     false,
 	}
 
