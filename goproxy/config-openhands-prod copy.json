@@ -53,6 +53,18 @@
       "upstream_model_id": "gemini-3-pro-preview"
     },
     {
+      "name": "GLM-4.6",
+      "id": "glm-4.6",
+      "type": "openhands",
+      "reasoning": "medium",
+      "input_price_per_mtok": 0.6,
+      "output_price_per_mtok": 2.2,
+      "cache_hit_price_per_mtok": 0.08,
+      "billing_multiplier": 1.06,
+      "upstream": "openhands",
+      "upstream_model_id": "glm-4.6"
+    },
+    {
       "name": "Claude Haiku 4.5",
       "id": "claude-haiku-4-5-20251001",
       "id_aliases": ["claude-haiku-4-5"],
@@ -65,6 +77,54 @@
       "billing_multiplier": 1.08,
       "upstream": "openhands",
       "upstream_model_id": "claude-haiku-4-5-20251001"
+    },
+    {
+      "name": "GPT-5.1 Codex Max",
+      "id": "gpt-5.1-codex-max",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 1.25,
+      "output_price_per_mtok": 10.0,
+      "cache_write_price_per_mtok": 1.56,
+      "cache_hit_price_per_mtok": 0.13,
+      "billing_multiplier": 1.06,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1-codex-max"
+    },
+    {
+      "name": "GPT 5.1",
+      "id": "gpt-5.1",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 1.25,
+      "output_price_per_mtok": 10.0,
+      "cache_hit_price_per_mtok": 0.13,
+      "billing_multiplier": 1.06,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.1"
+    },
+    {
+      "name": "GPT-5.2",
+      "id": "gpt-5.2",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 1.75,
+      "output_price_per_mtok": 14.00,
+      "cache_hit_price_per_mtok": 0.17,
+      "billing_multiplier": 1.06,
+      "upstream": "openhands",
+      "upstream_model_id": "gpt-5.2"
+    },
+    {
+      "name": "Kimi K2 Thinking",
+      "id": "kimi-k2-thinking",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.6,
+      "output_price_per_mtok": 2.5,
+      "billing_multiplier": 1.06,
+      "upstream": "openhands",
+      "upstream_model_id": "kimi-k2-thinking"
     }
   ],
   "system_prompt": "",
