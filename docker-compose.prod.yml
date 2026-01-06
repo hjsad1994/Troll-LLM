@@ -36,6 +36,10 @@ services:
         - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
     environment:
       - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
+    # Force IPv4 DNS to avoid IPv6 connection issues
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
     networks:
       - trollllm-network

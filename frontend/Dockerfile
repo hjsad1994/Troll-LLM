@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Prefer IPv4 DNS (fixes IPv6 connection issues)
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
 WORKDIR /app
 
 # Copy package files
@@ -22,6 +25,9 @@ RUN npm run build
 
 # Runtime stage
 FROM node:20-alpine AS runner
+
+# Prefer IPv4 DNS (fixes IPv6 connection issues)
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
 WORKDIR /app
 
