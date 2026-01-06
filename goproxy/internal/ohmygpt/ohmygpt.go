@@ -28,6 +28,9 @@ const (
 	OhMyGPTCompletionsEndpoint = OhMyGPTBaseURL + "/v1/chat/completions"
 	OhMyGPTEndpoint            = OhMyGPTCompletionsEndpoint // default for OpenAI format
 	OhMyGPTName                = "ohmygpt"
+
+	RateLimitCooldownDuration  = 2 * time.Minute // Cooldown for rate-limited keys
+	AutoRecoveryCheckInterval  = 30 * time.Second // Auto-recovery check interval
 )
 
 // OhMyGPTKeyStatus represents the health status of an API key
@@ -116,6 +119,10 @@ func ConfigureOhMyGPT() error {
 
 	// Register with TrollProxy registry
 	RegisterProvider(OhMyGPTName, provider)
+
+	// Start auto-recovery background service
+	provider.StartAutoRecovery()
+
 	return nil
 }
 
@@ -202,6 +209,59 @@ func (p *OhMyGPTProvider) StartAutoReload(interval time.Duration) {
 	}()
 }
 
+// StartAutoRecovery starts a background goroutine that automatically recovers rate-limited keys
+func (p *OhMyGPTProvider) StartAutoRecovery() {
+	go func() {
+		ticker := time.NewTicker(AutoRecoveryCheckInterval)
+		defer ticker.Stop()
+
+		log.Printf("🔄 [Troll-LLM] OhMyGPT Auto-recovery service started (interval: %v)", AutoRecoveryCheckInterval)
+
+		for range ticker.C {
+			p.runAutoRecovery()
+		}
+	}()
+}
+
+// runAutoRecovery checks for expired cooldowns and recovers keys to healthy status
+func (p *OhMyGPTProvider) runAutoRecovery() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Find keys with expired cooldowns
+	now := time.Now()
+	filter := bson.M{
+		"status":        OhMyGPTStatusRateLimited,
+		"cooldownUntil": bson.M{"$lt": now},
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"status":        OhMyGPTStatusHealthy,
+			"lastError":     "",
+			"cooldownUntil": nil,
+		},
+	}
+
+	result, err := db.OhMyGPTKeysCollection().UpdateMany(ctx, filter, update)
+	if err != nil {
+		log.Printf("⚠️ [Troll-LLM] OhMyGPT Auto-recovery failed: %v", err)
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		// No keys to recover, skip update
+		return
+	}
+
+	log.Printf("🔄 [Troll-LLM] OhMyGPT Auto-recovered %d keys from rate_limited", result.MatchedCount)
+
+	// Reload keys to sync in-memory state
+	if err := p.LoadKeys(); err != nil {
+		log.Printf("⚠️ [Troll-LLM] OhMyGPT Failed to reload keys after auto-recovery: %v", err)
+	}
+}
+
 // SelectKey selects the next available key using round-robin
 func (p *OhMyGPTProvider) SelectKey() (*OhMyGPTKey, error) {
 	p.mu.Lock()
@@ -273,8 +333,8 @@ func (p *OhMyGPTProvider) MarkHealthy(keyID string) {
 }
 
 func (p *OhMyGPTProvider) MarkRateLimited(keyID string) {
-	p.MarkStatus(keyID, OhMyGPTStatusRateLimited, 60*time.Second, "Rate limited by upstream")
-	log.Printf("⚠️ [Troll-LLM] OhMyGPT Key %s rate limited (cooldown: 60s)", keyID)
+	p.MarkStatus(keyID, OhMyGPTStatusRateLimited, RateLimitCooldownDuration, "Rate limited by upstream")
+	log.Printf("⚠️ [Troll-LLM] OhMyGPT Key %s rate limited (cooldown: 2m0s)", keyID)
 }
 
 func (p *OhMyGPTProvider) MarkExhausted(keyID string) {
@@ -294,6 +354,7 @@ func (p *OhMyGPTProvider) CheckAndRotateOnError(keyID string, statusCode int, bo
 
 	switch statusCode {
 	case 400:
+		// Check if it's a budget_exceeded error
 		if strings.Contains(body, "ExceededBudget") || strings.Contains(body, "budget_exceeded") || strings.Contains(body, "over budget") {
 			shouldRotate = true
 			reason = "budget_exceeded"
