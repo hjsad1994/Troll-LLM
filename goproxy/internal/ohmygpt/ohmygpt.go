@@ -161,7 +161,6 @@ func (p *OhMyGPTProvider) LoadKeys() error {
 			log.Printf("⚠️ [Troll-LLM] Failed to decode OhMyGPT key: %v", err)
 			continue
 		}
-		// EnableFailover defaults to false if not present in MongoDB (Go zero value)
 		p.keys = append(p.keys, &key)
 	}
 
@@ -537,14 +536,6 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 
 	log.Printf("🔄 [OhMyGPT/Rotation] Starting rotation for failed key: %s (reason: %s)", failedKeyID, reason)
 
-	// Get the failed key to preserve enableFailover setting
-	failedKey := p.GetKeyByID(failedKeyID)
-	failedKeyEnableFailover := false
-	if failedKey != nil {
-		failedKeyEnableFailover = failedKey.EnableFailover
-		log.Printf("ℹ️ [OhMyGPT/Rotation] Failed key had enableFailover=%v", failedKeyEnableFailover)
-	}
-
 	// 1. Find an available backup key
 	backupCol := OhMyGPTBackupKeysCollection()
 	var backupKey OhMyGPTBackupKey
@@ -559,14 +550,6 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 		newKeyMasked = newKeyMasked[:8] + "..." + newKeyMasked[len(newKeyMasked)-4:]
 	}
 	log.Printf("✅ [OhMyGPT/Rotation] Found backup key: %s (%s)", backupKey.ID, newKeyMasked)
-
-	// Determine enableFailover for new key: prefer backup key's setting, fall back to failed key's setting
-	enableFailover := backupKey.EnableFailover
-	if !enableFailover {
-		enableFailover = failedKeyEnableFailover
-	}
-	log.Printf("✅ [OhMyGPT/Rotation] New key inherits enableFailover=%v (backup: %v, failed: %v)",
-		enableFailover, backupKey.EnableFailover, failedKeyEnableFailover)
 
 	// 2. DELETE old key completely
 	keysCol := db.OhMyGPTKeysCollection()
@@ -587,7 +570,6 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 		"requestsCount": int64(0),
 		"createdAt":     now,
 		"replacedKey":   failedKeyID,
-		"enableFailover": enableFailover,
 	}
 	_, err = keysCol.InsertOne(ctx, newKeyDoc)
 	if err != nil {
@@ -645,12 +627,11 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 		TokensUsed:    0,
 		RequestsCount: 0,
 		CreatedAt:     now,
-		EnableFailover: enableFailover,
 	})
 	p.keys = newKeys
 	p.mu.Unlock()
 
-	log.Printf("✅ [OhMyGPT/Rotation] Complete: %s (deleted) -> %s (new, enableFailover=%v)", failedKeyID, backupKey.ID, enableFailover)
+	log.Printf("✅ [OhMyGPT/Rotation] Complete: %s (deleted) -> %s (new)", failedKeyID, backupKey.ID)
 	return backupKey.ID, nil
 }
 
