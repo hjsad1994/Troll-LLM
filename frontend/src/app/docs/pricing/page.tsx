@@ -83,7 +83,7 @@ function Tip({ children }: { children: React.ReactNode }) {
 export default function PricingDocsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const sidebarNav = getSidebarNav(t)
 
   // Countdown timer effect
