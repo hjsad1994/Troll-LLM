@@ -1,11 +1,22 @@
 /**
  * Create indexes for OhMyGPT collections to improve query performance
  * Run this script to optimize database performance for failover feature
+ *
+ * Usage:
+ *   MONGODB_URI="mongodb+srv://..." node scripts/create-ohmygpt-indexes.js
+ *   Or set MONGODB_URI in .env file
  */
 
 const { MongoClient } = require('mongodb');
+const dotenv = require('dotenv');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/trollllm';
+// Load environment variables from .env file
+dotenv.config({ path: '../.env' });
+
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/trollllm';
+
+console.log('MongoDB URI:', MONGODB_URI ? 'Set (from environment)' : 'Using default (localhost:27017/trollllm)');
+console.log('Make sure MONGODB_URI is set in your environment or .env file for MongoDB Atlas!\n');
 
 async function createIndexes() {
   const client = new MongoClient(MONGODB_URI);
