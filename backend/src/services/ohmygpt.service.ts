@@ -10,7 +10,6 @@ export interface OhMyGPTKey {
   cooldownUntil?: Date;
   createdAt: Date;
   updatedAt?: Date;
-  enableFailover?: boolean;
 }
 
 export interface OhMyGPTBackupKey {
@@ -21,7 +20,6 @@ export interface OhMyGPTBackupKey {
   usedFor?: string;
   usedAt?: Date;
   createdAt: Date;
-  enableFailover?: boolean;
 }
 
 function getCollection(name: string) {
@@ -40,7 +38,7 @@ export async function getKey(id: string): Promise<OhMyGPTKey | null> {
   return result as any;
 }
 
-export async function createKey(data: { id: string; apiKey: string; enableFailover?: boolean }): Promise<OhMyGPTKey> {
+export async function createKey(data: { id: string; apiKey: string }): Promise<OhMyGPTKey> {
   const key = {
     _id: data.id,
     apiKey: data.apiKey,
@@ -48,7 +46,6 @@ export async function createKey(data: { id: string; apiKey: string; enableFailov
     tokensUsed: 0,
     requestsCount: 0,
     createdAt: new Date(),
-    enableFailover: data.enableFailover ?? false,
   };
   await getCollection('ohmygpt_keys').insertOne(key as any);
   return key as any;
@@ -70,37 +67,21 @@ export async function deleteKey(id: string): Promise<boolean> {
 }
 
 export async function resetKeyStats(id: string): Promise<OhMyGPTKey | null> {
-  // First get the key to preserve enableFailover
-  const existingKey = await getKey(id);
-  if (!existingKey) {
-    return null;
-  }
-
   const result = await getCollection('ohmygpt_keys').findOneAndUpdate(
     { _id: id as any },
-    { $set: { status: 'healthy', tokensUsed: 0, requestsCount: 0, lastError: null, cooldownUntil: null, enableFailover: existingKey.enableFailover ?? false } },
-    { returnDocument: 'after' }
-  );
-  return result as any;
-}
-
-export async function updateKeyFailover(id: string, enableFailover: boolean): Promise<OhMyGPTKey | null> {
-  const result = await getCollection('ohmygpt_keys').findOneAndUpdate(
-    { _id: id as any },
-    { $set: { enableFailover } },
+    { $set: { status: 'healthy', tokensUsed: 0, requestsCount: 0, lastError: null, cooldownUntil: null } },
     { returnDocument: 'after' }
   );
   return result as any;
 }
 
 export async function getStats() {
-  const [keys, healthyKeys, failoverEnabledKeys] = await Promise.all([
+  const [keys, healthyKeys] = await Promise.all([
     getCollection('ohmygpt_keys').countDocuments(),
     getCollection('ohmygpt_keys').countDocuments({ status: 'healthy' }),
-    getCollection('ohmygpt_keys').countDocuments({ enableFailover: true }),
   ]);
 
-  return { totalKeys: keys, healthyKeys, failoverEnabledKeys };
+  return { totalKeys: keys, healthyKeys };
 }
 
 // ============ BACKUP KEYS ============
@@ -111,23 +92,21 @@ export async function listBackupKeys(): Promise<OhMyGPTBackupKey[]> {
 }
 
 export async function getBackupKeyStats() {
-  const [total, available, used, failoverEnabledCount] = await Promise.all([
+  const [total, available, used] = await Promise.all([
     getCollection('ohmygpt_backup_keys').countDocuments(),
     getCollection('ohmygpt_backup_keys').countDocuments({ isUsed: false }),
     getCollection('ohmygpt_backup_keys').countDocuments({ isUsed: true }),
-    getCollection('ohmygpt_backup_keys').countDocuments({ enableFailover: true }),
   ]);
-  return { total, available, used, failoverEnabledCount };
+  return { total, available, used };
 }
 
-export async function createBackupKey(data: { id: string; apiKey: string; enableFailover?: boolean }): Promise<OhMyGPTBackupKey> {
+export async function createBackupKey(data: { id: string; apiKey: string }): Promise<OhMyGPTBackupKey> {
   const key = {
     _id: data.id,
     apiKey: data.apiKey,
     isUsed: false,
     activated: false,
     createdAt: new Date(),
-    enableFailover: data.enableFailover ?? false,
   };
   await getCollection('ohmygpt_backup_keys').insertOne(key as any);
   return key as any;
@@ -142,14 +121,6 @@ export async function restoreBackupKey(id: string): Promise<boolean> {
   const result = await getCollection('ohmygpt_backup_keys').updateOne(
     { _id: id as any },
     { $set: { isUsed: false, activated: false, usedFor: null, usedAt: null } }
-  );
-  return result.modifiedCount > 0;
-}
-
-export async function updateBackupKeyFailover(id: string, enableFailover: boolean): Promise<boolean> {
-  const result = await getCollection('ohmygpt_backup_keys').updateOne(
-    { _id: id as any },
-    { $set: { enableFailover } }
   );
   return result.modifiedCount > 0;
 }

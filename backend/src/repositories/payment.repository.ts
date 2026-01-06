@@ -1,4 +1,7 @@
-import { Payment, IPayment, PaymentStatus, generateOrderCode } from '../models/payment.model.js';
+import { Payment, IPayment, PaymentStatus, generateOrderCode, PROFIT_VND_PER_USD, PROFIT_CUTOFF_DATE } from '../models/payment.model.js';
+
+// Profit cutoff date for calculation (Vietnam timezone UTC+7)
+const PROFIT_CUTOFF = new Date(PROFIT_CUTOFF_DATE);
 
 export class PaymentRepository {
   async create(data: {
@@ -87,7 +90,7 @@ export class PaymentRepository {
     status?: PaymentStatus;
     since?: Date;
     until?: Date;
-  } = {}): Promise<{ payments: IPayment[]; total: number; page: number; totalPages: number }> {
+  } = {}): Promise<{ payments: Array<IPayment & { profitVND?: number }>; total: number; page: number; totalPages: number }> {
     const { page = 1, limit = 20, status, since, until } = options;
     const skip = (page - 1) * limit;
 
@@ -101,12 +104,32 @@ export class PaymentRepository {
       if (until) query.createdAt.$lte = until;
     }
 
+    // Use aggregation to add profit calculation field
     const [payments, total] = await Promise.all([
-      Payment.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      Payment.aggregate([
+        { $match: query },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $addFields: {
+            // Calculate profit only for successful payments completed after cutoff date
+            // Profit = credits * 665 (where 665 = 2500 - 1835)
+            profitVND: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'success'] },
+                    { $gte: ['$completedAt', PROFIT_CUTOFF] }
+                  ]
+                },
+                { $multiply: ['$credits', PROFIT_VND_PER_USD] },
+                0
+              ]
+            }
+          }
+        }
+      ]),
       Payment.countDocuments(query),
     ]);
 
@@ -123,6 +146,7 @@ export class PaymentRepository {
     successCount: number;
     pendingCount: number;
     failedCount: number;
+    totalProfit: number;
   }> {
     const query: any = {};
     if (since || until) {
@@ -148,11 +172,27 @@ export class PaymentRepository {
           failedCount: {
             $sum: { $cond: [{ $in: ['$status', ['failed', 'expired']] }, 1, 0] }
           },
+          // Calculate profit only for successful payments completed after cutoff date
+          // Profit = credits * 665 (where 665 = 2500 - 1835)
+          totalProfit: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'success'] },
+                    { $gte: ['$completedAt', PROFIT_CUTOFF] }
+                  ]
+                },
+                { $multiply: ['$credits', PROFIT_VND_PER_USD] },
+                0
+              ]
+            }
+          },
         },
       },
     ]);
 
-    return stats || { totalAmount: 0, successCount: 0, pendingCount: 0, failedCount: 0 };
+    return stats || { totalAmount: 0, successCount: 0, pendingCount: 0, failedCount: 0, totalProfit: 0 };
   }
 }
 

@@ -389,6 +389,7 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
         orderCode: p.orderCode,
         createdAt: p.createdAt,
         completedAt: p.completedAt,
+        profitVND: p.profitVND || 0,
       })),
       pagination: {
         page: result.page,
@@ -396,7 +397,10 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
         total: result.total,
         limit,
       },
-      stats,
+      stats: {
+        ...stats,
+        totalProfit: stats.totalProfit || 0,
+      },
       period,
     });
   } catch (error) {

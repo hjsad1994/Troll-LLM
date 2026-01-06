@@ -18,6 +18,7 @@ interface Payment {
   orderCode?: string
   createdAt: string
   completedAt?: string
+  profitVND?: number
 }
 
 interface PaymentStats {
@@ -25,6 +26,7 @@ interface PaymentStats {
   successCount: number
   pendingCount: number
   failedCount: number
+  totalProfit?: number
 }
 
 interface Pagination {
@@ -143,7 +145,7 @@ export default function AdminBillingPage() {
         </header>
 
         {/* Stats Cards */}
-        <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80">
             <p className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider mb-1">Total Revenue</p>
             <p className="text-2xl font-bold text-emerald-500 dark:text-emerald-400">{formatCurrency(stats.totalAmount)}</p>
@@ -155,6 +157,10 @@ export default function AdminBillingPage() {
           <div className="p-4 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80">
             <p className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider mb-1">Failed/Expired</p>
             <p className="text-2xl font-bold text-red-500 dark:text-red-400">{stats.failedCount}</p>
+          </div>
+          <div className="p-4 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80">
+            <p className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider mb-1">Total Profit</p>
+            <p className="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{formatCurrency(stats.totalProfit || 0)}</p>
           </div>
         </section>
 
@@ -244,6 +250,7 @@ export default function AdminBillingPage() {
                     <th className="text-left py-3 px-4">User</th>
                     <th className="text-right py-3 px-4">Credits</th>
                     <th className="text-right py-3 px-4">Amount</th>
+                    <th className="text-right py-3 px-4">Profit</th>
                     <th className="text-center py-3 px-4">Status</th>
                     <th className="text-left py-3 px-4">Order Code</th>
                     <th className="text-left py-3 px-4">Created</th>
@@ -261,6 +268,11 @@ export default function AdminBillingPage() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(payment.amount)}</span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className={`font-medium ${(payment.profitVND || 0) > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-neutral-500'}`}>
+                          {(payment.profitVND || 0) > 0 ? formatCurrency(payment.profitVND || 0) : '-'}
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-center">
                         {getStatusBadge(payment.status)}

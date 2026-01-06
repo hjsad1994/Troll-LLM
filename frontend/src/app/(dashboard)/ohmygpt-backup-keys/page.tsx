@@ -20,14 +20,12 @@ interface BackupKey {
   usedAt?: string
   deletesAt?: string
   createdAt: string
-  enableFailover?: boolean
 }
 
 interface Stats {
   total: number
   available: number
   used: number
-  failoverEnabledCount?: number
 }
 
 export default function OhMyGPTBackupKeysPage() {
@@ -44,7 +42,7 @@ export default function OhMyGPTBackupKeysPage() {
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string; action: () => void }>({ open: false, message: '', action: () => {} })
   const { showToast } = useToast()
 
-  const [form, setForm] = useState({ id: '', apiKey: '', enableFailover: false })
+  const [form, setForm] = useState({ id: '', apiKey: '' })
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
 
@@ -87,7 +85,6 @@ export default function OhMyGPTBackupKeysPage() {
         total: data.total || 0,
         available: data.available || 0,
         used: data.used || 0,
-        failoverEnabledCount: data.failoverEnabledCount || 0,
       })
     } catch {
       showToast(t.ohmygptBackupKeys?.toast?.loadFailed || 'Failed to load backup keys', 'error')
@@ -102,7 +99,7 @@ export default function OhMyGPTBackupKeysPage() {
       const resp = await fetchWithAuth('/admin/ohmygpt/backup-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: form.id, apiKey: form.apiKey, enableFailover: form.enableFailover })
+        body: JSON.stringify({ id: form.id, apiKey: form.apiKey })
       })
       if (!resp.ok) {
         const data = await resp.json()
@@ -110,25 +107,10 @@ export default function OhMyGPTBackupKeysPage() {
       }
       setCreateModal(false)
       showToast(t.ohmygptBackupKeys?.toast?.addSuccess || 'Backup key added successfully')
-      setForm({ id: '', apiKey: '', enableFailover: false })
+      setForm({ id: '', apiKey: '' })
       loadKeys()
     } catch (err) {
       showToast(err instanceof Error ? err.message : (t.ohmygptBackupKeys?.toast?.addFailed || 'Failed to add key'), 'error')
-    }
-  }
-
-  async function toggleFailover(keyId: string, currentState: boolean) {
-    try {
-      const resp = await fetchWithAuth(`/admin/ohmygpt/backup-keys/${encodeURIComponent(keyId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enableFailover: !currentState })
-      })
-      if (!resp.ok) throw new Error('Failed to update failover setting')
-      showToast('Failover setting updated successfully')
-      loadKeys()
-    } catch {
-      showToast('Failed to update failover setting', 'error')
     }
   }
 
@@ -256,7 +238,7 @@ export default function OhMyGPTBackupKeysPage() {
         </header>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 opacity-0 animate-fade-in-up animation-delay-100">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 opacity-0 animate-fade-in-up animation-delay-100">
           {/* Total Keys Card */}
           <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors">
             <div className="flex items-center gap-3 mb-4">
@@ -302,20 +284,6 @@ export default function OhMyGPTBackupKeysPage() {
             <p className="text-4xl font-bold text-amber-600 dark:text-amber-400">{stats.used}</p>
           </div>
 
-          {/* Failover Enabled Card */}
-          <div className="p-6 rounded-xl border border-purple-300 dark:border-purple-500/20 bg-white dark:bg-white/[0.02] hover:bg-purple-50 dark:hover:bg-purple-500/[0.04] shadow-sm dark:shadow-none transition-colors">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-                <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-purple-600 dark:text-purple-400 text-sm">{t.ohmygptBackupKeys?.stats?.failover || 'Failover'}</p>
-              </div>
-            </div>
-            <p className="text-4xl font-bold text-purple-700 dark:text-purple-400">{stats.failoverEnabledCount || 0}</p>
-          </div>
         </div>
 
         {/* Action Bar */}
@@ -359,7 +327,6 @@ export default function OhMyGPTBackupKeysPage() {
                   <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">{t.ohmygptBackupKeys?.table?.keyId || 'Key ID'}</th>
                   <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">{t.ohmygptBackupKeys?.table?.apiKey || 'API Key'}</th>
                   <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">{t.ohmygptBackupKeys?.table?.status || 'Status'}</th>
-                  <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">{t.ohmygptBackupKeys?.table?.failover || 'Failover'}</th>
                   <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">{t.ohmygptBackupKeys?.table?.usedFor || 'Used For'}</th>
                   <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">{t.ohmygptBackupKeys?.table?.created || 'Created'}</th>
                   <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">{t.ohmygptBackupKeys?.table?.actions || 'Actions'}</th>
@@ -377,7 +344,7 @@ export default function OhMyGPTBackupKeysPage() {
                   </tr>
                 ) : keys.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-16">
+                    <td colSpan={6} className="text-center py-16">
                       <div className="flex flex-col items-center gap-4">
                         <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 flex items-center justify-center">
                           <svg className="w-8 h-8 text-emerald-400 dark:text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -433,20 +400,6 @@ export default function OhMyGPTBackupKeysPage() {
                             </span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => toggleFailover(key.id, key.enableFailover || false)}
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            key.enableFailover
-                              ? 'bg-purple-500'
-                              : 'bg-slate-300 dark:bg-slate-600'
-                          }`}
-                        >
-                          <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                            key.enableFailover ? 'translate-x-5' : 'translate-x-1'
-                          }`} />
-                        </button>
                       </td>
                       <td className="px-6 py-4">
                         {key.usedFor ? (
@@ -526,18 +479,6 @@ export default function OhMyGPTBackupKeysPage() {
               placeholder={t.ohmygptBackupKeys?.modal?.apiKeyPlaceholder || 'sk-...'}
               className="w-full px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-[var(--theme-text)] placeholder-[var(--theme-text-subtle)] focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400/50 transition-colors font-mono text-sm"
             />
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="enableFailover"
-              checked={form.enableFailover}
-              onChange={(e) => setForm({...form, enableFailover: e.target.checked})}
-              className="w-4 h-4 text-emerald-500 border-slate-300 dark:border-white/10 rounded focus:ring-emerald-500 dark:focus:ring-emerald-500/50"
-            />
-            <label htmlFor="enableFailover" className="text-[var(--theme-text)] text-sm">
-              {t.ohmygptBackupKeys?.modal?.enableFailoverLabel || 'Enable Failover (inherited when key is rotated)'}
-            </label>
           </div>
           <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <svg className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

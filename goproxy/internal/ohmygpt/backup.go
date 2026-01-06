@@ -13,14 +13,13 @@ import (
 
 // OhMyGPTBackupKey represents a backup key for OhMyGPT
 type OhMyGPTBackupKey struct {
-	ID            string     `bson:"_id" json:"id"`
-	APIKey        string     `bson:"apiKey" json:"api_key"`
-	IsUsed        bool       `bson:"isUsed" json:"is_used"`
-	Activated     bool       `bson:"activated" json:"activated"`
-	UsedFor       string     `bson:"usedFor,omitempty" json:"used_for,omitempty"`
-	UsedAt        *time.Time `bson:"usedAt,omitempty" json:"used_at,omitempty"`
-	CreatedAt     time.Time  `bson:"createdAt" json:"created_at"`
-	EnableFailover bool       `bson:"enableFailover" json:"enable_failover"`
+	ID        string     `bson:"_id" json:"id"`
+	APIKey    string     `bson:"apiKey" json:"api_key"`
+	IsUsed    bool       `bson:"isUsed" json:"is_used"`
+	Activated bool       `bson:"activated" json:"activated"`
+	UsedFor   string     `bson:"usedFor,omitempty" json:"used_for,omitempty"`
+	UsedAt    *time.Time `bson:"usedAt,omitempty" json:"used_at,omitempty"`
+	CreatedAt time.Time  `bson:"createdAt" json:"created_at"`
 }
 
 // BackupKeyStats contains stats about backup keys
