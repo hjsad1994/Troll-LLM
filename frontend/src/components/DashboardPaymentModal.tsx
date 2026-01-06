@@ -12,13 +12,14 @@ interface DashboardPaymentModalProps {
   onSuccess?: () => void
 }
 
-const MIN_AMOUNT = 20
+const MIN_AMOUNT = 16
 const MAX_AMOUNT = 100
+const VND_RATE = 2500
 
 export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: DashboardPaymentModalProps) {
   const { t } = useLanguage()
   const [step, setStep] = useState<'select' | 'payment' | 'success' | 'expired'>('select')
-  const [selectedAmount, setSelectedAmount] = useState<number>(20)
+  const [selectedAmount, setSelectedAmount] = useState<number>(16)
   const [discordId, setDiscordId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +41,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
   useEffect(() => {
     if (isOpen) {
       setStep('select')
-      setSelectedAmount(20)
+      setSelectedAmount(16)
       setDiscordId('')
       setError(null)
       setPaymentData(null)
@@ -274,7 +275,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
                 {/* Amount Display */}
                 <div className="text-center mb-4">
-                  <span className="text-4xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">{formatPrice(selectedAmount * 1000)}</span>
+                  <span className="text-4xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">{formatPrice(selectedAmount * VND_RATE)}</span>
                   <span className="ml-1 text-lg text-purple-600 dark:text-purple-300">VND</span>
                   <p className="text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mt-1">
                     Nhận ${selectedAmount} {dp?.credits || 'credits'}
@@ -308,7 +309,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
                 {/* Quick Select Buttons */}
                 <div className="flex gap-2 mt-4">
-                  {[20, 50, 100].map((amount) => (
+                  {[16, 50, 100].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setSelectedAmount(amount)}
@@ -365,7 +366,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-slate-700/50">
                   <span className="text-gray-600 dark:text-slate-400">{dp?.vnd || 'VND'}</span>
-                  <span className="text-gray-900 dark:text-white font-semibold">{formatPrice(selectedAmount * 1000)} VND</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{formatPrice(selectedAmount * VND_RATE)} VND</span>
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-gray-600 dark:text-slate-400">{dp?.validity || 'Validity'}</span>

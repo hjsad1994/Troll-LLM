@@ -257,6 +257,21 @@ export default function PricingDocsPage() {
               {t.docsPricing.note}
             </Note>
 
+            {/* Payment Rate Info */}
+            <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-3 h-3 text-indigo-600 dark:text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="text-gray-700 dark:text-slate-300 text-sm leading-relaxed">
+                  <strong className="text-gray-900 dark:text-white">Payment Rate:</strong> 1 USD = 2,500 VND
+                  {language === 'vi' ? '. Mua credits linh hoạt từ $16-$100, thanh toán qua QR code ngân hàng Việt Nam.' : '. Purchase credits flexibly from $16-$100, pay via Vietnam bank QR code.'}
+                </div>
+              </div>
+            </div>
+
             {/* Countdown Sale Banner */}
             <div className="p-6 rounded-xl bg-gradient-to-r from-rose-500/10 via-orange-500/10 to-amber-500/10 border border-rose-500/20 mb-8">
               <div className="text-center">

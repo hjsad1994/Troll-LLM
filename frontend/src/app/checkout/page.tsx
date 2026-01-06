@@ -9,9 +9,9 @@ import Header from '@/components/Header'
 import { isPromoActive, getTimeRemaining, PROMO_CONFIG, getBonusAmount } from '@/lib/promo'
 import { PAYMENTS_ENABLED } from '@/lib/payments'
 
-const MIN_AMOUNT = 20
+const MIN_AMOUNT = 16
 const MAX_AMOUNT = 100
-const VND_RATE = 1000
+const VND_RATE = 2500
 
 function CheckoutContent() {
   const searchParams = useSearchParams()
@@ -257,7 +257,7 @@ function CheckoutContent() {
 
                 {/* Quick Select */}
                 <div className="flex gap-2 mb-4">
-                  {[20, 50, 100].map((amount) => (
+                  {[16, 50, 100].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setCustomAmount(amount)}

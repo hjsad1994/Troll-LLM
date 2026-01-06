@@ -1,13 +1,13 @@
 import mongoose from 'mongoose';
 
-// Credit amount: any integer from 20 to 100 USD
+// Credit amount: any integer from 16 to 100 USD
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'expired';
 export type PaymentMethod = 'sepay';
 
 // Constants for credit purchases
-export const MIN_CREDITS = 20;
+export const MIN_CREDITS = 16;
 export const MAX_CREDITS = 100;
-export const VND_RATE = 1000; // 1000 VND = $1
+export const VND_RATE = 2500; // 2500 VND = $1
 export const VALIDITY_DAYS = 7;
 
 export interface IPayment {
