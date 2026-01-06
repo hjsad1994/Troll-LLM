@@ -174,6 +174,7 @@ router.post('/backup-keys', async (req: Request, res: Response) => {
       isUsed: key.isUsed,
       activated: key.activated,
       createdAt: key.createdAt,
+      enableFailover: key.enableFailover,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
