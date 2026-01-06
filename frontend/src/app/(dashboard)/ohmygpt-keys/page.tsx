@@ -18,11 +18,13 @@ interface OhMyGPTKey {
   status: string
   tokensUsed: number
   requestsCount: number
+  enableFailover?: boolean
 }
 
 interface Stats {
   totalKeys: number
   healthyKeys: number
+  failoverEnabledKeys?: number
 }
 
 export default function OhMyGPTKeysPage() {
@@ -39,7 +41,7 @@ export default function OhMyGPTKeysPage() {
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string; action: () => void }>({ open: false, message: '', action: () => {} })
   const { showToast } = useToast()
 
-  const [form, setForm] = useState({ id: '', apiKey: '' })
+  const [form, setForm] = useState({ id: '', apiKey: '', enableFailover: false })
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
 
@@ -64,6 +66,7 @@ export default function OhMyGPTKeysPage() {
       setStats({
         totalKeys: data.totalKeys || 0,
         healthyKeys: data.healthyKeys || 0,
+        failoverEnabledKeys: data.failoverEnabledKeys || 0,
       })
     } catch {
       showToast(t.ohmygptKeys?.toast?.loadFailed || 'Failed to load keys', 'error')
@@ -78,7 +81,7 @@ export default function OhMyGPTKeysPage() {
       const resp = await fetchWithAuth('/admin/ohmygpt/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: form.id, apiKey: form.apiKey })
+        body: JSON.stringify({ id: form.id, apiKey: form.apiKey, enableFailover: form.enableFailover })
       })
       if (!resp.ok) {
         const data = await resp.json()
@@ -86,10 +89,25 @@ export default function OhMyGPTKeysPage() {
       }
       setCreateModal(false)
       showToast(t.ohmygptKeys?.toast?.addSuccess || 'OhMyGPT Key added successfully')
-      setForm({ id: '', apiKey: '' })
+      setForm({ id: '', apiKey: '', enableFailover: false })
       loadKeys()
     } catch (err) {
       showToast(err instanceof Error ? err.message : (t.ohmygptKeys?.toast?.addFailed || 'Failed to add key'), 'error')
+    }
+  }
+
+  async function toggleFailover(keyId: string, currentState: boolean) {
+    try {
+      const resp = await fetchWithAuth(`/admin/ohmygpt/keys/${encodeURIComponent(keyId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enableFailover: !currentState })
+      })
+      if (!resp.ok) throw new Error('Failed to update failover setting')
+      showToast('Failover setting updated successfully')
+      loadKeys()
+    } catch {
+      showToast('Failed to update failover setting', 'error')
     }
   }
 
@@ -236,7 +254,7 @@ export default function OhMyGPTKeysPage() {
         </header>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-4">
           <div className="p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black/40 backdrop-blur-sm">
             <p className="text-slate-500 dark:text-slate-500 text-[10px] sm:text-xs uppercase tracking-wider mb-1">{t.ohmygptKeys?.stats?.total || 'Total'}</p>
             <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.totalKeys}</p>
@@ -249,6 +267,10 @@ export default function OhMyGPTKeysPage() {
             <p className="text-red-600 dark:text-red-400 text-[10px] sm:text-xs uppercase tracking-wider mb-1">{t.ohmygptKeys?.stats?.unhealthy || 'Unhealthy'}</p>
             <p className="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-400">{unhealthyCount}</p>
           </div>
+          <div className="hidden sm:block p-3 sm:p-4 rounded-xl border border-purple-200 dark:border-purple-500/20 bg-purple-50 dark:bg-purple-500/10 backdrop-blur-sm">
+            <p className="text-purple-600 dark:text-purple-400 text-[10px] sm:text-xs uppercase tracking-wider mb-1">{t.ohmygptKeys?.stats?.failover || 'Failover'}</p>
+            <p className="text-xl sm:text-2xl font-bold text-purple-700 dark:text-purple-400">{stats.failoverEnabledKeys || 0}</p>
+          </div>
         </div>
 
         {/* Desktop Table */}
@@ -259,6 +281,7 @@ export default function OhMyGPTKeysPage() {
                 <th className="px-4 py-3 text-left text-slate-700 dark:text-slate-400 text-xs uppercase font-semibold">{t.ohmygptKeys?.table?.keyId || 'Key ID'}</th>
                 <th className="px-4 py-3 text-left text-slate-700 dark:text-slate-400 text-xs uppercase font-semibold">{t.ohmygptKeys?.table?.apiKey || 'API Key'}</th>
                 <th className="px-4 py-3 text-left text-slate-700 dark:text-slate-400 text-xs uppercase font-semibold">{t.ohmygptKeys?.table?.status || 'Status'}</th>
+                <th className="px-4 py-3 text-left text-slate-700 dark:text-slate-400 text-xs uppercase font-semibold">{t.ohmygptKeys?.table?.failover || 'Failover'}</th>
                 <th className="px-4 py-3 text-left text-slate-700 dark:text-slate-400 text-xs uppercase font-semibold">{t.ohmygptKeys?.table?.tokensUsed || 'Tokens Used'}</th>
                 <th className="px-4 py-3 text-left text-slate-700 dark:text-slate-400 text-xs uppercase font-semibold">{t.ohmygptKeys?.table?.requests || 'Requests'}</th>
                 <th className="px-4 py-3 text-left text-slate-700 dark:text-slate-400 text-xs uppercase font-semibold">{t.ohmygptKeys?.table?.actions || 'Actions'}</th>
@@ -267,7 +290,7 @@ export default function OhMyGPTKeysPage() {
             <tbody className="bg-white dark:bg-black/40">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12">
+                  <td colSpan={7} className="text-center py-12">
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-4 h-4 border-2 border-emerald-200 dark:border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
                       <span className="text-slate-500 dark:text-slate-500">{t.ohmygptKeys?.loading || 'Loading...'}</span>
@@ -276,7 +299,7 @@ export default function OhMyGPTKeysPage() {
                 </tr>
               ) : keys.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12">
+                  <td colSpan={7} className="text-center py-12">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
                         <svg className="w-6 h-6 text-slate-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -307,11 +330,31 @@ export default function OhMyGPTKeysPage() {
                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
                           key.status === 'healthy'
                             ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                            : key.status === 'using_failover'
+                            ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400'
                             : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${key.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            key.status === 'healthy' ? 'bg-emerald-500' :
+                            key.status === 'using_failover' ? 'bg-orange-500' :
+                            'bg-red-500'
+                          }`} />
                           {key.status}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => toggleFailover(keyId, key.enableFailover || false)}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            key.enableFailover
+                              ? 'bg-emerald-500'
+                              : 'bg-slate-300 dark:bg-slate-600'
+                          }`}
+                        >
+                          <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                            key.enableFailover ? 'translate-x-5' : 'translate-x-1'
+                          }`} />
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                         {formatNumber(key.tokensUsed || 0)}
@@ -465,6 +508,18 @@ export default function OhMyGPTKeysPage() {
               placeholder={t.ohmygptKeys?.modal?.apiKeyPlaceholder || 'sk-xxx'}
               className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-400 dark:focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-transparent text-sm"
             />
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="enableFailover"
+              checked={form.enableFailover}
+              onChange={(e) => setForm({...form, enableFailover: e.target.checked})}
+              className="w-4 h-4 text-emerald-500 border-slate-300 dark:border-white/10 rounded focus:ring-emerald-500 dark:focus:ring-emerald-500/50"
+            />
+            <label htmlFor="enableFailover" className="text-slate-700 dark:text-slate-300 text-sm">
+              {t.ohmygptKeys?.modal?.enableFailoverLabel || 'Enable Failover (switch to backup endpoint on quota exhaustion)'}
+            </label>
           </div>
           <button
             type="submit"

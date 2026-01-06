@@ -1804,26 +1804,31 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 	isStreaming := openaiReq.Stream
 	log.Printf("📤 [OhMyGPT-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v)", upstreamModelID, isStreaming)
 
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+
 	// Forward request using OhMyGPT provider
 	resp, err := ohmygptProvider.ForwardRequest(requestBody, isStreaming)
 	if err != nil {
-		log.Printf("❌ [OhMyGPT-OpenAI] Request failed: %v", err)
+		log.Printf("❌ [OhMyGPT-OpenAI] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"error": {"message": "Request to OhMyGPT failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Usage callback for billing
+	// Usage callback for billing and logging
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
+		// Get OhMyGPT key ID for logging
+		factoryKeyID := ohmygptProvider.GetLastUsedKeyID()
+
 		// Update OhMyGPT key usage stats in MongoDB
-		keyID := ohmygptProvider.GetLastUsedKeyID()
-		if keyID != "" {
+		if factoryKeyID != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			db.OhMyGPTKeysCollection().UpdateByID(ctx, keyID, bson.M{
+			db.OhMyGPTKeysCollection().UpdateByID(ctx, factoryKeyID, bson.M{
 				"$inc": bson.M{
 					"tokensUsed":    input + output,
 					"requestsCount": 1,
@@ -1837,6 +1842,22 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
+			// Log request to request_logs collection
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				FactoryKeyID:     factoryKeyID,
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
 		}
 	}
 
@@ -1883,26 +1904,31 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 
 	log.Printf("📤 [OhMyGPT-Anthropic] Forwarding /v1/messages (model=%s, stream=%v)", upstreamModelID, isStreaming)
 
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+
 	// Forward request using OhMyGPT messages endpoint
 	resp, err := ohmygptProvider.ForwardMessagesRequest(requestBody, isStreaming)
 	if err != nil {
-		log.Printf("❌ [OhMyGPT-Anthropic] Request failed: %v", err)
+		log.Printf("❌ [OhMyGPT-Anthropic] Request failed after %v: %v", time.Since(requestStartTime), err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OhMyGPT failed"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Usage callback for billing
+	// Usage callback for billing and logging
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
 		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
 
+		// Get OhMyGPT key ID for logging
+		factoryKeyID := ohmygptProvider.GetLastUsedKeyID()
+
 		// Update OhMyGPT key usage stats in MongoDB
-		keyID := ohmygptProvider.GetLastUsedKeyID()
-		if keyID != "" {
+		if factoryKeyID != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			db.OhMyGPTKeysCollection().UpdateByID(ctx, keyID, bson.M{
+			db.OhMyGPTKeysCollection().UpdateByID(ctx, factoryKeyID, bson.M{
 				"$inc": bson.M{
 					"tokensUsed":    input + output,
 					"requestsCount": 1,
@@ -1916,6 +1942,22 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
+			// Log request to request_logs collection
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				FactoryKeyID:     factoryKeyID,
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   config.EffectiveCacheHit(cacheHit),
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
 		}
 	}
 

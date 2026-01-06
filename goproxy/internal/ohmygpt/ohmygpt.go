@@ -29,18 +29,24 @@ const (
 	OhMyGPTEndpoint            = OhMyGPTCompletionsEndpoint // default for OpenAI format
 	OhMyGPTName                = "ohmygpt"
 
-	RateLimitCooldownDuration  = 2 * time.Minute // Cooldown for rate-limited keys
-	AutoRecoveryCheckInterval  = 30 * time.Second // Auto-recovery check interval
+	// Failover endpoints (hardcoded backup)
+	OhMyGPTFailoverBaseURL             = "https://c-z0-api-01.hash070.com"
+	OhMyGPTFailoverMessagesEndpoint    = OhMyGPTFailoverBaseURL + "/v1/messages"
+	OhMyGPTFailoverCompletionsEndpoint = OhMyGPTFailoverBaseURL + "/chat/completions"
+
+	RateLimitCooldownDuration = 2 * time.Minute // Cooldown for rate-limited keys
+	AutoRecoveryCheckInterval = 30 * time.Second // Auto-recovery check interval
 )
 
 // OhMyGPTKeyStatus represents the health status of an API key
 type OhMyGPTKeyStatus string
 
 const (
-	OhMyGPTStatusHealthy     OhMyGPTKeyStatus = "healthy"
-	OhMyGPTStatusRateLimited OhMyGPTKeyStatus = "rate_limited"
-	OhMyGPTStatusExhausted   OhMyGPTKeyStatus = "exhausted"
-	OhMyGPTStatusError       OhMyGPTKeyStatus = "error"
+	OhMyGPTStatusHealthy       OhMyGPTKeyStatus = "healthy"
+	OhMyGPTStatusRateLimited  OhMyGPTKeyStatus = "rate_limited"
+	OhMyGPTStatusExhausted    OhMyGPTKeyStatus = "exhausted"
+	OhMyGPTStatusError        OhMyGPTKeyStatus = "error"
+	OhMyGPTStatusUsingFailover OhMyGPTKeyStatus = "using_failover"
 )
 
 // OhMyGPTKey represents a single API key stored in MongoDB
@@ -53,12 +59,17 @@ type OhMyGPTKey struct {
 	LastError     string             `bson:"lastError,omitempty" json:"last_error,omitempty"`
 	CooldownUntil *time.Time         `bson:"cooldownUntil,omitempty" json:"cooldown_until,omitempty"`
 	CreatedAt     time.Time          `bson:"createdAt" json:"created_at"`
+	EnableFailover bool              `bson:"enableFailover" json:"enable_failover"`
 }
 
 // IsAvailable returns true if the key is available for use
 func (k *OhMyGPTKey) IsAvailable() bool {
 	if k.Status == OhMyGPTStatusExhausted {
 		return false
+	}
+	// using_failover keys are available
+	if k.Status == OhMyGPTStatusUsingFailover {
+		return true
 	}
 	if k.Status != OhMyGPTStatusHealthy {
 		if k.CooldownUntil != nil && time.Now().After(*k.CooldownUntil) {
@@ -161,8 +172,11 @@ func (p *OhMyGPTProvider) LoadKeys() error {
 			log.Printf("⚠️ [Troll-LLM] Failed to decode OhMyGPT key: %v", err)
 			continue
 		}
+		// EnableFailover defaults to false if not present in MongoDB (Go zero value)
 		p.keys = append(p.keys, &key)
 	}
+
+	log.Printf("✅ [Troll-LLM] OhMyGPT Loaded %d keys from MongoDB", len(p.keys))
 
 	// Load bindings from ohmygpt_bindings collection
 	p.bindings = make(map[string][]*OhMyGPTKeyBinding)
@@ -347,10 +361,18 @@ func (p *OhMyGPTProvider) MarkError(keyID string, err string) {
 	log.Printf("⚠️ [Troll-LLM] OhMyGPT Key %s error: %s", keyID, err)
 }
 
+func (p *OhMyGPTProvider) MarkUsingFailover(keyID string) {
+	p.MarkStatus(keyID, OhMyGPTStatusUsingFailover, 0, "Switched to backup endpoint")
+	log.Printf("🔄 [Troll-LLM] OhMyGPT Key %s switched to failover endpoint", keyID)
+}
+
 // CheckAndRotateOnError checks response and rotates key if needed
 func (p *OhMyGPTProvider) CheckAndRotateOnError(keyID string, statusCode int, body string) {
 	shouldRotate := false
 	reason := ""
+
+	// Get the key to check enableFailover and current status
+	key := p.GetKeyByID(keyID)
 
 	switch statusCode {
 	case 400:
@@ -358,7 +380,7 @@ func (p *OhMyGPTProvider) CheckAndRotateOnError(keyID string, statusCode int, bo
 		if strings.Contains(body, "ExceededBudget") || strings.Contains(body, "budget_exceeded") || strings.Contains(body, "over budget") {
 			shouldRotate = true
 			reason = "budget_exceeded"
-			log.Printf("🚨 [Troll-LLM] OhMyGPT Key %s budget exceeded, triggering rotation", keyID)
+			log.Printf("🚨 [Troll-LLM] OhMyGPT Key %s budget exceeded", keyID)
 		}
 	case 401:
 		shouldRotate = true
@@ -370,11 +392,48 @@ func (p *OhMyGPTProvider) CheckAndRotateOnError(keyID string, statusCode int, bo
 		shouldRotate = true
 		reason = "forbidden"
 	case 429:
-		p.MarkRateLimited(keyID)
-		return
+		// Check for permanent block vs temporary rate limit
+		isPermanentBlock := strings.Contains(body, "banned") || strings.Contains(body, "blocked") ||
+			strings.Contains(body, "suspended") || strings.Contains(body, "disabled")
+		if isPermanentBlock {
+			shouldRotate = true
+			reason = "permanent_block"
+			log.Printf("🚨 [Troll-LLM] OhMyGPT Key %s permanently blocked", keyID)
+		} else {
+			p.MarkRateLimited(keyID)
+			return
+		}
 	}
 
 	if shouldRotate {
+		// Check if key is failover-enabled
+		if key != nil && key.EnableFailover {
+			// Check current status - if already using failover, rotate; otherwise switch to failover
+			if key.Status == OhMyGPTStatusUsingFailover {
+				// Already on failover endpoint, need to rotate to new key
+				log.Printf("🚫 [Troll-LLM] OhMyGPT Key %s on failover endpoint exhausted, rotating...", keyID)
+				backupCount := GetOhMyGPTBackupKeyCount()
+				if backupCount > 0 {
+					newKeyID, err := p.RotateKey(keyID, reason+"_on_failover")
+					if err != nil {
+						log.Printf("❌ [Troll-LLM] OhMyGPT Rotation failed: %v", err)
+						p.MarkExhausted(keyID)
+					} else {
+						log.Printf("✅ [Troll-LLM] OhMyGPT Rotated: %s -> %s", keyID, newKeyID)
+					}
+				} else {
+					p.MarkExhausted(keyID)
+					log.Printf("🚨 [Troll-LLM] OhMyGPT No backup keys, %s disabled", keyID)
+				}
+			} else {
+				// Healthy key with failover enabled - switch to failover endpoint
+				log.Printf("🔄 [Troll-LLM] OhMyGPT Key %s failover-enabled, switching to backup endpoint (reason: %s)", keyID, reason)
+				p.MarkUsingFailover(keyID)
+			}
+			return
+		}
+
+		// Non-failover key - use existing rotation logic
 		log.Printf("🚫 [Troll-LLM] OhMyGPT Key %s error %d, rotating...", keyID, statusCode)
 		backupCount := GetOhMyGPTBackupKeyCount()
 		if backupCount > 0 {
@@ -398,11 +457,12 @@ func (p *OhMyGPTProvider) GetStats() map[string]int {
 	defer p.mu.Unlock()
 
 	stats := map[string]int{
-		"total":        len(p.keys),
-		"healthy":      0,
-		"rate_limited": 0,
-		"exhausted":    0,
-		"error":        0,
+		"total":          len(p.keys),
+		"healthy":        0,
+		"rate_limited":   0,
+		"exhausted":      0,
+		"error":          0,
+		"using_failover": 0,
 	}
 
 	for _, key := range p.keys {
@@ -415,6 +475,8 @@ func (p *OhMyGPTProvider) GetStats() map[string]int {
 			stats["exhausted"]++
 		case OhMyGPTStatusError:
 			stats["error"]++
+		case OhMyGPTStatusUsingFailover:
+			stats["using_failover"]++
 		}
 	}
 
@@ -525,6 +587,14 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 
 	log.Printf("🔄 [OhMyGPT/Rotation] Starting rotation for failed key: %s (reason: %s)", failedKeyID, reason)
 
+	// Get the failed key to preserve enableFailover setting
+	failedKey := p.GetKeyByID(failedKeyID)
+	failedKeyEnableFailover := false
+	if failedKey != nil {
+		failedKeyEnableFailover = failedKey.EnableFailover
+		log.Printf("ℹ️ [OhMyGPT/Rotation] Failed key had enableFailover=%v", failedKeyEnableFailover)
+	}
+
 	// 1. Find an available backup key
 	backupCol := OhMyGPTBackupKeysCollection()
 	var backupKey OhMyGPTBackupKey
@@ -539,6 +609,14 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 		newKeyMasked = newKeyMasked[:8] + "..." + newKeyMasked[len(newKeyMasked)-4:]
 	}
 	log.Printf("✅ [OhMyGPT/Rotation] Found backup key: %s (%s)", backupKey.ID, newKeyMasked)
+
+	// Determine enableFailover for new key: prefer backup key's setting, fall back to failed key's setting
+	enableFailover := backupKey.EnableFailover
+	if !enableFailover {
+		enableFailover = failedKeyEnableFailover
+	}
+	log.Printf("✅ [OhMyGPT/Rotation] New key inherits enableFailover=%v (backup: %v, failed: %v)",
+		enableFailover, backupKey.EnableFailover, failedKeyEnableFailover)
 
 	// 2. DELETE old key completely
 	keysCol := db.OhMyGPTKeysCollection()
@@ -559,6 +637,7 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 		"requestsCount": int64(0),
 		"createdAt":     now,
 		"replacedKey":   failedKeyID,
+		"enableFailover": enableFailover,
 	}
 	_, err = keysCol.InsertOne(ctx, newKeyDoc)
 	if err != nil {
@@ -616,11 +695,12 @@ func (p *OhMyGPTProvider) RotateKey(failedKeyID string, reason string) (string, 
 		TokensUsed:    0,
 		RequestsCount: 0,
 		CreatedAt:     now,
+		EnableFailover: enableFailover,
 	})
 	p.keys = newKeys
 	p.mu.Unlock()
 
-	log.Printf("✅ [OhMyGPT/Rotation] Complete: %s (deleted) -> %s (new)", failedKeyID, backupKey.ID)
+	log.Printf("✅ [OhMyGPT/Rotation] Complete: %s (deleted) -> %s (new, enableFailover=%v)", failedKeyID, backupKey.ID, enableFailover)
 	return backupKey.ID, nil
 }
 
@@ -674,7 +754,21 @@ func (p *OhMyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStre
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(body))
+	// Determine actual endpoint based on key's failover status
+	actualEndpoint := endpoint
+	endpointType := "primary"
+	if key.Status == OhMyGPTStatusUsingFailover {
+		// Switch to failover endpoints
+		if endpoint == OhMyGPTMessagesEndpoint {
+			actualEndpoint = OhMyGPTFailoverMessagesEndpoint
+			endpointType = "FAILOVER"
+		} else if endpoint == OhMyGPTCompletionsEndpoint {
+			actualEndpoint = OhMyGPTFailoverCompletionsEndpoint
+			endpointType = "FAILOVER"
+		}
+	}
+
+	req, err := http.NewRequest(http.MethodPost, actualEndpoint, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -697,11 +791,11 @@ func (p *OhMyGPTProvider) forwardToEndpoint(endpoint string, body []byte, isStre
 		req.Header.Set("Accept", "application/json")
 	}
 
-	// Log request
+	// Log request with endpoint type indicator
 	if proxyName != "" {
-		log.Printf("📤 [Troll-LLM] OhMyGPT POST %s (key=%s, proxy=%s, stream=%v)", endpoint, key.ID, proxyName, isStreaming)
+		log.Printf("📤 [Troll-LLM] OhMyGPT POST %s (key=%s, proxy=%s, %s, stream=%v)", actualEndpoint, key.ID, proxyName, endpointType, isStreaming)
 	} else {
-		log.Printf("📤 [Troll-LLM] OhMyGPT POST %s (key=%s, direct, stream=%v)", endpoint, key.ID, isStreaming)
+		log.Printf("📤 [Troll-LLM] OhMyGPT POST %s (key=%s, direct, %s, stream=%v)", actualEndpoint, key.ID, endpointType, isStreaming)
 	}
 
 	startTime := time.Now()

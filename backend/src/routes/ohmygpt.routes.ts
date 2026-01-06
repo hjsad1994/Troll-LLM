@@ -8,6 +8,11 @@ const router = Router();
 const createKeySchema = z.object({
   id: z.string().min(1).max(50),
   apiKey: z.string().min(1),
+  enableFailover: z.boolean().optional().default(false),
+});
+
+const updateKeyFailoverSchema = z.object({
+  enableFailover: z.boolean(),
 });
 
 const createBindingSchema = z.object({
@@ -86,6 +91,24 @@ router.post('/keys/:id/reset', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error resetting OhMyGPT key:', error);
     res.status(500).json({ error: 'Failed to reset key' });
+  }
+});
+
+// PATCH /admin/ohmygpt/keys/:id - Update key failover setting
+router.patch('/keys/:id', async (req: Request, res: Response) => {
+  try {
+    const input = updateKeyFailoverSchema.parse(req.body);
+    const key = await ohmygptService.updateKeyFailover(req.params.id, input.enableFailover);
+    if (!key) {
+      return res.status(404).json({ error: 'Key not found' });
+    }
+    res.json(key);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Error updating OhMyGPT key failover setting:', error);
+    res.status(500).json({ error: 'Failed to update key' });
   }
 });
 
@@ -186,6 +209,24 @@ router.post('/backup-keys/:id/restore', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error restoring OhMyGPT backup key:', error);
     res.status(500).json({ error: 'Failed to restore backup key' });
+  }
+});
+
+// PATCH /admin/ohmygpt/backup-keys/:id - Update backup key failover setting
+router.patch('/backup-keys/:id', async (req: Request, res: Response) => {
+  try {
+    const input = updateKeyFailoverSchema.parse(req.body);
+    const key = await ohmygptService.updateBackupKeyFailover(req.params.id, input.enableFailover);
+    if (!key) {
+      return res.status(404).json({ error: 'Backup key not found' });
+    }
+    res.json({ success: true, message: 'Backup key failover setting updated' });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Error updating OhMyGPT backup key failover setting:', error);
+    res.status(500).json({ error: 'Failed to update backup key' });
   }
 });
 

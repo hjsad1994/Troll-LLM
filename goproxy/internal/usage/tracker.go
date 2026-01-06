@@ -55,7 +55,8 @@ func CalculateDeductionSplit(credits, refCredits, cost float64) (creditsDeduct, 
 type RequestLog struct {
 	UserID           string    `bson:"userId,omitempty"`
 	UserKeyID        string    `bson:"userKeyId"`
-	TrollKeyID       string    `bson:"trollKeyId"`
+	TrollKeyID       string    `bson:"trollKeyId,omitempty"`
+	FactoryKeyID     string    `bson:"factoryKeyId,omitempty"`
 	Model            string    `bson:"model,omitempty"`
 	InputTokens      int64     `bson:"inputTokens"`
 	OutputTokens     int64     `bson:"outputTokens"`
@@ -73,6 +74,7 @@ type RequestLogParams struct {
 	UserID           string
 	UserKeyID        string
 	TrollKeyID       string
+	FactoryKeyID     string
 	Model            string
 	InputTokens      int64
 	OutputTokens     int64
@@ -133,6 +135,7 @@ func LogRequestDetailed(params RequestLogParams) {
 		UserID:           params.UserID,
 		UserKeyID:        params.UserKeyID,
 		TrollKeyID:       params.TrollKeyID,
+		FactoryKeyID:     params.FactoryKeyID,
 		Model:            params.Model,
 		InputTokens:      params.InputTokens,
 		OutputTokens:     params.OutputTokens,
