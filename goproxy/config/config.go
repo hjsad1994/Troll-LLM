@@ -367,11 +367,14 @@ func CalculateBillingCostWithCacheAndBatch(modelID string, inputTokens, outputTo
 	}
 
 	if isBatch {
-		log.Printf("💰 [PRICING] BATCH MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok (regular: in=$%.2f out=$%.2f)",
-			modelID, inputPrice, outputPrice, regularInPrice, regularOutPrice)
+		log.Printf("💰 [PRICING] BATCH MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok cache_write=$%.2f/MTok cache_hit=$%.2f/MTok batch_in=$%.2f/MTok batch_out=$%.2f/MTok multiplier=%.2fx (regular: in=$%.2f out=$%.2f)",
+			modelID, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice, batchInputPrice, batchOutputPrice, multiplier, regularInPrice, regularOutPrice)
 	} else if batchInputPrice > 0 || batchOutputPrice > 0 {
-		log.Printf("💰 [PRICING] REGULAR MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok (batch available: in=$%.2f out=$%.2f)",
-			modelID, inputPrice, outputPrice, batchInputPrice, batchOutputPrice)
+		log.Printf("💰 [PRICING] REGULAR MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok cache_write=$%.2f/MTok cache_hit=$%.2f/MTok batch_in=$%.2f/MTok batch_out=$%.2f/MTok multiplier=%.2fx",
+			modelID, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice, batchInputPrice, batchOutputPrice, multiplier)
+	} else {
+		log.Printf("💰 [PRICING] REGULAR MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok cache_write=$%.2f/MTok cache_hit=$%.2f/MTok multiplier=%.2fx",
+			modelID, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice, multiplier)
 	}
 
 	// Apply discount based on model type (no discount for OpenHands)
