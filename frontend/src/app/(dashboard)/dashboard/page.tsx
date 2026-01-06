@@ -7,6 +7,7 @@ import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getDetaile
 import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 import DashboardPaymentModal from '@/components/DashboardPaymentModal'
+import { PAYMENTS_ENABLED } from '@/lib/payments'
 
 function formatLargeNumber(num: number | undefined | null): string {
   if (num == null) return '0'
@@ -72,7 +73,7 @@ export default function UserDashboard() {
   const [discordIdError, setDiscordIdError] = useState<string | null>(null)
   const [discordConfirm, setDiscordConfirm] = useState<{ show: boolean; type: 'remove' | 'change'; newId?: string }>({ show: false, type: 'remove' })
   const { user } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   const getTimeGreeting = () => {
     const hour = new Date().getHours()
@@ -591,29 +592,53 @@ export default function UserDashboard() {
                 )}
 
                 {/* Buy Credits Button */}
-                <button
-                  onClick={() => setShowPaymentModal(true)}
-                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-medium text-sm hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {t.dashboardPayment?.buyCredits || 'Buy Credits'}
-                </button>
+                {PAYMENTS_ENABLED ? (
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-medium text-sm hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    {t.dashboardPayment?.buyCredits || 'Buy Credits'}
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="w-full py-2.5 rounded-lg bg-gray-300 dark:bg-white/10 text-gray-500 dark:text-gray-400 font-medium text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {language === 'vi' ? 'Thanh toán tạm thời bảo trì' : 'Payments temporarily disabled'}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="h-32 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
                 {/* Buy Credits Button - always visible */}
-                <button
-                  onClick={() => setShowPaymentModal(true)}
-                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-medium text-sm hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {t.dashboardPayment?.buyCredits || 'Buy Credits'}
-                </button>
+                {PAYMENTS_ENABLED ? (
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-medium text-sm hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    {t.dashboardPayment?.buyCredits || 'Buy Credits'}
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="w-full py-2.5 rounded-lg bg-gray-300 dark:bg-white/10 text-gray-500 dark:text-gray-400 font-medium text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {language === 'vi' ? 'Thanh toán tạm thời bảo trì' : 'Payments temporarily disabled'}
+                  </button>
+                )}
               </div>
             )}
           </div>

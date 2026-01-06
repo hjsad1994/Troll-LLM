@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createCheckout, getPaymentStatus } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import { isPromoActive, getTimeRemaining, PROMO_CONFIG, getBonusAmount } from '@/lib/promo'
+import { PAYMENTS_ENABLED } from '@/lib/payments'
 
 interface DashboardPaymentModalProps {
   isOpen: boolean
@@ -157,6 +158,61 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
   }
 
   if (!isOpen) return null
+
+  // Show disabled notice if payments are disabled
+  if (!PAYMENTS_ENABLED) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={handleClose}
+        />
+
+        {/* Modal */}
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-200 dark:border-slate-700/50">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/50 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {dp?.title || 'Buy Credits'}
+            </h2>
+            <button
+              onClick={handleClose}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 text-center">
+            {/* Maintenance Icon */}
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
+              <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              {dp?.paymentsDisabled || 'Payments Temporarily Disabled'}
+            </h3>
+            <p className="text-gray-500 dark:text-slate-400 mb-6">
+              {dp?.paymentsDisabledMessage || 'Payment functionality is currently under maintenance. Please check back later.'}
+            </p>
+
+            <button
+              onClick={handleClose}
+              className="px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-colors font-medium"
+            >
+              {dp?.close || 'Close'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

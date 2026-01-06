@@ -7,6 +7,7 @@ import { createCheckout, getPaymentStatus, isAuthenticated } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
 import { isPromoActive, getTimeRemaining, PROMO_CONFIG, getBonusAmount } from '@/lib/promo'
+import { PAYMENTS_ENABLED } from '@/lib/payments'
 
 const MIN_AMOUNT = 20
 const MAX_AMOUNT = 100
@@ -135,6 +136,50 @@ function CheckoutContent() {
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN').format(price)
+  }
+
+  // Show maintenance notice if payments are disabled
+  if (!PAYMENTS_ENABLED) {
+    return (
+      <div className="min-h-screen bg-[var(--theme-bg)]">
+        <Header hideAuthButtons />
+
+        {/* Background with grid */}
+        <div className="fixed inset-0 -z-10">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.08)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        </div>
+
+        <main className="min-h-screen flex items-center justify-center px-4 pt-20 pb-12">
+          <div className="w-full max-w-md text-center">
+            {/* Maintenance Icon */}
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
+              <svg className="w-10 h-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            <h1 className="text-2xl font-semibold text-[var(--theme-text)] mb-2">
+              {language === 'vi' ? 'Thanh toán tạm thời bảo trì' : 'Payments Temporarily Disabled'}
+            </h1>
+            <p className="text-[var(--theme-text-subtle)] mb-8">
+              {language === 'vi'
+                ? 'Chức năng thanh toán hiện đang được bảo trì. Vui lòng quay lại sau.'
+                : 'Payment functionality is currently under maintenance. Please check back later.'}
+            </p>
+
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-semibold hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              {language === 'vi' ? 'Quay lại trang chủ' : 'Back to homepage'}
+            </Link>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (

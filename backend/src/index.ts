@@ -13,6 +13,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import modelsRoutes from './routes/models.routes.js';
 import friendKeyRoutes from './routes/friend-key.routes.js';
 import openhandsRoutes from './routes/openhands.routes.js';
+import ohmygptRoutes from './routes/ohmygpt.routes.js';
 import { expirationSchedulerService } from './services/expiration-scheduler.service.js';
 
 const app = express();
@@ -62,6 +63,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/admin', authMiddleware, adminRoutes);
 app.use('/admin/proxies', authMiddleware, proxyRoutes);
 app.use('/admin/openhands', authMiddleware, openhandsRoutes);
+app.use('/admin/ohmygpt', authMiddleware, ohmygptRoutes);
 
 // Root
 app.get('/', (_req, res) => {

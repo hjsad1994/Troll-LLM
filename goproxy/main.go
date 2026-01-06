@@ -26,6 +26,7 @@ import (
 	"goproxy/internal/ratelimit"
 	"goproxy/internal/openhands"
 	"goproxy/internal/openhandspool"
+	"goproxy/internal/ohmygpt"
 	"goproxy/internal/usage"
 	"goproxy/internal/userkey"
 	"goproxy/transformers"
@@ -221,6 +222,22 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 			APIKey:      "", // handled by OpenHands provider with key rotation
 			UseProxy:    false,
 			KeyID:       "openhands",
+		}, nil, nil
+	}
+
+	// OhMyGPT routing
+	if upstream == "ohmygpt" {
+		// Use OhMyGPT via TrollProxy with key rotation
+		ohmygptProvider := ohmygpt.GetOhMyGPT()
+		if ohmygptProvider == nil || !ohmygptProvider.IsConfigured() {
+			return nil, nil, fmt.Errorf("ohmygpt not configured")
+		}
+		log.Printf("🔀 [Model Routing] %s -> OhMyGPT (upstream=%s)", modelID, upstream)
+		return &UpstreamConfig{
+			EndpointURL: ohmygpt.OhMyGPTEndpoint,
+			APIKey:      "", // handled by OhMyGPT provider with key rotation
+			UseProxy:    false,
+			KeyID:       "ohmygpt",
 		}, nil, nil
 	}
 
@@ -814,6 +831,8 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			handleMainTargetRequestOpenAI(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else if upstreamConfig.KeyID == "openhands" {
 			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+		} else if upstreamConfig.KeyID == "ohmygpt" {
+			handleOhMyGPTOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else {
 			handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
 		}
@@ -822,6 +841,11 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		// No transformation needed - OpenHands handles Claude/GPT/Gemini models in OpenAI format
 		if upstreamConfig.KeyID == "openhands" {
 			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+		}
+	case "ohmygpt":
+		// OhMyGPT: Always forward OpenAI format to /v1/chat/completions
+		if upstreamConfig.KeyID == "ohmygpt" {
+			handleOhMyGPTOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		}
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
@@ -1751,6 +1775,152 @@ func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Re
 	}
 
 	maintarget.HandleOpenAINonStreamResponse(w, resp, wrappedOnUsage)
+}
+
+// handleOhMyGPTOpenAIRequest handles /v1/chat/completions requests routed to OhMyGPT
+func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
+	ohmygptProvider := ohmygpt.GetOhMyGPT()
+	if ohmygptProvider == nil || !ohmygptProvider.IsConfigured() {
+		http.Error(w, `{"error": {"message": "OhMyGPT not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Get upstream model ID and inject system prompt
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+	openaiReq.Model = upstreamModelID
+
+	// Serialize request
+	requestBody, err := json.Marshal(openaiReq)
+	if err != nil {
+		log.Printf("❌ [OhMyGPT-OpenAI] Failed to serialize request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	isStreaming := openaiReq.Stream
+	log.Printf("📤 [OhMyGPT-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v)", upstreamModelID, isStreaming)
+
+	// Forward request using OhMyGPT provider
+	resp, err := ohmygptProvider.ForwardRequest(requestBody, isStreaming)
+	if err != nil {
+		log.Printf("❌ [OhMyGPT-OpenAI] Request failed: %v", err)
+		http.Error(w, `{"error": {"message": "Request to OhMyGPT failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback for billing
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		// Update OhMyGPT key usage stats in MongoDB
+		keyID := ohmygptProvider.GetLastUsedKeyID()
+		if keyID != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			db.OhMyGPTKeysCollection().UpdateByID(ctx, keyID, bson.M{
+				"$inc": bson.M{
+					"tokensUsed":    input + output,
+					"requestsCount": 1,
+				},
+			})
+		}
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+		}
+	}
+
+	// Handle response
+	if isStreaming {
+		ohmygptProvider.HandleStreamResponse(w, resp, onUsage)
+	} else {
+		ohmygptProvider.HandleNonStreamResponse(w, resp, onUsage)
+	}
+}
+
+// handleOhMyGPTMessagesRequest handles /v1/messages requests routed to OhMyGPT Provider
+// Forwards Anthropic format request to OhMyGPT /v1/messages endpoint
+func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
+	ohmygptProvider := ohmygpt.GetOhMyGPT()
+	if ohmygptProvider == nil || !ohmygptProvider.IsConfigured() {
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"OhMyGPT not configured"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Parse request to inject system prompt
+	var anthropicReq transformers.AnthropicRequest
+	if err := json.Unmarshal(originalBody, &anthropicReq); err != nil {
+		log.Printf("❌ [OhMyGPT-Anthropic] Failed to parse request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Invalid JSON"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Get upstream model ID (may be different from client-requested model ID)
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+	anthropicReq.Model = upstreamModelID
+
+	// Serialize request
+	requestBody, err := json.Marshal(anthropicReq)
+	if err != nil {
+		log.Printf("❌ [OhMyGPT-Anthropic] Failed to serialize request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Failed to serialize request"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	if upstreamModelID != modelID {
+		log.Printf("🔀 [OhMyGPT-Anthropic] Model mapping: %s -> %s", modelID, upstreamModelID)
+	}
+
+	log.Printf("📤 [OhMyGPT-Anthropic] Forwarding /v1/messages (model=%s, stream=%v)", upstreamModelID, isStreaming)
+
+	// Forward request using OhMyGPT messages endpoint
+	resp, err := ohmygptProvider.ForwardMessagesRequest(requestBody, isStreaming)
+	if err != nil {
+		log.Printf("❌ [OhMyGPT-Anthropic] Request failed: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OhMyGPT failed"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback for billing
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		// Update OhMyGPT key usage stats in MongoDB
+		keyID := ohmygptProvider.GetLastUsedKeyID()
+		if keyID != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			db.OhMyGPTKeysCollection().UpdateByID(ctx, keyID, bson.M{
+				"$inc": bson.M{
+					"tokensUsed":    input + output,
+					"requestsCount": 1,
+				},
+			})
+		}
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+		}
+	}
+
+	// Handle response (OhMyGPT /v1/messages returns Anthropic-compatible format)
+	if isStreaming {
+		ohmygptProvider.HandleStreamResponse(w, resp, onUsage)
+	} else {
+		ohmygptProvider.HandleNonStreamResponse(w, resp, onUsage)
+	}
 }
 
 // Handle TrollOpenAI type request
@@ -2850,6 +3020,12 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		handleOpenHandsMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
 		return
 	}
+
+	// For "ohmygpt" upstream: forward via OhMyGPT Provider
+	if upstreamConfig.KeyID == "ohmygpt" {
+		handleOhMyGPTMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
+		return
+	}
 	// NEW MODEL-BASED ROUTING - END
 
 	// Normalize message content format (convert string to array if needed)
@@ -3498,6 +3674,28 @@ func main() {
 	// Start OpenHands backup key cleanup job (runs every 1 minute, deletes keys used > 12h)
 	openhands.StartBackupKeyCleanupJob(1 * time.Minute)
 
+	// Load OhMyGPT configuration via TrollProxy (from MongoDB)
+	if err := ohmygpt.ConfigureOhMyGPT(); err != nil {
+		log.Printf("⚠️ OhMyGPT configuration failed: %v", err)
+	} else {
+		ohmygptProvider := ohmygpt.GetOhMyGPT()
+		if ohmygptProvider.GetKeyCount() > 0 {
+			// Start auto-reload for OhMyGPT keys
+			ohmygptProvider.StartAutoReload(reloadInterval)
+			log.Printf("✅ OhMyGPT key pool loaded: %d keys", ohmygptProvider.GetKeyCount())
+
+			// Set proxy pool for OhMyGPT (use same pool as Troll)
+			if proxyPool != nil && proxyPool.HasProxies() {
+				ohmygptProvider.SetProxyPool(proxyPool)
+			}
+		} else {
+			log.Printf("⚠️ OhMyGPT not configured (no keys in ohmygpt_keys collection)")
+		}
+	}
+
+	// Start OhMyGPT backup key cleanup job (runs every 1 minute, deletes keys used > 12h)
+	ohmygpt.StartOhMyGPTBackupKeyCleanupJob(1 * time.Minute)
+
 	// NEW MODEL-BASED ROUTING - END
 
 	// Validate environment variables (TROLL_API_KEY is optional if using key pool from DB)
@@ -3578,14 +3776,29 @@ func main() {
 			}
 		}
 
+		// Reload OhMyGPT keys and bindings
+		ohmygptReloaded := false
+		ohmygptKeyCount := 0
+		if ohmygptProv := ohmygpt.GetOhMyGPT(); ohmygptProv != nil {
+			if err := ohmygptProv.Reload(); err != nil {
+				log.Printf("⚠️ OhMyGPT reload failed: %v", err)
+			} else {
+				ohmygptReloaded = true
+				ohmygptKeyCount = ohmygptProv.GetKeyCount()
+				log.Printf("✅ OhMyGPT reloaded: %d keys", ohmygptKeyCount)
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":          true,
-			"message":          "All pools reloaded successfully",
-			"proxy_count":      proxyPool.GetProxyCount(),
-			"bindings":         proxyPool.GetBindingsInfo(),
+			"success":           true,
+			"message":           "All pools reloaded successfully",
+			"proxy_count":       proxyPool.GetProxyCount(),
+			"bindings":          proxyPool.GetBindingsInfo(),
 			"openhands_reloaded": openhandsReloaded,
 			"openhands_keys":     openhandsKeyCount,
+			"ohmygpt_reloaded":   ohmygptReloaded,
+			"ohmygpt_keys":       ohmygptKeyCount,
 		})
 	}))
 

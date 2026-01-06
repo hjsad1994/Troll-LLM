@@ -96,6 +96,10 @@ func OpenHandsBackupKeysCollection() *mongo.Collection {
 	return GetCollection("openhands_backup_keys")
 }
 
+func OhMyGPTKeysCollection() *mongo.Collection {
+	return GetCollection("ohmygpt_keys")
+}
+
 func Disconnect() {
 	if client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
