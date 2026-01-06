@@ -9,6 +9,7 @@ export interface IMigrationLog {
   migratedAt: Date;            // Timestamp of migration
   oldRate: number;             // Old rate (1000)
   newRate: number;             // New rate (2500)
+  autoMigrated: boolean;       // true if auto-migrated (zero credits), false if manual
 }
 
 const migrationLogSchema = new mongoose.Schema({
@@ -19,6 +20,7 @@ const migrationLogSchema = new mongoose.Schema({
   migratedAt: { type: Date, default: Date.now, index: true },
   oldRate: { type: Number, required: true },
   newRate: { type: Number, required: true },
+  autoMigrated: { type: Boolean, default: false },
 });
 
 // Compound index for querying by user with recent first

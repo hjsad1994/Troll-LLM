@@ -1,5 +1,6 @@
 import { userRepository, isCreditsExpired } from '../repositories/user.repository.js';
 import { maskApiKey, IUserNew } from '../models/user-new.model.js';
+import { migrationService } from './migration.service.js';
 
 // Alias for backward compatibility
 type IUser = IUserNew;
@@ -35,6 +36,30 @@ export class UserService {
   async getProfile(username: string): Promise<UserProfile | null> {
     const user = await userRepository.getFullUser(username);
     if (!user) return null;
+
+    // Auto-migrate users with zero credits before returning profile
+    if (!user.migration && user.credits === 0) {
+      await migrationService.autoMigrateIfZeroCredits(username);
+      // Fetch updated user after auto-migration
+      const updatedUser = await userRepository.getFullUser(username);
+      if (updatedUser) {
+        return {
+          username: updatedUser._id,
+          apiKey: maskApiKey(updatedUser.apiKey),
+          apiKeyCreatedAt: updatedUser.apiKeyCreatedAt,
+          creditsUsed: updatedUser.creditsUsed,
+          credits: updatedUser.credits || 0,
+          refCredits: updatedUser.refCredits || 0,
+          role: updatedUser.role,
+          totalInputTokens: (updatedUser as any).totalInputTokens || 0,
+          totalOutputTokens: (updatedUser as any).totalOutputTokens || 0,
+          purchasedAt: updatedUser.purchasedAt || null,
+          expiresAt: updatedUser.expiresAt || null,
+          discordId: updatedUser.discordId || null,
+          migration: updatedUser.migration || false,
+        };
+      }
+    }
 
     return {
       username: user._id,

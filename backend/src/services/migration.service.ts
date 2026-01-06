@@ -27,8 +27,8 @@ export class MigrationService {
       throw new MigrationError('User has already migrated');
     }
 
-    // Perform migration
-    const result = await userNewRepository.setMigrated(userId);
+    // Perform migration (manual, not auto-migrated)
+    const result = await userNewRepository.setMigrated(userId, false);
 
     if (!result) {
       throw new MigrationError('Migration failed - user may already be migrated');
@@ -44,6 +44,31 @@ export class MigrationService {
 
   async getMigrationStatus(userId: string): Promise<boolean> {
     return userNewRepository.getMigrationStatus(userId);
+  }
+
+  /**
+   * Auto-migrate users with zero credits.
+   * Returns true if auto-migration was performed, false otherwise.
+   */
+  async autoMigrateIfZeroCredits(userId: string): Promise<boolean> {
+    const user = await userNewRepository.findById(userId);
+    if (!user) {
+      return false;
+    }
+
+    // Skip if already migrated
+    if (user.migration) {
+      return false;
+    }
+
+    // Only auto-migrate if credits is exactly 0
+    if (user.credits !== 0) {
+      return false;
+    }
+
+    // Perform auto-migration
+    const result = await userNewRepository.setMigrated(userId, true);
+    return result !== null;
   }
 }
 

@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { userNewRepository } from '../repositories/user-new.repository.js';
+import { migrationService } from '../services/migration.service.js';
 
 /**
  * Middleware to check if user has migrated to the new billing rate.
  * Blocks API access for non-migrated users (existing users only).
+ * Auto-migrates users with zero credits.
  * Admins bypass this check.
  */
 export async function checkMigration(req: Request, res: Response, next: NextFunction) {
@@ -24,6 +26,15 @@ export async function checkMigration(req: Request, res: Response, next: NextFunc
     const hasMigrated = await userNewRepository.getMigrationStatus(username);
 
     if (!hasMigrated) {
+      // Attempt auto-migration for users with zero credits
+      const autoMigrated = await migrationService.autoMigrateIfZeroCredits(username);
+
+      if (autoMigrated) {
+        // User was auto-migrated, allow request to proceed
+        return next();
+      }
+
+      // User has credits > 0, block the request
       const dashboardUrl = process.env.FRONTEND_URL || 'https://trollllm.xyz';
       return res.status(403).json({
         error: 'Migration required',

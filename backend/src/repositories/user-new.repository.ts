@@ -326,7 +326,7 @@ export class UserNewRepository {
     return user?.migration ?? false;
   }
 
-  async setMigrated(userId: string): Promise<{
+  async setMigrated(userId: string, autoMigrated: boolean = false): Promise<{
     user: IUserNew | null;
     oldCredits: number;
     newCredits: number;
@@ -361,6 +361,7 @@ export class UserNewRepository {
       migratedAt: new Date(),
       oldRate: 1000,
       newRate: 2500,
+      autoMigrated,
     });
 
     return {

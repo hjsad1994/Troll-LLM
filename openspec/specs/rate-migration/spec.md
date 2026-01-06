@@ -97,7 +97,7 @@ The backend SHALL provide a REST API endpoint at `/api/user/migrate` for users t
 
 ### Requirement: API Access Control for Non-Migrated Users
 
-The system SHALL block LLM API requests from users who have not migrated to the new rate.
+The system SHALL block LLM API requests from users who have not migrated to the new rate. The migration check middleware SHALL attempt auto-migration for users with zero credits before blocking.
 
 #### Scenario: Non-migrated user attempts LLM API request
 - **Given** a user with `migration: false`
@@ -106,6 +106,20 @@ The system SHALL block LLM API requests from users who have not migrated to the 
 - **Then** the system SHALL reject the request with HTTP 403
 - **And** the error message SHALL indicate migration is required
 - **And** the response SHALL include `{ error: "Migration required", dashboardUrl: "/dashboard" }`
+
+#### Scenario: Zero-credit user is auto-migrated on API access
+- **Given** a user with `migration: false` and `credits: 0`
+- **When** the user makes an LLM API request
+- **Then** the middleware SHALL call `autoMigrateIfZeroCredits(userId)`
+- **And** upon successful auto-migration, the request SHALL proceed normally
+- **And** the user SHALL NOT receive a migration error
+
+#### Scenario: User with credits is not auto-migrated
+- **Given** a user with `migration: false` and `credits > 0`
+- **When** the user makes an LLM API request
+- **Then** the middleware SHALL call `autoMigrateIfZeroCredits(userId)`
+- **And** when auto-migration returns `false`, the request SHALL be blocked
+- **And** the user SHALL receive HTTP 403 with migration required error
 
 #### Scenario: Migrated user makes LLM API request
 - **Given** a user with `migration: true`
@@ -122,7 +136,7 @@ The system SHALL block LLM API requests from users who have not migrated to the 
 
 ### Requirement: Dashboard Migration UI
 
-The frontend SHALL display a migration interface on the dashboard for **existing non-migrated users only**. New users (who are automatically migrated) should never see this UI.
+The frontend SHALL display a migration interface on the dashboard for **existing non-migrated users only**. New users (who are automatically migrated) should never see this UI. The backend SHALL auto-migrate zero-credit users when the dashboard fetches their profile.
 
 #### Scenario: Existing non-migrated user visits dashboard
 - **Given** a user with `migration: false` (existing user who hasn't chosen)
@@ -130,6 +144,13 @@ The frontend SHALL display a migration interface on the dashboard for **existing
 - **Then** the system SHALL display a migration banner/overlay
 - **And** the banner SHALL explain the rate change (1,000 → 2,500 VNĐ/$)
 - **And** two options SHALL be presented: "Request Refund" and "Migrate Credits"
+
+#### Scenario: Zero-credit user is auto-migrated on dashboard load
+- **Given** a user with `migration: false` and `credits: 0`
+- **When** the dashboard loads and fetches user profile
+- **Then** the backend SHALL call `autoMigrateIfZeroCredits(userId)` before returning profile
+- **And** the profile response SHALL include `migration: true`
+- **And** the migration UI SHALL NOT be displayed
 
 #### Scenario: New user (auto-migrated) visits dashboard
 - **Given** a user with `migration: true` (newly registered after rate change)
@@ -197,9 +218,45 @@ The system SHALL handle migration as an atomic transaction with rollback on fail
 - **And** credits SHALL remain at `0`
 - **And** a migration log SHALL still be created with oldCredits=0, newCredits=0
 
+### Requirement: Auto-Migration Service Method
+
+The MigrationService SHALL provide a method to automatically migrate users with zero credits.
+
+#### Scenario: Auto-migrate method signature
+- **Given** the MigrationService in `backend/src/services/migration.service.ts`
+- **When** the service is defined
+- **Then** it SHALL include a method `autoMigrateIfZeroCredits(userId: string): Promise<boolean>`
+- **And** the method SHALL return `true` if auto-migration was performed
+- **And** the method SHALL return `false` if user was already migrated or has credits > 0
+
+#### Scenario: Auto-migrate method creates audit log
+- **Given** a user with `migration: false` and `credits: 0`
+- **When** `autoMigrateIfZeroCredits(userId)` is called
+- **Then** the method SHALL set `migration: true` for the user
+- **And** the method SHALL create a migration log entry with:
+  - `userId`, `username`, `oldCredits: 0`, `newCredits: 0`
+  - `migratedAt` (current timestamp)
+  - `oldRate: 1000`, `newRate: 2500`
+  - `autoMigrated: true` (flag to distinguish from manual migration)
+- **And** the method SHALL return `true`
+
+#### Scenario: Auto-migrate method skips users with credits
+- **Given** a user with `migration: false` and `credits > 0`
+- **When** `autoMigrateIfZeroCredits(userId)` is called
+- **Then** the method SHALL NOT modify the user's migration status
+- **And** the method SHALL NOT create a migration log
+- **And** the method SHALL return `false`
+
+#### Scenario: Auto-migrate is idempotent
+- **Given** a user with `migration: true` (already migrated)
+- **When** `autoMigrateIfZeroCredits(userId)` is called
+- **Then** the system SHALL recognize the user is already migrated
+- **And** the system SHALL NOT create a duplicate migration log
+- **And** the method SHALL return `false`
+
 ### Requirement: MigrationLog Model
 
-The system SHALL create a `MigrationLog` model to store migration audit logs in MongoDB.
+The system SHALL create a `MigrationLog` model to store migration audit logs in MongoDB. The model SHALL include an `autoMigrated` flag to distinguish between manual and automatic migrations.
 
 #### Scenario: MigrationLog model schema
 - **Given** the MigrationLog schema in `backend/src/models/migration-log.model.ts` (new file)
@@ -213,6 +270,7 @@ The system SHALL create a `MigrationLog` model to store migration audit logs in 
   - `migratedAt: Date`
   - `oldRate: number` (1000)
   - `newRate: number` (2500)
+  - `autoMigrated: boolean` (true for auto-migrations, false for manual)
 - **And** the collection SHALL be named `migration_logs`
 - **And** `userId` and `migratedAt` SHALL be indexed for efficient querying
 
@@ -222,6 +280,18 @@ The system SHALL create a `MigrationLog` model to store migration audit logs in 
 - **Then** a new document SHALL be inserted into `migration_logs` collection
 - **And** the document SHALL contain all migration details
 - **And** `migratedAt` SHALL be the timestamp of migration completion
+
+#### Scenario: Migration log for manual migration
+- **Given** a user with `credits > 0` completes manual migration
+- **When** the migration log is created
+- **Then** `autoMigrated` SHALL be `false`
+- **And** `oldCredits` and `newCredits` SHALL reflect the credit reduction
+
+#### Scenario: Migration log for auto-migration
+- **Given** a user with `credits: 0` is auto-migrated
+- **When** the migration log is created
+- **Then** `autoMigrated` SHALL be `true`
+- **And** `oldCredits` and `newCredits` SHALL both be `0`
 
 ## MODIFIED Requirements
 
@@ -280,6 +350,7 @@ POST /api/user/migrate
   migratedAt: Date    // Timestamp when migration occurred
   oldRate: number     // 1000 (VNĐ per USD)
   newRate: number     // 2500 (VNĐ per USD)
+  autoMigrated: boolean  // true for auto-migrations (zero credits), false for manual
 }
 ```
 

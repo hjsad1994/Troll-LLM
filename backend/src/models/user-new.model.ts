@@ -64,7 +64,8 @@ const userNewSchema = new mongoose.Schema({
   // Discord integration
   discordId: { type: String, default: null },
   // Migration status for rate transition (1000 -> 2500 VNĐ/$)
-  migration: { type: Boolean, default: false },
+  // New users default to true (on new rate), existing users who need migration have false
+  migration: { type: Boolean, default: true },
 });
 
 export const UserNew = mongoose.model<IUserNew>('UserNew', userNewSchema, 'usersNew');
