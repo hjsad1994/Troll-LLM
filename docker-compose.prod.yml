@@ -40,6 +40,9 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+      - 1.1.1.1
+    extra_hosts:
+      - "api.trollllm.xyz:172.67.198.201"
     restart: unless-stopped
     networks:
       - trollllm-network
