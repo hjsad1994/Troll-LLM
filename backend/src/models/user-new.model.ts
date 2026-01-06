@@ -35,6 +35,8 @@ export interface IUserNew {
   referralBonusAwarded: boolean;
   // Discord integration
   discordId?: string;        // Discord User ID (17-19 digits)
+  // Migration status for rate transition (1000 -> 2500 VNĐ/$)
+  migration: boolean;        // true = on new rate, false = needs migration (existing users)
 }
 
 const userNewSchema = new mongoose.Schema({
@@ -61,6 +63,8 @@ const userNewSchema = new mongoose.Schema({
   referralBonusAwarded: { type: Boolean, default: false },
   // Discord integration
   discordId: { type: String, default: null },
+  // Migration status for rate transition (1000 -> 2500 VNĐ/$)
+  migration: { type: Boolean, default: false },
 });
 
 export const UserNew = mongoose.model<IUserNew>('UserNew', userNewSchema, 'usersNew');

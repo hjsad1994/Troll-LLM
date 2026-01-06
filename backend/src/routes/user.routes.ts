@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { userService } from '../services/user.service.js';
+import { migrationService, MigrationError } from '../services/migration.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
@@ -253,5 +254,26 @@ router.patch('/discord-id', jwtAuth, async (req: Request, res: Response) => {
 //     res.status(500).json({ error: error.message });
 //   }
 // });
+
+// Migration endpoint
+router.post('/migrate', jwtAuth, async (req: Request, res: Response) => {
+  try {
+    const username = (req as any).user?.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const result = await migrationService.processMigration(username);
+    res.json(result);
+  } catch (error: any) {
+    if (error instanceof MigrationError) {
+      if (error.message === 'User has already migrated') {
+        return res.status(400).json({ error: error.message });
+      }
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;

@@ -3,10 +3,11 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getDetailedUsage, getRequestLogs, getPaymentHistory, updateDiscordId, UserProfile, BillingInfo, DetailedUsage, RequestLogItem, RequestLogsResponse, PaymentHistoryItem } from '@/lib/api'
+import { getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getDetailedUsage, getRequestLogs, getPaymentHistory, updateDiscordId, migrateCredits, UserProfile, BillingInfo, DetailedUsage, RequestLogItem, RequestLogsResponse, PaymentHistoryItem } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 import DashboardPaymentModal from '@/components/DashboardPaymentModal'
+import MigrationBanner from '@/components/MigrationBanner'
 import { PAYMENTS_ENABLED } from '@/lib/payments'
 
 function formatLargeNumber(num: number | undefined | null): string {
@@ -259,6 +260,19 @@ export default function UserDashboard() {
     await executeDiscordSave(trimmedId || null)
   }
 
+  const handleMigration = async () => {
+    try {
+      const result = await migrateCredits()
+      // Reload user data after successful migration
+      await loadUserData()
+      // Show success message
+      alert(result.message || 'Migration successful!')
+    } catch (error) {
+      console.error('Migration failed:', error)
+      throw error
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -273,6 +287,14 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen px-4 sm:px-6">
       <div className="relative max-w-7xl mx-auto space-y-8 sm:space-y-12">
+        {/* Migration Banner - Show only for non-migrated users */}
+        {userProfile && !userProfile.migration && (
+          <MigrationBanner
+            currentCredits={userProfile.credits || 0}
+            onMigrate={handleMigration}
+          />
+        )}
+
         {/* Header - Compact */}
         <header className="flex items-center justify-between gap-4 opacity-0 animate-fade-in-up">
           <div className="flex items-center gap-3">

@@ -54,7 +54,7 @@ app.use('/api', authRoutes);
 
 // User routes (protected with JWT)
 app.use('/api/user', userRoutes);
-app.use('/api/user/friend-key', friendKeyRoutes);
+// app.use('/api/user/friend-key', friendKeyRoutes); // TEMPORARILY DISABLED
 
 // Payment routes (mixed: some public, some protected)
 app.use('/api/payment', paymentRoutes);

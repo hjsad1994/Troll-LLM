@@ -16,6 +16,7 @@ var (
 	ErrKeyRevoked          = errors.New("API key has been revoked")
 	ErrCreditsExpired      = errors.New("credits have expired")
 	ErrInsufficientCredits = errors.New("insufficient credits")
+	ErrMigrationRequired   = errors.New("migration required: please visit https://trollllm.xyz/dashboard to migrate your account")
 )
 
 func ValidateKey(apiKey string) (*UserKey, error) {
@@ -57,6 +58,17 @@ func validateFromUserKeys(apiKey string) (*UserKey, error) {
 		return nil, ErrCreditsExpired
 	}
 
+	// Check migration status from usersNew collection
+	var user LegacyUser
+	err = db.UsersNewCollection().FindOne(ctx, bson.M{"_id": userKey.Name}).Decode(&user)
+	if err == nil {
+		// User found in usersNew, check migration status
+		if user.Role != "admin" && !user.Migration {
+			return nil, ErrMigrationRequired
+		}
+	}
+	// If user not found in usersNew, skip migration check (might be a different auth system)
+
 	return &userKey, nil
 }
 
@@ -82,6 +94,11 @@ func validateFromUsersNewCollection(apiKey string) (*UserKey, error) {
 	// Check expiry
 	if user.ExpiresAt != nil && time.Now().After(*user.ExpiresAt) {
 		return nil, ErrCreditsExpired
+	}
+
+	// Check migration status (admin bypass)
+	if user.Role != "admin" && !user.Migration {
+		return nil, ErrMigrationRequired
 	}
 
 	// Check if user has credits

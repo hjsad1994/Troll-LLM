@@ -75,4 +75,6 @@ type LegacyUser struct {
 	Credits    float64    `bson:"credits" json:"credits"`                           // USD credits
 	RefCredits float64    `bson:"refCredits" json:"ref_credits"`                    // referral credits USD
 	ExpiresAt  *time.Time `bson:"expiresAt,omitempty" json:"expires_at,omitempty"`  // credit expiry
+	Role       string     `bson:"role" json:"role"`                                // user role (admin/user)
+	Migration  bool       `bson:"migration" json:"migration"`                      // true = on new rate (2500), false = needs migration
 }

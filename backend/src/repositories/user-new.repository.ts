@@ -1,4 +1,5 @@
 import { UserNew, IUserNew, hashPassword, generateApiKey, generateReferralCode } from '../models/user-new.model.js';
+import { MigrationLog } from '../models/migration-log.model.js';
 
 export interface CreateUserNewData {
   username: string;
@@ -67,6 +68,7 @@ export class UserNewRepository {
           referredBy: validReferredBy,
           refCredits: 0,
           referralBonusAwarded: false,
+          migration: true, // New users are on the new rate (no migration needed)
         });
         break;
       } catch (err: any) {
@@ -316,6 +318,56 @@ export class UserNewRepository {
       { discordId },
       { new: true }
     ).lean();
+  }
+
+  // Migration methods
+  async getMigrationStatus(userId: string): Promise<boolean> {
+    const user = await UserNew.findById(userId).select('migration').lean();
+    return user?.migration ?? false;
+  }
+
+  async setMigrated(userId: string): Promise<{
+    user: IUserNew | null;
+    oldCredits: number;
+    newCredits: number;
+  } | null> {
+    const user = await UserNew.findById(userId).lean();
+    if (!user) return null;
+
+    // Check if already migrated
+    if (user.migration) {
+      return null;
+    }
+
+    const oldCredits = user.credits;
+    const newCredits = oldCredits / 2.5;
+
+    // Update user with migrated status and new credits
+    const updatedUser = await UserNew.findByIdAndUpdate(
+      userId,
+      {
+        migration: true,
+        credits: newCredits,
+      },
+      { new: true }
+    ).lean();
+
+    // Create migration log
+    await MigrationLog.create({
+      userId,
+      username: user._id,
+      oldCredits,
+      newCredits,
+      migratedAt: new Date(),
+      oldRate: 1000,
+      newRate: 2500,
+    });
+
+    return {
+      user: updatedUser,
+      oldCredits,
+      newCredits,
+    };
   }
 }
 

@@ -646,6 +646,10 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
 				w.Write([]byte(`{"error":{"message":"Credits have expired. Please purchase new credits.","type":"insufficient_quota","code":"credits_expired"}}`))
+			} else if err == userkey.ErrMigrationRequired {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error":{"message":"Migration required: please visit https://trollllm.xyz/dashboard to migrate your account to the new billing rate (1000→2500 VNĐ/$)","type":"migration_required","code":"migration_required"}}`))
 			} else {
 				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
 			}
@@ -2905,6 +2909,10 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)
 				w.Write([]byte(`{"type":"error","error":{"type":"credits_expired","message":"Credits have expired. Please purchase new credits."}}`))
+			} else if err == userkey.ErrMigrationRequired {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"type":"error","error":{"type":"migration_required","message":"Migration required: please visit https://trollllm.xyz/dashboard to migrate your account to the new billing rate (1000→2500 VNĐ/$)"}}`))
 			} else {
 				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
 			}

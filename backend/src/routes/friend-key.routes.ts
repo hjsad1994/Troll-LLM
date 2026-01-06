@@ -1,13 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { friendKeyService } from '../services/friend-key.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
+import { checkMigration } from '../middleware/migration-check.js';
 import { UpdateModelLimitsDto } from '../dtos/friend-key.dto.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
 
 const router = Router();
 
 // Get friend key info
-router.get('/', jwtAuth, async (req: Request, res: Response) => {
+router.get('/', jwtAuth, checkMigration, async (req: Request, res: Response) => {
   try {
     const username = (req as any).user?.username;
     if (!username) {
@@ -26,7 +27,7 @@ router.get('/', jwtAuth, async (req: Request, res: Response) => {
 });
 
 // Get full friend key (reveal)
-router.get('/reveal', jwtAuth, async (req: Request, res: Response) => {
+router.get('/reveal', jwtAuth, checkMigration, async (req: Request, res: Response) => {
   try {
     const username = (req as any).user?.username;
     if (!username) {
@@ -45,7 +46,7 @@ router.get('/reveal', jwtAuth, async (req: Request, res: Response) => {
 });
 
 // Create friend key
-router.post('/', jwtAuth, async (req: Request, res: Response) => {
+router.post('/', jwtAuth, checkMigration, async (req: Request, res: Response) => {
   try {
     const username = (req as any).user?.username;
     if (!username) {
@@ -63,7 +64,7 @@ router.post('/', jwtAuth, async (req: Request, res: Response) => {
 });
 
 // Rotate friend key
-router.post('/rotate', jwtAuth, async (req: Request, res: Response) => {
+router.post('/rotate', jwtAuth, checkMigration, async (req: Request, res: Response) => {
   try {
     const username = (req as any).user?.username;
     if (!username) {
@@ -81,7 +82,7 @@ router.post('/rotate', jwtAuth, async (req: Request, res: Response) => {
 });
 
 // Delete friend key
-router.delete('/', jwtAuth, async (req: Request, res: Response) => {
+router.delete('/', jwtAuth, checkMigration, async (req: Request, res: Response) => {
   try {
     const username = (req as any).user?.username;
     if (!username) {
@@ -100,7 +101,7 @@ router.delete('/', jwtAuth, async (req: Request, res: Response) => {
 });
 
 // Update model limits
-router.put('/limits', jwtAuth, async (req: Request, res: Response) => {
+router.put('/limits', jwtAuth, checkMigration, async (req: Request, res: Response) => {
   try {
     const username = (req as any).user?.username;
     if (!username) {

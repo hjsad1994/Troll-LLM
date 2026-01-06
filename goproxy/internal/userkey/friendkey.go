@@ -46,6 +46,8 @@ type FriendKeyOwner struct {
 	Plan       string  `bson:"plan"`
 	Credits    float64 `bson:"credits"`
 	RefCredits float64 `bson:"refCredits"`
+	Role       string  `bson:"role"`      // user role (admin/user)
+	Migration  bool    `bson:"migration"` // true = on new rate, false = needs migration
 }
 
 type FriendKeyValidationResult struct {
@@ -94,7 +96,12 @@ func ValidateFriendKeyBasic(apiKey string) (*FriendKeyValidationResult, error) {
 		return nil, ErrFriendKeyOwnerInactive
 	}
 
-	// 5. Check if owner has credits (no longer checking plan - only credits matter)
+	// 5. Check migration status (admin bypass)
+	if owner.Role != "admin" && !owner.Migration {
+		return nil, ErrMigrationRequired
+	}
+
+	// 6. Check if owner has credits (no longer checking plan - only credits matter)
 	if owner.Credits <= 0 && owner.RefCredits <= 0 {
 		return nil, ErrFriendKeyOwnerNoCredits
 	}
@@ -180,7 +187,12 @@ func ValidateFriendKey(apiKey string, modelID string) (*FriendKeyValidationResul
 		return nil, ErrFriendKeyOwnerInactive
 	}
 
-	// 5. Check if owner has credits (no longer checking plan - only credits matter)
+	// 5. Check migration status (admin bypass)
+	if owner.Role != "admin" && !owner.Migration {
+		return nil, ErrMigrationRequired
+	}
+
+	// 6. Check if owner has credits (no longer checking plan - only credits matter)
 	if owner.Credits <= 0 && owner.RefCredits <= 0 {
 		return nil, ErrFriendKeyOwnerNoCredits
 	}

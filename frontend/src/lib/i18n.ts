@@ -1055,6 +1055,22 @@ export const translations = {
       topUpNow: 'Top-up Now',
       dismiss: 'Dismiss critical credits alert',
     },
+    // Migration Banner
+    migration: {
+      title: 'Rate Update Required',
+      description: 'We are updating our billing rate. Please choose to migrate your credits or request a refund.',
+      requestRefund: 'Request Refund',
+      migrateCredits: 'Migrate Credits',
+      modalTitle: 'Confirm Migration',
+      modalDescription: 'Your credits will be converted to the new rate. This action cannot be undone.',
+      oldRate: 'Old Rate (1,000 VNĐ/$)',
+      newRate: 'New Rate (2,500 VNĐ/$)',
+      difference: 'Difference',
+      warning: 'This action is irreversible. Please confirm you understand your credits will be reduced.',
+      cancel: 'Cancel',
+      confirm: 'Confirm Migration',
+      migrating: 'Migrating...',
+    },
     // Credits Status Widget
     creditsStatus: {
       loading: 'Loading...',
@@ -2442,6 +2458,22 @@ export const translations = {
       requestsRemaining: 'request còn lại',
       topUpNow: 'Nạp ngay',
       dismiss: 'Đóng cảnh báo',
+    },
+    // Migration Banner
+    migration: {
+      title: 'Cập nhật tỷ giá',
+      description: 'Chúng tôi đang cập nhật tỷ giá tính phí. Vui lòng chọn chuyển đổi credits hoặc yêu cầu hoàn tiền.',
+      requestRefund: 'Yêu cầu Hoàn tiền',
+      migrateCredits: 'Chuyển đổi Credits',
+      modalTitle: 'Xác nhận Chuyển đổi',
+      modalDescription: 'Credits của bạn sẽ được chuyển đổi sang tỷ giá mới. Hành động này không thể hoàn tác.',
+      oldRate: 'Tỷ giá cũ (1,000 VNĐ/$)',
+      newRate: 'Tỷ giá mới (2,500 VNĐ/$)',
+      difference: 'Chênh lệch',
+      warning: 'Hành động này không thể hoàn tác. Vui lòng xác nhận bạn hiểu rằng credits sẽ bị giảm.',
+      cancel: 'Hủy',
+      confirm: 'Xác nhận Chuyển đổi',
+      migrating: 'Đang chuyển đổi...',
     },
     // Credits Status Widget
     creditsStatus: {

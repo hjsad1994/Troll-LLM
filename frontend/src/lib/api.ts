@@ -102,6 +102,7 @@ export interface UserProfile {
   purchasedAt: string | null
   expiresAt: string | null
   discordId: string | null
+  migration: boolean
 }
 
 export interface BillingInfo {
@@ -650,6 +651,23 @@ export async function getAvailableModels(): Promise<{ models: ModelConfig[] }> {
   const resp = await fetch('/api/models')
   if (!resp.ok) {
     throw new Error('Failed to get models')
+  }
+  return resp.json()
+}
+
+// Migration API
+export interface MigrationResult {
+  success: boolean
+  oldCredits: number
+  newCredits: number
+  message: string
+}
+
+export async function migrateCredits(): Promise<MigrationResult> {
+  const resp = await fetchWithAuth('/api/user/migrate', { method: 'POST' })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Migration failed')
   }
   return resp.json()
 }

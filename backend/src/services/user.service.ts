@@ -17,6 +17,7 @@ export interface UserProfile {
   purchasedAt: Date | null;
   expiresAt: Date | null;
   discordId: string | null;
+  migration: boolean;
 }
 
 export interface BillingInfo {
@@ -48,6 +49,7 @@ export class UserService {
       purchasedAt: user.purchasedAt || null,
       expiresAt: user.expiresAt || null,
       discordId: user.discordId || null,
+      migration: user.migration || false,
     };
   }
 
