@@ -2435,63 +2435,6 @@ export const translations = {
         deleteFailed: 'Không thể xóa key',
       },
     },
-    // OhMyGPT Backup Keys Page
-    ohmygptBackupKeys: {
-      badge: 'Quản lý OhMyGPT Keys',
-      title: 'OhMyGPT Backup Keys',
-      subtitle: 'Quản lý backup keys cho tự động xoay vòng khi OhMyGPT keys gặp lỗi',
-      stats: {
-        total: 'Tổng Keys',
-        available: 'Khả dụng',
-        used: 'Đã dùng',
-      },
-      readyForRotation: 'keys sẵn sàng cho tự động xoay vòng',
-      addButton: 'Thêm Backup Key',
-      table: {
-        keyId: 'Key ID',
-        apiKey: 'API Key',
-        status: 'Trạng thái',
-        usedFor: 'Dùng cho',
-        created: 'Ngày tạo',
-        actions: 'Hành động',
-        statusAvailable: 'Khả dụng',
-        statusUsed: 'Đã dùng',
-        restore: 'Khôi phục',
-        delete: 'Xóa',
-      },
-      empty: {
-        title: 'Chưa có backup keys nào',
-        description: 'Thêm keys để tự động xoay vòng khi OhMyGPT keys gặp lỗi',
-        cta: 'Thêm backup key đầu tiên',
-      },
-      loading: 'Đang tải keys...',
-      info: {
-        title: 'Cách OhMyGPT Backup Keys Hoạt động',
-        description: 'Backup keys tự động được sử dụng khi key OhMyGPT chính gặp lỗi 401 không hợp lệ, 402 hết quota, hoặc 403 bị cấm. Hệ thống sẽ tự động chuyển sang backup key khả dụng để đảm bảo dịch vụ không bị gián đoạn. Khi backup key được sử dụng, nó sẽ được đánh dấu "Đã dùng" và có thể khôi phục thủ công nếu cần.',
-      },
-      modal: {
-        title: 'Thêm OhMyGPT Backup Key',
-        keyIdLabel: 'ID Key',
-        keyIdPlaceholder: 'VD: omg-backup-1',
-        apiKeyLabel: 'API Key',
-        apiKeyPlaceholder: 'sk-...',
-        warning: 'Backup keys sẽ tự động được sử dụng khi key OhMyGPT chính gặp lỗi (401 không hợp lệ, 402 hết quota, 403 bị cấm).',
-        submit: 'Thêm Backup Key',
-      },
-      confirm: {
-        restore: 'Khôi phục key này về trạng thái khả dụng?',
-        delete: 'Xóa backup key này?',
-      },
-      toast: {
-        loadFailed: 'Không thể tải backup keys',
-        addSuccess: 'Đã thêm backup key thành công',
-        addFailed: 'Không thể thêm key',
-        restoreSuccess: 'Đã khôi phục backup key về trạng thái khả dụng',
-        restoreFailed: 'Không thể khôi phục key',
-        deleteSuccess: 'Đã xóa backup key',
-        deleteFailed: 'Không thể xóa key',
-      },
-    },
     // Critical Credits Banner
     criticalBanner: {
       creditsLow: 'Sắp hết credits!',
