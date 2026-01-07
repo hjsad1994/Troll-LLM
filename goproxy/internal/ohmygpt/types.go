@@ -26,7 +26,7 @@ func SanitizeError(statusCode int, originalError []byte) []byte {
 	case 401:
 		return []byte(`{"error":{"message":"Authentication failed","type":"authentication_error","code":"invalid_api_key"}}`)
 	case 402:
-		return []byte(`{"error":{"message":"Insufficient credits. Please purchase credits to continue.","type":"insufficient_quota","code":"insufficient_credits"}}`)
+		return []byte(`{"error":{"message":"Upstream service error. Please try again.","type":"upstream_error","code":"upstream_error"}}`)
 	case 403:
 		return []byte(`{"error":{"message":"Access denied","type":"permission_error","code":"permission_denied"}}`)
 	case 404:
@@ -49,7 +49,7 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 	case 401:
 		return []byte(`{"type":"error","error":{"type":"authentication_error","message":"Authentication failed"}}`)
 	case 402:
-		return []byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Please purchase credits to continue."}}`)
+		return []byte(`{"type":"error","error":{"type":"upstream_error","message":"Upstream service error. Please try again."}}`)
 	case 403:
 		return []byte(`{"type":"error","error":{"type":"permission_error","message":"Access denied"}}`)
 	case 404:
