@@ -205,16 +205,18 @@ export default function ModelsPage() {
 
   useEffect(() => {
     // Use static fallback data from config-openhands-prod.json
+    // Only Claude models are active - non-Claude models commented out for Claude Code integration focus
     const fallbackModels: ApiModel[] = [
       { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', type: 'openhands', reasoning: 'high', inputPricePerMTok: 5.0, outputPricePerMTok: 25.0, cacheWritePricePerMTok: 6.25, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.04 },
       { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', type: 'openhands', reasoning: 'high', inputPricePerMTok: 3.0, outputPricePerMTok: 15.0, cacheWritePricePerMTok: 3.75, cacheHitPricePerMTok: 0.3, billingMultiplier: 1.04 },
-      { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', type: 'openhands', reasoning: 'high', inputPricePerMTok: 2.0, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.04 },
-      { id: 'glm-4.6', name: 'GLM-4.6', type: 'openhands', reasoning: 'medium', inputPricePerMTok: 0.6, outputPricePerMTok: 2.2, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.08, billingMultiplier: 1.04 },
+      // Non-Claude models commented out - can be re-enabled if needed
+      // { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', type: 'openhands', reasoning: 'high', inputPricePerMTok: 2.0, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.04 },
+      // { id: 'glm-4.6', name: 'GLM-4.6', type: 'openhands', reasoning: 'medium', inputPricePerMTok: 0.6, outputPricePerMTok: 2.2, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.08, billingMultiplier: 1.04 },
       { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', type: 'openhands', reasoning: 'low', inputPricePerMTok: 1.0, outputPricePerMTok: 5.0, cacheWritePricePerMTok: 1.25, cacheHitPricePerMTok: 0.1, billingMultiplier: 1.04 },
-      { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 1.56, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
-      { id: 'gpt-5.1', name: 'GPT 5.1', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
-      { id: 'gpt-5.2', name: 'GPT-5.2', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.17, billingMultiplier: 1.04 },
-      { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', type: 'openhands', reasoning: 'high', inputPricePerMTok: 0.6, outputPricePerMTok: 2.5, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.04 },
+      // { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 1.56, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
+      // { id: 'gpt-5.1', name: 'GPT 5.1', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 10.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.04 },
+      // { id: 'gpt-5.2', name: 'GPT-5.2', type: 'openhands', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.17, billingMultiplier: 1.04 },
+      // { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', type: 'openhands', reasoning: 'high', inputPricePerMTok: 0.6, outputPricePerMTok: 2.5, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.04 },
     ]
     setModels(fallbackModels.map(transformApiModel))
     setLoading(false)
