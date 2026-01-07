@@ -11,8 +11,8 @@ export const VND_RATE = 2500; // 2500 VND = $1 (selling price)
 export const VALIDITY_DAYS = 7;
 
 // Profit calculation constants
-// Selling price: 2500 VND per $1, Cost: 1835 VND per $1, Profit: 665 VND per $1
-export const PROFIT_VND_PER_USD = 665; // Profit per $1 credits sold (2500 - 1835)
+// Selling price: 2500 VND per $1, Profit: 740 VND per $1
+export const PROFIT_VND_PER_USD = 740; // Profit per $1 credits sold
 export const PROFIT_CUTOFF_DATE = '2026-01-06T20:49:00+07:00'; // Vietnam timezone (UTC+7)
 
 export interface IPayment {

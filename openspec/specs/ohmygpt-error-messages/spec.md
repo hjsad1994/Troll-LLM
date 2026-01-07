@@ -1,19 +1,13 @@
 # ohmygpt-error-messages Specification
 
 ## Purpose
-
-Defines error message responses returned to users when OhMyGPT upstream requests fail, ensuring messages are accurate, not misleading, and don't expose upstream provider details.
-
-## MODIFIED Requirements
-
-### Requirement: OhMyGPT 402 Error Message (MODIFIED)
+TBD - created by archiving change fix-ohmygpt-402-error-message. Update Purpose after archive.
+## Requirements
+### Requirement: OhMyGPT 402 Error Message
 
 When an OhMyGPT upstream API key returns a 402 (Payment Required) error due to insufficient balance or quota, the system SHALL return a generic upstream error message that does NOT mention purchasing credits or user billing actions.
 
-**Modification Details:**
-- **Old Message:** "Insufficient credits. Please purchase credits to continue."
-- **New Message:** "Upstream service error. Please try again."
-- **Rationale:** The old message misled users into thinking they needed to buy more credits from TrollLLM, when actually the upstream OhMyGPT key quota was exhausted. The system automatically rotates to backup keys, so the issue is temporary and resolved by retry.
+The error message returned to users is "Upstream service error. Please try again." instead of mentioning credits or billing, which more accurately reflects that the issue is with the upstream provider's key quota, not the user's TrollLLM account balance.
 
 #### Scenario: User receives sanitized 402 error (OpenAI format)
 - **Given** an OhMyGPT upstream request returns HTTP 402
@@ -60,3 +54,4 @@ When an OhMyGPT upstream API key returns a 402 (Payment Required) error due to i
 - **When** `SanitizeError()` or `SanitizeAnthropicError()` is called with status codes other than 402
 - **Then** the existing error messages SHALL remain unchanged
 - **And** only the 402 case SHALL be modified by this change
+

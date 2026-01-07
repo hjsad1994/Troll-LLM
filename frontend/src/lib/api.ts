@@ -376,6 +376,8 @@ export interface ModelStats {
   model: string
   inputTokens: number
   outputTokens: number
+  cacheWriteTokens: number
+  cacheHitTokens: number
   totalTokens: number
   creditsBurned: number
   requestCount: number

@@ -1,5 +1,23 @@
 # Proposal: fix-ohmygpt-402-error-message
 
+## Why
+
+The current error message for OhMyGPT 402 errors is misleading to users. When an upstream OhMyGPT API key runs out of quota (HTTP 402), users see "Insufficient credits. Please purchase credits to continue." This causes confusion because:
+
+1. **User Misunderstanding**: Users believe they need to purchase more credits from TrollLLM, when in fact their TrollLLM account balance is unaffected.
+2. **Upstream Issue, Not User Issue**: The actual problem is that the upstream OhMyGPT provider's API key quota has been exhausted.
+3. **Automatic Recovery**: The system already auto-rotates to backup keys and retries, so the issue often resolves without user action.
+4. **Vietnamese Context**: Vietnamese users interpret "hết tiền" (out of money) as their TrollLLM account being empty, leading to unnecessary support requests.
+
+## What Changes
+
+This change modifies the error sanitization functions in `goproxy/internal/ohmygpt/types.go` to return a generic "upstream service error" message instead of the misleading "insufficient credits" message:
+
+- **OpenAI Format** (`SanitizeError()`): Change 402 response to `{"error":{"message":"Upstream service error. Please try again.","type":"upstream_error","code":"upstream_error"}}`
+- **Anthropic Format** (`SanitizeAnthropicError()`): Change 402 response to `{"type":"error","error":{"type":"upstream_error","message":"Upstream service error. Please try again."}}`
+
+The original upstream error remains logged for debugging (hidden from users). Auto-rotation behavior is unchanged.
+
 ## Summary
 
 Fix the misleading error message returned to users when the upstream OhMyGPT API key runs out of quota. Currently, when OhMyGPT returns a 402 error (insufficient balance/quota), the proxy sanitizes this to "Insufficient credits. Please purchase credits to continue." which confuses users into thinking they need to buy more credits from TrollLLM, when actually the upstream provider key has been exhausted and the system is rotating to a backup key.

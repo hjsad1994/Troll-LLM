@@ -114,7 +114,7 @@ export class PaymentRepository {
         {
           $addFields: {
             // Calculate profit only for successful payments completed after cutoff date
-            // Profit = credits * 665 (where 665 = 2500 - 1835)
+            // Profit = credits * PROFIT_VND_PER_USD
             profitVND: {
               $cond: [
                 {
@@ -173,7 +173,7 @@ export class PaymentRepository {
             $sum: { $cond: [{ $in: ['$status', ['failed', 'expired']] }, 1, 0] }
           },
           // Calculate profit only for successful payments completed after cutoff date
-          // Profit = credits * 665 (where 665 = 2500 - 1835)
+          // Profit = credits * PROFIT_VND_PER_USD
           totalProfit: {
             $sum: {
               $cond: [

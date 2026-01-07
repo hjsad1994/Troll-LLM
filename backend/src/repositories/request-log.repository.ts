@@ -346,6 +346,8 @@ export class RequestLogRepository {
     model: string;
     inputTokens: number;
     outputTokens: number;
+    cacheWriteTokens: number;
+    cacheHitTokens: number;
     totalTokens: number;
     creditsBurned: number;
     requestCount: number;
@@ -362,13 +364,17 @@ export class RequestLogRepository {
           _id: '$model',
           inputTokens: { $sum: { $ifNull: ['$inputTokens', 0] } },
           outputTokens: { $sum: { $ifNull: ['$outputTokens', 0] } },
+          cacheWriteTokens: { $sum: { $ifNull: ['$cacheWriteTokens', 0] } },
+          cacheHitTokens: { $sum: { $ifNull: ['$cacheHitTokens', 0] } },
           creditsBurned: { $sum: { $ifNull: ['$creditsCost', 0] } },
           requestCount: { $sum: 1 },
         },
       },
       {
         $addFields: {
-          totalTokens: { $add: ['$inputTokens', '$outputTokens'] },
+          totalTokens: {
+            $add: ['$inputTokens', '$outputTokens', '$cacheWriteTokens', '$cacheHitTokens']
+          },
         },
       },
       { $sort: { totalTokens: -1 } },
@@ -378,6 +384,8 @@ export class RequestLogRepository {
       model: r._id || 'unknown',
       inputTokens: r.inputTokens || 0,
       outputTokens: r.outputTokens || 0,
+      cacheWriteTokens: r.cacheWriteTokens || 0,
+      cacheHitTokens: r.cacheHitTokens || 0,
       totalTokens: r.totalTokens || 0,
       creditsBurned: r.creditsBurned || 0,
       requestCount: r.requestCount || 0,
