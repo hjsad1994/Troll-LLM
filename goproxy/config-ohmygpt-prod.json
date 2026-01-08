@@ -56,7 +56,7 @@
       "cache_hit_price_per_mtok": 0.11,
       "batch_input_price_per_mtok": 0.55,
       "batch_output_price_per_mtok": 2.75,
-      "billing_multiplier": 1.06,
+      "billing_multiplier": 1.05,
       "upstream": "ohmygpt",
       "upstream_model_id": "claude-haiku-4-5-20251001"
     }
