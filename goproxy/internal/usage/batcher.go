@@ -60,12 +60,14 @@ type usageUpdate struct {
 }
 
 type creditUpdate struct {
-	username      string
-	cost          float64 // USD cost to deduct
-	tokensUsed    int64   // kept for analytics
-	inputTokens   int64
-	outputTokens  int64
-	useRefCredits bool // true if deducting from refCredits
+	username         string
+	cost             float64 // USD cost to deduct
+	tokensUsed       int64   // kept for analytics
+	inputTokens      int64
+	outputTokens     int64
+	cacheWriteTokens int64
+	cacheHitTokens   int64
+	useRefCredits    bool // true if deducting from refCredits
 }
 
 var (
@@ -128,7 +130,7 @@ func (b *BatchedUsageTracker) QueueUsageUpdate(apiKey string, tokensUsed int64) 
 
 // QueueCreditUpdate queues a credits (USD) deduction update for batch processing
 // It automatically checks user's current credits to determine if refCredits should be used
-func (b *BatchedUsageTracker) QueueCreditUpdate(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) {
+func (b *BatchedUsageTracker) QueueCreditUpdate(username string, cost float64, tokensUsed, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) {
 	// Check user's current credits balance to determine where to deduct from
 	useRefCredits := false
 	credits, refCredits, err := getUserCreditsForBatcher(username)
@@ -141,19 +143,21 @@ func (b *BatchedUsageTracker) QueueCreditUpdate(username string, cost float64, t
 			useRefCredits = credits < cost
 		}
 	}
-	b.QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, useRefCredits)
+	b.QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, useRefCredits)
 }
 
 // QueueCreditUpdateWithRef queues a credits (USD) deduction update with optional refCredits flag
-func (b *BatchedUsageTracker) QueueCreditUpdateWithRef(username string, cost float64, tokensUsed, inputTokens, outputTokens int64, useRefCredits bool) {
+func (b *BatchedUsageTracker) QueueCreditUpdateWithRef(username string, cost float64, tokensUsed, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64, useRefCredits bool) {
 	select {
 	case b.creditChan <- creditUpdate{
-		username:     username,
-		cost:         cost,
-		tokensUsed:    tokensUsed,
-		inputTokens:   inputTokens,
-		outputTokens:  outputTokens,
-		useRefCredits: useRefCredits,
+		username:         username,
+		cost:             cost,
+		tokensUsed:       tokensUsed,
+		inputTokens:      inputTokens,
+		outputTokens:     outputTokens,
+		cacheWriteTokens: cacheWriteTokens,
+		cacheHitTokens:   cacheHitTokens,
+		useRefCredits:    useRefCredits,
 	}:
 	default:
 		log.Printf("⚠️ [BatchedUsageTracker] Credit channel full, dropping update")
@@ -271,6 +275,8 @@ type creditAggregation struct {
 	creditsUsed        float64
 	inputTokens        int64
 	outputTokens       int64
+	cacheWriteTokens   int64
+	cacheHitTokens     int64
 }
 
 // creditWorker processes credits (USD) deduction updates in batches using bulk write
@@ -390,7 +396,7 @@ func (b *BatchedUsageTracker) creditWorker() {
 				existing = &creditAggregation{}
 				updates[update.username] = existing
 			}
-			
+
 			// Track credits in appropriate bucket
 			if update.useRefCredits {
 				existing.refCreditsToDeduct += update.cost
@@ -400,6 +406,8 @@ func (b *BatchedUsageTracker) creditWorker() {
 			existing.creditsUsed += update.cost
 			existing.inputTokens += update.inputTokens
 			existing.outputTokens += update.outputTokens
+			existing.cacheWriteTokens += update.cacheWriteTokens
+			existing.cacheHitTokens += update.cacheHitTokens
 			
 			if len(updates) >= b.config.MaxBatchSize {
 				flush()

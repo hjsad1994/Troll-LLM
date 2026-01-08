@@ -210,7 +210,7 @@ func DeductCreditsWithRefCheck(username string, cost float64, tokensUsed, inputT
 
 	// Use batched writes if enabled
 	if UseBatchedWrites {
-		GetBatcher().QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, useRefCredits)
+		GetBatcher().QueueCreditUpdateWithRef(username, cost, tokensUsed, inputTokens, outputTokens, 0, 0, useRefCredits)
 		if useRefCredits {
 			log.Printf("💰 [%s] Deducted $%.6f from refCredits (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
 		} else {
@@ -245,7 +245,7 @@ func DeductCreditsWithCache(username string, cost float64, tokensUsed, inputToke
 	// Use batched writes if enabled
 	// Note: Batched writes have pre-check in the batcher queue
 	if UseBatchedWrites {
-		GetBatcher().QueueCreditUpdate(username, cost, tokensUsed, inputTokens, outputTokens)
+		GetBatcher().QueueCreditUpdate(username, cost, tokensUsed, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 		if cacheWriteTokens > 0 || cacheHitTokens > 0 {
 			log.Printf("💰 [%s] Deducted $%.6f (in=%d, out=%d, cache_write=%d, cache_hit=%d)", username, cost, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
 		} else {
