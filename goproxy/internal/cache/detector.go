@@ -388,15 +388,19 @@ func (d *CacheDetector) RecordError(model string, statusCode int, errorMsg strin
 }
 
 // modelSupportsCache checks if a model supports prompt caching
+// Note: Prompt caching is ONLY available for Anthropic format (/v1/messages), not OpenAI format (/v1/chat/completions)
 func (d *CacheDetector) modelSupportsCache(model string) bool {
-	cacheModels := []string{
-		"claude-opus-4.5",
-		"claude-sonnet-4.5",
-		"claude-haiku-4.5",
+	// Support both dot notation (claude-opus-4.5) and dash notation (claude-opus-4-5)
+	cacheModels := [][]string{
+		{"claude-opus-4.5", "claude-opus-4-5"},
+		{"claude-sonnet-4.5", "claude-sonnet-4-5"},
+		{"claude-haiku-4.5", "claude-haiku-4-5"},
 	}
-	for _, m := range cacheModels {
-		if strings.Contains(model, m) {
-			return true
+	for _, variants := range cacheModels {
+		for _, m := range variants {
+			if strings.Contains(model, m) {
+				return true
+			}
 		}
 	}
 	return false

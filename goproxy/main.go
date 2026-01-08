@@ -1869,11 +1869,6 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 				LatencyMs:        latencyMs,
 			})
 		}
-
-		// Check for cache fallback and record event
-		if detector := cache.GetCacheDetector(); detector != nil && detector.IsEnabled() {
-			detector.RecordEvent(modelID, input, cacheHit, cacheWrite)
-		}
 	}
 
 	// Handle response
