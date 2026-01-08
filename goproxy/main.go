@@ -27,6 +27,7 @@ import (
 	"goproxy/internal/openhands"
 	"goproxy/internal/openhandspool"
 	"goproxy/internal/ohmygpt"
+	"goproxy/internal/glm"
 	"goproxy/internal/cache"
 	"goproxy/internal/usage"
 	"goproxy/internal/userkey"
@@ -235,8 +236,27 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 		}, nil, nil
 	}
 
-	// OhMyGPT routing
+	// OhMyGPT routing with failover support
 	if upstream == "ohmygpt" {
+		// Check failover state BEFORE routing to OhMyGPT
+		failoverManager := cache.GetFailoverManager()
+		if failoverManager != nil && failoverManager.IsEnabled() && failoverManager.IsInFailover(modelID) {
+			// Failover is active, route to GLM instead
+			glmProvider := glm.GetGLM()
+			if glmProvider == nil || !glmProvider.IsConfigured() {
+				log.Printf("⚠️ [Model Routing] %s failover active but GLM not configured, falling back to OhMyGPT", modelID)
+			} else {
+				failoverUntil := failoverManager.GetFailoverUntil(modelID)
+				log.Printf("🔄 [Model Routing] %s -> GLM (failover active until %s)", modelID, failoverUntil.Format("15:04:05"))
+				return &UpstreamConfig{
+					EndpointURL: "", // handled by GLM provider
+					APIKey:      "", // handled by GLM provider
+					UseProxy:    false,
+					KeyID:       "glm",
+				}, nil, nil
+			}
+		}
+
 		// Use OhMyGPT via TrollProxy with key rotation
 		ohmygptProvider := ohmygpt.GetOhMyGPT()
 		if ohmygptProvider == nil || !ohmygptProvider.IsConfigured() {
@@ -847,6 +867,8 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else if upstreamConfig.KeyID == "ohmygpt" {
 			handleOhMyGPTOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+		} else if upstreamConfig.KeyID == "glm" {
+			handleGLMOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else {
 			handleTrollOpenAIRequest(w, r, &openaiReq, model, authHeader, selectedProxy, clientAPIKey, trollKeyID, username, bodyBytes)
 		}
@@ -860,6 +882,8 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		// OhMyGPT: Always forward OpenAI format to /v1/chat/completions
 		if upstreamConfig.KeyID == "ohmygpt" {
 			handleOhMyGPTOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+		} else if upstreamConfig.KeyID == "glm" {
+			handleGLMOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		}
 	default:
 		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
@@ -872,6 +896,12 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	// For "main" upstream: use maintarget package (passthrough to external proxy)
 	if upstreamConfig.KeyID == "main" {
 		handleMainTargetRequest(w, openaiReq, bodyBytes, model.ID, userApiKey, username)
+		return
+	}
+
+	// For "glm" upstream: use GLM provider (failover)
+	if upstreamConfig.KeyID == "glm" {
+		handleGLMMessagesRequest(w, bodyBytes, openaiReq.Stream, model.ID, userApiKey, username)
 		return
 	}
 
@@ -1984,6 +2014,155 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 	}
 }
 
+// handleGLMOpenAIRequest handles /v1/chat/completions requests routed to GLM (failover provider)
+func handleGLMOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
+	glmProvider := glm.GetGLM()
+	if glmProvider == nil || !glmProvider.IsConfigured() {
+		http.Error(w, `{"error": {"message": "GLM not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Serialize request
+	requestBody, err := json.Marshal(openaiReq)
+	if err != nil {
+		log.Printf("❌ [GLM-OpenAI] Failed to serialize request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	isStreaming := openaiReq.Stream
+	log.Printf("📤 [GLM-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, failover=true)", modelID, isStreaming)
+
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+
+	// Forward request using GLM provider with model mapping
+	resp, err := glmProvider.ForwardRequest(requestBody, isStreaming, modelID)
+	if err != nil {
+		log.Printf("❌ [GLM-OpenAI] Request failed after %v: %v", time.Since(requestStartTime), err)
+		http.Error(w, `{"error": {"message": "Request to GLM failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback for billing and logging
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCreditsWithCache(username, billingCost, billingTokens, input, output, cacheWrite, cacheHit)
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+			// Log request to request_logs collection
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				FactoryKeyID:     "glm-failover",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+	}
+
+	// Handle response
+	if isStreaming {
+		glmProvider.HandleStreamResponse(w, resp, modelID, onUsage)
+	} else {
+		glmProvider.HandleNonStreamResponse(w, resp, modelID, onUsage)
+	}
+}
+
+// handleGLMMessagesRequest handles /v1/messages requests routed to GLM (failover provider)
+func handleGLMMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
+	glmProvider := glm.GetGLM()
+	if glmProvider == nil || !glmProvider.IsConfigured() {
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"GLM not configured"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Parse request to transform Anthropic format to OpenAI format
+	var anthropicReq transformers.AnthropicRequest
+	if err := json.Unmarshal(originalBody, &anthropicReq); err != nil {
+		log.Printf("❌ [GLM-Anthropic] Failed to parse request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Failed to parse request"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Transform Anthropic request to OpenAI format for GLM
+	openaiReq := transformers.TransformToOpenAI(&anthropicReq)
+	openaiReq.Model = modelID // Keep original model ID for GLM to map
+
+	// Serialize request
+	requestBody, err := json.Marshal(openaiReq)
+	if err != nil {
+		log.Printf("❌ [GLM-Anthropic] Failed to serialize request: %v", err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Failed to serialize request"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("📤 [GLM-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, failover=true)", modelID, isStreaming)
+
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+
+	// Forward request using GLM provider with model mapping
+	resp, err := glmProvider.ForwardRequest(requestBody, isStreaming, modelID)
+	if err != nil {
+		log.Printf("❌ [GLM-Anthropic] Request failed after %v: %v", time.Since(requestStartTime), err)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to GLM failed"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback for billing and logging
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			if username != "" {
+				usage.DeductCreditsWithCache(username, billingCost, billingTokens, input, output, cacheWrite, cacheHit)
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+			// Log request to request_logs collection
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				FactoryKeyID:     "glm-failover",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+		}
+	}
+
+	// Handle response
+	if isStreaming {
+		glmProvider.HandleStreamResponse(w, resp, modelID, onUsage)
+	} else {
+		glmProvider.HandleNonStreamResponse(w, resp, modelID, onUsage)
+	}
+}
+
 // Handle TrollOpenAI type request
 func handleTrollOpenAIRequest(w http.ResponseWriter, r *http.Request, openaiReq *transformers.OpenAIRequest, model *config.Model, authHeader string, selectedProxy *proxy.Proxy, userApiKey string, trollKeyID string, username string, bodyBytes []byte) {
 	// Transform request
@@ -3091,6 +3270,12 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		handleOhMyGPTMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
 		return
 	}
+
+	// For "glm" upstream: forward via GLM Provider (failover)
+	if upstreamConfig.KeyID == "glm" {
+		handleGLMMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
+		return
+	}
 	// NEW MODEL-BASED ROUTING - END
 
 	// Normalize message content format (convert string to array if needed)
@@ -3760,6 +3945,16 @@ func main() {
 
 	// Start OhMyGPT backup key cleanup job (runs every 1 minute, deletes keys used > 12h)
 	ohmygpt.StartOhMyGPTBackupKeyCleanupJob(1 * time.Minute)
+
+	// Initialize GLM provider for failover
+	if err := glm.ConfigureGLM(); err != nil {
+		log.Printf("⚠️ GLM configuration failed: %v (failover will not be available)", err)
+	} else {
+		glmProvider := glm.GetGLM()
+		if glmProvider.IsConfigured() {
+			log.Printf("✅ GLM provider configured for failover")
+		}
+	}
 
 	// Initialize cache fallback detection
 	cacheDetectionEnabled := getEnv("CACHE_FALLBACK_DETECTION", "false") == "true"

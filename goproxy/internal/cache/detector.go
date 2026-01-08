@@ -306,6 +306,9 @@ func InitCacheDetectorWithError(enabled bool, thresholdCount int, errorThreshold
 
 		log.Printf("✅ Detection enabled: cache_threshold=%d, error_threshold=%d, window=%v, alert_interval=%v",
 			thresholdCount, errorThreshold, windowSize, alertInterval)
+
+		// Initialize failover manager
+		GetFailoverManager()
 	})
 	return globalDetector
 }
@@ -350,7 +353,16 @@ func (d *CacheDetector) RecordEvent(model string, inputTokens, cacheRead, cacheW
 	d.buffer.AddEvent(event)
 	log.Printf("⚠️  [Cache Fallback] Event recorded: model=%s tokens=%d loss=$%.4f", model, inputTokens, loss)
 
-	// 6. Check if we should alert
+	// 6. Check if we should trigger failover (before alerting)
+	failoverManager := GetFailoverManager()
+	if failoverManager != nil && failoverManager.IsEnabled() {
+		if failoverManager.ShouldTriggerFailover(model, inputTokens, cacheRead, cacheWrite, loss) {
+			failoverManager.ActivateFailover(model)
+			log.Printf("🔄 [Cache Fallback] Failover activated for %s due to cache loss threshold exceeded", model)
+		}
+	}
+
+	// 7. Check if we should alert
 	eventsInWindow := d.buffer.GetEventsInWindow()
 	if len(eventsInWindow) >= d.thresholdCount {
 		d.maybeSendAlert(eventsInWindow)
