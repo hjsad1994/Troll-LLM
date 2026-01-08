@@ -301,33 +301,36 @@ func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float
 	return inputCost + outputCost
 }
 
+// DEPRECATED: Cache hit discount removed - now using original cache hit tokens from upstream
 // CacheHitDiscount is the discount applied to cache hit tokens for billing
 // 0.90 means only 90% of cache hits are recognized, charging user 10% more
 // Only applied to non-openhands models
-const CacheHitDiscount = 0.90
+// const CacheHitDiscount = 0.90
 
+// DEPRECATED: Cache hit discount removed - now using original cache hit tokens from upstream
 // EffectiveCacheHit returns the discounted cache hit tokens for billing
 // Deprecated: Use EffectiveCacheHitForModel instead for model-specific discount
-func EffectiveCacheHit(cacheHitTokens int64) int64 {
-	return int64(float64(cacheHitTokens) * CacheHitDiscount)
-}
+// func EffectiveCacheHit(cacheHitTokens int64) int64 {
+// 	return int64(float64(cacheHitTokens) * CacheHitDiscount)
+// }
 
+// DEPRECATED: Cache hit discount removed - now using original cache hit tokens from upstream
 // EffectiveCacheHitForModel returns the effective cache hit tokens for billing
 // OpenHands models do not get cache hit discount (1.0 = full credit)
 // Other models get CacheHitDiscount (0.90 = 10% penalty)
-func EffectiveCacheHitForModel(modelID string, cacheHitTokens int64) int64 {
-	model := GetModelByID(modelID)
-	if model != nil && model.Upstream == "openhands" {
-		return cacheHitTokens // No discount for OpenHands
-	}
-	return int64(float64(cacheHitTokens) * CacheHitDiscount)
-}
+// func EffectiveCacheHitForModel(modelID string, cacheHitTokens int64) int64 {
+// 	model := GetModelByID(modelID)
+// 	if model != nil && model.Upstream == "openhands" {
+// 		return cacheHitTokens // No discount for OpenHands
+// 	}
+// 	return int64(float64(cacheHitTokens) * CacheHitDiscount)
+// }
 
 // CalculateBillingCostWithCache calculates the cost in USD including cache tokens
 // Note: For most providers, input_tokens includes ALL tokens (cached + uncached)
 // We subtract both cacheHit and cacheWrite from input to get uncached tokens only
 // EXCEPTION: OpenHands already returns input_tokens as uncached only, so no subtraction needed
-// Cache hit tokens are discounted by CacheHitDiscount (10% reduction) for non-openhands models
+// Uses original cache hit tokens from upstream (no discount applied)
 // Finally applies billing_multiplier from config (default 1.0)
 func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
 	return CalculateBillingCostWithCacheAndBatch(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, false)
@@ -377,13 +380,13 @@ func CalculateBillingCostWithCacheAndBatch(modelID string, inputTokens, outputTo
 			modelID, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice, multiplier)
 	}
 
-	// Apply discount based on model type (no discount for OpenHands)
-	effectiveCacheHit := EffectiveCacheHitForModel(modelID, cacheHitTokens)
+	// For OpenHands: input_tokens is already uncached, don't subtract
+	// For others: input_tokens includes cache, need to subtract
 	var actualInputTokens int64
 	if model != nil && model.Upstream == "openhands" {
 		actualInputTokens = inputTokens // OpenHands already returns net input
 	} else {
-		actualInputTokens = inputTokens - effectiveCacheHit - cacheWriteTokens
+		actualInputTokens = inputTokens - cacheHitTokens - cacheWriteTokens
 		if actualInputTokens < 0 {
 			actualInputTokens = 0
 		}
@@ -392,7 +395,7 @@ func CalculateBillingCostWithCacheAndBatch(modelID string, inputTokens, outputTo
 	inputCost := (float64(actualInputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
 	cacheWriteCost := (float64(cacheWriteTokens) / 1_000_000) * cacheWritePrice
-	cacheHitCost := (float64(effectiveCacheHit) / 1_000_000) * cacheHitPrice
+	cacheHitCost := (float64(cacheHitTokens) / 1_000_000) * cacheHitPrice
 
 	baseCost := inputCost + outputCost + cacheWriteCost + cacheHitCost
 	return baseCost * multiplier
@@ -408,15 +411,12 @@ func CalculateBillingTokens(modelID string, inputTokens, outputTokens int64) int
 // - cache_write: typically 1.25x input (more expensive to write)
 // - cache_hit: typically 0.1x input (much cheaper to read from cache)
 // EXCEPTION: OpenHands already returns input_tokens as uncached only, so no subtraction needed
-// Cache hit tokens are discounted by CacheHitDiscount (10% reduction) for non-openhands models
+// Uses original cache hit tokens from upstream (no discount applied)
 // Finally applies billing_multiplier from config (default 1.0)
 func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) int64 {
 	inputPrice, _ := GetModelPricing(modelID)
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
 	multiplier := GetBillingMultiplier(modelID)
-
-	// Apply discount based on model type (no discount for OpenHands)
-	effectiveCacheHit := EffectiveCacheHitForModel(modelID, cacheHitTokens)
 
 	// For OpenHands: input_tokens is already uncached, don't subtract
 	// For others: input_tokens includes cache, need to subtract
@@ -425,7 +425,7 @@ func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, 
 	if model != nil && model.Upstream == "openhands" {
 		actualInputTokens = inputTokens // OpenHands already returns net input
 	} else {
-		actualInputTokens = inputTokens - effectiveCacheHit - cacheWriteTokens
+		actualInputTokens = inputTokens - cacheHitTokens - cacheWriteTokens
 		if actualInputTokens < 0 {
 			actualInputTokens = 0
 		}
@@ -442,7 +442,7 @@ func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, 
 	// Effective tokens = actual input + output + weighted cache tokens
 	effectiveTokens := float64(actualInputTokens) + float64(outputTokens) +
 		float64(cacheWriteTokens)*cacheWriteWeight +
-		float64(effectiveCacheHit)*cacheHitWeight
+		float64(cacheHitTokens)*cacheHitWeight
 
 	return int64(effectiveTokens * multiplier)
 }
