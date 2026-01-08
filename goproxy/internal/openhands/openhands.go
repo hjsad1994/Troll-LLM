@@ -735,7 +735,7 @@ func (p *OpenHandsProvider) retryWithNextKeyToEndpoint(endpoint string, body []b
 
 // HandleStreamResponse handles streaming response from OpenHands (pure passthrough)
 // Supports both OpenAI and Anthropic streaming formats
-func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
+func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage UsageCallback) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("❌ [Troll-LLM] Error %d", resp.StatusCode)
@@ -850,7 +850,7 @@ func (p *OpenHandsProvider) HandleStreamResponse(w http.ResponseWriter, resp *ht
 }
 
 // HandleNonStreamResponse handles non-streaming response from OpenHands (pure passthrough)
-func (p *OpenHandsProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
+func (p *OpenHandsProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage UsageCallback) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"error":"failed to read response"}`, http.StatusInternalServerError)

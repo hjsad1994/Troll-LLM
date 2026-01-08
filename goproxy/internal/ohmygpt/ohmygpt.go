@@ -17,6 +17,7 @@ import (
 	"goproxy/config"
 	"goproxy/db"
 	"goproxy/internal/proxy"
+	"goproxy/internal/cache"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"golang.org/x/net/http2"
@@ -106,6 +107,11 @@ func GetOhMyGPT() *OhMyGPTProvider {
 		}
 	})
 	return ohmygptInstance
+}
+
+// GetCacheDetector returns the cache detector instance (helper for ohmygpt package)
+func GetCacheDetector() *cache.CacheDetector {
+	return cache.GetCacheDetector()
 }
 
 // ConfigureOhMyGPT initializes the OhMyGPT provider and loads keys from MongoDB
@@ -907,10 +913,17 @@ func (p *OhMyGPTProvider) retryWithNextKeyToEndpoint(endpoint string, body []byt
 }
 
 // HandleStreamResponse handles streaming response from OhMyGPT (pure passthrough)
-func (p *OhMyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
+func (p *OhMyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage UsageCallback) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("❌ [Troll-LLM] OhMyGPT Error %d", resp.StatusCode)
+
+		// Track 500 errors for alerting
+		if detector := GetCacheDetector(); detector != nil && detector.IsEnabled() && resp.StatusCode >= 500 && resp.StatusCode < 600 {
+			bodyStr := string(body)
+			detector.RecordError(modelID, resp.StatusCode, bodyStr)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))
@@ -1022,7 +1035,7 @@ func (p *OhMyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http
 }
 
 // HandleNonStreamResponse handles non-streaming response from OhMyGPT (pure passthrough)
-func (p *OhMyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback) {
+func (p *OhMyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage UsageCallback) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"error":"failed to read response"}`, http.StatusInternalServerError)
@@ -1031,6 +1044,13 @@ func (p *OhMyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *h
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("❌ [Troll-LLM] OhMyGPT Error %d", resp.StatusCode)
+
+		// Track 500 errors for alerting
+		if detector := GetCacheDetector(); detector != nil && detector.IsEnabled() && resp.StatusCode >= 500 && resp.StatusCode < 600 {
+			bodyStr := string(body)
+			detector.RecordError(modelID, resp.StatusCode, bodyStr)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(SanitizeError(resp.StatusCode, body))

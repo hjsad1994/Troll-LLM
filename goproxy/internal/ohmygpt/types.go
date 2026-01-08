@@ -13,8 +13,8 @@ type Provider interface {
 	Name() string
 	IsConfigured() bool
 	ForwardRequest(body []byte, isStreaming bool) (*http.Response, error)
-	HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback)
-	HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage UsageCallback)
+	HandleStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage UsageCallback)
+	HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage UsageCallback)
 }
 
 // sanitizeError returns a generic error message (OpenAI format)

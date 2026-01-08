@@ -27,6 +27,7 @@ import (
 	"goproxy/internal/openhands"
 	"goproxy/internal/openhandspool"
 	"goproxy/internal/ohmygpt"
+	"goproxy/internal/cache"
 	"goproxy/internal/usage"
 	"goproxy/internal/userkey"
 	"goproxy/transformers"
@@ -174,10 +175,19 @@ func initHTTPClient() {
 
 // Get environment variable with default value support
 func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
-	return defaultValue
+	return value
+}
+
+func parseInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return i
 }
 
 // NEW MODEL-BASED ROUTING - BEGIN
@@ -1859,13 +1869,18 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 				LatencyMs:        latencyMs,
 			})
 		}
+
+		// Check for cache fallback and record event
+		if detector := cache.GetCacheDetector(); detector != nil && detector.IsEnabled() {
+			detector.RecordEvent(modelID, input, cacheHit, cacheWrite)
+		}
 	}
 
 	// Handle response
 	if isStreaming {
-		ohmygptProvider.HandleStreamResponse(w, resp, onUsage)
+		ohmygptProvider.HandleStreamResponse(w, resp, modelID, onUsage)
 	} else {
-		ohmygptProvider.HandleNonStreamResponse(w, resp, onUsage)
+		ohmygptProvider.HandleNonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1959,13 +1974,18 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 				LatencyMs:        latencyMs,
 			})
 		}
+
+		// Check for cache fallback and record event
+		if detector := cache.GetCacheDetector(); detector != nil && detector.IsEnabled() {
+			detector.RecordEvent(modelID, input, cacheHit, cacheWrite)
+		}
 	}
 
 	// Handle response (OhMyGPT /v1/messages returns Anthropic-compatible format)
 	if isStreaming {
-		ohmygptProvider.HandleStreamResponse(w, resp, onUsage)
+		ohmygptProvider.HandleStreamResponse(w, resp, modelID, onUsage)
 	} else {
-		ohmygptProvider.HandleNonStreamResponse(w, resp, onUsage)
+		ohmygptProvider.HandleNonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -3745,6 +3765,17 @@ func main() {
 
 	// Start OhMyGPT backup key cleanup job (runs every 1 minute, deletes keys used > 12h)
 	ohmygpt.StartOhMyGPTBackupKeyCleanupJob(1 * time.Minute)
+
+	// Initialize cache fallback detection
+	cacheDetectionEnabled := getEnv("CACHE_FALLBACK_DETECTION", "false") == "true"
+	cache.InitCacheDetector(
+		cacheDetectionEnabled,
+		parseInt(getEnv("CACHE_FALLBACK_THRESHOLD_COUNT", "5")),
+		parseInt(getEnv("CACHE_FALLBACK_TIME_WINDOW_MIN", "1")),
+		parseInt(getEnv("CACHE_FALLBACK_ALERT_INTERVAL_MIN", "5")),
+		getEnv("RESEND_API_KEY", ""),
+		getEnv("CACHE_FALLBACK_ALERT_EMAIL", ""),
+	)
 
 	// NEW MODEL-BASED ROUTING - END
 
