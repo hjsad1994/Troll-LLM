@@ -241,9 +241,19 @@ func (d *DefaultResendClient) SendEmail(from, to, subject, htmlBody string) erro
 // global detector instance
 var globalDetector *CacheDetector
 var detectorOnce sync.Once
+var lastNilDetectorLog time.Time
+var nilDetectorLogMu sync.Mutex
 
 // GetCacheDetector returns the singleton detector instance
 func GetCacheDetector() *CacheDetector {
+	if globalDetector == nil {
+		nilDetectorLogMu.Lock()
+		if time.Since(lastNilDetectorLog) > 5*time.Minute {
+			log.Printf("⚠️  [Cache Detector] GetCacheDetector called but detector is NIL - CACHE_FALLBACK_DETECTION likely not set to 'true'")
+			lastNilDetectorLog = time.Now()
+		}
+		nilDetectorLogMu.Unlock()
+	}
 	return globalDetector
 }
 
@@ -308,16 +318,19 @@ func (d *CacheDetector) RecordEvent(model string, inputTokens, cacheRead, cacheW
 
 	// 1. Check if model supports cache
 	if !d.modelSupportsCache(model) {
+		log.Printf("🔍 [Cache Fallback] Skipped: model=%s does not support cache", model)
 		return
 	}
 
 	// 2. Check if request is large enough to expect cache
 	if inputTokens < 1024 {
+		log.Printf("🔍 [Cache Fallback] Skipped: model=%s tokens=%d too small (<1024)", model, inputTokens)
 		return
 	}
 
 	// 3. Check if cache tokens are zero
 	if cacheRead > 0 || cacheWrite > 0 {
+		log.Printf("✅ [Cache Fallback] OK: model=%s tokens=%d cache_read=%d cache_write=%d (cache working)", model, inputTokens, cacheRead, cacheWrite)
 		return
 	}
 
@@ -352,6 +365,7 @@ func (d *CacheDetector) RecordError(model string, statusCode int, errorMsg strin
 
 	// Only track 500 errors (server errors)
 	if statusCode < 500 || statusCode >= 600 {
+		log.Printf("🔍 [Upstream Error] Skipped: model=%s status=%d (not a 5xx error)", model, statusCode)
 		return
 	}
 
