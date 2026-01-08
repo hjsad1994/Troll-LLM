@@ -1839,7 +1839,7 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.DeductCreditsWithCache(username, billingCost, billingTokens, input, output, cacheWrite, cacheHit)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request to request_logs collection
@@ -1939,7 +1939,7 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.DeductCreditsWithCache(username, billingCost, billingTokens, input, output, cacheWrite, cacheHit)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request to request_logs collection
