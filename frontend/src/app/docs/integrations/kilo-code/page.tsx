@@ -114,28 +114,18 @@ export default function KiloCodePage() {
       ]
     },
     {
-      title: t.docs.sidebar.apiReference,
-      items: [
-        { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
-        { title: t.docs.sidebar.models, href: '/docs/api/models' },
-        { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
-      ]
-    },
-    {
       title: t.docs.sidebar.integrations,
       items: [
         { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code', active: true },
         { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
         { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
         { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
-        { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
         { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
       ]
     },
     {
       title: t.docs.sidebar.resources,
       items: [
-        { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
         { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
         { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
       ]

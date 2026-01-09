@@ -110,21 +110,14 @@ export default function DroidPage() {
       { title: t.docs.sidebar.quickstart, href: '/docs/quickstart' },
       { title: t.docs.sidebar.authentication, href: '/docs/authentication' },
     ]},
-    { title: t.docs.sidebar.apiReference, items: [
-      { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
-      { title: t.docs.sidebar.models, href: '/docs/api/models' },
-      { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
-    ]},
     { title: t.docs.sidebar.integrations, items: [
       { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
       { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
       { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
       { title: t.docs.sidebar.droid, href: '/docs/integrations/droid', active: true },
-      { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
       { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
     ]},
     { title: t.docs.sidebar.resources, items: [
-      { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
       { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
       { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
     ]},
@@ -372,8 +365,8 @@ droid "What's 2+2?"`}
                 </svg>
                 <span>Claude Code CLI</span>
               </Link>
-              <Link href="/docs/integrations/cursor" className="group flex items-center gap-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-                <span>Cursor</span>
+              <Link href="/docs/integrations/continue" className="group flex items-center gap-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <span>Continue</span>
                 <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>

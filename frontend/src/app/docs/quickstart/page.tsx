@@ -30,14 +30,12 @@ const sidebarNav = [
       { title: 'Roo Code', href: '/docs/integrations/roo-code' },
       { title: 'Claude Code CLI', href: '/docs/integrations/claude-code' },
       { title: 'Droid', href: '/docs/integrations/droid' },
-      { title: 'Cursor', href: '/docs/integrations/cursor' },
       { title: 'Continue', href: '/docs/integrations/continue' },
     ]
   },
   {
     title: 'Resources',
     items: [
-      { title: 'Pricing', href: '/docs/pricing' },
       { title: 'Rate Limits', href: '/docs/rate-limits' },
       { title: 'Changelog', href: '/docs/changelog' },
     ]
@@ -428,28 +426,18 @@ export default function QuickstartPage() {
       ]
     },
     {
-      title: t.docs.sidebar.apiReference,
-      items: [
-        { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
-        { title: t.docs.sidebar.models, href: '/docs/api/models' },
-        { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
-      ]
-    },
-    {
       title: t.docs.sidebar.integrations,
       items: [
         { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
         { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
         { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
         { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
-        { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
         { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
       ]
     },
     {
       title: t.docs.sidebar.resources,
       items: [
-        { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
         { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
         { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
       ]
@@ -833,54 +821,6 @@ func main() {
                   title={t.docs.quickstart.expectedResponse}
                 />
               </Step>
-            </div>
-
-            {/* Divider */}
-            <hr className="border-gray-200 dark:border-white/5 my-10" />
-
-            {/* Next steps */}
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">{t.docs.quickstart.nextSteps}</h2>
-            <div className="grid sm:grid-cols-2 gap-4 mb-10">
-              <Card
-                title={t.docs.quickstart.authCardTitle}
-                description={t.docs.quickstart.authCardDesc}
-                href="/docs/authentication"
-                icon={
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                  </svg>
-                }
-              />
-              <Card
-                title={t.docs.quickstart.openaiApiDocs}
-                description={t.docs.quickstart.openaiApiDesc}
-                href="/docs/api/chat"
-                icon={
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                  </svg>
-                }
-              />
-              <Card
-                title={t.docs.quickstart.anthropicApiDocs}
-                description={t.docs.quickstart.anthropicApiDesc}
-                href="/docs/api/anthropic"
-                icon={
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                }
-              />
-              <Card
-                title={t.docs.quickstart.bestPractices}
-                description={t.docs.quickstart.bestPracticesDesc}
-                href="/docs/best-practices"
-                icon={
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                }
-              />
             </div>
 
             {/* Common Issues */}

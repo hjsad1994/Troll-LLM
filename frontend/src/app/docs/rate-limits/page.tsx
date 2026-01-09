@@ -16,28 +16,18 @@ const getSidebarNav = (t: any) => [
     ]
   },
   {
-    title: t.docs.sidebar.apiReference,
-    items: [
-      { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
-      { title: t.docs.sidebar.models, href: '/docs/api/models' },
-      { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
-    ]
-  },
-  {
     title: t.docs.sidebar.integrations,
     items: [
       { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
       { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
       { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
       { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
-      { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
       { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
     ]
   },
   {
     title: t.docs.sidebar.resources,
     items: [
-      { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
       { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits', active: true },
       { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
     ]
@@ -123,20 +113,7 @@ export default function RateLimitsPage() {
   const { t } = useLanguage()
   const sidebarNav = getSidebarNav(t)
 
-  const rateLimits = [
-    {
-      tier: 'Dev',
-      rpm: '300',
-      creditsPerMonth: '225',
-      description: 'Perfect for side projects and testing',
-    },
-    {
-      tier: 'Pro',
-      rpm: '1,000',
-      creditsPerMonth: '500',
-      description: 'Best for teams and production apps',
-    },
-  ]
+  const rateLimit = '600'
 
   return (
     <div className="min-h-screen bg-white dark:bg-black">
@@ -216,38 +193,21 @@ export default function RateLimitsPage() {
               {t.docsRateLimits.note}
             </Note>
 
-            {/* Rate Limits Table */}
+            {/* Rate Limit */}
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">{t.docsRateLimits.limitsByTier}</h2>
             <div className="rounded-xl border border-gray-300 dark:border-white/10 overflow-hidden mb-8">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-white/[0.02] border-b border-gray-300 dark:border-white/5">
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 dark:text-slate-400">{t.docsRateLimits.tier}</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 dark:text-slate-400">{t.docsRateLimits.requestsPerMinute}</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 dark:text-slate-400">{t.docsRateLimits.creditsPerMonth}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rateLimits.map((limit, index) => (
-                    <tr key={limit.tier} className={index !== rateLimits.length - 1 ? 'border-b border-gray-300 dark:border-white/5' : ''}>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            limit.tier === 'Pro' 
-                              ? 'bg-indigo-200 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400' 
-                              : 'bg-gray-200 dark:bg-slate-500/20 text-gray-700 dark:text-slate-400'
-                          }`}>
-                            {limit.tier}
-                          </span>
-                          <span className="text-gray-500 dark:text-slate-500 text-sm">{limit.description}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-900 dark:text-white font-mono">{limit.rpm}</td>
-                      <td className="px-6 py-4 text-gray-900 dark:text-white font-mono">{limit.creditsPerMonth}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="p-6 bg-gray-50 dark:bg-white/[0.02]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 dark:text-slate-500 text-sm mb-1">{t.docsRateLimits.tier}</p>
+                    <p className="text-gray-700 dark:text-slate-300 text-sm">Pay-as-you-go</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-gray-500 dark:text-slate-500 text-sm mb-1">{t.docsRateLimits.requestsPerMinute}</p>
+                    <p className="text-gray-900 dark:text-white font-mono text-2xl font-semibold">{rateLimit}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Rate Limit Headers */}
@@ -328,58 +288,15 @@ export default function RateLimitsPage() {
                 </div>
                 <span className="text-gray-700 dark:text-slate-300 text-sm">Cache responses when possible to reduce API calls</span>
               </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-emerald-200 dark:bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg className="w-3 h-3 text-emerald-700 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="text-gray-700 dark:text-slate-300 text-sm">Upgrade to Pro tier for higher limits in production</span>
-              </li>
             </ul>
-
-            {/* Retry Example */}
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">{t.docsRateLimits.retryExample}</h2>
-            <p className="text-gray-700 dark:text-slate-400 mb-6">
-              {t.docsRateLimits.retryExampleDesc}
-            </p>
-
-            <CodeBlock
-              title="retry_example.py"
-              language="python"
-              code={`import time
-import random
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://chat.trollllm.xyz/v1",
-    api_key="your-api-key"
-)
-
-def make_request_with_retry(max_retries=5):
-    for attempt in range(max_retries):
-        try:
-            response = client.chat.completions.create(
-                model="claude-sonnet-4-5",
-                messages=[{"role": "user", "content": "Hello!"}]
-            )
-            return response
-        except Exception as e:
-            if "429" in str(e) and attempt < max_retries - 1:
-                wait_time = (2 ** attempt) + random.random()
-                print(f"Rate limited. Waiting {wait_time:.2f}s...")
-                time.sleep(wait_time)
-            else:
-                raise e`}
-            />
 
             {/* Footer navigation */}
             <div className="flex items-center justify-between mt-16 pt-8 border-t border-gray-200 dark:border-white/5">
-              <Link href="/docs/pricing" className="group flex items-center gap-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+              <Link href="/docs/integrations/continue" className="group flex items-center gap-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                <span>Pricing</span>
+                <span>Continue</span>
               </Link>
               <Link href="/docs/changelog" className="group flex items-center gap-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 <span>Changelog</span>
@@ -396,11 +313,10 @@ def make_request_with_retry(max_retries=5):
           <h3 className="text-gray-500 dark:text-slate-500 text-xs font-medium uppercase tracking-wider mb-4">On this page</h3>
           <nav className="space-y-2">
             <a href="#" className="block text-sm text-gray-900 dark:text-white">Rate Limits</a>
-            <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">Limits by Tier</a>
+            <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">Rate Limit</a>
             <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">Rate Limit Headers</a>
             <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">Handling Rate Limits</a>
             <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">Best Practices</a>
-            <a href="#" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors pl-3">Retry Example</a>
           </nav>
         </aside>
       </div>

@@ -223,28 +223,18 @@ export default function AuthenticationPage() {
       ]
     },
     {
-      title: t.docs.sidebar.apiReference,
-      items: [
-        { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
-        { title: t.docs.sidebar.models, href: '/docs/api/models' },
-        { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
-      ]
-    },
-    {
       title: t.docs.sidebar.integrations,
       items: [
         { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
         { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
         { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
         { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
-        { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
-        { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
+          { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
       ]
     },
     {
       title: t.docs.sidebar.resources,
       items: [
-        { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
         { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
         { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
       ]
@@ -402,73 +392,6 @@ export default function AuthenticationPage() {
               />
             </Section>
 
-            {/* SDK Examples */}
-            <Section id="sdk-examples" title={t.docs.authentication.sdkExamples}>
-              <p className="mb-4">
-                {t.docs.authentication.sdkExamplesDesc}
-              </p>
-
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Python (OpenAI SDK)</h3>
-              <CodeBlock
-                code={`from openai import OpenAI
-import os
-
-client = OpenAI(
-    base_url="https://chat.trollllm.xyz/v1",
-    api_key=os.environ.get("TROLLLLM_API_KEY")
-)
-
-response = client.chat.completions.create(
-    model="claude-sonnet-4-5-20250929",
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-
-print(response.choices[0].message.content)`}
-                language="python"
-                title="Python"
-              />
-
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 mt-6">JavaScript/TypeScript</h3>
-              <CodeBlock
-                code={`import OpenAI from 'openai';
-
-const client = new OpenAI({
-  baseURL: 'https://chat.trollllm.xyz/v1',
-  apiKey: process.env.TROLLLLM_API_KEY
-});
-
-const response = await client.chat.completions.create({
-  model: 'claude-sonnet-4-5-20250929',
-  messages: [{ role: 'user', content: 'Hello!' }]
-});
-
-console.log(response.choices[0].message.content);`}
-                language="javascript"
-                title="JavaScript"
-              />
-
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 mt-6">Python (Anthropic SDK)</h3>
-              <CodeBlock
-                code={`import anthropic
-import os
-
-client = anthropic.Anthropic(
-    base_url="https://chat.trollllm.xyz",
-    api_key=os.environ.get("TROLLLLM_API_KEY")
-)
-
-message = client.messages.create(
-    model="claude-sonnet-4-5-20250929",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-
-print(message.content[0].text)`}
-                language="python"
-                title="Python (Anthropic)"
-              />
-            </Section>
-
             {/* Environment Variables */}
             <Section id="environment-variables" title={t.docs.authentication.envVars}>
               <p className="mb-4">
@@ -602,7 +525,6 @@ export ANTHROPIC_BASE_URL="https://chat.trollllm.xyz"`}
           <nav className="space-y-2">
             <a href="#get-api-key" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">Getting Your API Key</a>
             <a href="#using-api-key" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">Using Your API Key</a>
-            <a href="#sdk-examples" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">SDK Examples</a>
             <a href="#environment-variables" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">Environment Variables</a>
             <a href="#security" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">Security Best Practices</a>
             <a href="#rotate-key" className="block text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">Rotating Your API Key</a>

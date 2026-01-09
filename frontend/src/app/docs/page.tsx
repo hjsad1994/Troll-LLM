@@ -30,7 +30,6 @@ const sidebarNav = [
       { title: 'Roo Code', href: '/docs/integrations/roo-code' },
       { title: 'Claude Code CLI', href: '/docs/integrations/claude-code' },
       { title: 'Droid', href: '/docs/integrations/droid' },
-      { title: 'Cursor', href: '/docs/integrations/cursor' },
       { title: 'Continue', href: '/docs/integrations/continue' },
     ]
   },
@@ -263,28 +262,18 @@ export default function DocsPage() {
       ]
     },
     {
-      title: t.docs.sidebar.apiReference,
-      items: [
-        { title: t.docs.sidebar.chatCompletions, href: '/docs/api/chat' },
-        { title: t.docs.sidebar.models, href: '/docs/api/models' },
-        { title: t.docs.sidebar.streaming, href: '/docs/api/streaming' },
-      ]
-    },
-    {
       title: t.docs.sidebar.integrations,
       items: [
         { title: t.docs.sidebar.kiloCode, href: '/docs/integrations/kilo-code' },
         { title: t.docs.sidebar.rooCode, href: '/docs/integrations/roo-code' },
         { title: t.docs.sidebar.claudeCode, href: '/docs/integrations/claude-code' },
         { title: t.docs.sidebar.droid, href: '/docs/integrations/droid' },
-        { title: t.docs.sidebar.cursor, href: '/docs/integrations/cursor' },
         { title: t.docs.sidebar.continue, href: '/docs/integrations/continue' },
       ]
     },
     {
       title: t.docs.sidebar.resources,
       items: [
-        { title: t.docs.sidebar.pricing, href: '/docs/pricing' },
         { title: t.docs.sidebar.rateLimits, href: '/docs/rate-limits' },
         { title: t.docs.sidebar.changelog, href: '/docs/changelog' },
       ]
@@ -330,11 +319,6 @@ export default function DocsPage() {
                     {section.title === t.docs.sidebar.gettingStarted && (
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    )}
-                    {section.title === t.docs.sidebar.apiReference && (
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
                     )}
                     {section.title === t.docs.sidebar.integrations && (
@@ -407,9 +391,7 @@ export default function DocsPage() {
             {/* Model highlight */}
             <Tip>
               <strong className="text-emerald-600 dark:text-emerald-400">{t.docs.intro.tipNew}</strong> {t.docs.intro.tipModels}
-              <span className="text-gray-900 dark:text-white mx-1">Claude 4.5 series</span>,
-              <span className="text-gray-900 dark:text-white mx-1">GPT-5.1</span>, and
-              <span className="text-gray-900 dark:text-white mx-1">Gemini 3 Pro</span> {t.docs.intro.tipContext}
+              <span className="text-gray-900 dark:text-white mx-1">Claude 4.5 series</span> {t.docs.intro.tipContext}
             </Tip>
 
             {/* Available Models */}
@@ -417,8 +399,6 @@ export default function DocsPage() {
               <ModelBadge name="claude-opus-4-5-20251101" />
               <ModelBadge name="claude-sonnet-4-5-20250929" />
               <ModelBadge name="claude-haiku-4-5-20251001" />
-              <ModelBadge name="gpt-5.1" isNew />
-              <ModelBadge name="gemini-3-pro-preview" isNew />
             </div>
 
             <Note>
@@ -479,21 +459,18 @@ export default function DocsPage() {
               </p>
             </div>
             <CodeBlock
-              title="example.py"
-              language="python"
-              code={`from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://chat.trollllm.xyz/v1",
-    api_key="your-api-key"
-)
-
-response = client.chat.completions.create(
-    model="claude-sonnet-4-5-20250929",
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-
-print(response.choices[0].message.content)`}
+              title="example.sh"
+              language="bash"
+              code={`curl https://chat.trollllm.xyz/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer your-api-key" \\
+  -d '{
+    "model": "claude-sonnet-4-5-20250929",
+    "max_tokens": 1024,
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ]
+  }'`}
             />
 
             {/* Divider */}
@@ -545,16 +522,6 @@ print(response.choices[0].message.content)`}
                 icon={
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                }
-              />
-              <Card
-                title={t.docs.sidebar.cursor}
-                description={t.docs.intro.cursorDesc}
-                href="/docs/integrations/cursor"
-                icon={
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 }
               />
