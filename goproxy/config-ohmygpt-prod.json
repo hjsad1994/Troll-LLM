@@ -23,7 +23,7 @@
       "cache_hit_price_per_mtok": 0.5,
       "batch_input_price_per_mtok": 2.75,
       "batch_output_price_per_mtok": 13.75,
-      "billing_multiplier": 1.025,
+      "billing_multiplier": 1.03,
       "upstream": "ohmygpt",
       "upstream_model_id": "claude-opus-4-5-20251101"
     },
@@ -40,7 +40,7 @@
       "cache_hit_price_per_mtok": 0.3,
       "batch_input_price_per_mtok": 1.65,
       "batch_output_price_per_mtok": 8.25,
-      "billing_multiplier": 1.025,
+      "billing_multiplier": 1.03,
       "upstream": "ohmygpt",
       "upstream_model_id": "claude-sonnet-4-5-20250929"
     },
