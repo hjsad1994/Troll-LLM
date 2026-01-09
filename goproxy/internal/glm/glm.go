@@ -109,7 +109,68 @@ func (p *GLMProvider) ForwardRequest(body []byte, isStreaming bool, originalMode
 	p.originalModel = originalModel
 	p.mu.Unlock()
 
-	// Parse the request body to map the model
+	// Detect endpoint format
+	endpoint := p.getEndpoint()
+	isAnthropicFormat := strings.HasSuffix(endpoint, "/v1/messages")
+
+	if isAnthropicFormat {
+		// For Anthropic format endpoint, forward original body with model mapping
+		log.Printf("🔍 [GLM Provider] Using Anthropic format endpoint")
+
+		var req map[string]interface{}
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, fmt.Errorf("failed to parse request body: %w", err)
+		}
+
+		// Map to GLM model
+		req["model"] = mapToGLMModel(originalModel)
+
+		// Filter out system messages - Z.ai API only accepts 'user' and 'assistant'
+		if messages, ok := req["messages"].([]interface{}); ok {
+			filteredMessages := make([]interface{}, 0)
+			for _, msg := range messages {
+				if msgMap, ok := msg.(map[string]interface{}); ok {
+					role, _ := msgMap["role"].(string)
+					// Skip system messages, only keep user and assistant
+					if role == "user" || role == "assistant" {
+						filteredMessages = append(filteredMessages, msg)
+					} else {
+						log.Printf("🔍 [GLM Provider] Filtered out %s message (Z.ai doesn't support it)", role)
+					}
+				}
+			}
+			req["messages"] = filteredMessages
+		}
+
+		// Handle system prompt - if exists, prepend to first user message
+		if system, ok := req["system"].(string); ok && system != "" {
+			if messages, ok := req["messages"].([]interface{}); ok && len(messages) > 0 {
+				// Prepend system prompt to first user message
+				if firstMsg, ok := messages[0].(map[string]interface{}); ok {
+					if firstRole, _ := firstMsg["role"].(string); firstRole == "user" {
+						if content, ok := firstMsg["content"].(string); ok {
+							firstMsg["content"] = system + "\n\n" + content
+							log.Printf("🔍 [GLM Provider] Prepended system prompt to first user message")
+						}
+					}
+				}
+			}
+			// Remove system field from request
+			delete(req, "system")
+		}
+
+		modifiedBody, err := json.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal modified request: %w", err)
+		}
+
+		log.Printf("🔍 [GLM Provider] Anthropic format request: %s", string(modifiedBody))
+		return p.forwardToEndpoint(endpoint, modifiedBody, isStreaming)
+	}
+
+	// OpenAI format endpoint
+	log.Printf("🔍 [GLM Provider] Using OpenAI format endpoint")
+
 	var req map[string]interface{}
 	if err := json.Unmarshal(body, &req); err != nil {
 		return nil, fmt.Errorf("failed to parse request body: %w", err)
@@ -118,13 +179,19 @@ func (p *GLMProvider) ForwardRequest(body []byte, isStreaming bool, originalMode
 	// Map to GLM model
 	req["model"] = mapToGLMModel(originalModel)
 
+	// DEBUG: Log request body
+	log.Printf("🔍 [GLM Provider] Original request body: %s", string(body))
+	log.Printf("🔍 [GLM Provider] Modified request body: %s", req)
+
 	// Marshal the modified request
 	modifiedBody, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal modified request: %w", err)
 	}
 
-	return p.forwardToEndpoint(p.getEndpoint(), modifiedBody, isStreaming)
+	log.Printf("🔍 [GLM Provider] Final JSON to send: %s", string(modifiedBody))
+
+	return p.forwardToEndpoint(endpoint, modifiedBody, isStreaming)
 }
 
 // forwardToEndpoint forwards request to GLM API endpoint

@@ -36,6 +36,9 @@ func GetFailoverManager() *FailoverStateManager {
 			enabledStr := os.Getenv("CACHE_FAILOVER_ENABLED")
 			enabled := enabledStr == "true"
 
+			// Debug log
+			log.Printf("🔍 [Failover Manager] Init: CACHE_FAILOVER_ENABLED=%s (parsed as %v)", enabledStr, enabled)
+
 			thresholdStr := os.Getenv("CACHE_FAILOVER_LOSS_THRESHOLD")
 			threshold := 1.50 // default
 			if thresholdStr != "" {
@@ -52,6 +55,8 @@ func GetFailoverManager() *FailoverStateManager {
 				}
 			}
 
+			log.Printf("🔍 [Failover Manager] Config: threshold=$%.2f, cooldown=%d minutes", threshold, cooldown)
+
 			failoverManagerInstance = &FailoverStateManager{
 				states:         make(map[string]*FailoverState),
 				enabled:        enabled,
@@ -62,7 +67,7 @@ func GetFailoverManager() *FailoverStateManager {
 			if enabled {
 				log.Printf("✅ [Failover Manager] Enabled: threshold=$%.2f, cooldown=%d minutes", threshold, cooldown)
 			} else {
-				log.Printf("🔕 [Failover Manager] Disabled")
+				log.Printf("🔕 [Failover Manager] Disabled (CACHE_FAILOVER_ENABLED not set to 'true')")
 			}
 		})
 	}

@@ -269,6 +269,16 @@ func InitCacheDetector(enabled bool, thresholdCount int, windowSizeMin, alertInt
 
 // InitCacheDetectorWithError initializes the global cache detector with error detection
 func InitCacheDetectorWithError(enabled bool, thresholdCount int, errorThreshold int, windowSizeMin, alertIntervalMin int, resendAPIKey, alertEmail string) *CacheDetector {
+	// CRITICAL: Initialize failover manager FIRST, before detectorOnce.Do()
+	// This ensures failover manager is always available regardless of cache detection state
+	log.Printf("🔍 [Cache Detector] InitCacheDetectorWithError called: enabled=%v", enabled)
+	failoverMgr := GetFailoverManager()
+	if failoverMgr != nil {
+		log.Printf("✅ [Cache Detector] Failover manager initialized: enabled=%v", failoverMgr.IsEnabled())
+	} else {
+		log.Printf("⚠️ [Cache Detector] Failover manager is NIL after init!")
+	}
+
 	detectorOnce.Do(func() {
 		if !enabled {
 			log.Printf("🔕 Cache fallback detection disabled")
@@ -307,8 +317,10 @@ func InitCacheDetectorWithError(enabled bool, thresholdCount int, errorThreshold
 		log.Printf("✅ Detection enabled: cache_threshold=%d, error_threshold=%d, window=%v, alert_interval=%v",
 			thresholdCount, errorThreshold, windowSize, alertInterval)
 
-		// Initialize failover manager
-		GetFailoverManager()
+		log.Printf("🔍 [Cache Detector] Double-check failover manager in detectorOnce.Do()")
+		if failoverMgr != nil {
+			log.Printf("✅ [Cache Detector] Failover manager still available: enabled=%v", failoverMgr.IsEnabled())
+		}
 	})
 	return globalDetector
 }
