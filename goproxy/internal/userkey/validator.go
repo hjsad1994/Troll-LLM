@@ -309,6 +309,27 @@ func GetUserCreditsWithRef(username string) (credits float64, refCredits float64
 	return user.Credits, user.RefCredits, nil
 }
 
+// GetUserCreditsNew returns creditsNew balance for a user (USD) - used for OpenHands
+func GetUserCreditsNew(username string) (float64, error) {
+	if username == "" {
+		return 0, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user UserCredits
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	return user.CreditsNew, nil
+}
+
 // =============================================================================
 // Story 2.2: Zero-Debt Policy Enforcement - Pre-deduction Balance Check
 // =============================================================================

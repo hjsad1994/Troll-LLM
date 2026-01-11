@@ -1454,11 +1454,11 @@ handleMessagesResponse:
 				LatencyMs:        latencyMs,
 			})
 		}
-		// Get remaining credits for logging
+		// Get remaining creditsNew for logging (OpenHands uses creditsNew)
 		remainingCredits := 0.0
 		if username != "" {
-			if credits, refCredits, err := userkey.GetUserCreditsWithRef(username); err == nil {
-				remainingCredits = credits + refCredits
+			if creditsNew, err := userkey.GetUserCreditsNew(username); err == nil {
+				remainingCredits = creditsNew
 			}
 		}
 		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
@@ -1741,11 +1741,11 @@ handleOpenAIResponse:
 				LatencyMs:        latencyMs,
 			})
 		}
-		// Get remaining credits for logging
+		// Get remaining creditsNew for logging (OpenHands uses creditsNew)
 		remainingCredits := 0.0
 		if username != "" {
-			if credits, refCredits, err := userkey.GetUserCreditsWithRef(username); err == nil {
-				remainingCredits = credits + refCredits
+			if creditsNew, err := userkey.GetUserCreditsNew(username); err == nil {
+				remainingCredits = creditsNew
 			}
 		}
 		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
