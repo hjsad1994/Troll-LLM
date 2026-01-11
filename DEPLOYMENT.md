@@ -160,6 +160,8 @@ docker compose -f docker-compose.prod.yml logs -f backend
 docker compose -f docker-compose.prod.yml logs -f goproxy
 docker compose -f docker-compose.prod.yml logs -f nginx
 
+# Xem cả 2
+docker compose -f docker-compose.prod.yml logs -f goproxy-openhands goproxy-ohmygpt
 # Restart service
 docker compose -f docker-compose.prod.yml restart backend
 docker compose -f docker-compose.prod.yml restart nginx

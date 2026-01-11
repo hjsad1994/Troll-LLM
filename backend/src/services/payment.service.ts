@@ -256,7 +256,7 @@ export class PaymentService {
   }
 
   private async addCredits(userId: string, credits: number, discordId?: string, paymentId?: string): Promise<void> {
-    console.log(`[Payment] Adding $${credits} credits to user: ${userId}`);
+    console.log(`[Payment] Adding $${credits} creditsNew to user: ${userId}`);
 
     const user = await userRepository.getFullUser(userId);
     if (!user) {
@@ -264,22 +264,22 @@ export class PaymentService {
       throw new Error('User not found');
     }
 
-    // Get current credits before adding
-    const creditsBefore = user.credits || 0;
+    // Get current creditsNew before adding (for OpenHands system)
+    const creditsBefore = user.creditsNew || 0;
     const creditsAfter = creditsBefore + credits;
-    console.log(`[Payment] Credits: before=${creditsBefore}, after=${creditsAfter}`);
+    console.log(`[Payment] CreditsNew: before=${creditsBefore}, after=${creditsAfter}`);
 
     const now = new Date();
 
     // Always set expiration to 7 days from now (no stacking)
-    const expiresAt = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
-    console.log(`[Payment] Setting expiration to ${VALIDITY_DAYS} days from now: ${expiresAt}`);
+    const expiresAtNew = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+    console.log(`[Payment] Setting expiresAtNew to ${VALIDITY_DAYS} days from now: ${expiresAtNew}`);
 
-    // Build update object
+    // Build update object for creditsNew (OpenHands system)
     const updateData: Record<string, unknown> = {
-      purchasedAt: now,
-      expiresAt,
-      $inc: { credits },
+      purchasedAtNew: now,
+      expiresAtNew,
+      $inc: { creditsNew: credits },
     };
 
     // Only update discordId if provided (don't overwrite existing with empty value)
@@ -288,7 +288,7 @@ export class PaymentService {
       console.log(`[Payment] Saving discordId: ${discordId}`);
     }
 
-    // Update user with new credits - use UserNew model (usersNew collection)
+    // Update user with new creditsNew - use UserNew model (usersNew collection)
     const { UserNew } = await import('../models/user-new.model.js');
     await UserNew.findByIdAndUpdate(userId, updateData);
 
@@ -305,7 +305,7 @@ export class PaymentService {
     // Referral system disabled
     // await this.awardReferralBonus(userId, credits);
 
-    // Sync to user_keys collection for GoProxy
+    // Sync to user_keys collection for GoProxy (use expiresAtNew)
     if (user.apiKey) {
       const existingKey = await UserKey.findById(user.apiKey);
       if (!existingKey) {
@@ -314,25 +314,25 @@ export class PaymentService {
           _id: user.apiKey,
           name: userId,
           tier: 'pro',
-          tokensUsed: user.creditsUsed || 0,
+          tokensUsed: user.creditsNewUsed || 0,
           requestsCount: 0,
           isActive: true,
           createdAt: now,
-          expiresAt,
+          expiresAt: expiresAtNew,
         });
       } else {
         // Update existing user_key
         await UserKey.updateOne(
           { _id: user.apiKey },
-          { expiresAt }
+          { expiresAt: expiresAtNew }
         );
       }
     }
 
-    console.log(`[Payment] ✅ Added $${credits} credits to ${userId}, expires: ${expiresAt}`);
+    console.log(`[Payment] ✅ Added $${credits} creditsNew to ${userId}, expires: ${expiresAtNew}`);
 
-    // Schedule expiration timer
-    expirationSchedulerService.scheduleExpiration(userId, expiresAt);
+    // Schedule expiration timer for creditsNew
+    expirationSchedulerService.scheduleExpiration(userId, expiresAtNew);
   }
 
   private async awardReferralBonus(userId: string, credits: number): Promise<void> {
