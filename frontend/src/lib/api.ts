@@ -116,6 +116,11 @@ export interface BillingInfo {
   daysUntilExpiration: number | null
   subscriptionDays: number
   isExpiringSoon: boolean
+  // New credits (OpenHands) fields
+  purchasedAtNew: string | null
+  expiresAtNew: string | null
+  daysUntilExpirationNew: number | null
+  isExpiringSoonNew: boolean
 }
 
 export async function getUserProfile(): Promise<UserProfile> {
@@ -258,6 +263,8 @@ export interface AdminUser {
   creditsBurned: number
   purchasedAt?: string
   expiresAt?: string
+  purchasedAtNew?: string
+  expiresAtNew?: string
   discordId?: string
 }
 
