@@ -108,6 +108,7 @@ export interface UserProfile {
 export interface BillingInfo {
   creditsUsed: number
   credits: number
+  creditsNew: number
   refCredits: number
   purchasedAt: string | null
   expiresAt: string | null
