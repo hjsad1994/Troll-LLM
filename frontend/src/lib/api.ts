@@ -95,6 +95,7 @@ export interface UserProfile {
   apiKeyCreatedAt: string
   creditsUsed: number
   credits: number
+  creditsNew: number
   refCredits: number
   role: string
   totalInputTokens: number
@@ -251,6 +252,8 @@ export interface AdminUser {
   totalInputTokens: number
   totalOutputTokens: number
   credits: number
+  creditsNew: number
+  creditsNewUsed: number
   refCredits: number
   creditsBurned: number
   purchasedAt?: string
