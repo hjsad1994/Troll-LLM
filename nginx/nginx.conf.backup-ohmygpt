@@ -7,7 +7,7 @@ events {
 http {
     # === BASIC SECURITY ===
     server_tokens off;
-    
+
     # Logging
     log_format main '$remote_addr - $remote_user [$time_local] "$request" '
                     '$status $body_bytes_sent "$http_referer" '
@@ -17,27 +17,27 @@ http {
     error_log /var/log/nginx/error.log warn;
 
     # === DDoS PROTECTION ===
-    
+
     # Rate limiting zones
     limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;
     limit_req_zone $binary_remote_addr zone=api:10m rate=30r/s;
     limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
-    
+
     # Connection limiting
     limit_conn_zone $binary_remote_addr zone=conn_per_ip:10m;
     limit_conn conn_per_ip 20;
-    
+
     # Limit request size
     client_body_buffer_size 16k;
     client_header_buffer_size 1k;
     large_client_header_buffers 4 8k;
-    
+
     # Timeouts to prevent slowloris
     client_body_timeout 10s;
     client_header_timeout 10s;
     keepalive_timeout 30s;
     send_timeout 10s;
-    
+
     # Block bad bots and scanners
     map $http_user_agent $bad_bot {
         default 0;
@@ -111,7 +111,7 @@ http {
 
         location / {
             limit_req zone=general burst=30 nodelay;
-            
+
             proxy_pass http://frontend;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
@@ -150,7 +150,7 @@ http {
         # Login endpoint - strict rate limit
         location /api/login {
             limit_req zone=login burst=3 nodelay;
-            
+
             proxy_pass http://backend;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
@@ -161,7 +161,7 @@ http {
 
         location / {
             limit_req zone=api burst=50 nodelay;
-            
+
             proxy_pass http://backend;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
@@ -214,7 +214,7 @@ http {
         }
     }
 
-    # GoProxy OpenHands API - chat2.trollllm.xyz (changed to use openhands source)
+    # GoProxy OhMyGPT API - chat2.trollllm.xyz
     server {
         listen 443 ssl http2;
         server_name chat2.trollllm.xyz;
@@ -239,7 +239,7 @@ http {
         location / {
             limit_req zone=api burst=30 nodelay;
 
-            proxy_pass http://goproxy-openhands;
+            proxy_pass http://goproxy-ohmygpt;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
