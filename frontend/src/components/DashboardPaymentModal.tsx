@@ -287,26 +287,6 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
                   </p>
                 </div>
 
-                {/* Slider */}
-                <div className="relative px-2">
-                  <input
-                    type="range"
-                    min={MIN_AMOUNT}
-                    max={MAX_AMOUNT}
-                    step={1}
-                    value={selectedAmount}
-                    onChange={(e) => setSelectedAmount(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider-thumb"
-                    style={{
-                      background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, ${typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? '#334155' : '#e5e7eb'} ${((selectedAmount - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%, ${typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? '#334155' : '#e5e7eb'} 100%)`
-                    }}
-                  />
-                  <div className="flex justify-between mt-2 text-xs text-gray-500 dark:text-slate-500">
-                    <span>${MIN_AMOUNT}</span>
-                    <span>${MAX_AMOUNT}</span>
-                  </div>
-                </div>
-
                 {/* Quick Select Buttons */}
                 <div className="flex gap-2 mt-4">
                   {[20, 30, 50, 80, 100].map((amount) => (
