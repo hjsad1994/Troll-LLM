@@ -271,22 +271,6 @@ function CheckoutContent() {
                     </button>
                   ))}
                 </div>
-
-                {/* Slider */}
-                <div className="relative">
-                  <input
-                    type="range"
-                    min={MIN_AMOUNT}
-                    max={MAX_AMOUNT}
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg"
-                  />
-                  <div className="flex justify-between text-xs text-[var(--theme-text-muted)] mt-1">
-                    <span>{language === 'vi' ? 'Tối thiểu' : 'Min'} {formatPrice(MIN_AMOUNT * VND_RATE)} VND</span>
-                    <span>{language === 'vi' ? 'Tối đa' : 'Max'} {formatPrice(MAX_AMOUNT * VND_RATE)} VND</span>
-                  </div>
-                </div>
               </div>
 
               {/* Discord Section */}
