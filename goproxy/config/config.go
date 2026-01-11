@@ -301,31 +301,6 @@ func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float
 	return inputCost + outputCost
 }
 
-// DEPRECATED: Cache hit discount removed - now using original cache hit tokens from upstream
-// CacheHitDiscount is the discount applied to cache hit tokens for billing
-// 0.90 means only 90% of cache hits are recognized, charging user 10% more
-// Only applied to non-openhands models
-// const CacheHitDiscount = 0.90
-
-// DEPRECATED: Cache hit discount removed - now using original cache hit tokens from upstream
-// EffectiveCacheHit returns the discounted cache hit tokens for billing
-// Deprecated: Use EffectiveCacheHitForModel instead for model-specific discount
-// func EffectiveCacheHit(cacheHitTokens int64) int64 {
-// 	return int64(float64(cacheHitTokens) * CacheHitDiscount)
-// }
-
-// DEPRECATED: Cache hit discount removed - now using original cache hit tokens from upstream
-// EffectiveCacheHitForModel returns the effective cache hit tokens for billing
-// OpenHands models do not get cache hit discount (1.0 = full credit)
-// Other models get CacheHitDiscount (0.90 = 10% penalty)
-// func EffectiveCacheHitForModel(modelID string, cacheHitTokens int64) int64 {
-// 	model := GetModelByID(modelID)
-// 	if model != nil && model.Upstream == "openhands" {
-// 		return cacheHitTokens // No discount for OpenHands
-// 	}
-// 	return int64(float64(cacheHitTokens) * CacheHitDiscount)
-// }
-
 // CalculateBillingCostWithCache calculates the cost in USD including cache tokens
 // Note: For most providers, input_tokens includes ALL tokens (cached + uncached)
 // We subtract both cacheHit and cacheWrite from input to get uncached tokens only
