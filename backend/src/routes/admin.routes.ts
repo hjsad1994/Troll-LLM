@@ -201,18 +201,18 @@ router.post('/users/:username/credits/add', requireAdmin, async (req: Request, r
 router.post('/users/:username/refCredits/add', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { amount } = req.body;
-    
+
     if (typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
-    
+
     const user = await userRepository.addRefCredits(req.params.username, amount);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: `Added $${amount} refCredits to ${req.params.username}`,
       user: {
         username: user._id,
@@ -222,6 +222,65 @@ router.post('/users/:username/refCredits/add', requireAdmin, async (req: Request
   } catch (error) {
     console.error('Failed to add user refCredits:', error);
     res.status(500).json({ error: 'Failed to add user refCredits' });
+  }
+});
+
+// CreditsNew (OpenHands) management - admin only
+router.patch('/users/:username/creditsNew', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { creditsNew, resetExpiration = true } = req.body;
+
+    if (typeof creditsNew !== 'number' || creditsNew < 0) {
+      return res.status(400).json({ error: 'CreditsNew must be a non-negative number' });
+    }
+
+    const user = await userRepository.setCreditsNew(req.params.username, creditsNew, resetExpiration);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: `Set creditsNew to $${creditsNew} for ${req.params.username}`,
+      user: {
+        username: user._id,
+        creditsNew: user.creditsNew,
+        expiresAtNew: user.expiresAtNew,
+        purchasedAtNew: user.purchasedAtNew,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to update user creditsNew:', error);
+    res.status(500).json({ error: 'Failed to update user creditsNew' });
+  }
+});
+
+router.post('/users/:username/creditsNew/add', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { amount, resetExpiration = true } = req.body;
+
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+
+    const user = await userRepository.addCreditsNew(req.params.username, amount, resetExpiration);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: `Added $${amount} creditsNew to ${req.params.username}`,
+      user: {
+        username: user._id,
+        creditsNew: user.creditsNew,
+        expiresAtNew: user.expiresAtNew,
+        purchasedAtNew: user.purchasedAtNew,
+      }
+    });
+  } catch (error) {
+    console.error('Failed to add user creditsNew:', error);
+    res.status(500).json({ error: 'Failed to add user creditsNew' });
   }
 });
 

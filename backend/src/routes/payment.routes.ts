@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { paymentService, SepayWebhookPayload } from '../services/payment.service.js';
 import { jwtAuth } from '../middleware/auth.middleware.js';
-import { MIN_CREDITS, MAX_CREDITS, VND_RATE, VALIDITY_DAYS } from '../models/payment.model.js';
+import { MIN_CREDITS, MAX_CREDITS, VND_RATE_NEW, VALIDITY_DAYS } from '../models/payment.model.js';
 
 const router = Router();
 
@@ -129,7 +129,7 @@ router.get('/config', (_req: Request, res: Response) => {
   res.json({
     minCredits: MIN_CREDITS,
     maxCredits: MAX_CREDITS,
-    vndRate: VND_RATE,
+    vndRate: VND_RATE_NEW,
     validityDays: VALIDITY_DAYS,
     currency: 'VND',
     features: ['All AI models', 'Valid for 7 days', '1:1 Warranty', 'Priority support'],

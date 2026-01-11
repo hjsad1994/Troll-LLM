@@ -201,6 +201,48 @@ export class UserRepository {
     return updatedUser;
   }
 
+  async addCreditsNew(username: string, amount: number, resetExpiration: boolean = true): Promise<IUser | null> {
+    const VALIDITY_DAYS = 7;
+    const now = new Date();
+    const expiresAtNew = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+
+    const updateQuery: any = {
+      $inc: { creditsNew: amount }
+    };
+
+    if (resetExpiration) {
+      updateQuery.$set = { expiresAtNew, purchasedAtNew: now };
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      username,
+      updateQuery,
+      { new: true }
+    ).lean();
+
+    return updatedUser;
+  }
+
+  async setCreditsNew(username: string, creditsNew: number, resetExpiration: boolean = true): Promise<IUser | null> {
+    const VALIDITY_DAYS = 7;
+    const now = new Date();
+    const expiresAtNew = new Date(now.getTime() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+
+    const setFields: any = { creditsNew };
+    if (resetExpiration) {
+      setFields.expiresAtNew = expiresAtNew;
+      setFields.purchasedAtNew = now;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      username,
+      { $set: setFields },
+      { new: true }
+    ).lean();
+
+    return updatedUser;
+  }
+
   async getFullUser(username: string): Promise<IUser | null> {
     return User.findById(username).lean();
   }

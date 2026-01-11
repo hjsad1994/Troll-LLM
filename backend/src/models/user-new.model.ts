@@ -22,12 +22,17 @@ export interface IUserNew {
   apiKey: string;
   apiKeyCreatedAt: Date;
   // Credits-based billing (USD)
-  credits: number;           // Credits remaining (USD)
-  creditsUsed: number;       // Credits used (lifetime, USD)
+  credits: number;           // OhMyGPT credits remaining (port 8005, USD)
+  creditsUsed: number;       // OhMyGPT tokens used (lifetime, USD)
+  creditsNew: number;        // OpenHands credits remaining (port 8004, USD)
+  creditsNewUsed: number;    // OpenHands USD cost used (lifetime, USD)
+  tokensUserNew: number;     // OpenHands tokens count (lifetime, for analytics)
   totalInputTokens: number;  // Input tokens used (for analytics)
   totalOutputTokens: number; // Output tokens used (for analytics)
-  purchasedAt?: Date | null; // When credits were purchased
-  expiresAt?: Date | null;   // When credits expire (7 days from purchase)
+  purchasedAt?: Date | null; // When credits (OhMyGPT) were purchased
+  expiresAt?: Date | null;   // When credits (OhMyGPT) expire (7 days from purchase)
+  purchasedAtNew?: Date | null; // When creditsNew (OpenHands) were purchased
+  expiresAtNew?: Date | null;   // When creditsNew (OpenHands) expire (7 days from purchase)
   // Referral fields
   referralCode: string;
   referredBy?: string | null;
@@ -50,12 +55,17 @@ const userNewSchema = new mongoose.Schema({
   apiKey: { type: String, unique: true, sparse: true },
   apiKeyCreatedAt: { type: Date },
   // Credits-based billing (USD)
-  credits: { type: Number, default: 0 },
-  creditsUsed: { type: Number, default: 0 },
+  credits: { type: Number, default: 0 },           // OhMyGPT (port 8005)
+  creditsUsed: { type: Number, default: 0 },       // OhMyGPT tokens used
+  creditsNew: { type: Number, default: 0 },        // OpenHands (port 8004)
+  creditsNewUsed: { type: Number, default: 0 },    // OpenHands USD cost used
+  tokensUserNew: { type: Number, default: 0 },     // OpenHands tokens count (analytics)
   totalInputTokens: { type: Number, default: 0 },
   totalOutputTokens: { type: Number, default: 0 },
-  purchasedAt: { type: Date, default: null },
-  expiresAt: { type: Date, default: null },
+  purchasedAt: { type: Date, default: null },      // OhMyGPT credits
+  expiresAt: { type: Date, default: null },        // OhMyGPT credits
+  purchasedAtNew: { type: Date, default: null },   // OpenHands credits
+  expiresAtNew: { type: Date, default: null },     // OpenHands credits
   // Referral fields
   referralCode: { type: String, unique: true, sparse: true },
   referredBy: { type: String, default: null },

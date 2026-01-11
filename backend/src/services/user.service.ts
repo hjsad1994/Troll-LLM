@@ -11,12 +11,17 @@ export interface UserProfile {
   apiKeyCreatedAt: Date;
   creditsUsed: number;
   credits: number;
+  creditsNew: number;
+  creditsNewUsed: number;
+  tokensUserNew: number;
   refCredits: number;
   role: string;
   totalInputTokens: number;
   totalOutputTokens: number;
   purchasedAt: Date | null;
   expiresAt: Date | null;
+  purchasedAtNew: Date | null;
+  expiresAtNew: Date | null;
   discordId: string | null;
   migration: boolean;
 }
@@ -24,12 +29,19 @@ export interface UserProfile {
 export interface BillingInfo {
   creditsUsed: number;
   credits: number;
+  creditsNew: number;
+  creditsNewUsed: number;
+  tokensUserNew: number;
   refCredits: number;
   purchasedAt: Date | null;
   expiresAt: Date | null;
+  purchasedAtNew: Date | null;
+  expiresAtNew: Date | null;
   daysUntilExpiration: number | null;
+  daysUntilExpirationNew: number | null;
   subscriptionDays: number;
   isExpiringSoon: boolean;
+  isExpiringSoonNew: boolean;
 }
 
 export class UserService {
@@ -49,12 +61,17 @@ export class UserService {
           apiKeyCreatedAt: updatedUser.apiKeyCreatedAt,
           creditsUsed: updatedUser.creditsUsed,
           credits: updatedUser.credits || 0,
+          creditsNew: updatedUser.creditsNew || 0,
+          creditsNewUsed: (updatedUser as any).creditsNewUsed || 0,
+          tokensUserNew: updatedUser.tokensUserNew || 0,
           refCredits: updatedUser.refCredits || 0,
           role: updatedUser.role,
           totalInputTokens: (updatedUser as any).totalInputTokens || 0,
           totalOutputTokens: (updatedUser as any).totalOutputTokens || 0,
           purchasedAt: updatedUser.purchasedAt || null,
           expiresAt: updatedUser.expiresAt || null,
+          purchasedAtNew: (updatedUser as any).purchasedAtNew || null,
+          expiresAtNew: (updatedUser as any).expiresAtNew || null,
           discordId: updatedUser.discordId || null,
           migration: updatedUser.migration || false,
         };
@@ -67,12 +84,17 @@ export class UserService {
       apiKeyCreatedAt: user.apiKeyCreatedAt,
       creditsUsed: user.creditsUsed,
       credits: user.credits || 0,
+      creditsNew: user.creditsNew || 0,
+      creditsNewUsed: (user as any).creditsNewUsed || 0,
+      tokensUserNew: user.tokensUserNew || 0,
       refCredits: user.refCredits || 0,
       role: user.role,
       totalInputTokens: (user as any).totalInputTokens || 0,
       totalOutputTokens: (user as any).totalOutputTokens || 0,
       purchasedAt: user.purchasedAt || null,
       expiresAt: user.expiresAt || null,
+      purchasedAtNew: (user as any).purchasedAtNew || null,
+      expiresAtNew: (user as any).expiresAtNew || null,
       discordId: user.discordId || null,
       migration: user.migration || false,
     };
@@ -95,7 +117,7 @@ export class UserService {
     const user = await userRepository.getFullUser(username);
     if (!user) return null;
 
-    // Calculate subscription days from purchasedAt and expiresAt
+    // Calculate subscription days from purchasedAt and expiresAt (for credits/OhMyGPT)
     let subscriptionDays = 0;
     if (user.purchasedAt && user.expiresAt) {
       const purchasedAt = new Date(user.purchasedAt);
@@ -104,7 +126,7 @@ export class UserService {
       subscriptionDays = Math.round(totalDiff / (1000 * 60 * 60 * 24));
     }
 
-    // Calculate days until expiration
+    // Calculate days until expiration for credits (OhMyGPT)
     let daysUntilExpiration: number | null = null;
     let isExpiringSoon = false;
 
@@ -116,15 +138,35 @@ export class UserService {
       isExpiringSoon = daysUntilExpiration <= 3 && daysUntilExpiration > 0;
     }
 
+    // Calculate days until expiration for creditsNew (OpenHands)
+    let daysUntilExpirationNew: number | null = null;
+    let isExpiringSoonNew = false;
+    const expiresAtNew = (user as any).expiresAtNew;
+
+    if (expiresAtNew && user.creditsNew > 0) {
+      const now = new Date();
+      const expiresAtNewDate = new Date(expiresAtNew);
+      const diffTime = expiresAtNewDate.getTime() - now.getTime();
+      daysUntilExpirationNew = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      isExpiringSoonNew = daysUntilExpirationNew <= 3 && daysUntilExpirationNew > 0;
+    }
+
     return {
       creditsUsed: user.creditsUsed,
       credits: user.credits || 0,
+      creditsNew: user.creditsNew || 0,
+      creditsNewUsed: (user as any).creditsNewUsed || 0,
+      tokensUserNew: user.tokensUserNew || 0,
       refCredits: user.refCredits || 0,
       purchasedAt: user.purchasedAt || null,
       expiresAt: user.expiresAt || null,
+      purchasedAtNew: (user as any).purchasedAtNew || null,
+      expiresAtNew: expiresAtNew || null,
       daysUntilExpiration,
+      daysUntilExpirationNew,
       subscriptionDays,
       isExpiringSoon,
+      isExpiringSoonNew,
     };
   }
 

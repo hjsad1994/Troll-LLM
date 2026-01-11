@@ -4,7 +4,7 @@ import {
   IPayment,
   MIN_CREDITS,
   MAX_CREDITS,
-  VND_RATE,
+  VND_RATE_NEW,
   VALIDITY_DAYS,
   calculateRefBonus,
   generateOrderCode,
@@ -93,7 +93,7 @@ export class PaymentService {
       throw new Error('Invalid Discord ID format. Please enter your Discord User ID (17-19 digits)');
     }
 
-    const amount = credits * VND_RATE;
+    const amount = credits * VND_RATE_NEW;
     const orderCode = generateOrderCode(credits);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
