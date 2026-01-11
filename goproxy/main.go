@@ -668,24 +668,8 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("🔑 Key validated (db): %s", clientKeyMask)
 		username = userKey.Name // Store username for credit deduction
 
-		// Check if user has sufficient credits
-		if err := userkey.CheckUserCredits(username); err != nil {
-			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient credits for user: %s", username)
-				// Get balance for error response (AC3: include current balance)
-				credits, refCredits, credErr := userkey.GetUserCreditsWithRef(username)
-				if credErr != nil {
-					log.Printf("⚠️ Failed to get credits for balance display: %v", credErr)
-				}
-				balance := credits + refCredits
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				// Story 4.1: Updated to use consistent OpenAI error format with code field
-				w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, balance, balance)))
-				return
-			}
-			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
-		}
+		// NOTE: Credit check moved to after upstream routing to support dual-credit system
+		// OpenHands uses creditsNew, OhMyGPT uses credits - check happens per-upstream
 	}
 	// Store Friend Key info for use in response handlers
 	_ = isFriendKeyRequest
@@ -834,6 +818,44 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	authHeader = "Bearer " + upstreamConfig.APIKey
 	trollKeyID := upstreamConfig.KeyID
+
+	// Additional credit check for OpenHands upstream (creditsNew field)
+	// This check happens after upstream routing is determined
+	if username != "" && upstreamConfig.KeyID == "openhands" {
+		if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
+			if err == userkey.ErrInsufficientCredits {
+				log.Printf("💸 Insufficient creditsNew for user %s on OpenHands upstream", username)
+				// Get creditsNew balance for error response
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				var user struct {
+					CreditsNew float64 `bson:"creditsNew"`
+				}
+				db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient creditsNew. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, user.CreditsNew, user.CreditsNew)))
+				return
+			}
+			log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
+		}
+	}
+
+	// Additional credit check for OhMyGPT upstream (credits field)
+	if username != "" && upstreamConfig.KeyID == "ohmygpt" {
+		if err := userkey.CheckUserCredits(username); err != nil {
+			if err == userkey.ErrInsufficientCredits {
+				log.Printf("💸 Insufficient credits for user %s on OhMyGPT upstream", username)
+				credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
+				balance := credits + refCredits
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, balance, balance)))
+				return
+			}
+			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+		}
+	}
 
 	// Route request based on model type and upstream
 	switch model.Type {
@@ -1024,7 +1046,15 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				// Check billing_upstream to determine which credit field to deduct from
+				billingUpstream := config.GetModelBillingUpstream(modelID)
+				if billingUpstream == "openhands" {
+					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+					log.Printf("💳 [MainTarget] Billing upstream: OpenHands (creditsNew)")
+				} else {
+					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
+					log.Printf("💳 [MainTarget] Billing upstream: OhMyGPT (credits)")
+				}
 				// Update Friend Key usage if applicable
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
@@ -1405,7 +1435,7 @@ handleMessagesResponse:
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1692,7 +1722,7 @@ handleOpenAIResponse:
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithTokens(username, billingCost, billingTokens, input, output)
+				usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1849,7 +1879,7 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithCache(username, billingCost, billingTokens, input, output, cacheWrite, cacheHit)
+				usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request to request_logs collection
@@ -1888,20 +1918,29 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 		return
 	}
 
-	// Parse request to inject system prompt
-	var anthropicReq transformers.AnthropicRequest
-	if err := json.Unmarshal(originalBody, &anthropicReq); err != nil {
+	// Get upstream model ID (may be different from client-requested model ID)
+	upstreamModelID := config.GetUpstreamModelID(modelID)
+
+	// Parse original body as raw JSON to preserve all fields
+	var rawRequest map[string]interface{}
+	if err := json.Unmarshal(originalBody, &rawRequest); err != nil {
 		log.Printf("❌ [OhMyGPT-Anthropic] Failed to parse request: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Invalid JSON"}}`, http.StatusBadRequest)
 		return
 	}
 
-	// Get upstream model ID (may be different from client-requested model ID)
-	upstreamModelID := config.GetUpstreamModelID(modelID)
-	anthropicReq.Model = upstreamModelID
+	// Update model ID in the raw request
+	rawRequest["model"] = upstreamModelID
 
-	// Serialize request
-	requestBody, err := json.Marshal(anthropicReq)
+	// Check if messages exists and is not empty
+	if messages, ok := rawRequest["messages"].([]interface{}); !ok || len(messages) == 0 {
+		log.Printf("❌ [OhMyGPT-Anthropic] Messages array is empty or missing in request")
+		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Messages array cannot be empty"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Serialize the raw request (preserves all original fields including complex content types)
+	requestBody, err := json.Marshal(rawRequest)
 	if err != nil {
 		log.Printf("❌ [OhMyGPT-Anthropic] Failed to serialize request: %v", err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Failed to serialize request"}}`, http.StatusInternalServerError)
@@ -1949,7 +1988,7 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsWithCache(username, billingCost, billingTokens, input, output, cacheWrite, cacheHit)
+				usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			// Log request to request_logs collection
@@ -2978,23 +3017,8 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		log.Printf("🔑 Key validated (db): %s", clientKeyMask)
 		username = userKey.Name // Store username for credit deduction
 
-		// Check if user has sufficient credits
-		if err := userkey.CheckUserCredits(username); err != nil {
-			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient credits for user: %s", username)
-				// Story 4.2 AC2: Get balance for error response, use insufficient_credits type
-				credits, refCredits, credErr := userkey.GetUserCreditsWithRef(username)
-				if credErr != nil {
-					log.Printf("⚠️ Failed to get credits for balance display: %v", credErr)
-				}
-				balance := credits + refCredits
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, balance)))
-				return
-			}
-			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
-		}
+		// NOTE: Credit check moved to after upstream routing to support dual-credit system
+		// OpenHands uses creditsNew, OhMyGPT uses credits - check happens per-upstream
 	}
 	// Store Friend Key info for use in response handlers
 	_ = isFriendKeyRequest
@@ -3073,6 +3097,44 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	authHeader = "Bearer " + upstreamConfig.APIKey
 	trollKeyID := upstreamConfig.KeyID
+
+	// Additional credit check for OpenHands upstream (creditsNew field)
+	// This check happens after upstream routing is determined
+	if username != "" && upstreamConfig.KeyID == "openhands" {
+		if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
+			if err == userkey.ErrInsufficientCredits {
+				log.Printf("💸 Insufficient creditsNew for user %s on OpenHands upstream", username)
+				// Get creditsNew balance for error response
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				var user struct {
+					CreditsNew float64 `bson:"creditsNew"`
+				}
+				db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient creditsNew. Current balance: $%.2f"}}`, user.CreditsNew)))
+				return
+			}
+			log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
+		}
+	}
+
+	// Additional credit check for OhMyGPT upstream (credits field)
+	if username != "" && upstreamConfig.KeyID == "ohmygpt" {
+		if err := userkey.CheckUserCredits(username); err != nil {
+			if err == userkey.ErrInsufficientCredits {
+				log.Printf("💸 Insufficient credits for user %s on OhMyGPT upstream", username)
+				credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
+				balance := credits + refCredits
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusPaymentRequired)
+				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, balance)))
+				return
+			}
+			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+		}
+	}
 
 	// For "main" upstream: forward original request as-is (no transformation)
 	if upstreamConfig.KeyID == "main" {

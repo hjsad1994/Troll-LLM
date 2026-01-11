@@ -5,62 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import Sidebar from '@/components/Sidebar'
 import LoginForm from '@/components/LoginForm'
-import CriticalCreditsBanner from '@/components/CriticalCreditsBanner'
-import { getUserProfile, getDetailedUsage } from '@/lib/api'
+import { getUserProfile } from '@/lib/api'
 import { useLanguage } from '@/components/LanguageProvider'
-
-// localStorage keys for banner dismiss persistence
-const BANNER_DISMISS_KEY = 'trollllm_banner_dismissed'
-const SESSION_ID_KEY = 'trollllm_session_id'
-
-interface BannerDismissState {
-  dismissed: boolean
-  dismissedAtBalance: number
-  sessionId: string
-}
-
-function getSessionId(): string {
-  if (typeof window === 'undefined') return ''
-  let sessionId = sessionStorage.getItem(SESSION_ID_KEY)
-  if (!sessionId) {
-    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    sessionStorage.setItem(SESSION_ID_KEY, sessionId)
-  }
-  return sessionId
-}
-
-function getBannerDismissState(): BannerDismissState | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const stored = localStorage.getItem(BANNER_DISMISS_KEY)
-    if (!stored) return null
-    const state: BannerDismissState = JSON.parse(stored)
-    // Check if same session
-    if (state.sessionId !== getSessionId()) {
-      // New session - clear dismiss state
-      localStorage.removeItem(BANNER_DISMISS_KEY)
-      return null
-    }
-    return state
-  } catch {
-    return null
-  }
-}
-
-function saveBannerDismissState(balance: number): void {
-  if (typeof window === 'undefined') return
-  const state: BannerDismissState = {
-    dismissed: true,
-    dismissedAtBalance: balance,
-    sessionId: getSessionId()
-  }
-  localStorage.setItem(BANNER_DISMISS_KEY, JSON.stringify(state))
-}
-
-function clearBannerDismissState(): void {
-  if (typeof window === 'undefined') return
-  localStorage.removeItem(BANNER_DISMISS_KEY)
-}
 
 // Separate component that uses useSearchParams
 function PaymentSuccessHandler({ onPaymentSuccess }: { onPaymentSuccess: () => void }) {
@@ -81,34 +27,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const { isLoggedIn, loading } = useAuth()
   const { t } = useLanguage()
   const [balance, setBalance] = useState<number | null>(null)
-  const [estimatedRequests, setEstimatedRequests] = useState<number | null>(null)
-  const [isBannerDismissed, setIsBannerDismissed] = useState(false)
-  const [creditDataLoading, setCreditDataLoading] = useState(true)
   const [showPaymentToast, setShowPaymentToast] = useState(false)
-
-  // Load dismiss state from localStorage on mount and when balance changes
-  useEffect(() => {
-    const storedState = getBannerDismissState()
-    if (storedState && storedState.dismissed) {
-      // Check if balance dropped lower than when dismissed (AC4: re-appear at lower threshold)
-      if (balance !== null && balance < storedState.dismissedAtBalance) {
-        // Balance dropped further - reset dismiss state, show banner again
-        clearBannerDismissState()
-        setIsBannerDismissed(false)
-      } else {
-        // Same or higher balance - keep dismissed
-        setIsBannerDismissed(true)
-      }
-    }
-  }, [balance])
-
-  // Handle dismiss with localStorage persistence
-  const handleBannerDismiss = () => {
-    setIsBannerDismissed(true)
-    if (balance !== null) {
-      saveBannerDismissState(balance)
-    }
-  }
 
   // Handle payment success
   const handlePaymentSuccess = useCallback(() => {
@@ -123,25 +42,11 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 
     const fetchCreditData = async () => {
       try {
-        const [profile, usageData] = await Promise.all([
-          getUserProfile(),
-          getDetailedUsage('7d').catch(() => null)
-        ])
-
+        const profile = await getUserProfile()
         const totalCredits = (profile.credits || 0) + (profile.refCredits || 0)
         setBalance(totalCredits)
-
-        if (usageData && usageData.requestCount > 0 && usageData.creditsBurned > 0) {
-          const avgCost = usageData.creditsBurned / usageData.requestCount
-          const estimated = totalCredits / avgCost
-          setEstimatedRequests(Math.floor(estimated))
-        } else {
-          setEstimatedRequests(null)
-        }
       } catch (error) {
         console.error('Failed to fetch credit data:', error)
-      } finally {
-        setCreditDataLoading(false)
       }
     }
 
@@ -222,14 +127,6 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         <Sidebar />
       </div>
       <div className="flex-1 flex flex-col relative z-10">
-        {/* Critical Credits Banner - conditionally rendered */}
-        {!creditDataLoading && balance !== null && balance < 2 && !isBannerDismissed && (
-          <CriticalCreditsBanner
-            balance={balance}
-            estimatedRequests={estimatedRequests}
-            onDismiss={handleBannerDismiss}
-          />
-        )}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pt-[72px] lg:pt-8">
           {children}
         </main>

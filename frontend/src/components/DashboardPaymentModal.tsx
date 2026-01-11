@@ -12,14 +12,14 @@ interface DashboardPaymentModalProps {
   onSuccess?: () => void
 }
 
-const MIN_AMOUNT = 16
+const MIN_AMOUNT = 20
 const MAX_AMOUNT = 100
-const VND_RATE = 2500
+const VND_RATE = 1500
 
 export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: DashboardPaymentModalProps) {
   const { t } = useLanguage()
   const [step, setStep] = useState<'select' | 'payment' | 'success' | 'expired'>('select')
-  const [selectedAmount, setSelectedAmount] = useState<number>(16)
+  const [selectedAmount, setSelectedAmount] = useState<number>(20)
   const [discordId, setDiscordId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +41,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
   useEffect(() => {
     if (isOpen) {
       setStep('select')
-      setSelectedAmount(16)
+      setSelectedAmount(20)
       setDiscordId('')
       setError(null)
       setPaymentData(null)
@@ -309,7 +309,7 @@ export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: Da
 
                 {/* Quick Select Buttons */}
                 <div className="flex gap-2 mt-4">
-                  {[16, 50, 100].map((amount) => (
+                  {[20, 30, 50, 80, 100].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setSelectedAmount(amount)}

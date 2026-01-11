@@ -101,8 +101,8 @@ func validateFromUsersNewCollection(apiKey string) (*UserKey, error) {
 		return nil, ErrMigrationRequired
 	}
 
-	// Check if user has credits
-	if user.Credits <= 0 && user.RefCredits <= 0 {
+	// Check if user has credits (either OhMyGPT or OpenHands balance)
+	if user.Credits <= 0 && user.CreditsNew <= 0 && user.RefCredits <= 0 {
 		return nil, ErrInsufficientCredits
 	}
 
@@ -140,7 +140,8 @@ func GetKeyByID(apiKey string) (*UserKey, error) {
 // UserCredits represents the credits balance info from usersNew collection
 type UserCredits struct {
 	Username   string  `bson:"_id"`
-	Credits    float64 `bson:"credits"`
+	Credits    float64 `bson:"credits"`       // OhMyGPT balance (port 8005)
+	CreditsNew float64 `bson:"creditsNew"`    // OpenHands balance (port 8004)
 	RefCredits float64 `bson:"refCredits"`
 }
 
@@ -173,6 +174,35 @@ func CheckUserCredits(username string) error {
 
 	// Block if both credits <= 0 AND refCredits <= 0
 	if user.Credits <= 0 && user.RefCredits <= 0 {
+		return ErrInsufficientCredits
+	}
+
+	return nil
+}
+
+// CheckUserCreditsOpenHands checks if user has sufficient creditsNew balance (for OpenHands upstream, port 8004)
+// Returns ErrInsufficientCredits if creditsNew <= 0
+func CheckUserCreditsOpenHands(username string) error {
+	if username == "" {
+		return nil // No username means env-based auth, skip check
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user struct {
+		CreditsNew float64 `bson:"creditsNew"`
+	}
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return ErrInsufficientCredits // User not found = no credits
+		}
+		return err
+	}
+
+	// Block if creditsNew <= 0 (no fallback to credits field)
+	if user.CreditsNew <= 0 {
 		return ErrInsufficientCredits
 	}
 
@@ -235,6 +265,27 @@ func GetUserCredits(username string) (float64, error) {
 	}
 
 	return user.Credits, nil
+}
+
+// GetUserCreditsNew returns the current creditsNew balance (OpenHands) for a user (USD)
+func GetUserCreditsNew(username string) (float64, error) {
+	if username == "" {
+		return 0, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user UserCredits
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	return user.CreditsNew, nil
 }
 
 // GetUserCreditsWithRef returns both credits and refCredits for a user (USD)

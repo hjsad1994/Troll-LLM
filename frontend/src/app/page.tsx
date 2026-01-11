@@ -40,15 +40,18 @@ const response = await client.chat.completions.create({
 });`
   },
   curl: {
-    model: 'claude-haiku-4-5',
-    before: `curl https://chat.trollllm.xyz/v1/chat/completions \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -d '{
-    "model": "`,
+    model: 'claude-opus-4-5',
+    before: `POST https://chat.trollllm.xyz/v1/chat/completions
+Authorization: Bearer YOUR_API_KEY
+Content-Type: application/json
+
+{
+  "model": "`,
     after: `",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'`
+  "messages": [
+    {"role": "user", "content": "Hello!"}
+  ]
+}`
   }
 }
 
@@ -136,9 +139,9 @@ function TypingCodeBlock() {
         <div className="flex-1 flex justify-center">
           <div className="flex gap-0.5 sm:gap-1 bg-gray-200 dark:bg-black/50 rounded-lg p-0.5 sm:p-1">
             {([
-              { key: 'python', label: 'Python' },
-              { key: 'nodejs', label: 'NodeJS' },
-              { key: 'curl', label: 'cURL' }
+              // { key: 'python', label: 'Python' },
+              // { key: 'nodejs', label: 'NodeJS' },
+              { key: 'curl', label: 'HTTP' }
             ] as const).map((lang) => (
               <button
                 key={lang.key}
@@ -447,12 +450,12 @@ export default function LandingPage() {
             {/* Price */}
             <div className="text-center mb-8">
               <div className="flex items-baseline justify-center">
-                <span className="text-5xl sm:text-6xl font-bold text-[var(--theme-text)]">40.000</span>
+                <span className="text-5xl sm:text-6xl font-bold text-[var(--theme-text)]">30.000</span>
                 <span className="text-[var(--theme-text-muted)] ml-2">VND {t.pricing.min}</span>
               </div>
               {isPromoActive() ? (
                 <p className="text-purple-600 dark:text-purple-400 text-sm mt-2 font-medium">
-                  {t.pricing.promo?.getBonus || '→ Get $24 credits (+20% bonus)'}
+                  {t.pricing.promo?.getBonus || '→ Get $20 credits (+20% bonus)'}
                 </p>
               ) : (
                 <p className="text-[var(--theme-text-subtle)] text-sm mt-2">{t.pricing.tagline}</p>

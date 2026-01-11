@@ -62,6 +62,7 @@ export default function UserDashboard() {
   const [copied, setCopied] = useState(false)
   const [providerCopied, setProviderCopied] = useState(false)
   const [priorityProviderCopied, setPriorityProviderCopied] = useState(false)
+  const [premiumProviderCopied, setPremiumProviderCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const [usageLoading, setUsageLoading] = useState(false)
   const [logsLoading, setLogsLoading] = useState(false)
@@ -194,6 +195,16 @@ export default function UserDashboard() {
       await navigator.clipboard.writeText('https://priority-chat.trollllm.xyz')
       setPriorityProviderCopied(true)
       setTimeout(() => setPriorityProviderCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const handleCopyPremiumProvider = async () => {
+    try {
+      await navigator.clipboard.writeText('https://chat2.trollllm.xyz')
+      setPremiumProviderCopied(true)
+      setTimeout(() => setPremiumProviderCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy:', err)
     }
@@ -414,40 +425,62 @@ export default function UserDashboard() {
                     <span className="text-xs text-[var(--theme-text-subtle)] hidden sm:inline">({t.dashboard.aiProvider.subtitle})</span>
                   </div>
                   <div className="space-y-2">
-                    {/* Standard Endpoint */}
-                    <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-2.5 sm:p-3">
+                    {/* Standard Endpoint - 1500 VND/$1 */}
+                    <div className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 dark:from-amber-500/10 dark:to-orange-500/10 rounded-lg border border-amber-500/20 p-2.5 sm:p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          {t.dashboard.aiProvider.standardEndpoint}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                          {t.dashboard.aiProvider.standardRate}
+                        </span>
+                      </div>
                       <div className="flex items-center justify-between gap-2 sm:gap-3">
                         <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-xs sm:text-sm font-mono truncate">
                           https://chat.trollllm.xyz
                         </code>
                         <button
                           onClick={handleCopyProvider}
-                          className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--theme-text)] text-slate-700 dark:text-[var(--theme-bg)] border border-slate-300 dark:border-transparent text-xs font-medium hover:bg-slate-50 dark:hover:opacity-90 transition-colors"
+                          className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500 text-white border border-amber-500 text-xs font-medium hover:bg-amber-600 transition-colors"
                         >
                           {providerCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
                         </button>
                       </div>
+                      <p className="text-[var(--theme-text-subtle)] text-xs mt-2">
+                        {t.dashboard.aiProvider.standardNote}
+                      </p>
                     </div>
-                    {/* Priority Endpoint - Temporarily hidden */}
-                    {/* <div className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 dark:from-amber-500/10 dark:to-orange-500/10 rounded-lg border border-amber-500/20 p-2.5 sm:p-3">
+                    {/* Old Credits Endpoint - 2500 VND/$1 */}
+                    <div className="bg-slate-50 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-2.5 sm:p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{t.dashboard.aiProvider.priorityEndpoint}</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {t.dashboard.aiProvider.premiumEndpoint}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-500/20">
+                          {t.dashboard.aiProvider.premiumRate}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between gap-2 sm:gap-3">
                         <code className="text-slate-700 dark:text-[var(--theme-text-muted)] text-xs sm:text-sm font-mono truncate">
-                          https://priority-chat.trollllm.xyz
+                          https://chat2.trollllm.xyz
                         </code>
                         <button
-                          onClick={handleCopyPriorityProvider}
-                          className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500 text-white border border-amber-500 text-xs font-medium hover:bg-amber-600 transition-colors"
+                          onClick={handleCopyPremiumProvider}
+                          className="shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--theme-text)] text-slate-700 dark:text-[var(--theme-bg)] border border-slate-300 dark:border-transparent text-xs font-medium hover:bg-slate-50 dark:hover:opacity-90 transition-colors"
                         >
-                          {priorityProviderCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
+                          {premiumProviderCopied ? t.dashboard.aiProvider.copied : t.dashboard.aiProvider.copy}
                         </button>
                       </div>
-                    </div> */}
+                      <p className="text-[var(--theme-text-subtle)] text-xs mt-2">
+                        {t.dashboard.aiProvider.premiumNote}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -528,32 +561,78 @@ export default function UserDashboard() {
               </div>
               {billingInfo && (
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
-                  (billingInfo.credits || 0) > 0
+                  (billingInfo.credits || 0) > 0 || (billingInfo.creditsNew || 0) > 0
                     ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                     : 'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
                 }`}>
-                  {(billingInfo.credits || 0) > 0 ? 'Active' : 'Free'}
+                  {(billingInfo.credits || 0) > 0 || (billingInfo.creditsNew || 0) > 0 ? 'Active' : 'Free'}
                 </span>
               )}
             </div>
 
             {userProfile ? (
               <div className="space-y-4 sm:space-y-6">
-                {/* Credits Display */}
-                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-4 sm:p-5">
-                  <div className="mb-3 sm:mb-4">
-                    <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs uppercase tracking-wider mb-1">Credits (USD)</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                      ${(userProfile.credits || 0).toFixed(2)}
+                {/* Dual Credits Display */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  {/* New Credits (creditsNew) - Purple */}
+                  <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 rounded-lg border border-violet-200 dark:border-violet-500/20 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-4 h-4 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <p className="text-xs font-semibold text-violet-700 dark:text-violet-400 uppercase tracking-wider">
+                        {t.dashboard.credits.standardCredits}
+                      </p>
+                    </div>
+                    <p className="text-2xl font-bold text-violet-700 dark:text-violet-300 mb-1">
+                      ${(userProfile.creditsNew || 0).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+                      {t.dashboard.credits.standardRate}
                     </p>
                   </div>
-                  <div className="pt-3 sm:pt-4 border-t border-slate-300 dark:border-white/10">
-                    <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs">Tokens Used (Analytics)</p>
-                    <p className="text-slate-800 dark:text-[var(--theme-text)] font-medium">{formatLargeNumber((userProfile.totalInputTokens || 0) + (userProfile.totalOutputTokens || 0))}</p>
+
+                  {/* Old Credits (credits) - Gray */}
+                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950/20 dark:to-gray-950/20 rounded-lg border border-slate-200 dark:border-slate-500/20 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-400 uppercase tracking-wider">
+                        {t.dashboard.credits.premiumCredits}
+                      </p>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      ${(userProfile.credits || 0).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                      {t.dashboard.credits.premiumRate}
+                    </p>
                   </div>
                 </div>
 
-                {/* Credits Expiration Warning */}
+                {/* Tokens Used Analytics */}
+                <div className="bg-slate-100 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-3 sm:p-4">
+                  <p className="text-slate-500 dark:text-[var(--theme-text-subtle)] text-xs mb-1">Total Tokens Used (Analytics)</p>
+                  <p className="text-lg font-bold text-slate-700 dark:text-[var(--theme-text)]">
+                    {formatLargeNumber((userProfile.totalInputTokens || 0) + (userProfile.totalOutputTokens || 0))}
+                  </p>
+                </div>
+
+                {/* Credits Expiration Warning for creditsNew (OpenHands) */}
+                {billingInfo?.isExpiringSoonNew && billingInfo.daysUntilExpirationNew !== null && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                    <svg className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                      <p className="text-violet-400 text-sm font-medium">Standard credits expire in {billingInfo.daysUntilExpirationNew} day{billingInfo.daysUntilExpirationNew > 1 ? 's' : ''}</p>
+                      <p className="text-[var(--theme-text-subtle)] text-xs">Purchase more credits to continue</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Credits Expiration Warning for credits (OhMyGPT) */}
                 {billingInfo?.isExpiringSoon && billingInfo.daysUntilExpiration !== null && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <svg className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -566,7 +645,58 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                {/* Credits Period Section - for users with billing info */}
+                {/* Credits Period Section for creditsNew (OpenHands/Standard) */}
+                {(billingInfo?.creditsNew || 0) > 0 && (
+                  <div className="p-3 sm:p-4 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-500/20">
+                    <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-sm font-medium text-violet-700 dark:text-violet-300">{t.dashboard.creditsValidity.standardTitle}</span>
+                      </div>
+                      {/* Expires Countdown for creditsNew */}
+                      {billingInfo?.expiresAtNew && billingInfo?.daysUntilExpirationNew !== null && billingInfo?.daysUntilExpirationNew !== undefined ? (
+                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                          billingInfo.daysUntilExpirationNew <= 0
+                            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                            : billingInfo.daysUntilExpirationNew <= 3
+                              ? 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20'
+                              : 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20'
+                        }`}>
+                          {billingInfo.daysUntilExpirationNew <= 0
+                            ? t.dashboard.creditsValidity.expired
+                            : t.dashboard.creditsValidity.daysFormat.replace('{days}', String(billingInfo.daysUntilExpirationNew))
+                          }
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-lg text-xs font-bold bg-slate-500/10 text-slate-500 dark:text-slate-400 border border-slate-500/20">
+                          {t.dashboard.creditsValidity.noExpiry}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <p className="text-xs text-violet-600 dark:text-violet-400 mb-1">{t.dashboard.creditsValidity.purchased}</p>
+                        <p className="text-xs sm:text-sm font-medium text-violet-700 dark:text-violet-300">
+                          {billingInfo?.purchasedAtNew ? formatDateDMY(billingInfo.purchasedAtNew) : t.dashboard.creditsValidity.na}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-violet-600 dark:text-violet-400 mb-1">{t.dashboard.creditsValidity.expires}</p>
+                        <p className={`text-xs sm:text-sm font-medium ${
+                          billingInfo?.isExpiringSoonNew
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-violet-700 dark:text-violet-300'
+                        }`}>
+                          {billingInfo?.expiresAtNew ? formatDateDMY(billingInfo.expiresAtNew) : t.dashboard.creditsValidity.na}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Credits Period Section for credits (OhMyGPT/Premium) */}
                 {billingInfo?.expiresAt && (
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
                     <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
@@ -574,7 +704,7 @@ export default function UserDashboard() {
                         <svg className="w-4 h-4 text-slate-500 dark:text-[var(--theme-text-subtle)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">Credits Validity</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">{t.dashboard.creditsValidity.premiumTitle}</span>
                       </div>
                       {/* Expires Countdown X/Y format */}
                       {billingInfo?.daysUntilExpiration !== null && billingInfo?.daysUntilExpiration !== undefined && (
@@ -583,10 +713,10 @@ export default function UserDashboard() {
                             ? 'bg-red-500/10 text-red-500 border border-red-500/20'
                             : billingInfo.daysUntilExpiration <= 3
                               ? 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20'
-                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
                         }`}>
                           {billingInfo.daysUntilExpiration <= 0
-                            ? 'Expired'
+                            ? t.dashboard.creditsValidity.expired
                             : `${billingInfo.daysUntilExpiration}/${billingInfo.subscriptionDays || 7}`
                           }
                         </span>
@@ -594,19 +724,19 @@ export default function UserDashboard() {
                     </div>
                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">Purchased</p>
+                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.creditsValidity.purchased}</p>
                         <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">
-                          {billingInfo?.purchasedAt ? formatDateDMY(billingInfo.purchasedAt) : 'N/A'}
+                          {billingInfo?.purchasedAt ? formatDateDMY(billingInfo.purchasedAt) : t.dashboard.creditsValidity.na}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">Expires</p>
+                        <p className="text-xs text-slate-500 dark:text-[var(--theme-text-subtle)] mb-1">{t.dashboard.creditsValidity.expires}</p>
                         <p className={`text-xs sm:text-sm font-medium ${
                           billingInfo?.isExpiringSoon
                             ? 'text-amber-600 dark:text-amber-400'
                             : 'text-slate-700 dark:text-[var(--theme-text)]'
                         }`}>
-                          {billingInfo?.expiresAt ? formatDateDMY(billingInfo.expiresAt) : 'N/A'}
+                          {billingInfo?.expiresAt ? formatDateDMY(billingInfo.expiresAt) : t.dashboard.creditsValidity.na}
                         </p>
                       </div>
                     </div>

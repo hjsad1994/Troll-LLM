@@ -275,7 +275,7 @@ func deductCreditsAtomic(username string, cost float64, inputTokens, outputToken
 		Credits    float64 `bson:"credits"`
 		RefCredits float64 `bson:"refCredits"`
 	}
-	err := db.UsersCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		log.Printf("❌ Failed to get user %s credits: %v", username, err)
 		return err
@@ -332,7 +332,7 @@ func deductCreditsAtomic(username string, cost float64, inputTokens, outputToken
 		"$inc": incFields,
 	}
 
-	result, err := db.UsersCollection().UpdateOne(ctx, filter, update)
+	result, err := db.UsersNewCollection().UpdateOne(ctx, filter, update)
 	if err != nil {
 		log.Printf("❌ Failed to update user %s: %v", username, err)
 		return err
@@ -361,6 +361,96 @@ func maskKey(key string) string {
 		return "***"
 	}
 	return key[:7] + "***" + key[len(key)-3:]
+}
+
+// DeductCreditsOpenHands deducts credits from creditsNew and tracks creditsNewUsed/tokensUserNew for OpenHands (port 8004)
+func DeductCreditsOpenHands(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
+	if username == "" {
+		return nil
+	}
+
+	// Zero cost - no deduction needed
+	if cost <= 0 {
+		return nil
+	}
+
+	// Synchronous deduction for OpenHands (batched writes not yet implemented for creditsNew)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Get current creditsNew balance
+	var user struct {
+		CreditsNew float64 `bson:"creditsNew"`
+	}
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		log.Printf("❌ [OpenHands] Failed to get user %s creditsNew: %v", username, err)
+		return err
+	}
+
+	// Pre-check - block if cost > creditsNew balance
+	if user.CreditsNew < cost {
+		log.Printf("💸 [OpenHands] [%s] Insufficient creditsNew: cost=$%.6f > balance=$%.6f", username, cost, user.CreditsNew)
+		return ErrInsufficientBalance
+	}
+
+	// Build atomic update
+	incFields := bson.M{
+		"creditsNew":      -cost,              // Deduct from creditsNew
+		"creditsNewUsed":  cost,               // Track USD cost for OpenHands
+		"tokensUserNew":   tokensUsed,         // Track tokens count for analytics
+	}
+
+	// Track input/output tokens for analytics
+	if inputTokens > 0 {
+		incFields["totalInputTokens"] = inputTokens
+	}
+	if outputTokens > 0 {
+		incFields["totalOutputTokens"] = outputTokens
+	}
+
+	// Atomic conditional update
+	filter := bson.M{
+		"_id": username,
+		"creditsNew": bson.M{"$gte": cost},
+	}
+
+	update := bson.M{
+		"$inc": incFields,
+	}
+
+	result, err := db.UsersNewCollection().UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Printf("❌ [OpenHands] Failed to update user %s: %v", username, err)
+		return err
+	}
+
+	// If ModifiedCount == 0, balance was insufficient
+	if result.ModifiedCount == 0 {
+		log.Printf("💸 [OpenHands] [%s] Atomic deduction failed: creditsNew balance check failed (cost=$%.6f)", username, cost)
+		return ErrInsufficientBalance
+	}
+
+	log.Printf("💰 [OpenHands] [%s] Deducted $%.6f from creditsNew (in=%d, out=%d)", username, cost, inputTokens, outputTokens)
+	return nil
+}
+
+// DeductCreditsOhMyGPT deducts credits from credits/creditsUsed for OhMyGPT (port 8005)
+func DeductCreditsOhMyGPT(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
+	if username == "" {
+		return nil
+	}
+
+	// Zero cost - no deduction needed
+	if cost <= 0 {
+		return nil
+	}
+
+	// Note: Batched writes not supported for OpenHands (uses separate UsersNewCollection)
+	// Always use synchronous deduction
+
+	// Synchronous deduction for OhMyGPT (same as legacy logic)
+	return deductCreditsAtomic(username, cost, inputTokens, outputTokens)
 }
 
 // IsFriendKey checks if an API key is a Friend Key

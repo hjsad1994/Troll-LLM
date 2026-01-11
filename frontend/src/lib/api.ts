@@ -359,6 +359,33 @@ export async function addUserRefCredits(username: string, amount: number): Promi
   return resp.json()
 }
 
+// CreditsNew management functions (OpenHands credits)
+export async function updateUserCreditsNew(username: string, creditsNew: number, resetExpiration: boolean = true): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/creditsNew`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ creditsNew, resetExpiration })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to update user creditsNew')
+  }
+  return resp.json()
+}
+
+export async function addUserCreditsNew(username: string, amount: number, resetExpiration: boolean = true): Promise<{ success: boolean; message: string }> {
+  const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/creditsNew/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount, resetExpiration })
+  })
+  if (!resp.ok) {
+    const data = await resp.json()
+    throw new Error(data.error || 'Failed to add user creditsNew')
+  }
+  return resp.json()
+}
+
 export async function setUserCreditPackage(username: string, pkg: '20' | '40'): Promise<{ success: boolean; message: string; user: { username: string; credits: number; expiresAt: string } }> {
   const resp = await fetchWithAuth(`/admin/users/${encodeURIComponent(username)}/credit-package`, {
     method: 'POST',

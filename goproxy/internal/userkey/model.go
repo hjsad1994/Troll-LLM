@@ -69,12 +69,15 @@ func (u *UserKey) IsExpired() bool {
 // LegacyUser represents a user from the legacy "users" collection
 // Used as fallback when API key is not found in user_keys
 type LegacyUser struct {
-	ID         string     `bson:"_id" json:"id"`                                    // username
-	APIKey     string     `bson:"apiKey" json:"api_key"`                            // sk-trollllm-* format
-	IsActive   bool       `bson:"isActive" json:"is_active"`                        // account status
-	Credits    float64    `bson:"credits" json:"credits"`                           // USD credits
-	RefCredits float64    `bson:"refCredits" json:"ref_credits"`                    // referral credits USD
-	ExpiresAt  *time.Time `bson:"expiresAt,omitempty" json:"expires_at,omitempty"`  // credit expiry
-	Role       string     `bson:"role" json:"role"`                                // user role (admin/user)
-	Migration  bool       `bson:"migration" json:"migration"`                      // true = on new rate (2500), false = needs migration
+	ID             string     `bson:"_id" json:"id"`                                    // username
+	APIKey         string     `bson:"apiKey" json:"api_key"`                            // sk-trollllm-* format
+	IsActive       bool       `bson:"isActive" json:"is_active"`                        // account status
+	Credits        float64    `bson:"credits" json:"credits"`                           // OhMyGPT credits (port 8005, USD)
+	CreditsNew     float64    `bson:"creditsNew" json:"credits_new"`                    // OpenHands credits (port 8004, USD)
+	CreditsNewUsed float64    `bson:"creditsNewUsed" json:"credits_new_used"`           // OpenHands USD cost used (lifetime)
+	RefCredits     float64    `bson:"refCredits" json:"ref_credits"`                    // referral credits USD
+	TokensUserNew  float64    `bson:"tokensUserNew" json:"tokens_user_new"`             // OpenHands tokens count (analytics)
+	ExpiresAt      *time.Time `bson:"expiresAt,omitempty" json:"expires_at,omitempty"`  // credit expiry
+	Role           string     `bson:"role" json:"role"`                                 // user role (admin/user)
+	Migration      bool       `bson:"migration" json:"migration"`                       // true = on new rate (2500), false = needs migration
 }

@@ -31,6 +31,7 @@ type Model struct {
 	BillingMultiplier       float64  `json:"billing_multiplier,omitempty"`          // Multiplier applied to final billing cost (default 1.0)
 	Upstream                string   `json:"upstream"`                              // "troll" or "main" - determines which upstream provider to use
 	UpstreamModelID         string   `json:"upstream_model_id,omitempty"`           // Model ID to use when sending to upstream (if different from ID)
+	BillingUpstream         string   `json:"billing_upstream,omitempty"`            // "openhands" or "ohmygpt" - determines which credit field to deduct from
 }
 
 // Config global configuration
@@ -199,6 +200,24 @@ func IsValidUpstream(upstream string) bool {
 	default:
 		return false
 	}
+}
+
+// IsValidBillingUpstream checks if billing_upstream value is valid
+func IsValidBillingUpstream(billingUpstream string) bool {
+	return billingUpstream == "openhands" || billingUpstream == "ohmygpt"
+}
+
+// GetModelBillingUpstream gets billing upstream for a model
+// Returns "openhands" or "ohmygpt" (defaults to "ohmygpt" if not specified)
+func GetModelBillingUpstream(modelID string) string {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return "ohmygpt" // default to ohmygpt for backward compatibility
+	}
+	if model.BillingUpstream != "" && IsValidBillingUpstream(model.BillingUpstream) {
+		return model.BillingUpstream
+	}
+	return "ohmygpt" // default to ohmygpt for backward compatibility
 }
 
 // GetUpstreamModelID gets the model ID to use when sending to upstream

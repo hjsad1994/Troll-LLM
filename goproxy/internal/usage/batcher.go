@@ -68,6 +68,7 @@ type creditUpdate struct {
 	cacheWriteTokens int64
 	cacheHitTokens   int64
 	useRefCredits    bool // true if deducting from refCredits
+	useCreditsNew    bool // true if deducting from creditsNew (OpenHands upstream)
 }
 
 var (
@@ -158,10 +159,34 @@ func (b *BatchedUsageTracker) QueueCreditUpdateWithRef(username string, cost flo
 		cacheWriteTokens: cacheWriteTokens,
 		cacheHitTokens:   cacheHitTokens,
 		useRefCredits:    useRefCredits,
+		useCreditsNew:    false,
 	}:
 	default:
 		log.Printf("⚠️ [BatchedUsageTracker] Credit channel full, dropping update")
 	}
+}
+
+// QueueCreditUpdateOpenHands queues a creditsNew deduction update for OpenHands upstream
+// This bypasses the standard batching for creditsNew field which is separate from credits/refCredits
+func (b *BatchedUsageTracker) QueueCreditUpdateOpenHands(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) {
+	// For now, handle creditsNew updates immediately since they use a different field
+	// This avoids complicating the batching logic for the standard credits field
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Deduct from creditsNew field
+		update := bson.M{
+			"$inc": bson.M{
+				"creditsNew": -cost,
+			},
+		}
+
+		_, err := db.UsersNewCollection().UpdateOne(ctx, bson.M{"_id": username}, update)
+		if err != nil {
+			log.Printf("❌ [OpenHands Batcher] Failed to deduct creditsNew for %s: %v", username, err)
+		}
+	}()
 }
 
 // requestLogWorker processes request logs in batches
