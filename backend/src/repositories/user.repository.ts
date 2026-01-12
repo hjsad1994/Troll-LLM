@@ -263,6 +263,8 @@ export class UserRepository {
     totalCreditsUsed: number;
     totalCredits: number;
     totalRefCredits: number;
+    totalCreditsNew: number;
+    totalCreditsNewUsed: number;
     totalInputTokens: number;
     totalOutputTokens: number;
     activeUsers: number
@@ -276,6 +278,8 @@ export class UserRepository {
           _id: null,
           totalCredits: { $sum: '$credits' },
           totalRefCredits: { $sum: '$refCredits' },
+          totalCreditsNew: { $sum: '$creditsNew' },
+          totalCreditsNewUsed: { $sum: '$creditsNewUsed' },
           activeUsers: {
             $sum: { $cond: [{ $or: [{ $gt: ['$credits', 0] }, { $gt: ['$refCredits', 0] }] }, 1, 0] }
           }
@@ -328,6 +332,8 @@ export class UserRepository {
       totalCreditsUsed: logAgg[0]?.totalCreditsUsed || 0,
       totalCredits: userAgg[0]?.totalCredits || 0,
       totalRefCredits: userAgg[0]?.totalRefCredits || 0,
+      totalCreditsNew: userAgg[0]?.totalCreditsNew || 0,
+      totalCreditsNewUsed: userAgg[0]?.totalCreditsNewUsed || 0,
       totalInputTokens: logAgg[0]?.totalInputTokens || 0,
       totalOutputTokens: logAgg[0]?.totalOutputTokens || 0,
       activeUsers: userAgg[0]?.activeUsers || 0

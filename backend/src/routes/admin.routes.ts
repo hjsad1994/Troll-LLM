@@ -31,6 +31,8 @@ router.get('/user-stats', requireAdmin, async (req: Request, res: Response) => {
       total_credits_used: stats.totalCreditsUsed,
       total_credits: stats.totalCredits,
       total_ref_credits: stats.totalRefCredits,
+      total_creditsNew: stats.totalCreditsNew,
+      total_creditsNewUsed: stats.totalCreditsNewUsed,
       total_input_tokens: stats.totalInputTokens,
       total_output_tokens: stats.totalOutputTokens,
       period,

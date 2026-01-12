@@ -34,6 +34,8 @@ interface UserStats {
   total_credits_used: number
   total_credits: number
   total_ref_credits: number
+  total_creditsNew: number
+  total_creditsNewUsed: number
   total_input_tokens: number
   total_output_tokens: number
 }
@@ -88,6 +90,14 @@ function formatUSD(num: number | undefined | null): string {
   if (num >= 1_000_000) return '$' + (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return '$' + (num / 1_000).toFixed(2) + 'K'
   return '$' + num.toFixed(2)
+}
+
+function formatCredits(num: number | undefined | null): string {
+  if (num == null) return '$0'
+  // Format with dot as thousand separator (European style)
+  // Example: 1110 -> $1.110, 25000 -> $25.000
+  const formatted = Math.floor(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return '$' + formatted
 }
 
 function getHealthColor(status: string): string {
@@ -151,7 +161,7 @@ export default function AdminDashboard() {
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
-  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_input_tokens: 0, total_output_tokens: 0 })
+  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_creditsNew: 0, total_creditsNewUsed: 0, total_input_tokens: 0, total_output_tokens: 0 })
   const [modelStats, setModelStats] = useState<ModelStats[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
@@ -398,7 +408,7 @@ export default function AdminDashboard() {
                   <span className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400"></span>
                   Burned
                 </span>
-                <span className="text-orange-500 dark:text-orange-400 font-medium">{formatUSD(userStats.total_credits_used)}</span>
+                <span className="text-orange-500 dark:text-orange-400 font-medium">{formatCredits(userStats.total_credits_used)}</span>
               </div>
               <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
@@ -406,6 +416,20 @@ export default function AdminDashboard() {
                   Ref
                 </span>
                 <span className="text-blue-500 dark:text-blue-400 font-medium">{formatUSD(userStats.total_ref_credits)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-500 dark:bg-teal-400"></span>
+                  New Credits
+                </span>
+                <span className="text-teal-500 dark:text-teal-400 font-medium">{formatCredits(userStats.total_creditsNew)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400"></span>
+                  New Burned
+                </span>
+                <span className="text-rose-500 dark:text-rose-400 font-medium">{formatCredits(userStats.total_creditsNewUsed)}</span>
               </div>
               <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
                 <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
