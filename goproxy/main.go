@@ -819,41 +819,45 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	authHeader = "Bearer " + upstreamConfig.APIKey
 	trollKeyID := upstreamConfig.KeyID
 
-	// Additional credit check for OpenHands upstream (creditsNew field)
-	// This check happens after upstream routing is determined
-	if username != "" && upstreamConfig.KeyID == "openhands" {
-		if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
-			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient creditsNew for user %s on OpenHands upstream", username)
-				// Get creditsNew balance for error response
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				var user struct {
-					CreditsNew float64 `bson:"creditsNew"`
-				}
-				db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient creditsNew. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, user.CreditsNew, user.CreditsNew)))
-				return
-			}
-			log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
-		}
-	}
+	// Credit pre-check based on billing_upstream config (not upstream provider)
+	// billing_upstream="openhands" → check creditsNew field
+	// billing_upstream="ohmygpt" → check credits+refCredits fields
+	if username != "" {
+		billingUpstream := config.GetModelBillingUpstream(model.ID)
 
-	// Additional credit check for OhMyGPT upstream (credits field)
-	if username != "" && upstreamConfig.KeyID == "ohmygpt" {
-		if err := userkey.CheckUserCredits(username); err != nil {
-			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient credits for user %s on OhMyGPT upstream", username)
-				credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
-				balance := credits + refCredits
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, balance, balance)))
-				return
+		if billingUpstream == "openhands" {
+			// Check creditsNew field for chat.trollllm.xyz
+			if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
+				if err == userkey.ErrInsufficientCredits {
+					log.Printf("💸 Insufficient creditsNew for user %s (billing_upstream=openhands)", username)
+					// Get creditsNew balance for error response
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					var user struct {
+						CreditsNew float64 `bson:"creditsNew"`
+					}
+					db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusPaymentRequired)
+					w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient creditsNew. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, user.CreditsNew, user.CreditsNew)))
+					return
+				}
+				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
 			}
-			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+		} else {
+			// Check credits+refCredits fields for chat2.trollllm.xyz
+			if err := userkey.CheckUserCredits(username); err != nil {
+				if err == userkey.ErrInsufficientCredits {
+					log.Printf("💸 Insufficient credits for user %s (billing_upstream=ohmygpt)", username)
+					credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
+					totalBalance := credits + refCredits
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusPaymentRequired)
+					w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, totalBalance, totalBalance)))
+					return
+				}
+				log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+			}
 		}
 	}
 
@@ -1338,6 +1342,47 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		log.Printf("🔀 [Troll-LLM] Model mapping: %s -> %s", modelID, upstreamModelID)
 	}
 
+	// PRE-CHECK: Estimate cost and verify user can afford this request BEFORE forwarding
+	if username != "" {
+		// Estimate input tokens for cost calculation
+		estimatedInputTokens := estimateAnthropicInputTokens(&anthropicReq)
+		estimatedCost := config.CalculateBillingCostWithCache(modelID, estimatedInputTokens, 0, 0, 0)
+
+		// Check which credit field to use based on billing_upstream
+		billingUpstream := config.GetModelBillingUpstream(modelID)
+
+		// Get user balance from appropriate credit field
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		var user struct {
+			Credits    float64 `bson:"credits"`
+			RefCredits float64 `bson:"refCredits"`
+			CreditsNew float64 `bson:"creditsNew"`
+		}
+		err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+		if err != nil {
+			log.Printf("❌ Failed to get user %s balance: %v", username, err)
+			http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Failed to check balance"}}`, http.StatusInternalServerError)
+			return
+		}
+
+		var totalBalance float64
+		if billingUpstream == "openhands" {
+			totalBalance = user.CreditsNew
+		} else {
+			totalBalance = user.Credits + user.RefCredits
+		}
+
+		// Block request if insufficient balance
+		if totalBalance < estimatedCost {
+			log.Printf("💸 [Pre-Check] [%s] Insufficient balance: estimated=$%.6f > balance=$%.6f (field=%s)", username, estimatedCost, totalBalance, billingUpstream)
+			http.Error(w, fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_balance","message":"Insufficient credits. Cost: $%.4f, Balance: $%.4f"}}`, estimatedCost, totalBalance), http.StatusPaymentRequired)
+			return
+		}
+		log.Printf("✅ [Pre-Check] [%s] Balance OK: estimated=$%.6f, balance=$%.6f (field=%s)", username, estimatedCost, totalBalance, billingUpstream)
+	}
+
 	log.Printf("📤 [OpenHands-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, key=%s)", upstreamModelID, isStreaming, key.ID)
 
 	// Create HTTP request
@@ -1633,6 +1678,47 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 		log.Printf("🔀 [OpenHands-OpenAI] Model mapping: %s -> %s", modelID, upstreamModelID)
 	}
 
+	// PRE-CHECK: Estimate cost and verify user can afford this request BEFORE forwarding
+	if username != "" {
+		// Estimate input tokens for cost calculation
+		estimatedInputTokens := estimateInputTokens(openaiReq)
+		estimatedCost := config.CalculateBillingCostWithCache(modelID, estimatedInputTokens, 0, 0, 0)
+
+		// Check which credit field to use based on billing_upstream
+		billingUpstream := config.GetModelBillingUpstream(modelID)
+
+		// Get user balance from appropriate credit field
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		var user struct {
+			Credits    float64 `bson:"credits"`
+			RefCredits float64 `bson:"refCredits"`
+			CreditsNew float64 `bson:"creditsNew"`
+		}
+		err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+		if err != nil {
+			log.Printf("❌ Failed to get user %s balance: %v", username, err)
+			http.Error(w, `{"error": {"message": "Failed to check balance", "type": "server_error"}}`, http.StatusInternalServerError)
+			return
+		}
+
+		var totalBalance float64
+		if billingUpstream == "openhands" {
+			totalBalance = user.CreditsNew
+		} else {
+			totalBalance = user.Credits + user.RefCredits
+		}
+
+		// Block request if insufficient balance
+		if totalBalance < estimatedCost {
+			log.Printf("💸 [Pre-Check] [%s] Insufficient balance: estimated=$%.6f > balance=$%.6f (field=%s)", username, estimatedCost, totalBalance, billingUpstream)
+			http.Error(w, fmt.Sprintf(`{"error": {"message": "Insufficient credits. Cost: $%.4f, Balance: $%.4f", "type": "insufficient_balance"}}`, estimatedCost, totalBalance), http.StatusPaymentRequired)
+			return
+		}
+		log.Printf("✅ [Pre-Check] [%s] Balance OK: estimated=$%.6f, balance=$%.6f (field=%s)", username, estimatedCost, totalBalance, billingUpstream)
+	}
+
 	isStreaming := openaiReq.Stream
 	log.Printf("📤 [OpenHands-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, key=%s)", upstreamModelID, isStreaming, key.ID)
 
@@ -1795,6 +1881,53 @@ func estimateInputTokens(req *transformers.OpenAIRequest) int64 {
 		// Add content chars
 		if content, ok := msg.Content.(string); ok {
 			totalChars += int64(len(content))
+		}
+	}
+
+	// Rough estimation: 1 token ≈ 4 chars
+	estimatedTokens := totalChars / 4
+
+	// Add overhead for message structure (rough estimate)
+	estimatedTokens += int64(len(req.Messages) * 4)
+
+	return estimatedTokens
+}
+
+// estimateAnthropicInputTokens estimates input tokens for Anthropic requests
+func estimateAnthropicInputTokens(req *transformers.AnthropicRequest) int64 {
+	var totalChars int64
+
+	// Count system prompt chars
+	if req.System != nil {
+		if systemArray, ok := req.System.([]interface{}); ok {
+			for _, item := range systemArray {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if text, ok := itemMap["text"].(string); ok {
+						totalChars += int64(len(text))
+					}
+				}
+			}
+		} else if systemStr, ok := req.System.(string); ok {
+			totalChars += int64(len(systemStr))
+		}
+	}
+
+	// Count characters in all messages
+	for _, msg := range req.Messages {
+		// Add role chars
+		totalChars += int64(len(msg.Role))
+
+		// Add content chars (can be string or array)
+		if content, ok := msg.Content.(string); ok {
+			totalChars += int64(len(content))
+		} else if contentArray, ok := msg.Content.([]interface{}); ok {
+			for _, item := range contentArray {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if text, ok := itemMap["text"].(string); ok {
+						totalChars += int64(len(text))
+					}
+				}
+			}
 		}
 	}
 
@@ -3117,41 +3250,45 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	authHeader = "Bearer " + upstreamConfig.APIKey
 	trollKeyID := upstreamConfig.KeyID
 
-	// Additional credit check for OpenHands upstream (creditsNew field)
-	// This check happens after upstream routing is determined
-	if username != "" && upstreamConfig.KeyID == "openhands" {
-		if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
-			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient creditsNew for user %s on OpenHands upstream", username)
-				// Get creditsNew balance for error response
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				var user struct {
-					CreditsNew float64 `bson:"creditsNew"`
-				}
-				db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient creditsNew. Current balance: $%.2f"}}`, user.CreditsNew)))
-				return
-			}
-			log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
-		}
-	}
+	// Credit pre-check based on billing_upstream config (not upstream provider)
+	// billing_upstream="openhands" → check creditsNew field
+	// billing_upstream="ohmygpt" → check credits+refCredits fields
+	if username != "" {
+		billingUpstream := config.GetModelBillingUpstream(model.ID)
 
-	// Additional credit check for OhMyGPT upstream (credits field)
-	if username != "" && upstreamConfig.KeyID == "ohmygpt" {
-		if err := userkey.CheckUserCredits(username); err != nil {
-			if err == userkey.ErrInsufficientCredits {
-				log.Printf("💸 Insufficient credits for user %s on OhMyGPT upstream", username)
-				credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
-				balance := credits + refCredits
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, balance)))
-				return
+		if billingUpstream == "openhands" {
+			// Check creditsNew field for chat.trollllm.xyz
+			if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
+				if err == userkey.ErrInsufficientCredits {
+					log.Printf("💸 Insufficient creditsNew for user %s (billing_upstream=openhands)", username)
+					// Get creditsNew balance for error response
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					var user struct {
+						CreditsNew float64 `bson:"creditsNew"`
+					}
+					db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusPaymentRequired)
+					w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient creditsNew. Current balance: $%.2f"}}`, user.CreditsNew)))
+					return
+				}
+				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
 			}
-			log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+		} else {
+			// Check credits+refCredits fields for chat2.trollllm.xyz
+			if err := userkey.CheckUserCredits(username); err != nil {
+				if err == userkey.ErrInsufficientCredits {
+					log.Printf("💸 Insufficient credits for user %s (billing_upstream=ohmygpt)", username)
+					credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
+					balance := credits + refCredits
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusPaymentRequired)
+					w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, balance)))
+					return
+				}
+				log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+			}
 		}
 	}
 
