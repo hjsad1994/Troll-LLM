@@ -393,7 +393,7 @@ func DeductCreditsOpenHands(username string, cost float64, tokensUsed, inputToke
 
 	// Pre-check - block if cost > creditsNew balance
 	if user.CreditsNew < cost {
-		log.Printf("💸 [OpenHands] [%s] Insufficient creditsNew: cost=$%.6f > balance=$%.6f", username, cost, user.CreditsNew)
+		log.Printf("💸 [OpenHands] [%s] Insufficient credits: cost=$%.6f > balance=$%.6f", username, cost, user.CreditsNew)
 		return ErrInsufficientBalance
 	}
 

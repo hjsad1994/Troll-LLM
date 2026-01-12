@@ -839,7 +839,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 					db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusPaymentRequired)
-					w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient creditsNew. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, user.CreditsNew, user.CreditsNew)))
+					w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, user.CreditsNew, user.CreditsNew)))
 					return
 				}
 				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
