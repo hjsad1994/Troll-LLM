@@ -29,9 +29,13 @@ type Model struct {
 	BatchInputPricePerMTok  float64  `json:"batch_input_price_per_mtok,omitempty"`  // Optional: Batch mode input price (defaults to 50% of regular)
 	BatchOutputPricePerMTok float64  `json:"batch_output_price_per_mtok,omitempty"` // Optional: Batch mode output price (defaults to 50% of regular)
 	BillingMultiplier       float64  `json:"billing_multiplier,omitempty"`          // Multiplier applied to final billing cost (default 1.0)
-	Upstream                string   `json:"upstream"`                              // "troll" or "main" - determines which upstream provider to use
+	Upstream                string   `json:"upstream"`                              // "troll" or "main" - determines which upstream provider to use (request routing)
 	UpstreamModelID         string   `json:"upstream_model_id,omitempty"`           // Model ID to use when sending to upstream (if different from ID)
-	BillingUpstream         string   `json:"billing_upstream,omitempty"`            // "openhands" or "ohmygpt" - determines which credit field to deduct from
+	BillingUpstream         string   `json:"billing_upstream,omitempty"`            // "openhands" or "ohmygpt" - determines which credit field to deduct from (independent of Upstream)
+	// NOTE: BillingUpstream controls credit field selection, NOT upstream provider
+	// "openhands" = deduct from creditsNew field (chat.trollllm.xyz)
+	// "ohmygpt" = deduct from credits field (chat2.trollllm.xyz)
+	// Both can use same Upstream provider but different credit fields
 }
 
 // Config global configuration

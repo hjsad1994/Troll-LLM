@@ -1,4 +1,7 @@
 {
+  "_comment": "Configuration for chat.trollllm.xyz (port 8004) - goproxy-openhands container",
+  "_comment2": "Uses OpenHands upstream and deducts from 'creditsNew' field",
+  "_comment3": "billing_upstream='openhands' means requests bill to creditsNew (not credits)",
   "port": 8004,
   "endpoints": [
     {

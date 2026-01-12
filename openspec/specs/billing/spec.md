@@ -114,7 +114,32 @@ The payment service SHALL add purchased credits exclusively to the `creditsNew` 
 - **AND** console logs SHALL indicate credits added to `creditsNew` field
 
 ### Requirement: Upstream-Specific Billing Routing
-The GoProxy billing system SHALL deduct from `creditsNew` for OpenHands requests and from `credits` for OhMyGPT requests, with routing determined by model configuration rather than upstream field.
+The GoProxy billing system SHALL support independent configuration of upstream provider (where requests are sent) and credit field selection (where costs are deducted). The `billing_upstream` configuration controls credit field selection, independent of which upstream provider actually handles the request.
+
+#### Scenario: chat2.trollllm.xyz uses OpenHands upstream with credits field
+- **WHEN** a request is received on chat2.trollllm.xyz endpoint (goproxy-ohmygpt container, port 8005)
+- **AND** the model configuration uses OpenHands upstream endpoints
+- **AND** the model's `billing_upstream` is configured as "ohmygpt"
+- **THEN** the request SHALL be routed to OpenHands upstream API
+- **AND** the billing system SHALL deduct token costs from the user's `credits` balance (NOT `creditsNew`)
+- **AND** the billing system SHALL increment the user's `creditsUsed` field with token usage
+- **AND** the request SHALL be rejected if `credits` + `refCredits` balance is insufficient
+
+#### Scenario: chat.trollllm.xyz uses OpenHands upstream with creditsNew field
+- **WHEN** a request is received on chat.trollllm.xyz endpoint (goproxy-openhands container, port 8004)
+- **AND** the model configuration uses OpenHands upstream endpoints
+- **AND** the model's `billing_upstream` is configured as "openhands"
+- **THEN** the request SHALL be routed to OpenHands upstream API
+- **AND** the billing system SHALL deduct token costs from the user's `creditsNew` balance
+- **AND** the billing system SHALL increment the user's `tokensUserNew` field
+- **AND** the request SHALL be rejected if `creditsNew` balance is insufficient
+
+#### Scenario: Both domains share same OpenHands upstream configuration
+- **WHEN** both goproxy-openhands and goproxy-ohmygpt containers are configured
+- **THEN** both SHALL use identical OpenHands upstream endpoints (base URLs, API keys)
+- **AND** the only difference SHALL be the credit field selection based on `billing_upstream` config
+- **AND** both SHALL apply the same billing_multiplier for OpenHands models
+- **AND** both SHALL use the same model pricing (input/output/cache token prices)
 
 #### Scenario: OpenHands request billing
 - **WHEN** a request is routed to any upstream (troll, main, or openhands)

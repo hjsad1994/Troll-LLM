@@ -364,6 +364,9 @@ func maskKey(key string) string {
 }
 
 // DeductCreditsOpenHands deducts credits from creditsNew and tracks creditsNewUsed/tokensUserNew for OpenHands (port 8004)
+// IMPORTANT: Function name refers to credit field ('creditsNew'), NOT upstream provider
+// Used by chat.trollllm.xyz with OpenHands upstream
+// Deducts from 'creditsNew' field only
 func DeductCreditsOpenHands(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
 	if username == "" {
 		return nil
@@ -436,6 +439,9 @@ func DeductCreditsOpenHands(username string, cost float64, tokensUsed, inputToke
 }
 
 // DeductCreditsOhMyGPT deducts credits from credits/creditsUsed for OhMyGPT (port 8005)
+// IMPORTANT: Function name refers to credit field ('credits'), NOT upstream provider
+// Used by chat2.trollllm.xyz with OpenHands upstream
+// Deducts from 'credits' and 'refCredits' fields
 func DeductCreditsOhMyGPT(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
 	if username == "" {
 		return nil

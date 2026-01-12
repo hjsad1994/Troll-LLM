@@ -1046,12 +1046,17 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				// Check billing_upstream to determine which credit field to deduct from
+				// billing_upstream controls credit field selection, independent of upstream provider
+				// "openhands" = deduct from creditsNew field (used by chat.trollllm.xyz)
+				// "ohmygpt" = deduct from credits field (used by chat2.trollllm.xyz)
+				// Both domains may use the same upstream provider (OpenHands) but different credit fields
 				billingUpstream := config.GetModelBillingUpstream(modelID)
 				if billingUpstream == "openhands" {
+					// billing_upstream='openhands' → DeductCreditsOpenHands() → creditsNew field
 					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
 					log.Printf("💳 [MainTarget] Billing upstream: OpenHands (creditsNew)")
 				} else {
+					// billing_upstream='ohmygpt' → DeductCreditsOhMyGPT() → credits field
 					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
 					log.Printf("💳 [MainTarget] Billing upstream: OhMyGPT (credits)")
 				}
@@ -1435,7 +1440,14 @@ handleMessagesResponse:
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+				// Check billing_upstream to determine which credit field to deduct from
+				// Even though this is OpenHands upstream, billing field depends on config
+				billingUpstream := config.GetModelBillingUpstream(modelID)
+				if billingUpstream == "openhands" {
+					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+				} else {
+					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
+				}
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()
@@ -1722,7 +1734,14 @@ handleOpenAIResponse:
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
 			if username != "" {
-				usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+				// Check billing_upstream to determine which credit field to deduct from
+				// Even though this is OpenHands upstream, billing field depends on config
+				billingUpstream := config.GetModelBillingUpstream(modelID)
+				if billingUpstream == "openhands" {
+					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+				} else {
+					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
+				}
 				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
 			}
 			latencyMs := time.Since(requestStartTime).Milliseconds()

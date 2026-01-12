@@ -1,13 +1,17 @@
 {
+  "_comment": "Configuration for chat2.trollllm.xyz (port 8005) - goproxy-ohmygpt container",
+  "_comment2": "Uses OpenHands upstream but deducts from 'credits' field (not creditsNew)",
+  "_comment3": "billing_upstream='ohmygpt' means requests bill to credits field",
+  "_comment4": "Despite using OpenHands upstream, this maintains legacy credit pool for compatibility",
   "port": 8005,
   "endpoints": [
     {
       "name": "ohmygpt-openai",
-      "base_url": "https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg/v1/chat/completions"
+      "base_url": "https://llm-proxy.app.all-hands.dev/v1/chat/completions"
     },
     {
       "name": "ohmygpt-anthropic",
-      "base_url": "https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg/v1/messages"
+      "base_url": "https://llm-proxy.app.all-hands.dev/v1/messages"
     }
   ],
   "models": [
@@ -16,15 +20,14 @@
       "id": "claude-opus-4-5-20251101",
       "type": "ohmygpt",
       "reasoning": "high",
-      "thinking_budget": 6000,
+      "thinking_budget": 12000,
       "input_price_per_mtok": 5.0,
       "output_price_per_mtok": 25.0,
-      "cache_write_price_per_mtok": 6.3,
+      "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
-      "batch_input_price_per_mtok": 2.75,
-      "batch_output_price_per_mtok": 13.75,
-      "billing_multiplier": 1.05,
-      "upstream": "ohmygpt",
+      "billing_multiplier": 1.1,
+      "billing_upstream": "ohmygpt",
+      "upstream": "openhands",
       "upstream_model_id": "claude-opus-4-5-20251101"
     },
     {
@@ -33,15 +36,14 @@
       "id_aliases": ["claude-sonnet-4-5"],
       "type": "ohmygpt",
       "reasoning": "high",
-      "thinking_budget": 6000,
+      "thinking_budget": 12000,
       "input_price_per_mtok": 3.0,
       "output_price_per_mtok": 15.0,
-      "cache_write_price_per_mtok": 3.8,
+      "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.3,
-      "batch_input_price_per_mtok": 1.65,
-      "batch_output_price_per_mtok": 8.25,
-      "billing_multiplier": 1.05,
-      "upstream": "ohmygpt",
+      "billing_multiplier": 1.1,
+      "billing_upstream": "ohmygpt",
+      "upstream": "openhands",
       "upstream_model_id": "claude-sonnet-4-5-20250929"
     },
     {
@@ -52,12 +54,11 @@
       "reasoning": "low",
       "input_price_per_mtok": 1.0,
       "output_price_per_mtok": 5.0,
-      "cache_write_price_per_mtok": 1.3,
+      "cache_write_price_per_mtok": 1.25,
       "cache_hit_price_per_mtok": 0.1,
-      "batch_input_price_per_mtok": 0.55,
-      "batch_output_price_per_mtok": 2.75,
       "billing_multiplier": 1.1,
-      "upstream": "ohmygpt",
+      "billing_upstream": "ohmygpt",
+      "upstream": "openhands",
       "upstream_model_id": "claude-haiku-4-5-20251001"
     }
   ],

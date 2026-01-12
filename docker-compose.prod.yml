@@ -67,6 +67,7 @@ services:
       - trollllm-network
 
   # GoProxy OpenHands (chat.trollllm.xyz - port 8004)
+  # Uses OpenHands upstream and bills to 'creditsNew' field
   goproxy-openhands:
     build:
       context: ./goproxy
@@ -79,7 +80,9 @@ services:
     networks:
       - trollllm-network
 
-  # GoProxy OhMyGPT (chat2.trollllm.xyz - port 8005)
+  # GoProxy OhMyGPT Container (chat2.trollllm.xyz - port 8005)
+  # Uses OpenHands upstream but bills to 'credits' field (legacy pool)
+  # Container name is legacy - actual upstream is OpenHands
   goproxy-ohmygpt:
     build:
       context: ./goproxy
