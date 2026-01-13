@@ -63,6 +63,7 @@ type RequestLog struct {
 	CacheWriteTokens int64     `bson:"cacheWriteTokens"`
 	CacheHitTokens   int64     `bson:"cacheHitTokens"`
 	CreditsCost      float64   `bson:"creditsCost"`
+	CreditType       string    `bson:"creditType,omitempty"`
 	TokensUsed       int64     `bson:"tokensUsed"`
 	StatusCode       int       `bson:"statusCode"`
 	LatencyMs        int64     `bson:"latencyMs"`
@@ -81,6 +82,7 @@ type RequestLogParams struct {
 	CacheWriteTokens int64
 	CacheHitTokens   int64
 	CreditsCost      float64
+	CreditType       string
 	TokensUsed       int64
 	StatusCode       int
 	LatencyMs        int64
@@ -142,6 +144,7 @@ func LogRequestDetailed(params RequestLogParams) {
 		CacheWriteTokens: params.CacheWriteTokens,
 		CacheHitTokens:   params.CacheHitTokens,
 		CreditsCost:      params.CreditsCost,
+		CreditType:       params.CreditType,
 		TokensUsed:       params.TokensUsed,
 		StatusCode:       params.StatusCode,
 		LatencyMs:        params.LatencyMs,

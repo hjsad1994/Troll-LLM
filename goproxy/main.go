@@ -1049,6 +1049,7 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
+			creditType := "ohmygpt" // Default credit type
 			if username != "" {
 				// billing_upstream controls credit field selection, independent of upstream provider
 				// "openhands" = deduct from creditsNew field (used by chat.trollllm.xyz)
@@ -1058,6 +1059,7 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 				if billingUpstream == "openhands" {
 					// billing_upstream='openhands' → DeductCreditsOpenHands() → creditsNew field
 					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+					creditType = "openhands"
 					log.Printf("💳 [MainTarget] Billing upstream: OpenHands (creditsNew)")
 				} else {
 					// billing_upstream='ohmygpt' → DeductCreditsOhMyGPT() → credits field
@@ -1078,6 +1080,7 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 				CacheWriteTokens: cacheWrite,
 				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
+				CreditType:       creditType,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -1160,6 +1163,7 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 				CacheWriteTokens: cacheWrite,
 				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -1242,6 +1246,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 				CacheWriteTokens: cacheWrite,
 				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -1484,12 +1489,14 @@ handleMessagesResponse:
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
+			creditType := "ohmygpt" // Default
 			if username != "" {
 				// Check billing_upstream to determine which credit field to deduct from
 				// Even though this is OpenHands upstream, billing field depends on config
 				billingUpstream := config.GetModelBillingUpstream(modelID)
 				if billingUpstream == "openhands" {
 					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+					creditType = "openhands"
 				} else {
 					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
 				}
@@ -1506,6 +1513,7 @@ handleMessagesResponse:
 				CacheWriteTokens: cacheWrite,
 				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
+				CreditType:       creditType,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -1819,12 +1827,14 @@ handleOpenAIResponse:
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
+			creditType := "ohmygpt" // Default
 			if username != "" {
 				// Check billing_upstream to determine which credit field to deduct from
 				// Even though this is OpenHands upstream, billing field depends on config
 				billingUpstream := config.GetModelBillingUpstream(modelID)
 				if billingUpstream == "openhands" {
 					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+					creditType = "openhands"
 				} else {
 					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
 				}
@@ -1841,6 +1851,7 @@ handleOpenAIResponse:
 				CacheWriteTokens: cacheWrite,
 				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
+				CreditType:       creditType,
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -2046,6 +2057,7 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 				CacheWriteTokens: cacheWrite,
 				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -2155,6 +2167,7 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 				CacheWriteTokens: cacheWrite,
 				CacheHitTokens:   cacheHit,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -2403,6 +2416,7 @@ func handleAnthropicNonStreamResponse(w http.ResponseWriter, resp *http.Response
 				CacheWriteTokens: cacheWriteTokens,
 				CacheHitTokens:   cacheHitTokens,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -2601,6 +2615,7 @@ func handleAnthropicStreamResponse(w http.ResponseWriter, resp *http.Response, m
 				CacheWriteTokens: totalCacheWriteTokens,
 				CacheHitTokens:   totalCacheHitTokens,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -2734,6 +2749,7 @@ func handleTrollOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Respon
 				CacheWriteTokens: cacheWriteTokens,
 				CacheHitTokens:   cacheHitTokens,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       resp.StatusCode,
 				LatencyMs:        latencyMs,
@@ -2908,6 +2924,7 @@ func handleTrollOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response,
 				InputTokens:  totalInputTokens,
 				OutputTokens: totalOutputTokens,
 				CreditsCost:  billingCost,
+				CreditType:   "ohmygpt",
 				TokensUsed:   billingTokens,
 				StatusCode:   resp.StatusCode,
 				LatencyMs:    latencyMs,
@@ -3613,6 +3630,7 @@ func handleAnthropicMessagesNonStreamResponse(w http.ResponseWriter, resp *http.
 						CacheWriteTokens: cacheWriteTokens,
 						CacheHitTokens:   cacheHitTokens,
 						CreditsCost:      billingCost,
+						CreditType:       "ohmygpt",
 						TokensUsed:       billingTokens,
 						StatusCode:       resp.StatusCode,
 						LatencyMs:        latencyMs,
@@ -3826,6 +3844,7 @@ func handleAnthropicMessagesStreamResponse(w http.ResponseWriter, resp *http.Res
 				CacheWriteTokens: totalCacheWriteTokens,
 				CacheHitTokens:   totalCacheHitTokens,
 				CreditsCost:      billingCost,
+				CreditType:       "ohmygpt",
 				TokensUsed:       billingTokens,
 				StatusCode:       200,
 				LatencyMs:        latencyMs,

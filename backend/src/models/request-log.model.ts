@@ -14,6 +14,7 @@ export interface IRequestLog {
   cacheWriteTokens?: number;
   cacheHitTokens?: number;
   creditsCost?: number;
+  creditType?: 'ohmygpt' | 'openhands';
   tokensUsed: number;
   statusCode: number;
   latencyMs?: number;
@@ -34,6 +35,7 @@ const requestLogSchema = new mongoose.Schema({
   cacheWriteTokens: { type: Number, default: 0 },
   cacheHitTokens: { type: Number, default: 0 },
   creditsCost: { type: Number, default: 0 },
+  creditType: { type: String, enum: ['ohmygpt', 'openhands'] },
   tokensUsed: { type: Number, required: true },
   statusCode: { type: Number, required: true },
   latencyMs: { type: Number },
@@ -43,5 +45,6 @@ const requestLogSchema = new mongoose.Schema({
 
 requestLogSchema.index({ createdAt: -1 });
 requestLogSchema.index({ userId: 1, createdAt: -1 });
+requestLogSchema.index({ creditType: 1, createdAt: -1 });
 
 export const RequestLog = mongoose.model<IRequestLog>('RequestLog', requestLogSchema, 'request_logs');
