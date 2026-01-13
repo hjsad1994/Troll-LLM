@@ -3,6 +3,7 @@ package openhands
 import (
 	"log"
 	"net/http"
+	"strings"
 )
 
 // UsageCallback is called after a request completes with token usage data (with cache support)
@@ -44,6 +45,14 @@ func SanitizeError(statusCode int, originalError []byte) []byte {
 // SanitizeAnthropicError returns a generic error message (Anthropic format)
 func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 	log.Printf("🔒 [TrollProxy] Original error (hidden): %s", string(originalError))
+
+	// Special handling for 400 errors: check if it's an image dimension error
+	if statusCode == 400 && isImageDimensionError(string(originalError)) {
+		// Preserve the original error message for image dimension errors
+		// These are actionable user errors that don't expose implementation details
+		return originalError
+	}
+
 	switch statusCode {
 	case 400:
 		return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Bad request"}}`)
@@ -63,4 +72,16 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 	default:
 		return []byte(`{"type":"error","error":{"type":"api_error","message":"Request failed"}}`)
 	}
+}
+
+// isImageDimensionError checks if a 400 error is related to image dimension validation
+// Returns true if the error indicates an image exceeded maximum dimensions (8000 pixels)
+func isImageDimensionError(errorStr string) bool {
+	errorLower := strings.ToLower(errorStr)
+
+	// Check for image dimension validation error indicators
+	// These patterns match Anthropic's error format for oversized images
+	return strings.Contains(errorLower, "image dimensions exceed") ||
+		strings.Contains(errorLower, "exceed max allowed size") ||
+		strings.Contains(errorLower, "image.source.base64.data")
 }
