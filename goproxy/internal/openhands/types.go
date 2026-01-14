@@ -35,6 +35,8 @@ func SanitizeError(statusCode int, originalError []byte) []byte {
 		return []byte(`{"error":{"message":"Resource not found","type":"not_found_error","code":"not_found"}}`)
 	case 429:
 		return []byte(`{"error":{"message":"Rate limit exceeded","type":"rate_limit_error","code":"rate_limit_exceeded"}}`)
+	case 529:
+		return []byte(`{"error":{"message":"The API is currently overloaded. Please retry your request after a brief wait.","type":"overloaded_error","code":"service_overloaded"}}`)
 	case 500, 502, 503, 504:
 		return []byte(`{"error":{"message":"Upstream service unavailable","type":"server_error","code":"server_error"}}`)
 	default:
@@ -67,6 +69,8 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 		return []byte(`{"type":"error","error":{"type":"not_found_error","message":"Resource not found"}}`)
 	case 429:
 		return []byte(`{"type":"error","error":{"type":"rate_limit_error","message":"Rate limit exceeded"}}`)
+	case 529:
+		return []byte(`{"type":"error","error":{"type":"overloaded_error","message":"The API is currently overloaded. Please retry your request after a brief wait."}}`)
 	case 500, 502, 503, 504:
 		return []byte(`{"type":"error","error":{"type":"api_error","message":"Upstream service unavailable"}}`)
 	default:

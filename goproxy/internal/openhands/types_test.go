@@ -95,6 +95,7 @@ func TestSanitizeAnthropicError_OtherStatusCodes(t *testing.T) {
 		{403, `{"type":"error","error":{"type":"permission_error","message":"Access denied"}}`},
 		{404, `{"type":"error","error":{"type":"not_found_error","message":"Resource not found"}}`},
 		{429, `{"type":"error","error":{"type":"rate_limit_error","message":"Rate limit exceeded"}}`},
+		{529, `{"type":"error","error":{"type":"overloaded_error","message":"The API is currently overloaded. Please retry your request after a brief wait."}}`},
 		{500, `{"type":"error","error":{"type":"api_error","message":"Upstream service unavailable"}}`},
 	}
 
@@ -106,5 +107,16 @@ func TestSanitizeAnthropicError_OtherStatusCodes(t *testing.T) {
 				t.Errorf("Status %d: Got: %s, Want: %s", tt.statusCode, string(result), tt.expected)
 			}
 		})
+	}
+}
+
+func TestSanitizeError_OpenAIFormat529(t *testing.T) {
+	// Test that 529 errors return proper OpenAI format with code field
+	originalError := []byte(`{"error":{"message":"Overloaded","type":"overloaded_error","code":"529"}}`)
+	result := SanitizeError(529, originalError)
+
+	expected := `{"error":{"message":"The API is currently overloaded. Please retry your request after a brief wait.","type":"overloaded_error","code":"service_overloaded"}}`
+	if string(result) != expected {
+		t.Errorf("529 error format incorrect.\nGot:  %s\nWant: %s", string(result), expected)
 	}
 }

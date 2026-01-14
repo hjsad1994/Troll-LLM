@@ -102,6 +102,47 @@ func TestAnthropicErrorFormat_AuthenticationError(t *testing.T) {
 	t.Logf("AC3: Authentication error format verified: %s", string(resp))
 }
 
+// TestAnthropicErrorFormat_OverloadedError tests 529: Service overloaded error format
+// Expected: {"type":"error","error":{"type":"overloaded_error","message":"..."}}
+func TestAnthropicErrorFormat_OverloadedError(t *testing.T) {
+	resp := SanitizeAnthropicError(529, []byte(`{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":"req_123"}`))
+
+	var errResp AnthropicErrorResponse
+	if err := json.Unmarshal(resp, &errResp); err != nil {
+		t.Fatalf("Failed to parse error response: %v", err)
+	}
+
+	// Verify outer type
+	if errResp.Type != "error" {
+		t.Errorf("Expected outer type 'error', got %q", errResp.Type)
+	}
+
+	// Verify error type
+	if errResp.Error.Type != "overloaded_error" {
+		t.Errorf("Expected error type 'overloaded_error', got %q", errResp.Error.Type)
+	}
+
+	// Verify message contains overloaded info and retry guidance
+	if errResp.Error.Message == "" {
+		t.Error("Expected non-empty error message")
+	}
+
+	// Parse as generic map to check for code field (shouldn't exist in Anthropic format)
+	var rawResp map[string]interface{}
+	if err := json.Unmarshal(resp, &rawResp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	// Check that error object doesn't have "code" field
+	if errorObj, ok := rawResp["error"].(map[string]interface{}); ok {
+		if _, hasCode := errorObj["code"]; hasCode {
+			t.Error("Anthropic format should NOT have 'code' field in error object")
+		}
+	}
+
+	t.Logf("529 Overloaded error format verified: %s", string(resp))
+}
+
 // TestAnthropicErrorFormat_AllStatusCodes tests all status codes return correct Anthropic format
 func TestAnthropicErrorFormat_AllStatusCodes(t *testing.T) {
 	testCases := []struct {
@@ -116,6 +157,7 @@ func TestAnthropicErrorFormat_AllStatusCodes(t *testing.T) {
 		{"Forbidden_403", 403, "permission_error", "error"},
 		{"NotFound_404", 404, "not_found_error", "error"},
 		{"RateLimit_429", 429, "rate_limit_error", "error"},
+		{"ServiceOverloaded_529", 529, "overloaded_error", "error"},
 		{"InternalError_500", 500, "api_error", "error"},
 		{"BadGateway_502", 502, "api_error", "error"},
 		{"ServiceUnavailable_503", 503, "api_error", "error"},

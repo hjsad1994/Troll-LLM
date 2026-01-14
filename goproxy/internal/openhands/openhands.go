@@ -313,6 +313,10 @@ func (p *OpenHandsProvider) CheckAndRotateOnError(keyID string, statusCode int, 
 	case 429:
 		p.MarkRateLimited(keyID)
 		return
+	case 529:
+		p.MarkRateLimited(keyID)
+		log.Printf("⏳ [Troll-LLM] Key %s temporarily unavailable due to upstream overload (529, cooldown: 60s)", keyID)
+		return
 	}
 
 	if shouldRotate {
@@ -542,8 +546,8 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 		return nil, err
 	}
 
-	// Check for rate limit, quota errors, or budget exceeded (400 with ExceededBudget)
-	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 || resp.StatusCode == 400 {
+	// Check for rate limit, quota errors, or budget exceeded (400 with ExceededBudget), or service overload (529)
+	if resp.StatusCode == 429 || resp.StatusCode == 402 || resp.StatusCode == 401 || resp.StatusCode == 400 || resp.StatusCode == 529 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		bodyStr := string(bodyBytes)
 		resp.Body.Close()
