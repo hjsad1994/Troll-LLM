@@ -81,7 +81,7 @@
       "input_price_per_mtok": 2.5,
       "output_price_per_mtok": 12.0,
       "cache_hit_price_per_mtok": 0.13,
-      "billing_multiplier": 1.16,
+      "billing_multiplier": 1.2,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.1"
