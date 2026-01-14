@@ -24,7 +24,7 @@
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.09,
+      "billing_multiplier": 1.1,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "claude-opus-4-5-20251101"
