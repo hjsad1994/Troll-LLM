@@ -38,6 +38,20 @@ function formatDateTime(dateStr: string | null | undefined): string {
   return `${day}/${month} ${hours}:${minutes}:${seconds}`
 }
 
+function formatDateTimeUTC7(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  // Convert to UTC+7 by adding 7 hours offset
+  const utc7Date = new Date(date.getTime() + (7 * 60 * 60 * 1000))
+  const day = utc7Date.getUTCDate().toString().padStart(2, '0')
+  const month = (utc7Date.getUTCMonth() + 1).toString().padStart(2, '0')
+  const year = utc7Date.getUTCFullYear()
+  const hours = utc7Date.getUTCHours().toString().padStart(2, '0')
+  const minutes = utc7Date.getUTCMinutes().toString().padStart(2, '0')
+  const seconds = utc7Date.getUTCSeconds().toString().padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
+}
+
 function getModelShortName(model: string): string {
   if (model.includes('opus')) return 'Opus'
   if (model.includes('sonnet')) return 'Sonnet'
@@ -689,7 +703,7 @@ export default function UserDashboard() {
                             ? 'text-amber-600 dark:text-amber-400'
                             : 'text-violet-700 dark:text-violet-300'
                         }`}>
-                          {billingInfo?.expiresAtNew ? formatDateDMY(billingInfo.expiresAtNew) : t.dashboard.creditsValidity.na}
+                          {billingInfo?.expiresAtNew ? formatDateTimeUTC7(billingInfo.expiresAtNew) : t.dashboard.creditsValidity.na}
                         </p>
                       </div>
                     </div>
@@ -736,7 +750,7 @@ export default function UserDashboard() {
                             ? 'text-amber-600 dark:text-amber-400'
                             : 'text-slate-700 dark:text-[var(--theme-text)]'
                         }`}>
-                          {billingInfo?.expiresAt ? formatDateDMY(billingInfo.expiresAt) : t.dashboard.creditsValidity.na}
+                          {billingInfo?.expiresAt ? formatDateTimeUTC7(billingInfo.expiresAt) : t.dashboard.creditsValidity.na}
                         </p>
                       </div>
                     </div>
