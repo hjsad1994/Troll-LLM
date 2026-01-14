@@ -26,6 +26,7 @@ interface Stats {
   total: number
   available: number
   used: number
+  usedIn24h: number
 }
 
 export default function OpenHandsBackupKeysPage() {
@@ -35,7 +36,7 @@ export default function OpenHandsBackupKeysPage() {
   const isAdmin = user?.role === 'admin'
 
   const [keys, setKeys] = useState<BackupKey[]>([])
-  const [stats, setStats] = useState<Stats>({ total: 0, available: 0, used: 0 })
+  const [stats, setStats] = useState<Stats>({ total: 0, available: 0, used: 0, usedIn24h: 0 })
   const [loading, setLoading] = useState(true)
   const [createModal, setCreateModal] = useState(false)
   const [importModal, setImportModal] = useState(false)
@@ -85,6 +86,7 @@ export default function OpenHandsBackupKeysPage() {
         total: data.total || 0,
         available: data.available || 0,
         used: data.used || 0,
+        usedIn24h: data.usedIn24h || 0,
       })
     } catch {
       showToast(t.openhandsBackupKeys?.toast?.loadFailed || 'Failed to load backup keys', 'error')
@@ -238,7 +240,7 @@ export default function OpenHandsBackupKeysPage() {
         </header>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 opacity-0 animate-fade-in-up animation-delay-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 opacity-0 animate-fade-in-up animation-delay-100">
           {/* Total Keys Card */}
           <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors">
             <div className="flex items-center gap-3 mb-4">
@@ -282,6 +284,21 @@ export default function OpenHandsBackupKeysPage() {
               </div>
             </div>
             <p className="text-4xl font-bold text-amber-600 dark:text-amber-400">{stats.used}</p>
+          </div>
+
+          {/* Used in 24h Card */}
+          <div className="p-6 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] shadow-sm dark:shadow-none transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[var(--theme-text-subtle)] text-sm">{t.openhandsBackupKeys?.stats?.usedIn24h || 'Used in 24h'}</p>
+              </div>
+            </div>
+            <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">{stats.usedIn24h}</p>
           </div>
         </div>
 

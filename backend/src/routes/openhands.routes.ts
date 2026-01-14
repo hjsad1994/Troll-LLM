@@ -278,10 +278,10 @@ router.get('/backup-keys', async (_req: Request, res: Response) => {
         createdAt: k.createdAt,
       };
 
-      // Add deletesAt for used keys (usedAt + 12 hours)
+      // Add deletesAt for used keys (usedAt + 6 hours)
       if (k.isUsed && k.usedAt) {
         const deletesAt = new Date(k.usedAt);
-        deletesAt.setHours(deletesAt.getHours() + 12);
+        deletesAt.setHours(deletesAt.getHours() + 6);
         keyData.deletesAt = deletesAt;
       }
 

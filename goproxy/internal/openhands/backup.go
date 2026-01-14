@@ -135,22 +135,31 @@ func RestoreOpenHandsBackupKey(id string) error {
 	return err
 }
 
-// CleanupUsedBackupKeys deletes backup keys that have been used for more than 12 hours
+// CleanupUsedBackupKeys deletes backup keys that have been used for more than 6 hours
 // This runs periodically to keep the database clean
 func CleanupUsedBackupKeys() (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Calculate cutoff time (12 hours ago)
-	cutoffTime := time.Now().Add(-12 * time.Hour)
+	// Calculate cutoff time (6 hours ago)
+	cutoffTime := time.Now().Add(-6 * time.Hour)
+	log.Printf("🧹 [OpenHands/Cleanup] Cutoff time: %v (deleting keys used before this time)", cutoffTime)
 
-	// Delete keys where isUsed=true AND usedAt < cutoffTime
+	// Delete keys where isUsed=true AND usedAt exists AND usedAt < cutoffTime
 	result, err := OpenHandsBackupKeysCollection().DeleteMany(ctx, bson.M{
 		"isUsed": true,
-		"usedAt": bson.M{"$lt": cutoffTime},
+		"usedAt": bson.M{
+			"$exists": true,
+			"$lt":     cutoffTime,
+		},
 	})
 	if err != nil {
+		log.Printf("⚠️ [OpenHands/Cleanup] DeleteMany error: %v", err)
 		return 0, err
+	}
+
+	if result.DeletedCount > 0 {
+		log.Printf("🗑️ [OpenHands/Cleanup] Deleted %d expired backup keys", result.DeletedCount)
 	}
 
 	return result.DeletedCount, nil
@@ -174,7 +183,7 @@ func StartBackupKeyCleanupJob(interval time.Duration) {
 			if deleted, err := CleanupUsedBackupKeys(); err != nil {
 				log.Printf("⚠️ [OpenHands/Cleanup] Cleanup failed: %v", err)
 			} else if deleted > 0 {
-				log.Printf("🗑️ [OpenHands/Cleanup] Deleted %d expired backup keys (used > 12h)", deleted)
+				log.Printf("🗑️ [OpenHands/Cleanup] Deleted %d expired backup keys (used > 6h)", deleted)
 			}
 		}
 	}()

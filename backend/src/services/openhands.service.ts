@@ -165,12 +165,14 @@ export async function listBackupKeys(): Promise<OpenHandsBackupKey[]> {
 }
 
 export async function getBackupKeyStats() {
-  const [total, available, used] = await Promise.all([
+  const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const [total, available, used, usedIn24h] = await Promise.all([
     getCollection('openhands_backup_keys').countDocuments(),
     getCollection('openhands_backup_keys').countDocuments({ isUsed: false }),
     getCollection('openhands_backup_keys').countDocuments({ isUsed: true }),
+    getCollection('openhands_backup_keys').countDocuments({ isUsed: true, usedAt: { $gte: cutoff24h } }),
   ]);
-  return { total, available, used };
+  return { total, available, used, usedIn24h };
 }
 
 export async function createBackupKey(data: { id: string; apiKey: string }): Promise<OpenHandsBackupKey> {
