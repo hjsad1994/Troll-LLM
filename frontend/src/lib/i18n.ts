@@ -211,7 +211,7 @@ export const translations = {
         subtitle: 'Your usage this period',
         available: 'Available Balance',
         premiumCredits: 'Old Credits',
-        standardCredits: 'New Credits',
+        standardCredits: 'Credits',
         premiumRate: '2500 VND/$1',
         standardRate: '1500 VND/$1',
         refCredits: 'Referral Credits',
@@ -244,7 +244,7 @@ export const translations = {
         notSet: 'Not set',
       },
       creditsValidity: {
-        standardTitle: 'Standard Credits Validity',
+        standardTitle: 'Credits Validity',
         premiumTitle: 'Premium Credits Validity',
         purchased: 'Purchased',
         expires: 'Expires',
@@ -252,6 +252,8 @@ export const translations = {
         expired: 'Expired',
         daysFormat: '{days}/7 days',
         na: 'N/A',
+        expirationWarning: 'Credits expire in {days} day(s)',
+        expirationWarningAction: 'Purchase more credits to continue',
       },
       creditsUsage: {
         title: 'Credits Usage',
@@ -1579,7 +1581,7 @@ export const translations = {
         standardRate: '1500 VND/$1',
         premiumEndpoint: 'Credits cũ',
         premiumRate: '2500 VND/$1',
-        standardNote: 'Tỷ giá mới, giá trị tốt nhất',
+        standardNote: '',
         premiumNote: 'Chỉ dành cho credits cũ',
       },
       discordIntegration: {
@@ -1602,7 +1604,7 @@ export const translations = {
         subtitle: 'Mức sử dụng của bạn',
         available: 'Số dư khả dụng',
         premiumCredits: 'Credits Cũ',
-        standardCredits: 'Credits Mới',
+        standardCredits: 'Credits',
         premiumRate: '2500 VND/$1',
         standardRate: '1500 VND/$1',
         refCredits: 'Số dư giới thiệu',
@@ -1635,7 +1637,7 @@ export const translations = {
         notSet: 'Chưa thiết lập',
       },
       creditsValidity: {
-        standardTitle: 'Thời hạn Credits Mới',
+        standardTitle: 'Thời hạn Credits',
         premiumTitle: 'Thời hạn Credits Cũ',
         purchased: 'Ngày mua',
         expires: 'Hết hạn',
@@ -1643,6 +1645,8 @@ export const translations = {
         expired: 'Đã hết hạn',
         daysFormat: '{days}/7 ngày',
         na: 'N/A',
+        expirationWarning: 'Credits sẽ hết hạn sau {days} ngày',
+        expirationWarningAction: 'Nạp thêm credits để tiếp tục sử dụng',
       },
       creditsUsage: {
         title: 'Mức sử dụng Credits',

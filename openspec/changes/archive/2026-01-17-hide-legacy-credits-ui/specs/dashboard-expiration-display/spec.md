@@ -1,8 +1,5 @@
-# dashboard-expiration-display Specification
+## MODIFIED Requirements
 
-## Purpose
-Display full datetime in UTC+7 timezone for credit expiration dates on the dashboard, helping users know the exact time when their credits will expire.
-## Requirements
 ### Requirement: Display Full Datetime for Expiration
 The Credits Period section SHALL display full datetime with timezone only for standard credits (creditsNew) expiration dates. Premium credits expiration display SHALL be temporarily hidden.
 
@@ -55,4 +52,3 @@ The full datetime display SHALL work correctly on all screen sizes for creditsNe
 - **WHEN** viewing on mobile screen (< 640px)
 - **THEN** the creditsNew datetime SHALL wrap gracefully if needed
 - **AND** all datetime components SHALL remain visible and readable
-

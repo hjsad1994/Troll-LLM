@@ -328,11 +328,11 @@ export default function UserDashboard() {
             </h1>
             {userProfile && (
               <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                (userProfile.credits || 0) > 0
+                (userProfile.creditsNew || 0) > 0
                   ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20'
                   : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-[var(--theme-text-muted)] border border-slate-200 dark:border-white/10'
               }`}>
-                {(userProfile.credits || 0) > 0 ? 'Active' : 'Free'}
+                {(userProfile.creditsNew || 0) > 0 ? 'Active' : 'Free'}
               </span>
             )}
           </div>
@@ -467,7 +467,9 @@ export default function UserDashboard() {
                         {t.dashboard.aiProvider.standardNote}
                       </p>
                     </div>
-                    {/* Old Credits Endpoint - 2500 VND/$1 */}
+                    {/* LEGACY CREDITS - TEMPORARILY HIDDEN */}
+                    {/* Old Credits Endpoint - 2500 VND/$1 (chat2.trollllm.xyz) */}
+                    {/*
                     <div className="bg-slate-50 dark:bg-[#0a0a0a] rounded-lg border border-slate-300 dark:border-white/10 p-2.5 sm:p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400">
@@ -495,6 +497,8 @@ export default function UserDashboard() {
                         {t.dashboard.aiProvider.premiumNote}
                       </p>
                     </div>
+                    */}
+                    {/* LEGACY CREDITS END */}
                   </div>
                 </div>
 
@@ -575,19 +579,19 @@ export default function UserDashboard() {
               </div>
               {billingInfo && (
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
-                  (billingInfo.credits || 0) > 0 || (billingInfo.creditsNew || 0) > 0
+                  (billingInfo.creditsNew || 0) > 0
                     ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                     : 'bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-[var(--theme-text-muted)]'
                 }`}>
-                  {(billingInfo.credits || 0) > 0 || (billingInfo.creditsNew || 0) > 0 ? 'Active' : 'Free'}
+                  {(billingInfo.creditsNew || 0) > 0 ? 'Active' : 'Free'}
                 </span>
               )}
             </div>
 
             {userProfile ? (
               <div className="space-y-4 sm:space-y-6">
-                {/* Dual Credits Display */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {/* Credits Display - Only creditsNew (Standard) */}
+                <div className="grid grid-cols-1 gap-3 sm:gap-4">
                   {/* New Credits (creditsNew) - Purple */}
                   <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 rounded-lg border border-violet-200 dark:border-violet-500/20 p-4">
                     <div className="flex items-center gap-2 mb-2">
@@ -606,7 +610,9 @@ export default function UserDashboard() {
                     </p>
                   </div>
 
+                  {/* LEGACY CREDITS - TEMPORARILY HIDDEN */}
                   {/* Old Credits (credits) - Gray */}
+                  {/*
                   <div className="bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950/20 dark:to-gray-950/20 rounded-lg border border-slate-200 dark:border-slate-500/20 p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -623,6 +629,8 @@ export default function UserDashboard() {
                       {t.dashboard.credits.premiumRate}
                     </p>
                   </div>
+                  */}
+                  {/* LEGACY CREDITS END */}
                 </div>
 
                 {/* Tokens Used Analytics */}
@@ -640,13 +648,15 @@ export default function UserDashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div>
-                      <p className="text-violet-400 text-sm font-medium">Standard credits expire in {billingInfo.daysUntilExpirationNew} day{billingInfo.daysUntilExpirationNew > 1 ? 's' : ''}</p>
-                      <p className="text-[var(--theme-text-subtle)] text-xs">Purchase more credits to continue</p>
+                      <p className="text-violet-400 text-sm font-medium">{t.dashboard.creditsValidity.expirationWarning.replace('{days}', String(billingInfo.daysUntilExpirationNew))}</p>
+                      <p className="text-[var(--theme-text-subtle)] text-xs">{t.dashboard.creditsValidity.expirationWarningAction}</p>
                     </div>
                   </div>
                 )}
 
+                {/* LEGACY CREDITS - TEMPORARILY HIDDEN */}
                 {/* Credits Expiration Warning for credits (OhMyGPT) */}
+                {/*
                 {billingInfo?.isExpiringSoon && billingInfo.daysUntilExpiration !== null && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <svg className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -658,6 +668,8 @@ export default function UserDashboard() {
                     </div>
                   </div>
                 )}
+                */}
+                {/* LEGACY CREDITS END */}
 
                 {/* Credits Period Section for creditsNew (OpenHands/Standard) */}
                 {(billingInfo?.creditsNew || 0) > 0 && (
@@ -710,7 +722,9 @@ export default function UserDashboard() {
                   </div>
                 )}
 
+                {/* LEGACY CREDITS - TEMPORARILY HIDDEN */}
                 {/* Credits Period Section for credits (OhMyGPT/Premium) */}
+                {/*
                 {billingInfo?.expiresAt && (
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
                     <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
@@ -720,7 +734,6 @@ export default function UserDashboard() {
                         </svg>
                         <span className="text-sm font-medium text-slate-700 dark:text-[var(--theme-text)]">{t.dashboard.creditsValidity.premiumTitle}</span>
                       </div>
-                      {/* Expires Countdown X/Y format */}
                       {billingInfo?.daysUntilExpiration !== null && billingInfo?.daysUntilExpiration !== undefined && (
                         <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
                           billingInfo.daysUntilExpiration <= 0
@@ -756,6 +769,8 @@ export default function UserDashboard() {
                     </div>
                   </div>
                 )}
+                */}
+                {/* LEGACY CREDITS END */}
 
                 {/* Buy Credits Button */}
                 {PAYMENTS_ENABLED ? (

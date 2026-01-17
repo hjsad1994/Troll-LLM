@@ -101,7 +101,9 @@ export default function CreditsStatusWidget({
           getDetailedUsage('7d').catch(() => null) // Gracefully handle usage fetch failure
         ])
 
-        const totalCredits = (profile.credits || 0) + (profile.refCredits || 0)
+        // Use only creditsNew (standard credits) for the widget display
+        // LEGACY CREDITS HIDDEN - was: (profile.credits || 0) + (profile.refCredits || 0)
+        const totalCredits = (profile.creditsNew || 0) + (profile.refCredits || 0)
         setBalance(totalCredits)
 
         // Calculate estimated requests from 7-day usage data

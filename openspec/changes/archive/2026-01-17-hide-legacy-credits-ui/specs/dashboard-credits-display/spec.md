@@ -1,8 +1,5 @@
-# dashboard-credits-display Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change display-creditsnew-dashboard. Update Purpose after archive.
-## Requirements
 ### Requirement: Display creditsNew on Dashboard
 The user dashboard SHALL display only `creditsNew` (OpenHands/Standard) balance with clear labeling. The legacy `credits` (OhMyGPT/Premium) balance SHALL be temporarily hidden from the UI but remain in the backend.
 
@@ -58,4 +55,3 @@ The dashboard credits display SHALL show only the `creditsNew` balance in a clea
 - **THEN** it SHALL use the standard USD format (2 decimal places)
 - **AND** it SHALL display expiration information for `expiresAtNew` if applicable
 - **AND** it SHALL NOT display expiration information for legacy `expiresAt`
-

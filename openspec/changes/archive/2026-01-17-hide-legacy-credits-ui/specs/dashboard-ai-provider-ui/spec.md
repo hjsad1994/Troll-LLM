@@ -1,8 +1,5 @@
-# dashboard-ai-provider-ui Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change add-dual-domain-ai-provider-display. Update Purpose after archive.
-## Requirements
 ### Requirement: Display Dual AI Provider Endpoints
 
 The dashboard SHALL display only the standard AI Provider endpoint. The premium endpoint (`chat2.trollllm.xyz`) SHALL be temporarily hidden from the UI but remain functional in the backend.
@@ -85,4 +82,3 @@ The UI SHALL display only the standard endpoint with appropriate styling. Premiu
 - Rate badge in a subtle color (e.g., emerald or blue)
 
 **And** no premium tier visual elements SHALL be displayed
-
