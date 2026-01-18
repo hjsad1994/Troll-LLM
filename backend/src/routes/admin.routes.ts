@@ -6,6 +6,7 @@ import { userRepository } from '../repositories/user.repository.js';
 import { requestLogRepository } from '../repositories/request-log.repository.js';
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { PaymentStatus } from '../models/payment.model.js';
+import { expirationSchedulerService } from '../services/expiration-scheduler.service.js';
 
 const router = Router();
 
@@ -241,6 +242,11 @@ router.patch('/users/:username/creditsNew', requireAdmin, async (req: Request, r
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Schedule expiration timer if credits > 0 and expiration was reset
+    if (creditsNew > 0 && resetExpiration && user.expiresAtNew) {
+      expirationSchedulerService.scheduleExpirationNew(req.params.username, user.expiresAtNew);
+    }
+
     res.json({
       success: true,
       message: `Set creditsNew to $${creditsNew} for ${req.params.username}`,
@@ -268,6 +274,11 @@ router.post('/users/:username/creditsNew/add', requireAdmin, async (req: Request
     const user = await userRepository.addCreditsNew(req.params.username, amount, resetExpiration);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Schedule expiration timer if expiration was reset
+    if (resetExpiration && user.expiresAtNew) {
+      expirationSchedulerService.scheduleExpirationNew(req.params.username, user.expiresAtNew);
     }
 
     res.json({

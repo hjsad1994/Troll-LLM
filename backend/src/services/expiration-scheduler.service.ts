@@ -187,11 +187,13 @@ export class ExpirationSchedulerService {
 
   /**
    * Schedule expiration for creditsNew (OpenHands)
-   * Cancels existing schedule if any
+   * Cancels existing schedule if any (both old credits and creditsNew timers)
    */
   scheduleExpirationNew(username: string, expiresAtNew: Date): void {
-    // Cancel existing timeout if any
-    this.cancelExpirationNew(username);
+    // Cancel existing timeout from BOTH maps (important for migration from old code)
+    // Old code may have scheduled timer in scheduledExpirations instead of scheduledExpirationsNew
+    this.cancelExpiration(username);      // Cancel old credits timer if any
+    this.cancelExpirationNew(username);   // Cancel creditsNew timer if any
 
     const timeUntilExpiry = new Date(expiresAtNew).getTime() - Date.now();
 
