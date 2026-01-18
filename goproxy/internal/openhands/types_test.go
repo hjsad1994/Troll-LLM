@@ -120,3 +120,92 @@ func TestSanitizeError_OpenAIFormat529(t *testing.T) {
 		t.Errorf("529 error format incorrect.\nGot:  %s\nWant: %s", string(result), expected)
 	}
 }
+
+// =============================================================================
+// Thinking Budget Token Error Tests
+// =============================================================================
+
+func TestIsThinkingBudgetError(t *testing.T) {
+	tests := []struct {
+		name     string
+		errorStr string
+		expected bool
+	}{
+		{
+			name:     "Exact Anthropic error message",
+			errorStr: `{"type":"error","error":{"type":"invalid_request_error","message":"\u0060max_tokens\u0060 must be greater than \u0060thinking.budget_tokens\u0060. Please consult our documentation at https://docs.claude.com/en/docs/build-with-claude/extended-thinking#max-tokens-and-context-window-size"},"request_id":"req_011CXEojawrctJ4tTo7bmsCF"}`,
+			expected: true,
+		},
+		{
+			name:     "Simple max_tokens and budget_tokens",
+			errorStr: "max_tokens must be greater than budget_tokens",
+			expected: true,
+		},
+		{
+			name:     "Contains thinking.budget_tokens",
+			errorStr: "thinking.budget_tokens is too high",
+			expected: true,
+		},
+		{
+			name:     "Case insensitive Max_Tokens and Budget_Tokens",
+			errorStr: "Max_Tokens should be larger than Budget_Tokens",
+			expected: true,
+		},
+		{
+			name:     "Only max_tokens without budget_tokens",
+			errorStr: "max_tokens is too large",
+			expected: false,
+		},
+		{
+			name:     "Only budget_tokens without max_tokens",
+			errorStr: "budget_tokens value is invalid",
+			expected: false,
+		},
+		{
+			name:     "Image dimension error - should not match",
+			errorStr: "image dimensions exceed max allowed size: 8000 pixels",
+			expected: false,
+		},
+		{
+			name:     "Generic invalid request error",
+			errorStr: "Invalid request format",
+			expected: false,
+		},
+		{
+			name:     "Empty string",
+			errorStr: "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isThinkingBudgetError(tt.errorStr)
+			if result != tt.expected {
+				t.Errorf("isThinkingBudgetError(%q) = %v, want %v", tt.errorStr, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizeAnthropicError_ThinkingBudget(t *testing.T) {
+	// Test that thinking budget errors are preserved
+	thinkingBudgetError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"max_tokens must be greater than thinking.budget_tokens. Please consult our documentation."},"request_id":"req_test"}`)
+	result := SanitizeAnthropicError(400, thinkingBudgetError)
+
+	// Should return the original error unchanged
+	if string(result) != string(thinkingBudgetError) {
+		t.Errorf("Thinking budget error was not preserved.\nGot:  %s\nWant: %s", string(result), string(thinkingBudgetError))
+	}
+}
+
+func TestSanitizeAnthropicError_ThinkingBudgetWithBackticks(t *testing.T) {
+	// Test with unicode escaped backticks (as seen in real API errors)
+	thinkingBudgetError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"\u0060max_tokens\u0060 must be greater than \u0060thinking.budget_tokens\u0060. Please consult our documentation at https://docs.claude.com/en/docs/build-with-claude/extended-thinking#max-tokens-and-context-window-size"},"request_id":"req_011CXEojawrctJ4tTo7bmsCF"}`)
+	result := SanitizeAnthropicError(400, thinkingBudgetError)
+
+	// Should return the original error unchanged
+	if string(result) != string(thinkingBudgetError) {
+		t.Errorf("Thinking budget error with backticks was not preserved.\nGot:  %s\nWant: %s", string(result), string(thinkingBudgetError))
+	}
+}

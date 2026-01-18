@@ -48,11 +48,23 @@ func SanitizeError(statusCode int, originalError []byte) []byte {
 func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 	log.Printf("🔒 [TrollProxy] Original error (hidden): %s", string(originalError))
 
-	// Special handling for 400 errors: check if it's an image dimension error
-	if statusCode == 400 && isImageDimensionError(string(originalError)) {
-		// Preserve the original error message for image dimension errors
-		// These are actionable user errors that don't expose implementation details
-		return originalError
+	// Special handling for 400 errors: check if it's an actionable user error
+	if statusCode == 400 {
+		errorStr := string(originalError)
+
+		// Check for image dimension error (preserve original)
+		if isImageDimensionError(errorStr) {
+			// Preserve the original error message for image dimension errors
+			// These are actionable user errors that don't expose implementation details
+			return originalError
+		}
+
+		// Check for thinking budget token error (preserve original)
+		if isThinkingBudgetError(errorStr) {
+			// Preserve the original error message for thinking budget errors
+			// These are actionable user errors that help users fix their extended thinking config
+			return originalError
+		}
 	}
 
 	switch statusCode {
@@ -88,4 +100,18 @@ func isImageDimensionError(errorStr string) bool {
 	return strings.Contains(errorLower, "image dimensions exceed") ||
 		strings.Contains(errorLower, "exceed max allowed size") ||
 		strings.Contains(errorLower, "image.source.base64.data")
+}
+
+// isThinkingBudgetError checks if a 400 error is related to thinking budget token validation
+// Returns true if the error indicates max_tokens must be greater than thinking.budget_tokens
+// This is an actionable user error that helps users fix their extended thinking configuration
+func isThinkingBudgetError(errorStr string) bool {
+	errorLower := strings.ToLower(errorStr)
+
+	// Check for thinking budget token validation error indicators
+	// Pattern: "max_tokens" AND "budget_tokens" together, or "thinking.budget_tokens"
+	hasMaxTokens := strings.Contains(errorLower, "max_tokens")
+	hasBudgetTokens := strings.Contains(errorLower, "budget_tokens")
+
+	return (hasMaxTokens && hasBudgetTokens) || strings.Contains(errorLower, "thinking.budget_tokens")
 }
