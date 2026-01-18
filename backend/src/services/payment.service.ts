@@ -332,7 +332,7 @@ export class PaymentService {
     console.log(`[Payment] ✅ Added $${credits} creditsNew to ${userId}, expires: ${expiresAtNew}`);
 
     // Schedule expiration timer for creditsNew
-    expirationSchedulerService.scheduleExpiration(userId, expiresAtNew);
+    expirationSchedulerService.scheduleExpirationNew(userId, expiresAtNew);
   }
 
   private async awardReferralBonus(userId: string, credits: number): Promise<void> {
