@@ -24,7 +24,7 @@ export const translations = {
       badge: 'Opus 4.5 Available',
       title1: 'Access Opus 4.5',
       title2: 'with One API Key',
-      description: 'Premium access to Claude models. Access Opus, Sonnet, and Haiku through a single API.',
+      description: 'Premium access to Claude models. Access Opus, Sonnet, and Haiku through a single API. Compatible with OpenAI & Anthropic SDKs.',
       cta: 'Get Started',
     },
     // Stats
@@ -1471,7 +1471,7 @@ export const translations = {
       badge: 'Opus 4.5 Đã có sẵn',
       title1: 'Truy cập Opus 4.5',
       title2: 'chỉ với Một API Key',
-      description: 'Truy cập cao cấp các mô hình Claude. Sử dụng Opus, Sonnet và Haiku thông qua một API duy nhất.',
+      description: 'Truy cập cao cấp các mô hình Claude. Sử dụng Opus, Sonnet và Haiku thông qua một API duy nhất. Hỗ trợ OpenAI & Anthropic SDK.',
       cta: 'Bắt đầu ngay',
     },
     // Stats
