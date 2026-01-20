@@ -1,0 +1,33 @@
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # Không review draft PRs
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: PR Review with Progress Tracking
+        # Sử dụng action từ chính repo này (local)
+        uses: ./
+        with:
+          # TrollLLM API configuration
+          custom_api_base_url: ${{ secrets.CUSTOM_API_BASE_URL }}
+          custom_api_key: ${{ secrets.CUSTOM_API_KEY }}
+
+          prompt: "/review-pr REPO: ${{ github.repository }} PR_NUMBER: ${{ github.event.pull_request.number }}"
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment"
+            --model "claude-opus-4-5-20251101"
