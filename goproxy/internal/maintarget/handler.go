@@ -432,7 +432,7 @@ func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, o
 			}
 			log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d", input, output)
 			if onUsage != nil {
-				onUsage(input, output, 0, 0)  // MainTarget doesn't support cache tokens
+				onUsage(input, output, 0, 0)
 			}
 		}
 	}

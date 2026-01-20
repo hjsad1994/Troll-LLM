@@ -96,6 +96,8 @@ function getTierFromId(id: string): ModelTier {
 function getContextLength(id: string): number {
   if (id.startsWith('claude-')) return 200000
   if (id.startsWith('gemini-')) return 1000000
+  if (id === 'gpt-5.2-codex') return 400000
+  if (id.startsWith('gpt-5.1') || id.startsWith('gpt-5.2')) return 272000
   return 128000
 }
 
