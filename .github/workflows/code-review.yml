@@ -11,9 +11,6 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
-    # Only run when:
-    # 1. Comment is on a PR (not issue)
-    # 2. Comment contains trigger keyword
     if: |
       github.event.issue.pull_request &&
       (
@@ -58,7 +55,6 @@ jobs:
           git fetch origin ${{ steps.pr-info.outputs.base_sha }}
           git fetch origin ${{ steps.pr-info.outputs.head_sha }}
           git diff ${{ steps.pr-info.outputs.base_sha }} ${{ steps.pr-info.outputs.head_sha }} > diff.txt
-
           echo "=== Diff Size ==="
           wc -l diff.txt
 
@@ -86,39 +82,23 @@ jobs:
           script: |
             const fs = require('fs');
             const review = fs.readFileSync('review_result.md', 'utf8');
-
-            // Find existing bot comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-
             const botComment = comments.find(comment =>
               comment.user.type === 'Bot' &&
               comment.body.includes('<!-- AI-CODE-REVIEW -->')
             );
-
             const prNumber = context.issue.number;
             const timestamp = new Date().toISOString();
             const requestedBy = context.payload.comment.user.login;
-
-            const commentBody = `<!-- AI-CODE-REVIEW -->
-## 🤖 AI Code Review
-
-> **PR #${prNumber}** | Reviewed at: ${timestamp}
-> Requested by: @${requestedBy}
-
-${review}
-
----
-<details>
-<summary>ℹ️ How to use</summary>
-
-Comment \`@ai-review\` or \`/review\` to request a new review.
-
-</details>`;
-
+            const header = '<!-- AI-CODE-REVIEW -->\n## AI Code Review\n\n';
+            const meta = '> **PR #' + prNumber + '** | Reviewed at: ' + timestamp + '\n';
+            const reqBy = '> Requested by: @' + requestedBy + '\n\n';
+            const footer = '\n\n---\n*Comment `@ai-review` or `/review` to request a new review.*';
+            const commentBody = header + meta + reqBy + review + footer;
             if (botComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
