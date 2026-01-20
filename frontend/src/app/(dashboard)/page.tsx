@@ -1,9 +1,12 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { fetchWithAuth, getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, UserProfile, BillingInfo } from '@/lib/api'
+import { fetchWithAuth, getUserProfile, getFullApiKey, rotateApiKey, getBillingInfo, getPaymentHistory, getRateLimitMetrics, UserProfile, BillingInfo, PaymentHistoryItem, RateLimitMetrics } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
+import DashboardPaymentModal from '@/components/DashboardPaymentModal'
 
 interface Stats {
   totalKeys: number
@@ -16,7 +19,7 @@ interface Stats {
 
 interface Metrics {
   totalRequests: number
-  totalTokens: number
+  tokensUsed: number
   avgLatencyMs: number
   successRate: number
   inputTokens?: number
@@ -29,9 +32,7 @@ interface UserKey {
   _id?: string
   id?: string
   name: string
-  tier: string
   tokensUsed: number
-  totalTokens: number
   isActive: boolean
 }
 
@@ -64,7 +65,8 @@ interface RecentLog {
   tokensUsed?: number
 }
 
-function formatLargeNumber(num: number): string {
+function formatLargeNumber(num: number | undefined | null): string {
+  if (num == null) return '0'
   if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + 'B'
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
@@ -120,7 +122,7 @@ export default function Dashboard() {
   })
   const [metrics, setMetrics] = useState<Metrics>({
     totalRequests: 0,
-    totalTokens: 0,
+    tokensUsed: 0,
     avgLatencyMs: 0,
     successRate: 0,
   })
@@ -140,16 +142,22 @@ export default function Dashboard() {
   const [newApiKey, setNewApiKey] = useState<string | null>(null)
   const [showRotateConfirm, setShowRotateConfirm] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
+  const [rateLimitMetrics, setRateLimitMetrics] = useState<RateLimitMetrics | null>(null)
+  const [rateLimitPeriod, setRateLimitPeriod] = useState<string>('24h')
   const { user } = useAuth()
 
   const loadUserData = useCallback(async () => {
     try {
-      const [profile, billing] = await Promise.all([
+      const [profile, billing, payments] = await Promise.all([
         getUserProfile().catch(() => null),
         getBillingInfo().catch(() => null),
+        getPaymentHistory().catch(() => ({ payments: [] })),
       ])
       if (profile) setUserProfile(profile)
       if (billing) setBillingInfo(billing)
+      if (payments) setPaymentHistory(payments.payments.slice(0, 5))
     } catch (err) {
       console.error('Failed to load user data:', err)
     }
@@ -236,7 +244,7 @@ export default function Dashboard() {
 
       setMetrics({
         totalRequests: metricsData.total_requests || 0,
-        totalTokens: metricsData.total_tokens || 0,
+        tokensUsed: metricsData.tokens_used || 0,
         avgLatencyMs: metricsData.avg_latency_ms || 0,
         successRate: metricsData.success_rate || 0,
         inputTokens: metricsData.input_tokens || 0,
@@ -250,6 +258,8 @@ export default function Dashboard() {
       if (isAdmin) {
         setFactoryKeys((factoryData.keys || []).slice(0, 5))
         setProxies((proxiesData.proxies || []).slice(0, 5))
+        // Load rate limit metrics for admin
+        getRateLimitMetrics(rateLimitPeriod).then(setRateLimitMetrics).catch(console.error)
       }
       setRecentLogs(metricsData.recent_logs || [])
 
@@ -268,12 +278,18 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [loadDashboard, loadUserData])
 
+  // Reload rate limit metrics when period changes
+  useEffect(() => {
+    if (isAdmin) {
+      getRateLimitMetrics(rateLimitPeriod).then(setRateLimitMetrics).catch(console.error)
+    }
+  }, [rateLimitPeriod, isAdmin])
+
   // Calculate some derived metrics
   const activeKeys = userKeys.filter(k => k.isActive).length
   const healthyFactoryKeys = factoryKeys.filter(k => k.status === 'healthy').length
   const healthyProxies = proxies.filter(p => p.status === 'healthy').length
   const totalKeyTokensUsed = userKeys.reduce((sum, k) => sum + (k.tokensUsed || 0), 0)
-  const totalKeyTokensLimit = userKeys.reduce((sum, k) => sum + (k.totalTokens || 0), 0)
 
   return (
     <div className="space-y-8">
@@ -388,57 +404,53 @@ export default function Dashboard() {
               </div>
               {billingInfo && (
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  billingInfo.plan === 'enterprise' ? 'bg-purple-500/20 text-purple-400' :
-                  billingInfo.plan === 'pro' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-slate-500/20 text-slate-400'
+                  (billingInfo.credits || 0) > 0
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-slate-500/20 text-slate-400'
                 }`}>
-                  {billingInfo.plan.charAt(0).toUpperCase() + billingInfo.plan.slice(1)} Plan
+                  {(billingInfo.credits || 0) > 0 ? 'Active' : 'Free'}
                 </span>
               )}
             </div>
             
             {billingInfo ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="bg-slate-900/50 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Tokens Remaining</p>
-                    <p className="text-2xl font-bold text-white">
-                      {billingInfo.totalTokensRemaining === -1 ? 'Unlimited' : formatLargeNumber(billingInfo.totalTokensRemaining)}
+                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Credits (USD)</p>
+                    <p className="text-2xl font-bold text-emerald-400">
+                      ${(billingInfo.credits || 0).toFixed(2)}
                     </p>
                   </div>
-                  <div className="bg-slate-900/50 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Used This Month</p>
-                    <p className="text-2xl font-bold text-cyan-400">{formatLargeNumber(billingInfo.monthlyTokensUsed)}</p>
-                  </div>
                 </div>
-                
-                <div>
-                  <div className="flex justify-between text-xs text-slate-400 mb-1">
-                    <span>Monthly Usage</span>
-                    <span>{billingInfo.usagePercentage.toFixed(1)}% of {formatLargeNumber(billingInfo.monthlyTokensLimit)}</span>
-                  </div>
-                  <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        billingInfo.usagePercentage > 90 ? 'bg-red-500' : 
-                        billingInfo.usagePercentage > 70 ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}
-                      style={{ width: `${Math.min(billingInfo.usagePercentage, 100)}%` }}
-                    />
-                  </div>
-                </div>
-                
-                <p className="text-xs text-slate-500">
-                  Resets: {new Date(billingInfo.monthlyResetDate).toLocaleDateString()} (1st of next month)
-                </p>
+                {/* Buy Credits Button */}
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Buy Credits
+                </button>
               </div>
             ) : (
-              <div className="animate-pulse space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="h-16 bg-slate-700/50 rounded-lg"></div>
-                  <div className="h-16 bg-slate-700/50 rounded-lg"></div>
+              <div className="space-y-3">
+                <div className="animate-pulse">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="h-16 bg-slate-700/50 rounded-lg"></div>
+                  </div>
                 </div>
-                <div className="h-4 bg-slate-700/50 rounded-lg"></div>
+                {/* Buy Credits Button - always visible */}
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Buy Credits
+                </button>
               </div>
             )}
           </div>
@@ -478,22 +490,7 @@ export default function Dashboard() {
       )}
 
       {/* Overview Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl bg-gradient-to-br from-sky-500/10 to-sky-600/5 border border-sky-500/20 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-sky-500/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs uppercase tracking-wider">User Keys</p>
-              <p className="text-2xl font-bold text-white">{loading ? '-' : stats.totalKeys}</p>
-              <p className="text-xs text-sky-400">{activeKeys} active</p>
-            </div>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-xl bg-gradient-to-br from-violet-500/10 to-violet-600/5 border border-violet-500/20 p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
@@ -567,7 +564,7 @@ export default function Dashboard() {
               <div className="bg-slate-800/50 rounded-lg p-3">
                 <p className="text-slate-500 text-xs uppercase tracking-wider">Avg Latency</p>
                 <p className={`text-xl font-semibold ${getLatencyColor(metrics.avgLatencyMs)}`}>
-                  {metrics.avgLatencyMs.toLocaleString()}ms
+                  {(metrics.avgLatencyMs ?? 0).toLocaleString()}ms
                 </p>
               </div>
               <div className="bg-slate-800/50 rounded-lg p-3">
@@ -584,9 +581,9 @@ export default function Dashboard() {
           <div className="relative">
             <p className="text-slate-400 text-sm font-medium uppercase tracking-wider">Token Usage</p>
             <p className="text-4xl font-bold mt-2 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              {loading ? '...' : formatLargeNumber(metrics.totalTokens)}
+              {loading ? '...' : formatLargeNumber(metrics.tokensUsed)}
             </p>
-            <p className="text-slate-500 text-sm">total tokens consumed</p>
+            <p className="text-slate-500 text-sm">tokens used</p>
             <div className="mt-4 space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-400 flex items-center gap-2">
@@ -605,11 +602,11 @@ export default function Dashboard() {
               <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden flex">
                 <div
                   className="h-full bg-cyan-500"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.inputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
+                  style={{ width: metrics.tokensUsed > 0 ? `${((metrics.inputTokens || 0) / metrics.tokensUsed) * 100}%` : '50%' }}
                 />
                 <div
                   className="h-full bg-blue-500"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.outputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
+                  style={{ width: metrics.tokensUsed > 0 ? `${((metrics.outputTokens || 0) / metrics.tokensUsed) * 100}%` : '50%' }}
                 />
               </div>
             </div>
@@ -618,67 +615,7 @@ export default function Dashboard() {
       </div>
 
       {/* Detailed Tables Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* User Keys Table */}
-        <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-white">User API Keys</h3>
-            </div>
-            <Link href="/keys" className="text-sm text-sky-400 hover:text-sky-300 transition-colors">
-              View all
-            </Link>
-          </div>
-          <div className="p-4">
-            {userKeys.length > 0 ? (
-              <div className="space-y-3">
-                {userKeys.map((key) => {
-                  const usagePercent = key.totalTokens > 0 ? (key.tokensUsed / key.totalTokens) * 100 : 0
-                  return (
-                    <div key={key._id || key.id} className="bg-slate-800/50 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">{key.name}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            key.tier === 'pro' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
-                          }`}>
-                            {key.tier}
-                          </span>
-                        </div>
-                        {getStatusBadge(key.isActive ? 'active' : 'unhealthy')}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                        <span>{formatLargeNumber(key.tokensUsed)} / {formatLargeNumber(key.totalTokens)} tokens</span>
-                        <span>{usagePercent.toFixed(1)}%</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-sky-500'
-                          }`}
-                          style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">
-                <p>No user keys configured</p>
-                <Link href="/keys" className="text-sky-400 text-sm hover:underline mt-2 inline-block">
-                  Create your first key
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-6">
         {/* Troll-Keys Table - Admin only */}
         {isAdmin && (
           <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
@@ -713,7 +650,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-4 text-xs text-slate-400">
                         <span>{formatLargeNumber(key.tokensUsed)} tokens used</span>
-                        <span>{key.requestsCount.toLocaleString()} requests</span>
+                        <span>{(key.requestsCount ?? 0).toLocaleString()} requests</span>
                       </div>
                     </div>
                   ))}
@@ -730,6 +667,69 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Rate Limit Metrics - Admin only */}
+      {isAdmin && (
+        <div className="rounded-2xl bg-gradient-to-br from-violet-900/40 to-slate-900/60 border border-violet-500/30 overflow-hidden">
+          <div className="px-6 py-4 border-b border-violet-500/20 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white">Rate Limit Metrics</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {['1h', '24h', '7d', '30d', 'all'].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setRateLimitPeriod(p)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    rateLimitPeriod === p
+                      ? 'bg-violet-500 text-white'
+                      : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                  }`}
+                >
+                  {p === 'all' ? 'All' : p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="p-6">
+            {rateLimitMetrics ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-800/50 rounded-xl p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">Total 429 Responses</p>
+                  <p className="text-3xl font-bold text-violet-400">{rateLimitMetrics.total_429.toLocaleString()}</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-xl p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">User Key (sk-troll-*)</p>
+                  <p className="text-2xl font-bold text-blue-400">{rateLimitMetrics.user_key_429.toLocaleString()}</p>
+                  {rateLimitMetrics.total_429 > 0 && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {((rateLimitMetrics.user_key_429 / rateLimitMetrics.total_429) * 100).toFixed(1)}%
+                    </p>
+                  )}
+                </div>
+                <div className="bg-slate-800/50 rounded-xl p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">Friend Key (fk-*)</p>
+                  <p className="text-2xl font-bold text-amber-400">{rateLimitMetrics.friend_key_429.toLocaleString()}</p>
+                  {rateLimitMetrics.total_429 > 0 && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {((rateLimitMetrics.friend_key_429 / rateLimitMetrics.total_429) * 100).toFixed(1)}%
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                <p>Loading rate limit metrics...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Proxies Section */}
       <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
@@ -890,6 +890,81 @@ export default function Dashboard() {
           </a>
         </div>
       </div>
+
+      {/* Recent Payments */}
+      <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-white">Recent Payments</h3>
+          </div>
+          <button
+            onClick={() => setShowPaymentModal(true)}
+            className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            Buy Credits
+          </button>
+        </div>
+        <div className="p-4">
+          {paymentHistory.length > 0 ? (
+            <div className="space-y-3">
+              {paymentHistory.map((payment) => (
+                <div key={payment.id} className="bg-slate-800/50 rounded-lg p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      payment.status === 'success' ? 'bg-emerald-400' :
+                      payment.status === 'pending' ? 'bg-amber-400' : 'bg-red-400'
+                    }`} />
+                    <div>
+                      <p className="text-sm text-white font-medium">
+                        {new Intl.NumberFormat('vi-VN').format(payment.amount)} VND
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {new Date(payment.createdAt).toLocaleDateString('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    payment.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' :
+                    payment.status === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {payment.status === 'success' ? 'Success' :
+                     payment.status === 'pending' ? 'Pending' : 'Expired'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-slate-500">
+              <p>No payments yet</p>
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="text-emerald-400 text-sm hover:underline mt-2 inline-block"
+              >
+                Make your first purchase
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Payment Modal */}
+      <DashboardPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={() => {
+          loadUserData()
+        }}
+      />
     </div>
   )
 }

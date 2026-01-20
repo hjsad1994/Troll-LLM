@@ -15,14 +15,23 @@ const config: Config = {
           dark: '#0ea5e9',
         },
         dark: {
-          bg: '#0a0a0f',
-          card: '#111118',
-          border: '#1e1e2e',
+          bg: 'var(--theme-bg)',
+          card: 'var(--theme-card)',
+          border: 'var(--theme-border)',
         },
-        background: '#0a0a0f',
+        background: 'var(--theme-bg)',
+        foreground: 'var(--theme-text)',
+        'muted-foreground': 'var(--theme-text-muted)',
+        'subtle-foreground': 'var(--theme-text-subtle)',
       },
       backgroundColor: {
-        DEFAULT: '#0a0a0f',
+        DEFAULT: 'var(--theme-bg)',
+      },
+      textColor: {
+        DEFAULT: 'var(--theme-text)',
+      },
+      borderColor: {
+        DEFAULT: 'var(--theme-border)',
       },
     },
   },

@@ -1,4 +1,4 @@
-import { Proxy, ProxyKeyBinding, ProxyHealthLog, FactoryKey } from '../db/mongodb.js';
+import { Proxy, ProxyKeyBinding, ProxyHealthLog } from '../db/mongodb.js';
 
 export interface CreateProxyInput {
   name: string;
@@ -78,68 +78,39 @@ export async function deleteProxy(proxyId: string) {
   return result !== null;
 }
 
-// Key Bindings
-export async function getProxyBindings(proxyId: string) {
-  const bindings = await ProxyKeyBinding.find({ proxyId }).sort({ priority: 1 });
-  
-  // Get factory key details
-  const result = [];
-  for (const binding of bindings) {
-    const factoryKey = await FactoryKey.findById(binding.factoryKeyId);
-    result.push({
-      id: binding._id,
-      proxyId: binding.proxyId,
-      factoryKeyId: binding.factoryKeyId,
-      factoryKeyStatus: factoryKey?.status || 'unknown',
-      priority: binding.priority,
-      isActive: binding.isActive,
-      createdAt: binding.createdAt,
-    });
-  }
-  
-  return result;
+// Binding type for deprecated factory key bindings
+interface BindingResult {
+  id: string;
+  proxyId: string;
+  factoryKeyId: string;
+  priority: number;
+  isActive: boolean;
+  createdAt: Date;
 }
 
-export async function bindKeyToProxy(proxyId: string, factoryKeyId: string, priority: 1 | 2) {
-  // Check proxy exists
-  const proxy = await Proxy.findById(proxyId);
-  if (!proxy) throw new Error('Proxy not found');
-
-  // Check factory key exists
-  const factoryKey = await FactoryKey.findById(factoryKeyId);
-  if (!factoryKey) throw new Error('Factory key not found');
-
-  // Check max 2 bindings per proxy
-  const existingCount = await ProxyKeyBinding.countDocuments({ proxyId });
-  if (existingCount >= 2) throw new Error('Maximum 2 keys per proxy');
-
-  // Check if already bound
-  const existing = await ProxyKeyBinding.findOne({ proxyId, factoryKeyId });
-  if (existing) throw new Error('Key already bound to this proxy');
-
-  // Check priority not taken
-  const priorityTaken = await ProxyKeyBinding.findOne({ proxyId, priority });
-  if (priorityTaken) throw new Error(`Priority ${priority} already assigned`);
-
-  const binding = new ProxyKeyBinding({
-    proxyId,
-    factoryKeyId,
-    priority,
-  });
-
-  await binding.save();
-  return {
-    id: binding._id,
-    proxyId: binding.proxyId,
-    factoryKeyId: binding.factoryKeyId,
-    priority: binding.priority,
-    createdAt: binding.createdAt,
-  };
+// Key Bindings - deprecated (factory keys removed)
+export async function getProxyBindings(_proxyId: string): Promise<BindingResult[]> {
+  return [];
 }
 
-export async function unbindKeyFromProxy(proxyId: string, factoryKeyId: string) {
-  const result = await ProxyKeyBinding.findOneAndDelete({ proxyId, factoryKeyId });
-  return result !== null;
+export async function bindKeyToProxy(_proxyId: string, _factoryKeyId: string, _priority: number): Promise<BindingResult> {
+  throw new Error('Factory keys have been removed');
+}
+
+export async function updateBindingPriority(_proxyId: string, _factoryKeyId: string, _priority: number): Promise<BindingResult | null> {
+  return null;
+}
+
+export async function updateBinding(_proxyId: string, _factoryKeyId: string, _updates: { priority?: number; isActive?: boolean }): Promise<BindingResult | null> {
+  return null;
+}
+
+export async function getAllBindings(): Promise<Array<BindingResult & { proxyName: string; factoryKeyStatus: string }>> {
+  return [];
+}
+
+export async function unbindKeyFromProxy(_proxyId: string, _factoryKeyId: string): Promise<boolean> {
+  return false;
 }
 
 // Health logs

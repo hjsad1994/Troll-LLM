@@ -23,8 +23,12 @@ type TrollKey struct {
 }
 
 func (f *TrollKey) IsAvailable() bool {
+	// Exhausted keys should NEVER be auto-retried (require manual re-enable or backup rotation)
+	if f.Status == StatusExhausted {
+		return false
+	}
 	if f.Status != StatusHealthy {
-		// Check if cooldown expired
+		// Check if cooldown expired (only for rate_limited or error status)
 		if f.CooldownUntil != nil && time.Now().After(*f.CooldownUntil) {
 			return true // Cooldown expired, can retry
 		}

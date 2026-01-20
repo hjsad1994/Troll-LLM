@@ -1,176 +1,145 @@
 # Project Context
 
 ## Purpose
-TrollLLM is a full-stack API proxy and management platform for AI services. It provides:
-- Multi-model API proxy with OpenAI and Anthropic endpoint compatibility
-- Admin dashboard for API key management, usage tracking, and proxy configuration
-- User-facing usage dashboard
-- Proxy pool management with health monitoring
 
-## Architecture
+TrollLLM is a full-stack LLM proxy and API management platform that provides:
+- High-performance Go-based proxy service for routing LLM requests
+- User authentication, authorization, and API key management
+- Payment integration with SePay (Vietnam QR Banking)
+- Admin dashboard for system management and analytics
+- Request logging and usage tracking
+- Referral system for user acquisition
 
-### Components
-1. **GoProxy** (`/goproxy`) - High-performance Go API proxy server
-   - OpenAI-compatible `/v1/chat/completions` endpoint
-   - Anthropic-native `/v1/messages` endpoint
-   - Multi-model routing (Claude Opus, Sonnet, Haiku, GPT models)
-   - Real-time SSE streaming with format transformation
-   - Round-robin proxy selection with load balancing
-
-2. **Backend** (`/backend`) - Node.js/Express admin API
-   - API key CRUD and management
-   - Usage tracking and statistics
-   - Proxy pool management
-   - Admin authentication
-
-3. **Frontend** (`/frontend`) - Next.js admin dashboard
-   - Keys management UI
-   - Troll-Keys management
-   - Proxy configuration
-   - Usage dashboard
+The platform acts as an intermediary between users and Large Language Models (Claude, GPT, Gemini), with centralized billing, authentication, and routing logic.
 
 ## Tech Stack
 
-### GoProxy
-- **Language**: Go 1.22
-- **HTTP**: HTTP/2 with TLS 1.3 support
-- **Compression**: Brotli and Gzip decompression
-- **Database**: MongoDB (via `go.mongodb.org/mongo-driver`)
-- **Dependencies**:
-  - `github.com/andybalholm/brotli` - Brotli compression
-  - `github.com/google/uuid` - UUID generation
-  - `golang.org/x/net` - HTTP/2 support
-  - `github.com/joho/godotenv` - Environment variables
+**Frontend:**
+- Next.js 14.2 (React 18.3)
+- TypeScript 5.0
+- Tailwind CSS 3.4
+- Runs on port 8080 (dev) / trollllm.xyz (prod)
 
-### Backend
-- **Runtime**: Node.js with TypeScript
-- **Framework**: Express 4.x
-- **Database**: MongoDB (via Mongoose 8.x)
-- **Validation**: Zod
-- **Authentication**: jsonwebtoken (JWT)
-- **ID Generation**: nanoid
-- **Dev Tools**: tsx, eslint
+**Backend:**
+- Node.js 20 with Express.js 4.18
+- TypeScript 5.3
+- MongoDB 8.0 with Mongoose ODM
+- JWT for authentication
+- Zod for validation
+- Runs on port 3005 (dev) / api.trollllm.xyz (prod)
 
-### Frontend
-- **Framework**: Next.js 14 (App Router)
-- **UI**: React 18 with Tailwind CSS 3.4
-- **Language**: TypeScript 5.x
-- **Port**: 8080
+**LLM Proxy:**
+- Go 1.25
+- MongoDB driver for state management
+- HTTP/2 support with connection pooling
+- Custom rate limiting
+- Runs on port 8003 (dev) / chat.trollllm.xyz (prod)
+
+**Infrastructure:**
+- Docker & Docker Compose
+- Nginx (reverse proxy with SSL/TLS)
+- Certbot (Let's Encrypt certificates)
+- MongoDB Atlas (cloud database)
 
 ## Project Conventions
 
 ### Code Style
 
-#### GoProxy (Go)
-- Use `gofmt` for formatting
-- Run `go vet` for static analysis
-- golangci-lint with: errcheck, govet, unused, staticcheck, gosimple, ineffassign, typecheck
-- Functions that return errors should handle them explicitly
-- Use descriptive variable names in English
-- Log messages use emoji prefixes for visual clarity (e.g., `✅`, `❌`, `📥`, `📤`)
+**Backend (Node.js/TypeScript):**
+- Strict TypeScript mode enabled
+- File naming: `*.service.ts`, `*.routes.ts`, `*.model.ts`, `*.controller.ts`
+- MVC pattern: Controllers → Services → Repositories
+- Zod schemas for input validation
 
-#### Backend (TypeScript)
-- TypeScript strict mode
-- Express middleware pattern
-- Zod for request validation
-- Mongoose schemas for data modeling
-- Use `.js` extension in imports (ES modules)
-
-#### Frontend (React/Next.js)
-- Next.js 14 App Router conventions
-- Server components by default
+**Frontend (Next.js/React):**
+- TypeScript throughout
+- PascalCase for component names
+- React Context for state management (AuthProvider)
 - Tailwind CSS for styling
-- TypeScript strict mode
+- Next.js App Router with server/client components
+
+**Go (Proxy):**
+- Modular package structure (`internal/`, `transformers/`)
+- Configuration-driven behavior via JSON files
+- Concurrent request handling with buffer pooling
 
 ### Architecture Patterns
 
-#### GoProxy
-- **Package Structure**:
-  - `main.go` - Main server and HTTP handlers
-  - `config/` - Configuration loading and model/endpoint management
-  - `transformers/` - Request/response transformation between API formats
-  - `internal/` - Internal utilities
-  - `db/` - Database connections
-- **Request Flow**: Client → Proxy Authentication → Transform Request → Upstream API → Transform Response → Client
-- **Streaming**: SSE (Server-Sent Events) pass-through with format transformation
-- **Configuration**: JSON-based config (`config.json`) with environment variable overrides
-
-#### Backend
-- **Structure**:
-  - `src/index.ts` - Express app entry point
-  - `src/routes/` - API route handlers
-  - `src/controllers/` - Request/response handling
-  - `src/services/` - Business logic
-  - `src/repositories/` - Data access layer
-  - `src/models/` - Mongoose schema definitions
-  - `src/dtos/` - Data transfer objects and validation
-  - `src/middleware/` - Auth and validation middleware
-  - `src/db/` - MongoDB connection setup
-  - `src/scripts/` - Utility scripts
-- **API Pattern**: RESTful with admin-prefixed protected routes
-- **Auth**: JWT-based authentication via jsonwebtoken, X-Session-Token header
-
-#### Frontend
-- **Structure**:
-  - `src/app/` - Next.js App Router pages
-  - `src/app/(dashboard)/` - Protected dashboard routes (route group)
-  - `src/components/` - Reusable React components
-  - `src/lib/` - Utilities and API clients
-- **Pages**: 
-  - Public: login, register, docs, models, usage
-  - Dashboard: dashboard, keys, troll-keys, proxies, users, admin
+- **Backend:** Repository pattern for database abstraction, middleware-based request processing
+- **Frontend:** Component-based architecture with context providers
+- **Proxy:** Multi-upstream routing with request/response transformation
+- **Overall:** Microservices architecture with 3 main services (frontend, backend, proxy)
 
 ### Testing Strategy
-- **GoProxy**: Go standard testing with `go test -race`
-- **Backend**: `npm run lint` for linting
-- **Frontend**: `npm run lint` (Next.js ESLint)
+
+- ESLint for code linting (`npm run lint`)
+- Manual testing during development
+- Seed scripts available for database initialization
+- Health check endpoints for service monitoring (`/health`, `/api/health`)
 
 ### Git Workflow
+
 - Main branch: `main`
-- Commit style: Conventional commits (e.g., `docs:`, `feat:`, `fix:`)
-- Keep commits focused and descriptive
+- Feature branches for development
+- Commit messages should describe the change concisely
+- GitHub repository: `https://github.com/hjsad1994/Troll-LLM.git`
 
 ## Domain Context
-- **Upstream AI Providers**: AI services that host Claude and GPT models
-- **OpenAI Format**: Standard chat completion format with `messages` array
-- **Anthropic Format**: Native format with `system` array and `messages` array
-- **Streaming**: Both formats use SSE but with different event structures
-- **API Keys**: User-facing keys for proxy access, Troll-Keys for upstream auth
-- **Proxy Pool**: Multiple proxy endpoints for load balancing and failover
+
+**API Key Format:**
+- User keys: `sk-trollllm-*`
+- Factory keys for system use
+- Friend/shared keys with usage limits
+
+**Billing Model:**
+- Credit-based system (20-100 USD per transaction)
+- Credit expiration: 7 days from purchase
+- Promotional bonus: 15% during active promo windows
+- Referral system: 50% bonus credits (minimum $5)
+
+**Supported LLM Providers:**
+- Claude (Opus 4.5, Sonnet 4.5, Haiku 4.5)
+- GPT models (GPT-5.1)
+- Gemini models (Gemini 3 Pro Preview)
+
+**Content Filtering:**
+- Blocks Claude identity claims in responses
+- Pattern-based content filtering
 
 ## Important Constraints
 
-### GoProxy
-- `TROLL_API_KEY` environment variable is required (upstream API key)
-- `PROXY_API_KEY` is optional for client authentication
-- Max token limits vary by model (Claude Opus 4.1: 32K, others: 64K-128K)
-- HTTP client timeout: 120 seconds
-- Server read timeout: 120s, write timeout: 300s
+**Security:**
+- JWT-based authentication with secret key management
+- Password hashing: PBKDF2 (1000 iterations) with SHA-512
+- API key masking in UI (first 15 + last 4 chars visible)
+- TLS/SSL enforcement (HTTP → HTTPS redirect)
 
-### Backend
-- `MONGODB_URI` required for database connection
-- `ADMIN_SECRET_KEY` for admin authentication
-- Port configurable via `BACKEND_PORT` (default: 3000)
+**Rate Limiting:**
+- Nginx: 10 r/s general, 30 r/s API, 5 r/m login
+- GoProxy: Custom rate limiter per user
+- Connection limiting: 20 per IP
 
-### Frontend
-- Runs on port 8080
-- Requires backend API at localhost:3000 (configurable)
+**Operational:**
+- Services must be containerized via Docker
+- Production requires SSL certificates
+- MongoDB Atlas for database (no local DB in prod)
 
 ## External Dependencies
 
-### Services
-- **MongoDB**: Shared database for keys, usage, and proxy configuration
-- **Upstream AI APIs**: AI provider APIs (Anthropic, OpenAI, etc.)
+**Upstream LLM Providers:**
+- Claude API (Anthropic) via factory.ai proxy
+- OpenAI API
+- Google Gemini API
+- Custom upstream servers (Hash070, MegaLLM)
 
-### Environment Variables
-- `MONGODB_URI` - MongoDB connection string (all components)
-- `TROLL_API_KEY` - Upstream API authentication (goproxy)
-- `PROXY_API_KEY` - Client authentication (goproxy, optional)
-- `ADMIN_SECRET_KEY` - Admin auth (backend)
-- `DEBUG` - Enable debug logging (goproxy)
+**Payment Processing:**
+- SePay (Vietnam QR Banking)
+- MB Bank account for transfers
 
-## Running the Project
-- **Docker**: `docker-compose -f docker-compose.new.yml up`
-- **Backend**: `cd backend && npm run dev`
-- **Frontend**: `cd frontend && npm run dev`
-- **GoProxy**: `cd goproxy && go run main.go`
+**Notifications:**
+- Discord webhooks for system alerts
+
+**Infrastructure Services:**
+- MongoDB Atlas (cloud database)
+- Docker Hub (container registry)
+- Let's Encrypt (SSL certificates)

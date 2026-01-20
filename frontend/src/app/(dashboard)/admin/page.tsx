@@ -1,9 +1,11 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { fetchWithAuth } from '@/lib/api'
+import { fetchWithAuth, getModelStats, ModelStats } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 
 interface Stats {
@@ -17,7 +19,7 @@ interface Stats {
 
 interface Metrics {
   totalRequests: number
-  totalTokens: number
+  tokensUsed: number
   avgLatencyMs: number
   successRate: number
   inputTokens?: number
@@ -26,13 +28,23 @@ interface Metrics {
   requestsThisWeek?: number
 }
 
+interface UserStats {
+  total_users: number
+  active_users: number
+  total_credits_used: number
+  total_credits: number
+  total_ref_credits: number
+  total_creditsNew: number
+  total_creditsNewUsed: number
+  total_input_tokens: number
+  total_output_tokens: number
+}
+
 interface UserKey {
   _id?: string
   id?: string
   name: string
-  tier: string
   tokensUsed: number
-  totalTokens: number
   isActive: boolean
 }
 
@@ -65,11 +77,27 @@ interface RecentLog {
   tokensUsed?: number
 }
 
-function formatLargeNumber(num: number): string {
+function formatLargeNumber(num: number | undefined | null): string {
+  if (num == null) return '0'
   if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + 'B'
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
   return num.toLocaleString()
+}
+
+function formatUSD(num: number | undefined | null): string {
+  if (num == null) return '$0.00'
+  if (num >= 1_000_000) return '$' + (num / 1_000_000).toFixed(2) + 'M'
+  if (num >= 1_000) return '$' + (num / 1_000).toFixed(2) + 'K'
+  return '$' + num.toFixed(2)
+}
+
+function formatCredits(num: number | undefined | null): string {
+  if (num == null) return '$0'
+  // Format with dot as thousand separator (European style)
+  // Example: 1110 -> $1.110, 25000 -> $25.000
+  const formatted = Math.floor(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return '$' + formatted
 }
 
 function getHealthColor(status: string): string {
@@ -125,7 +153,7 @@ export default function AdminDashboard() {
   })
   const [metrics, setMetrics] = useState<Metrics>({
     totalRequests: 0,
-    totalTokens: 0,
+    tokensUsed: 0,
     avgLatencyMs: 0,
     successRate: 0,
   })
@@ -133,8 +161,11 @@ export default function AdminDashboard() {
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
+  const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_creditsNew: 0, total_creditsNewUsed: 0, total_input_tokens: 0, total_output_tokens: 0 })
+  const [modelStats, setModelStats] = useState<ModelStats[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [metricsPeriod, setMetricsPeriod] = useState<'1h' | '3h' | '8h' | '24h' | '7d' | 'all'>('all')
 
   // Redirect non-admin users
   useEffect(() => {
@@ -143,14 +174,16 @@ export default function AdminDashboard() {
     }
   }, [user, isAdmin, router])
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
     try {
-      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp] = await Promise.all([
+      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp, modelStatsResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
         fetchWithAuth('/admin/troll-keys').catch(() => null),
         fetchWithAuth('/admin/proxies').catch(() => null),
         fetch('/api/status').catch(() => null),
-        fetchWithAuth('/admin/metrics').catch(() => null),
+        fetchWithAuth(`/admin/metrics?period=${period}`).catch(() => null),
+        fetchWithAuth(`/admin/user-stats?period=${period}`).catch(() => null),
+        getModelStats(period).catch(() => ({ models: [] })),
       ])
 
       const keysData = keysResp?.ok ? await keysResp.json() : { total: 0, keys: [] }
@@ -158,6 +191,7 @@ export default function AdminDashboard() {
       const proxiesData = proxiesResp?.ok ? await proxiesResp.json() : { total: 0, proxies: [] }
       const statusData = statusResp?.ok ? await statusResp.json() : { status: 'unknown', summary: { healthy: 0, total: 0 } }
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
+      const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_input_tokens: 0, total_output_tokens: 0 }
 
       setStats({
         totalKeys: keysData.total || 0,
@@ -170,7 +204,7 @@ export default function AdminDashboard() {
 
       setMetrics({
         totalRequests: metricsData.total_requests || 0,
-        totalTokens: metricsData.total_tokens || 0,
+        tokensUsed: metricsData.tokens_used || 0,
         avgLatencyMs: metricsData.avg_latency_ms || 0,
         successRate: metricsData.success_rate || 0,
         inputTokens: metricsData.input_tokens || 0,
@@ -178,6 +212,9 @@ export default function AdminDashboard() {
         requestsToday: metricsData.requests_today || 0,
         requestsThisWeek: metricsData.requests_this_week || 0,
       })
+
+      setUserStats(userStatsData)
+      setModelStats(modelStatsResp.models || [])
 
       // Set detailed data for tables
       setUserKeys((keysData.keys || []).slice(0, 5))
@@ -191,13 +228,22 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [metricsPeriod])
+
+  // Reload when period changes
+  useEffect(() => {
+    if (isAdmin) {
+      loadDashboard(metricsPeriod)
+    }
+  }, [metricsPeriod, isAdmin])
 
   useEffect(() => {
     if (isAdmin) {
       loadDashboard()
       const interval = setInterval(loadDashboard, 30000)
-      return () => clearInterval(interval)
+      return () => {
+        clearInterval(interval)
+      }
     }
   }, [loadDashboard, isAdmin])
 
@@ -216,30 +262,24 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Background grid pattern - same as homepage */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-500/10 via-transparent to-transparent" />
-      </div>
-
-      <div className="relative max-w-6xl mx-auto px-6 py-8 space-y-8">
+    <div className="min-h-screen">
+      <div className="relative max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
               Admin Dashboard
             </h1>
-            <p className="text-neutral-500 mt-2">System monitoring and analytics</p>
+            <p className="text-gray-500 dark:text-neutral-500 mt-2">System monitoring and analytics</p>
           </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => loadDashboard()}
-              className="px-4 py-2 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
               Refresh
             </button>
-            <div className="flex items-center gap-2 text-sm text-neutral-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-neutral-500">
               <span className={`relative flex h-2 w-2`}>
                 {loading ? (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400/75 opacity-75"></span>
@@ -251,366 +291,281 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Stats Grid - 4 columns like homepage stats */}
-        <section className="py-8 border-y border-white/5">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        {/* Stats Grid - 3 columns */}
+        <section className="py-8 border-y border-gray-300 dark:border-white/10">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-white mb-2">
-                {loading ? '-' : stats.totalKeys}
-              </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">User Keys</div>
-              <div className="text-neutral-400 text-xs mt-1">{activeKeys} active</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-white mb-2">
+              <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
                 {loading ? '-' : stats.totalFactoryKeys}
               </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">Troll-Keys</div>
-              <div className="text-neutral-400 text-xs mt-1">{healthyFactoryKeys} healthy</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">Troll-Keys</div>
+              <div className="text-gray-600 dark:text-neutral-400 text-xs mt-1">{healthyFactoryKeys} healthy</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-white mb-2">
+              <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
                 {loading ? '-' : stats.totalProxies}
               </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">Proxies</div>
-              <div className="text-emerald-400 text-xs mt-1">{healthyProxies} online</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">Proxies</div>
+              <div className="text-emerald-500 dark:text-emerald-400 text-xs mt-1">{healthyProxies} online</div>
             </div>
             <div className="text-center">
               <div className={`text-4xl md:text-5xl font-bold mb-2 capitalize ${getHealthColor(stats.healthStatus)}`}>
                 {loading ? '-' : stats.healthStatus}
               </div>
-              <div className="text-neutral-600 text-sm uppercase tracking-wider">System Status</div>
-              <div className="text-neutral-500 text-xs mt-1">{stats.healthyCount}/{stats.totalCount} services</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">System Status</div>
+              <div className="text-gray-500 dark:text-neutral-500 text-xs mt-1">{stats.healthyCount}/{stats.totalCount} services</div>
             </div>
           </div>
         </section>
 
+        {/* Period Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-gray-500 dark:text-neutral-500 text-sm mr-2">Period:</span>
+          {(['1h', '3h', '8h', '24h', '7d', 'all'] as const).map((period) => (
+            <button
+              key={period}
+              onClick={() => setMetricsPeriod(period)}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                metricsPeriod === period
+                  ? 'bg-indigo-500 dark:bg-white text-white dark:text-black'
+                  : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-white/10'
+              }`}
+            >
+              {period === 'all' ? 'All' : period}
+            </button>
+          ))}
+        </div>
+
         {/* Main Metrics - Feature cards style */}
-        <section className="grid md:grid-cols-3 gap-6">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* API Requests Card */}
-          <div className="md:col-span-2 p-6 rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm hover:bg-neutral-900 transition-colors">
-            <div className="flex items-center justify-between mb-4">
+          <div className="md:col-span-2 p-4 sm:p-6 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400">
+                <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/5 border border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-neutral-400">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-white">API Requests</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">API Requests</h3>
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400">
+                  {metricsPeriod === 'all' ? 'All' : metricsPeriod}
+                </span>
               </div>
-              <div className="flex gap-4 text-xs text-neutral-500">
-                <span>Today: <span className="text-white">{formatLargeNumber(metrics.requestsToday || 0)}</span></span>
-                <span>Week: <span className="text-white">{formatLargeNumber(metrics.requestsThisWeek || 0)}</span></span>
+              <div className="flex gap-4 text-xs text-gray-500 dark:text-neutral-500">
+                <span>Today: <span className="text-gray-900 dark:text-white">{formatLargeNumber(metrics.requestsToday || 0)}</span></span>
+                <span>Week: <span className="text-gray-900 dark:text-white">{formatLargeNumber(metrics.requestsThisWeek || 0)}</span></span>
               </div>
             </div>
-            <p className="text-5xl font-bold bg-gradient-to-r from-neutral-300 to-neutral-500 bg-clip-text text-transparent mb-1">
+            <p className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-gray-700 to-gray-500 dark:from-neutral-300 dark:to-neutral-500 bg-clip-text text-transparent mb-1">
               {loading ? '...' : formatLargeNumber(metrics.totalRequests)}
             </p>
-            <p className="text-neutral-500 text-sm mb-6">total requests processed</p>
+            <p className="text-gray-500 dark:text-neutral-500 text-sm mb-6">total requests processed</p>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Success Rate</p>
-                <p className="text-xl font-semibold text-emerald-400">{metrics.successRate}%</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
+                <p className="text-gray-500 dark:text-neutral-500 text-[10px] sm:text-xs uppercase tracking-wider mb-1">Success</p>
+                <p className="text-lg sm:text-xl font-semibold text-emerald-500 dark:text-emerald-400">{metrics.successRate}%</p>
               </div>
-              <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Avg Latency</p>
-                <p className={`text-xl font-semibold ${getLatencyColor(metrics.avgLatencyMs)}`}>
-                  {metrics.avgLatencyMs.toLocaleString()}ms
+              <div className="p-2 sm:p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
+                <p className="text-gray-500 dark:text-neutral-500 text-[10px] sm:text-xs uppercase tracking-wider mb-1">Latency</p>
+                <p className={`text-lg sm:text-xl font-semibold ${getLatencyColor(metrics.avgLatencyMs)}`}>
+                  {(metrics.avgLatencyMs ?? 0) >= 1000 ? ((metrics.avgLatencyMs ?? 0) / 1000).toFixed(1) + 's' : (metrics.avgLatencyMs ?? 0).toLocaleString() + 'ms'}
                 </p>
               </div>
-              <div className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Error Rate</p>
-                <p className="text-xl font-semibold text-red-400">{(100 - metrics.successRate).toFixed(1)}%</p>
+              <div className="p-2 sm:p-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-neutral-800/60">
+                <p className="text-gray-500 dark:text-neutral-500 text-[10px] sm:text-xs uppercase tracking-wider mb-1">Error</p>
+                <p className="text-lg sm:text-xl font-semibold text-red-500 dark:text-red-400">{(100 - metrics.successRate).toFixed(1)}%</p>
               </div>
             </div>
           </div>
 
-          {/* Token Usage Card */}
-          <div className="p-6 rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm hover:bg-neutral-900 transition-colors">
+          {/* User Stats Card */}
+          <div className="p-4 sm:p-6 rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400">
+              <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/5 border border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-neutral-400">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-white">Token Usage</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Stats</h3>
             </div>
-            <p className="text-4xl font-bold bg-gradient-to-r from-neutral-300 to-neutral-500 bg-clip-text text-transparent mb-1">
-              {loading ? '...' : formatLargeNumber(metrics.totalTokens)}
+            <p className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-600 to-purple-500 dark:from-cyan-400 dark:to-purple-400 bg-clip-text text-transparent mb-1">
+              {loading ? '...' : formatLargeNumber(userStats.total_input_tokens + userStats.total_output_tokens)}
             </p>
-            <p className="text-neutral-500 text-sm mb-4">total tokens consumed</p>
+            <p className="text-gray-500 dark:text-neutral-500 text-sm mb-4">total tokens</p>
 
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-white"></span>
+            <div className="grid grid-cols-2 gap-2 sm:block sm:space-y-3">
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                  <span className="hidden sm:inline">Total</span> Credits
+                </span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-medium">{formatUSD(userStats.total_credits)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400"></span>
+                  Burned
+                </span>
+                <span className="text-orange-500 dark:text-orange-400 font-medium">{formatCredits(userStats.total_credits_used)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400"></span>
+                  Ref
+                </span>
+                <span className="text-blue-500 dark:text-blue-400 font-medium">{formatUSD(userStats.total_ref_credits)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-500 dark:bg-teal-400"></span>
+                  New Credits
+                </span>
+                <span className="text-teal-500 dark:text-teal-400 font-medium">{formatCredits(userStats.total_creditsNew)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400"></span>
+                  New Burned
+                </span>
+                <span className="text-rose-500 dark:text-rose-400 font-medium">{formatCredits(userStats.total_creditsNewUsed)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400"></span>
                   Input
                 </span>
-                <span className="text-white font-medium">{formatLargeNumber(metrics.inputTokens || 0)}</span>
+                <span className="text-cyan-500 dark:text-cyan-400 font-medium">{formatLargeNumber(userStats.total_input_tokens)}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-neutral-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-neutral-400"></span>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400"></span>
                   Output
                 </span>
-                <span className="text-white font-medium">{formatLargeNumber(metrics.outputTokens || 0)}</span>
+                <span className="text-purple-500 dark:text-purple-400 font-medium">{formatLargeNumber(userStats.total_output_tokens)}</span>
               </div>
-              <div className="h-2 bg-neutral-700 rounded-full overflow-hidden flex">
-                <div
-                  className="h-full bg-white"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.inputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
-                />
-                <div
-                  className="h-full bg-neutral-500"
-                  style={{ width: metrics.totalTokens > 0 ? `${((metrics.outputTokens || 0) / metrics.totalTokens) * 100}%` : '50%' }}
-                />
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-gray-900 dark:bg-white"></span>
+                  Users
+                </span>
+                <span className="text-gray-900 dark:text-white font-medium">{userStats.total_users}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-2 sm:p-0 rounded-lg bg-white/50 dark:bg-white/5 sm:bg-transparent">
+                <span className="text-gray-500 dark:text-neutral-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-violet-500 dark:bg-violet-400"></span>
+                  Active
+                </span>
+                <span className="text-violet-500 dark:text-violet-400 font-medium">{userStats.active_users || 0}</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Data Tables Grid */}
-        <section className="grid md:grid-cols-2 gap-6">
-          {/* User Keys */}
-          <div className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">User API Keys</h3>
-              <Link href="/keys" className="text-sm text-neutral-400 hover:text-white transition-colors">
-                View all
-              </Link>
+        {/* Model Usage Section */}
+        <section className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-300 dark:border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Model Usage</h3>
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400">
+                {metricsPeriod === 'all' ? 'All' : metricsPeriod}
+              </span>
             </div>
-            <div className="p-4">
-              {userKeys.length > 0 ? (
-                <div className="space-y-3">
-                  {userKeys.map((key) => {
-                    const usagePercent = key.totalTokens > 0 ? (key.tokensUsed / key.totalTokens) * 100 : 0
-                    return (
-                      <div key={key._id || key.id} className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-medium">{key.name}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-                              key.tier === 'pro'
-                                ? 'bg-white/10 text-white border-white/20'
-                                : 'bg-white/5 text-neutral-400 border-white/10'
-                            }`}>
-                              {key.tier}
-                            </span>
-                          </div>
-                          {getStatusBadge(key.isActive ? 'active' : 'unhealthy')}
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-neutral-500 mb-1">
-                          <span>{formatLargeNumber(key.tokensUsed)} / {formatLargeNumber(key.totalTokens)}</span>
-                          <span>{usagePercent.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-1.5 bg-neutral-700 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-white'
-                            }`}
-                            style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-neutral-500">
-                  <p>No user keys configured</p>
-                  <Link href="/keys" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
-                    Create your first key
-                  </Link>
-                </div>
-              )}
-            </div>
+            <span className="text-sm text-gray-500 dark:text-neutral-500">{modelStats.length} models</span>
           </div>
-
-          {/* Troll-Keys */}
-          <div className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Troll-Keys</h3>
-              <Link href="/troll-keys" className="text-sm text-neutral-400 hover:text-white transition-colors">
-                View all
-              </Link>
-            </div>
-            <div className="p-4">
-              {factoryKeys.length > 0 ? (
-                <div className="space-y-3">
-                  {factoryKeys.map((key) => (
-                    <div key={key._id || key.id} className="p-3 rounded-lg border border-white/10 bg-neutral-800/60">
+          <div className="p-4">
+            {modelStats.length > 0 ? (
+              <>
+                {/* Mobile Card Layout */}
+                <div className="sm:hidden space-y-3">
+                  {modelStats.map((model, index) => (
+                    <div key={model.model} className={`p-3 rounded-lg border ${index === 0 ? 'border-indigo-300 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5' : 'border-gray-200 dark:border-white/5 bg-white dark:bg-neutral-800/50'}`}>
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm text-neutral-300">{maskApiKey(key.apiKey || '')}</span>
-                          {key.provider && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-neutral-400 border border-white/10">
-                              {key.provider}
-                            </span>
-                          )}
-                        </div>
-                        {getStatusBadge(key.status)}
+                        <span className="font-mono text-xs bg-gray-100 dark:bg-neutral-800 border border-gray-300 dark:border-white/10 px-2 py-1 rounded text-gray-700 dark:text-neutral-300 truncate max-w-[180px]">
+                          {model.model}
+                        </span>
+                        {index === 0 && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                            TOP
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-neutral-500">
-                        <span>{formatLargeNumber(key.tokensUsed)} tokens</span>
-                        <span>{key.requestsCount.toLocaleString()} requests</span>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <p className="text-gray-500 dark:text-neutral-500">Input</p>
+                          <p className="text-cyan-600 dark:text-cyan-400 font-medium">{formatLargeNumber(model.inputTokens)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-neutral-500">Output</p>
+                          <p className="text-purple-600 dark:text-purple-400 font-medium">{formatLargeNumber(model.outputTokens)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-neutral-500">Burned</p>
+                          <p className="text-orange-600 dark:text-orange-400 font-medium">${model.creditsBurned.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between mt-2 pt-2 border-t border-gray-200 dark:border-white/5 text-xs">
+                        <span className="text-gray-500 dark:text-neutral-500">Total: <span className="text-gray-900 dark:text-white font-semibold">{formatLargeNumber(model.totalTokens)}</span></span>
+                        <span className="text-gray-500 dark:text-neutral-500">Reqs: <span className="text-gray-600 dark:text-neutral-400">{model.requestCount.toLocaleString()}</span></span>
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="text-center py-8 text-neutral-500">
-                  <p>No Troll-Keys configured</p>
-                  <Link href="/troll-keys" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
-                    Add your first key
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
 
-        {/* Proxies Section */}
-        <section className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">Proxy Servers</h3>
-            <Link href="/proxies" className="text-sm text-neutral-400 hover:text-white transition-colors">
-              View all
-            </Link>
-          </div>
-          <div className="p-4">
-            {proxies.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {proxies.map((proxy) => (
-                  <div key={proxy._id} className="p-4 rounded-lg border border-white/10 bg-neutral-800/60">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-white font-medium">{proxy.name}</span>
-                      {getStatusBadge(proxy.status)}
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Type</span>
-                        <span className="text-neutral-300 uppercase">{proxy.type}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Address</span>
-                        <span className="text-neutral-300 font-mono text-xs">{proxy.host}:{proxy.port}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Latency</span>
-                        <span className={getLatencyColor(proxy.lastLatencyMs || 0)}>
-                          {proxy.lastLatencyMs ? `${proxy.lastLatencyMs}ms` : 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-neutral-500">
-                <p>No proxies configured</p>
-                <Link href="/proxies" className="text-neutral-400 text-sm hover:text-white mt-2 inline-block">
-                  Add your first proxy
-                </Link>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Recent Activity */}
-        <section className="rounded-xl border border-white/10 bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
-          </div>
-          <div className="p-4">
-            {recentLogs.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-neutral-500 text-xs uppercase tracking-wider border-b border-white/10">
-                      <th className="text-left py-3 px-4">Time</th>
-                      <th className="text-left py-3 px-4">Model</th>
-                      <th className="text-left py-3 px-4">Latency</th>
-                      <th className="text-left py-3 px-4">Tokens</th>
-                      <th className="text-left py-3 px-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentLogs.map((log) => (
-                      <tr key={log._id} className="border-b border-white/10 hover:bg-neutral-800/50">
-                        <td className="py-3 px-4 text-neutral-400">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="font-mono text-xs bg-neutral-800 border border-white/10 px-2 py-1 rounded text-neutral-300">{log.model}</span>
-                        </td>
-                        <td className={`py-3 px-4 ${getLatencyColor(log.latencyMs)}`}>
-                          {log.latencyMs}ms
-                        </td>
-                        <td className="py-3 px-4 text-neutral-400">
-                          {log.tokensUsed ? formatLargeNumber(log.tokensUsed) : '-'}
-                        </td>
-                        <td className="py-3 px-4">
-                          {log.success ? (
-                            <span className="text-emerald-400 flex items-center gap-1">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              Success
-                            </span>
-                          ) : (
-                            <span className="text-red-400 flex items-center gap-1">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                              Failed
-                            </span>
-                          )}
-                        </td>
+                {/* Desktop Table Layout */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-gray-500 dark:text-neutral-500 text-xs uppercase tracking-wider border-b border-gray-300 dark:border-white/10">
+                        <th className="text-left py-3 px-4">Model</th>
+                        <th className="text-right py-3 px-4">Input</th>
+                        <th className="text-right py-3 px-4">Output</th>
+                        <th className="text-right py-3 px-4">Total</th>
+                        <th className="text-right py-3 px-4">Burned</th>
+                        <th className="text-right py-3 px-4">Reqs</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {modelStats.map((model, index) => (
+                        <tr key={model.model} className={`border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-neutral-800/50 ${index === 0 ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : ''}`}>
+                          <td className="py-3 px-4">
+                            <span className="font-mono text-xs bg-gray-100 dark:bg-neutral-800 border border-gray-300 dark:border-white/10 px-2 py-1 rounded text-gray-700 dark:text-neutral-300">
+                              {model.model}
+                            </span>
+                            {index === 0 && (
+                              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                                TOP
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-cyan-600 dark:text-cyan-400 font-medium">{formatLargeNumber(model.inputTokens)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-purple-600 dark:text-purple-400 font-medium">{formatLargeNumber(model.outputTokens)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-gray-900 dark:text-white font-semibold">{formatLargeNumber(model.totalTokens)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-orange-600 dark:text-orange-400 font-medium">${model.creditsBurned.toFixed(2)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-gray-600 dark:text-neutral-400">{model.requestCount.toLocaleString()}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             ) : (
               <div className="text-center py-8 text-neutral-500">
-                <p>No recent activity</p>
-                <p className="text-xs mt-1">API requests will appear here</p>
+                <p>No model usage data</p>
+                <p className="text-xs mt-1">API requests will appear here grouped by model</p>
               </div>
             )}
-          </div>
-        </section>
-
-        {/* Quick Actions */}
-        <section className="py-8 border-t border-white/5">
-          <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/keys"
-              className="px-6 py-3 rounded-lg bg-white text-black font-medium text-sm hover:bg-neutral-200 transition-colors"
-            >
-              Create User Key
-            </Link>
-            <Link
-              href="/troll-keys"
-              className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
-            >
-              Add Troll-Key
-            </Link>
-            <Link
-              href="/proxies"
-              className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
-            >
-              Configure Proxy
-            </Link>
-            <a
-              href="/api/status"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-3 rounded-lg border border-white/10 text-white font-medium text-sm hover:bg-white/5 transition-colors"
-            >
-              Health Check API
-            </a>
           </div>
         </section>
       </div>

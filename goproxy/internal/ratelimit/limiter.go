@@ -1,27 +1,82 @@
 package ratelimit
 
 import (
+	"os"
+	"strings"
 	"sync"
 	"time"
+
+	"goproxy/internal/userkey"
 )
 
-// DefaultRPM is the rate limit for all API keys (300 requests per minute - Dev tier default)
+// DefaultRPM is the fallback rate limit for unknown key types
 const DefaultRPM = 300
 
-type RateLimiter struct {
-	mu       sync.Mutex
-	requests map[string][]time.Time
-	window   time.Duration
-}
+// UserKeyRPM is the rate limit for User Keys (sk-troll-* or sk-trollllm-*)
+const UserKeyRPM = 600
 
-func NewRateLimiter() *RateLimiter {
-	return &RateLimiter{
-		requests: make(map[string][]time.Time),
-		window:   time.Minute,
+// FriendKeyRPM is the rate limit for Friend Keys (sk-trollllm-friend-*)
+const FriendKeyRPM = 60
+
+// GetRPMForKeyType returns the RPM limit for a given key type
+func GetRPMForKeyType(keyType userkey.KeyType) int {
+	switch keyType {
+	case userkey.KeyTypeUser:
+		return UserKeyRPM
+	case userkey.KeyTypeFriend:
+		return FriendKeyRPM
+	default:
+		return DefaultRPM
 	}
 }
 
+// GetRPMForAPIKey returns the RPM limit for an API key based on its prefix
+// This is a convenience function that combines GetKeyType and GetRPMForKeyType
+func GetRPMForAPIKey(apiKey string) int {
+	return GetRPMForKeyType(userkey.GetKeyType(apiKey))
+}
+
+// UseOptimizedLimiter controls whether to use the optimized limiter
+// Set to true for production (O(1) sliding window)
+// Can be disabled via env: GOPROXY_DISABLE_OPTIMIZATIONS=true
+var UseOptimizedLimiter = true
+
+func init() {
+	if isEnvDisabled("GOPROXY_DISABLE_OPTIMIZATIONS") || isEnvDisabled("GOPROXY_DISABLE_RATE_LIMITER_OPT") {
+		UseOptimizedLimiter = false
+	}
+}
+
+func isEnvDisabled(key string) bool {
+	val := strings.ToLower(os.Getenv(key))
+	return val == "true" || val == "1" || val == "yes"
+}
+
+type RateLimiter struct {
+	mu        sync.Mutex
+	requests  map[string][]time.Time
+	window    time.Duration
+	optimized *OptimizedRateLimiter
+}
+
+func NewRateLimiter() *RateLimiter {
+	r := &RateLimiter{
+		requests: make(map[string][]time.Time),
+		window:   time.Minute,
+	}
+	if UseOptimizedLimiter {
+		r.optimized = NewOptimizedRateLimiter()
+	}
+	return r
+}
+
 func (r *RateLimiter) Allow(key string, limit int) bool {
+	// Use optimized limiter if enabled
+	if r.optimized != nil {
+		return r.optimized.Allow(key, limit)
+	}
+
+	// Fallback to legacy implementation
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -56,6 +111,12 @@ func (r *RateLimiter) Allow(key string, limit int) bool {
 }
 
 func (r *RateLimiter) RetryAfter(key string, limit int) int {
+	// Use optimized limiter if enabled
+	if r.optimized != nil {
+		return r.optimized.RetryAfter(key, limit)
+	}
+
+	// Fallback to legacy implementation
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -113,6 +174,12 @@ func (r *RateLimiter) CurrentCount(key string) int {
 
 // Remaining returns the number of requests remaining in the current window
 func (r *RateLimiter) Remaining(key string, limit int) int {
+	// Use optimized limiter if enabled
+	if r.optimized != nil {
+		return r.optimized.Remaining(key, limit)
+	}
+
+	// Fallback to legacy implementation
 	count := r.CurrentCount(key)
 	remaining := limit - count
 	if remaining < 0 {
@@ -121,7 +188,7 @@ func (r *RateLimiter) Remaining(key string, limit int) int {
 	return remaining
 }
 
-// GetLimit returns the default rate limit (5 RPM)
+// GetLimit returns the default rate limit (300 RPM for unknown key types)
 func GetLimit() int {
 	return DefaultRPM
 }

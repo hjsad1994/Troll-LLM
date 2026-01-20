@@ -1,0 +1,90 @@
+services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+      - goproxy
+      - goproxy-openhands
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # Certbot for SSL
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - trollllm-network
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # Backend (Node.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config.prod.json:/app/goproxy/config.prod.json:ro
+      - ./goproxy/config-openhands-prod.json:/app/goproxy/config-openhands-prod.json:ro
+    env_file:
+      - ./backend/.env
+    environment:
+      - BACKEND_PORT=3005
+      - GOPROXY_CONFIG_PATH=/app/goproxy/config.prod.json
+      - GOPROXY_OPENHANDS_CONFIG_PATH=/app/goproxy/config-openhands-prod.json
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # GoProxy Main (chat.trollllm.xyz - port 8003)
+  goproxy:
+    build:
+      context: ./goproxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config.prod.json:/app/config.json:ro
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # GoProxy OpenHands (priority-chat.trollllm.xyz - port 8004)
+  goproxy-openhands:
+    build:
+      context: ./goproxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config-openhands-prod.json:/app/config.json:ro
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+networks:
+  trollllm-network:
+    driver: bridge

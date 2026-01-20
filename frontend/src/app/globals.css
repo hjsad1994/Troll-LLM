@@ -5,18 +5,79 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
+  /* Dark theme (default) */
   :root {
-    --background: #0a0a0f;
-    --foreground: #e2e8f0;
-  }
+    --background: 10 10 15;
+    --foreground: 226 232 240;
+    --card: 17 17 24;
+    --card-foreground: 226 232 240;
+    --popover: 17 17 24;
+    --popover-foreground: 226 232 240;
+    --primary: 56 189 248;
+    --primary-foreground: 15 23 42;
+    --secondary: 30 30 46;
+    --secondary-foreground: 226 232 240;
+    --muted: 30 41 59;
+    --muted-foreground: 148 163 184;
+    --accent: 30 30 46;
+    --accent-foreground: 226 232 240;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --border: 30 30 46;
+    --input: 30 30 46;
+    --ring: 56 189 248;
 
-  html {
+    /* Custom theme colors */
+    --theme-bg: #0a0a0f;
+    --theme-card: #111118;
+    --theme-border: #1e1e2e;
+    --theme-text: #e2e8f0;
+    --theme-text-muted: #94a3b8;
+    --theme-text-subtle: #64748b;
+
     color-scheme: dark;
   }
 
+  /* Light theme - High Contrast */
+  .light {
+    --background: 250 250 252;
+    --foreground: 15 23 42;
+    --card: 255 255 255;
+    --card-foreground: 15 23 42;
+    --popover: 255 255 255;
+    --popover-foreground: 15 23 42;
+    --primary: 79 70 229;
+    --primary-foreground: 255 255 255;
+    --secondary: 241 245 249;
+    --secondary-foreground: 15 23 42;
+    --muted: 241 245 249;
+    --muted-foreground: 71 85 105;
+    --accent: 238 242 255;
+    --accent-foreground: 15 23 42;
+    --destructive: 220 38 38;
+    --destructive-foreground: 255 255 255;
+    --border: 203 213 225;
+    --input: 203 213 225;
+    --ring: 79 70 229;
+
+    /* Custom theme colors - OPTIMIZED for light mode */
+    --theme-bg: #f8fafc;
+    --theme-card: #ffffff;
+    --theme-border: #cbd5e1;
+    --theme-text: #0f172a;
+    --theme-text-muted: #475569;
+    --theme-text-subtle: #64748b;
+
+    color-scheme: light;
+  }
+
+  html {
+    transition: color-scheme 0.3s ease;
+  }
+
   html, body {
-    background-color: #0a0a0f;
-    color: #e2e8f0;
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
     min-height: 100%;
   }
 
@@ -278,7 +339,7 @@
   flex: 1;
 }
 
-/* Syntax highlighting */
+/* Syntax highlighting - dark mode */
 .token-keyword { color: #c678dd; }
 .token-string { color: #98c379; }
 .token-function { color: #61afef; }
@@ -290,6 +351,18 @@
 .token-property { color: #e5c07b; }
 .token-class { color: #e5c07b; }
 
+/* Syntax highlighting - light mode (High Contrast) */
+.light .token-keyword { color: #7c3aed; }
+.light .token-string { color: #059669; }
+.light .token-function { color: #2563eb; }
+.light .token-comment { color: #6b7280; font-style: italic; }
+.light .token-variable { color: #dc2626; }
+.light .token-number { color: #ea580c; }
+.light .token-operator { color: #0891b2; }
+.light .token-punctuation { color: #1f2937; }
+.light .token-property { color: #ca8a04; }
+.light .token-class { color: #ca8a04; }
+
 /* Hover effects */
 .hover-lift {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -300,12 +373,20 @@
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
+.light .hover-lift:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+}
+
 .hover-glow {
   transition: box-shadow 0.3s ease;
 }
 
 .hover-glow:hover {
   box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+}
+
+.light .hover-glow:hover {
+  box-shadow: 0 0 30px rgba(79, 70, 229, 0.2);
 }
 
 /* Glass morphism */
@@ -315,10 +396,22 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.light .glass {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
 .glass-dark {
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.light .glass-dark {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
 /* Neon text */
@@ -337,16 +430,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0f;
+  background: var(--theme-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--theme-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--theme-text-subtle);
 }
 
 @layer components {
@@ -422,4 +515,93 @@
 
 .toast {
   animation: slideIn 0.3s ease;
+}
+
+/* Range Slider Styling */
+input[type="range"].slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+input[type="range"].slider-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"].slider-thumb::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
+}
+
+input[type="range"].slider-thumb::-webkit-slider-thumb:active {
+  transform: scale(1.1);
+}
+
+input[type="range"].slider-thumb::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"].slider-thumb::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
+}
+
+/* Animated gradient background */
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 3s ease infinite;
+}
+
+/* LED Border Animation */
+/* Floating button pulse animation */
+@keyframes floatPulse {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px -5px rgba(168, 85, 247, 0.5);
+  }
+}
+
+.animate-float-pulse {
+  animation: floatPulse 2s ease-in-out infinite;
+}
+
+@keyframes ledBorder {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes ledGlow {
+  0%, 100% { opacity: 0.5; filter: blur(8px); }
+  50% { opacity: 0.8; filter: blur(12px); }
 }

@@ -47,8 +47,8 @@ export const DEFAULT_MODEL_PRICING: Omit<IModelPricing, '_id' | 'createdAt' | 'u
   {
     modelId: 'claude-opus-4-5-20251101',
     displayName: 'Claude Opus 4.5',
-    inputPricePerMTok: 5,
-    outputPricePerMTok: 25,
+    inputPricePerMTok: 5.5,
+    outputPricePerMTok: 27.5,
     isActive: true,
   },
 ];

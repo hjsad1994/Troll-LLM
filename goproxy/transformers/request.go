@@ -1,16 +1,107 @@
 package transformers
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
 	"goproxy/config"
 )
 
+// Pre-compiled regex patterns for blocked content
+var blockedPatternRegexes []*regexp.Regexp
+
+func init() {
+	// Pre-compile blocked patterns once at startup
+	blockedPatterns := []string{
+		`(?i)You are Claude Code`,
+		`(?i)You are Claude`,
+		`(?i)You'?re Claude`,
+		`(?i)Claude Code`,
+		`(?i)I am Claude Code`,
+		`(?i)I'?m Claude Code`,
+		`(?i)As Claude Code`,
+		`(?i)Claude, an AI assistant`,
+		`(?i)Claude, made by Anthropic`,
+		`(?i)Claude, created by Anthropic`,
+		`(?i)an AI assistant named Claude`,
+		`(?i)an AI called Claude`,
+		`(?i)assistant Claude`,
+		`(?i)Kilo Code`,
+		`(?i)Cline`,
+		`(?i)Roo Code`,
+		`(?i)Cursor`,
+	}
+	for _, pattern := range blockedPatterns {
+		blockedPatternRegexes = append(blockedPatternRegexes, regexp.MustCompile(pattern))
+	}
+}
+
+// sanitizeBlockedContent removes or replaces content that Factory AI blocks
+func sanitizeBlockedContent(text string) string {
+	result := text
+	for _, re := range blockedPatternRegexes {
+		result = re.ReplaceAllString(result, "an AI assistant")
+	}
+	return result
+}
+
+// convertImageURLToAnthropic converts OpenAI image_url format to Anthropic image format
+// OpenAI: {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..." or "https://..."}}
+// Anthropic: {"type": "image", "source": {"type": "base64", "media_type": "...", "data": "..."}}
+// or: {"type": "image", "source": {"type": "url", "url": "..."}}
+func convertImageURLToAnthropic(url string) map[string]interface{} {
+	if url == "" {
+		return nil
+	}
+
+	// Check if it's a base64 data URL
+	if strings.HasPrefix(url, "data:") {
+		// Parse data URL: data:image/jpeg;base64,<data>
+		parts := strings.SplitN(url, ",", 2)
+		if len(parts) != 2 {
+			return nil
+		}
+
+		// Extract media type from "data:image/jpeg;base64"
+		header := parts[0]
+		data := parts[1]
+
+		// Parse media type
+		mediaType := "image/jpeg" // default
+		if strings.HasPrefix(header, "data:") {
+			headerParts := strings.Split(strings.TrimPrefix(header, "data:"), ";")
+			if len(headerParts) > 0 && headerParts[0] != "" {
+				mediaType = headerParts[0]
+			}
+		}
+
+		return map[string]interface{}{
+			"type": "image",
+			"source": map[string]interface{}{
+				"type":       "base64",
+				"media_type": mediaType,
+				"data":       data,
+			},
+		}
+	}
+
+	// Regular URL - use URL source type
+	return map[string]interface{}{
+		"type": "image",
+		"source": map[string]interface{}{
+			"type": "url",
+			"url":  url,
+		},
+	}
+}
+
 // OpenAIMessage represents an OpenAI format message
 type OpenAIMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"` // Can be string or []ContentPart
+	Role       string      `json:"role"`
+	Content    interface{} `json:"content"`               // Can be string or []ContentPart
+	ToolCallID string      `json:"tool_call_id,omitempty"` // For tool result messages
+	ToolCalls  interface{} `json:"tool_calls,omitempty"`   // For assistant tool call messages
 }
 
 // ContentPart represents a message content part
@@ -35,21 +126,67 @@ type OpenAIRequest struct {
 
 // AnthropicMessage represents an Anthropic format message
 type AnthropicMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"` // Can be string or []map[string]interface{}
+	Role         string      `json:"role"`
+	Content      interface{} `json:"content"` // Can be string or []map[string]interface{}
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
+}
+
+// CacheControl represents Anthropic prompt caching configuration
+type CacheControl struct {
+	Type string `json:"type"` // "ephemeral"
 }
 
 // AnthropicRequest represents Anthropic request format
 type AnthropicRequest struct {
-	Model       string                   `json:"model"`
-	Messages    []AnthropicMessage       `json:"messages"`
-	System      []map[string]interface{} `json:"system,omitempty"`
-	MaxTokens   int                      `json:"max_tokens"`
-	Temperature float64                  `json:"temperature,omitempty"`
-	Stream      bool                     `json:"stream,omitempty"`
-	Thinking    *ThinkingConfig          `json:"thinking,omitempty"`
-	Tools       []interface{}            `json:"tools,omitempty"`
-	ToolChoice  interface{}              `json:"tool_choice,omitempty"`
+	Model       string             `json:"model"`
+	Messages    []AnthropicMessage `json:"messages"`
+	System      interface{}        `json:"system,omitempty"` // Can be string or []map[string]interface{}
+	MaxTokens   int                `json:"max_tokens"`
+	Temperature float64            `json:"temperature,omitempty"`
+	Stream      bool               `json:"stream,omitempty"`
+	Thinking    *ThinkingConfig    `json:"thinking,omitempty"`
+	Tools       []interface{}      `json:"tools,omitempty"`
+	ToolChoice  interface{}        `json:"tool_choice,omitempty"`
+}
+
+// GetSystemAsArray returns the System field as []map[string]interface{}, converting from string if needed
+func (r *AnthropicRequest) GetSystemAsArray() []map[string]interface{} {
+	if r.System == nil {
+		return nil
+	}
+
+	// If it's already an array
+	if arr, ok := r.System.([]interface{}); ok {
+		result := make([]map[string]interface{}, 0, len(arr))
+		for _, item := range arr {
+			if m, ok := item.(map[string]interface{}); ok {
+				result = append(result, m)
+			}
+		}
+		return result
+	}
+
+	// If it's already []map[string]interface{}
+	if arr, ok := r.System.([]map[string]interface{}); ok {
+		return arr
+	}
+
+	// If it's a string, convert to array format
+	if str, ok := r.System.(string); ok && str != "" {
+		return []map[string]interface{}{
+			{
+				"type": "text",
+				"text": str,
+			},
+		}
+	}
+
+	return nil
+}
+
+// SetSystemAsArray sets the System field as an array
+func (r *AnthropicRequest) SetSystemAsArray(system []map[string]interface{}) {
+	r.System = system
 }
 
 // ThinkingConfig represents Anthropic thinking configuration
@@ -141,14 +278,53 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 		contentArray := []map[string]interface{}{}
 
 		if text, ok := msg.Content.(string); ok {
-			contentArray = append(contentArray, map[string]interface{}{
+			// For long text content (e.g., file contents, conversation history),
+			// enable caching if it's user message (helps with repeated context)
+			textBlock := map[string]interface{}{
 				"type": "text",
 				"text": text,
-			})
+			}
+			
+			// Enable caching for user messages with substantial content (>2000 chars)
+			// This is useful for caching file contents, long contexts, etc.
+			if msg.Role == "user" && len(text) > 2000 {
+				textBlock["cache_control"] = map[string]interface{}{
+					"type": "ephemeral",
+				}
+			}
+			
+			contentArray = append(contentArray, textBlock)
 		} else if parts, ok := msg.Content.([]interface{}); ok {
-			for _, part := range parts {
+			for i, part := range parts {
 				if partMap, ok := part.(map[string]interface{}); ok {
-					contentArray = append(contentArray, partMap)
+					partType, _ := partMap["type"].(string)
+					if partType == "image_url" {
+						// Convert OpenAI image_url format to Anthropic image format
+						if imageURLData, ok := partMap["image_url"].(map[string]interface{}); ok {
+							url, _ := imageURLData["url"].(string)
+							anthropicImage := convertImageURLToAnthropic(url)
+							if anthropicImage != nil {
+								contentArray = append(contentArray, anthropicImage)
+							}
+						}
+					} else if partType == "text" {
+						// For text blocks in multi-part content
+						textBlock := partMap
+						
+						// Enable caching for last text block if it's substantial
+						// (useful for caching the last context block in conversation)
+						if msg.Role == "user" && i == len(parts)-1 {
+							if text, ok := partMap["text"].(string); ok && len(text) > 2000 {
+								textBlock["cache_control"] = map[string]interface{}{
+									"type": "ephemeral",
+								}
+							}
+						}
+						
+						contentArray = append(contentArray, textBlock)
+					} else {
+						contentArray = append(contentArray, partMap)
+					}
 				}
 			}
 		}
@@ -161,56 +337,134 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 		anthropicReq.Messages = append(anthropicReq.Messages, anthropicMsg)
 	}
 
-	// Set system field (always enforce proxy system prompt only)
+	// Combine proxy system prompt + user system prompt (sanitized)
+	var systemEntries []map[string]interface{}
+	
+	// Add proxy system prompt first (higher priority)
 	if systemPrompt != "" {
-		anthropicReq.System = []map[string]interface{}{
-			{
-				"type": "text",
-				"text": systemPrompt,
+		systemEntries = append(systemEntries, map[string]interface{}{
+			"type": "text",
+			"text": systemPrompt,
+			// Enable prompt caching for system prompt (min 1024 tokens for Sonnet 4+)
+			// Cache TTL: 5 minutes, refreshed on each use
+			"cache_control": map[string]interface{}{
+				"type": "ephemeral",
 			},
+		})
+	}
+	
+	// Add user system prompts (sanitized to remove blocked content)
+	if len(userSystemMessages) > 0 {
+		combinedUserSystem := strings.Join(userSystemMessages, "\n\n")
+		sanitizedUserSystem := sanitizeBlockedContent(combinedUserSystem)
+		if sanitizedUserSystem != "" {
+			systemEntries = append(systemEntries, map[string]interface{}{
+				"type": "text",
+				"text": sanitizedUserSystem,
+				// Enable caching for user system prompts too
+				"cache_control": map[string]interface{}{
+					"type": "ephemeral",
+				},
+			})
 		}
 	}
-
-	// Move user-provided system instructions into the conversation
-	if len(userSystemMessages) > 0 {
-		combinedText := strings.Join(userSystemMessages, "\n\n")
-		if combinedText != "" {
-			prependMsg := AnthropicMessage{
-				Role: "user",
-				Content: []map[string]interface{}{
-					{
-						"type": "text",
-						"text": combinedText,
-					},
-				},
-			}
-			anthropicReq.Messages = append([]AnthropicMessage{prependMsg}, anthropicReq.Messages...)
-		}
+	
+	if len(systemEntries) > 0 {
+		anthropicReq.System = systemEntries
 	}
 
 	// Handle thinking field
 	reasoning := config.GetModelReasoning(req.Model)
 	if reasoning != "" {
-		budgetTokens := map[string]int{
-			"low":    4096,
-			"medium": 12288,
-			"high":   24576,
-		}
+		// Get thinking budget from config (allows per-model customization)
+		budgetTokens := config.GetModelThinkingBudget(req.Model)
 
 		// Ensure max_tokens is greater than budget_tokens
-		requiredBudget := budgetTokens[reasoning]
-		if anthropicReq.MaxTokens <= requiredBudget {
+		if anthropicReq.MaxTokens <= budgetTokens {
 			// Increase max_tokens to meet requirement
-			anthropicReq.MaxTokens = requiredBudget + 4000
+			anthropicReq.MaxTokens = budgetTokens + 4000
 		}
 
 		anthropicReq.Thinking = &ThinkingConfig{
 			Type:         "enabled",
-			BudgetTokens: requiredBudget,
+			BudgetTokens: budgetTokens,
 		}
 	}
 
 	return anthropicReq
+}
+
+// TransformToOpenAI converts Anthropic format to OpenAI format
+func TransformToOpenAI(req *AnthropicRequest) *OpenAIRequest {
+	openaiReq := &OpenAIRequest{
+		Model:    req.Model,
+		Messages: []OpenAIMessage{},
+		Stream:   req.Stream,
+	}
+
+	// Convert max_tokens
+	if req.MaxTokens > 0 {
+		openaiReq.MaxTokens = req.MaxTokens
+	} else {
+		openaiReq.MaxTokens = 4096
+	}
+
+	// Convert temperature
+	if req.Temperature > 0 {
+		openaiReq.Temperature = req.Temperature
+	}
+
+	// Handle system messages
+	systemArray := req.GetSystemAsArray()
+	if len(systemArray) > 0 {
+		var systemText string
+		for _, sys := range systemArray {
+			if text, ok := sys["text"].(string); ok {
+				if systemText != "" {
+					systemText += "\n"
+				}
+				systemText += text
+			}
+		}
+		if systemText != "" {
+			openaiReq.Messages = append(openaiReq.Messages, OpenAIMessage{
+				Role:    "system",
+				Content: systemText,
+			})
+		}
+	}
+
+	// Convert messages
+	for _, msg := range req.Messages {
+		openaiMsg := OpenAIMessage{
+			Role: msg.Role,
+		}
+
+		// Handle content conversion
+		switch content := msg.Content.(type) {
+		case string:
+			openaiMsg.Content = content
+		case []interface{}:
+			// For array content, extract text parts
+			var textParts []string
+			for _, part := range content {
+				if partMap, ok := part.(map[string]interface{}); ok {
+					if partMap["type"] == "text" {
+						if text, ok := partMap["text"].(string); ok {
+							textParts = append(textParts, text)
+						}
+					}
+				}
+			}
+			openaiMsg.Content = strings.Join(textParts, "")
+		default:
+			openaiMsg.Content = ""
+		}
+
+		openaiReq.Messages = append(openaiReq.Messages, openaiMsg)
+	}
+
+	return openaiReq
 }
 
 // TransformToTrollOpenAI converts OpenAI format to TrollLLM OpenAI format
@@ -383,6 +637,25 @@ func GetAnthropicHeaders(authHeader string, clientHeaders map[string]string, isS
 
 	if msgID, ok := clientHeaders["x-assistant-message-id"]; ok {
 		headers["x-assistant-message-id"] = msgID
+	}
+
+	return headers
+}
+
+// GetMainTargetHeaders returns headers for Main Target Server
+// Sends both x-api-key and Authorization Bearer for compatibility
+func GetMainTargetHeaders(apiKey string, clientHeaders map[string]string, isStreaming bool) map[string]string {
+	headers := map[string]string{
+		"content-type":         "application/json",
+		"x-api-key":            apiKey,
+		"authorization":        "Bearer " + apiKey,
+		"anthropic-version":    "2023-06-01",
+	}
+
+	if isStreaming {
+		headers["accept"] = "text/event-stream"
+	} else {
+		headers["accept"] = "application/json"
 	}
 
 	return headers

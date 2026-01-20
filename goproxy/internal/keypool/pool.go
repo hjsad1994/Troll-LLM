@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +16,21 @@ import (
 var (
 	ErrNoHealthyKeys = errors.New("no healthy troll keys available")
 )
+
+// UseOptimizedKeyPool controls whether to use the lock-free optimized pool
+// Can be disabled via env: GOPROXY_DISABLE_OPTIMIZATIONS=true
+var UseOptimizedKeyPool = true
+
+func init() {
+	if isKeyPoolEnvDisabled("GOPROXY_DISABLE_OPTIMIZATIONS") || isKeyPoolEnvDisabled("GOPROXY_DISABLE_KEY_POOL_OPT") {
+		UseOptimizedKeyPool = false
+	}
+}
+
+func isKeyPoolEnvDisabled(key string) bool {
+	val := strings.ToLower(os.Getenv(key))
+	return val == "true" || val == "1" || val == "yes"
+}
 
 type KeyPool struct {
 	mu      sync.Mutex
@@ -35,6 +52,27 @@ func GetPool() *KeyPool {
 		pool.LoadKeys()
 	})
 	return pool
+}
+
+// GetOptimizedOrLegacyKeyPool returns the appropriate pool based on configuration
+func GetOptimizedOrLegacyKeyPool() interface {
+	SelectKey() (*TrollKey, error)
+	GetStats() map[string]int
+	GetAllKeysStatus() []map[string]interface{}
+	GetKeyCount() int
+	GetKeyByID(string) *TrollKey
+	GetAPIKey(string) string
+	Reload() error
+	MarkHealthy(string)
+	MarkRateLimited(string)
+	MarkExhausted(string)
+	MarkError(string, string)
+	CheckAndRotateOnError(string, int, string)
+} {
+	if UseOptimizedKeyPool {
+		return GetOptimizedKeyPool()
+	}
+	return GetPool()
 }
 
 func (p *KeyPool) LoadKeys() error {
@@ -171,6 +209,29 @@ func (p *KeyPool) GetStats() map[string]int {
 	return stats
 }
 
+// GetAllKeysStatus returns all keys with their status (for debugging)
+func (p *KeyPool) GetAllKeysStatus() []map[string]interface{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	result := make([]map[string]interface{}, 0, len(p.keys))
+	for _, key := range p.keys {
+		keyInfo := map[string]interface{}{
+			"id":        key.ID,
+			"status":    key.Status,
+			"available": key.IsAvailable(),
+		}
+		if key.LastError != "" {
+			keyInfo["last_error"] = key.LastError
+		}
+		if key.CooldownUntil != nil {
+			keyInfo["cooldown_until"] = key.CooldownUntil.Format(time.RFC3339)
+		}
+		result = append(result, keyInfo)
+	}
+	return result
+}
+
 func (p *KeyPool) GetKeyCount() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -195,4 +256,27 @@ func (p *KeyPool) GetAPIKey(keyID string) string {
 		return key.APIKey
 	}
 	return ""
+}
+
+// Reload refreshes the key pool from database
+func (p *KeyPool) Reload() error {
+	return p.LoadKeys()
+}
+
+// StartAutoReload starts a background goroutine that periodically reloads keys from database
+func (p *KeyPool) StartAutoReload(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		log.Printf("🔄 Key pool auto-reload started (interval: %v)", interval)
+
+		for range ticker.C {
+			if err := p.LoadKeys(); err != nil {
+				log.Printf("⚠️ Key pool auto-reload failed: %v", err)
+			} else {
+				log.Printf("🔄 Auto-reloaded troll keys (%d keys)", p.GetKeyCount())
+			}
+		}
+	}()
 }

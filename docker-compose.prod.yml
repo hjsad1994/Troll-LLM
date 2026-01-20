@@ -1,0 +1,100 @@
+services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+      - goproxy-openhands
+      - goproxy-ohmygpt
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # Certbot for SSL
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - trollllm-network
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.trollllm.xyz
+    # Force IPv4 DNS to avoid IPv6 connection issues
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    extra_hosts:
+      - "api.trollllm.xyz:172.67.198.201"
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # Backend (Node.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config-openhands-prod.json:/app/goproxy/config-openhands-prod.json:ro
+      - ./goproxy/config-ohmygpt-prod.json:/app/goproxy/config-ohmygpt-prod.json:ro
+    env_file:
+      - ./backend/.env
+    environment:
+      - BACKEND_PORT=3005
+      - GOPROXY_OPENHANDS_CONFIG_PATH=/app/goproxy/config-openhands-prod.json
+      - GOPROXY_OHMYGPT_CONFIG_PATH=/app/goproxy/config-ohmygpt-prod.json
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # GoProxy OpenHands (chat.trollllm.xyz - port 8004)
+  # Uses OpenHands upstream and bills to 'creditsNew' field
+  goproxy-openhands:
+    build:
+      context: ./goproxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config-openhands-prod.json:/app/config.json:ro
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # GoProxy OhMyGPT Container (chat2.trollllm.xyz - port 8005)
+  # Uses OpenHands upstream but bills to 'credits' field (legacy pool)
+  # Container name is legacy - actual upstream is OpenHands
+  goproxy-ohmygpt:
+    build:
+      context: ./goproxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config-ohmygpt-prod.json:/app/config.json:ro
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+networks:
+  trollllm-network:
+    driver: bridge

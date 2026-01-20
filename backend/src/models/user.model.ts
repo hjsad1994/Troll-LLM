@@ -1,7 +1,13 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-export type UserPlan = 'free' | 'dev' | 'pro';
+// Credit packages: $20 or $40 USD
+export type CreditPackage = '20' | '40';
+
+export const CREDIT_PACKAGES: Record<CreditPackage, { credits: number; price: number; days: number; refBonus: number }> = {
+  '20': { credits: 20, price: 20000, days: 7, refBonus: 10 },
+  '40': { credits: 40, price: 40000, days: 7, refBonus: 20 },
+};
 
 export interface IUser {
   _id: string;
@@ -13,19 +19,19 @@ export interface IUser {
   lastLoginAt?: Date;
   apiKey: string;
   apiKeyCreatedAt: Date;
-  plan: UserPlan;
-  totalTokens: number;
-  tokensUsed: number;
-  monthlyTokensUsed: number;
-  monthlyResetDate: Date;
-  credits: number;
+  // Credits-based billing (USD)
+  credits: number;           // Credits remaining (USD)
+  creditsUsed: number;       // Credits used (lifetime, USD)
+  totalInputTokens: number;  // Input tokens used (for analytics)
+  totalOutputTokens: number; // Output tokens used (for analytics)
+  purchasedAt?: Date | null; // When credits were purchased
+  expiresAt?: Date | null;   // When credits expire (7 days from purchase)
+  // Referral fields
+  referralCode: string;
+  referredBy?: string | null;
+  refCredits: number;        // Referral credits (bonus, USD)
+  referralBonusAwarded: boolean;
 }
-
-export const PLAN_LIMITS: Record<UserPlan, { monthlyTokens: number; totalTokens: number; rpm: number; valueUsd: number }> = {
-  free: { monthlyTokens: 0, totalTokens: 0, rpm: 0, valueUsd: 0 },
-  dev: { monthlyTokens: 15_000_000, totalTokens: 15_000_000, rpm: 300, valueUsd: 225 },
-  pro: { monthlyTokens: 40_000_000, totalTokens: 40_000_000, rpm: 1000, valueUsd: 500 },
-};
 
 const userSchema = new mongoose.Schema({
   _id: { type: String, required: true },
@@ -37,18 +43,19 @@ const userSchema = new mongoose.Schema({
   lastLoginAt: { type: Date },
   apiKey: { type: String, unique: true, sparse: true },
   apiKeyCreatedAt: { type: Date },
-  plan: { type: String, enum: ['free', 'dev', 'pro'], default: 'free' },
-  totalTokens: { type: Number, default: 0 },
-  tokensUsed: { type: Number, default: 0 },
-  monthlyTokensUsed: { type: Number, default: 0 },
-  monthlyResetDate: { type: Date, default: () => getFirstDayOfMonth() },
+  // Credits-based billing (USD)
   credits: { type: Number, default: 0 },
+  creditsUsed: { type: Number, default: 0 },
+  totalInputTokens: { type: Number, default: 0 },
+  totalOutputTokens: { type: Number, default: 0 },
+  purchasedAt: { type: Date, default: null },
+  expiresAt: { type: Date, default: null },
+  // Referral fields
+  referralCode: { type: String, unique: true, sparse: true },
+  referredBy: { type: String, default: null },
+  refCredits: { type: Number, default: 0 },
+  referralBonusAwarded: { type: Boolean, default: false },
 });
-
-function getFirstDayOfMonth(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-}
 
 export const User = mongoose.model<IUser>('User', userSchema, 'users');
 
@@ -72,4 +79,20 @@ export function generateApiKey(): string {
 export function maskApiKey(key: string): string {
   if (!key || key.length < 20) return '****';
   return key.slice(0, 15) + '****' + key.slice(-4);
+}
+
+export function generateReferralCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+export function maskUsername(username: string): string {
+  if (!username || username.length < 4) return '***';
+  const start = username.slice(0, 3);
+  const end = username.slice(-3);
+  return `${start}***${end}`;
 }

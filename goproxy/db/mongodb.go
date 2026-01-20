@@ -69,15 +69,35 @@ func UserKeysCollection() *mongo.Collection {
 }
 
 func UsersCollection() *mongo.Collection {
-	return GetCollection("users")
+	return GetCollection("usersNew")
+}
+
+func UsersNewCollection() *mongo.Collection {
+	return GetCollection("usersNew")
 }
 
 func TrollKeysCollection() *mongo.Collection {
-	return GetCollection("troll_keys")
+	return GetCollection("factory_keys")
 }
 
 func RequestLogsCollection() *mongo.Collection {
 	return GetCollection("request_logs")
+}
+
+func FriendKeysCollection() *mongo.Collection {
+	return GetCollection("friend_keys")
+}
+
+func OpenHandsKeysCollection() *mongo.Collection {
+	return GetCollection("openhands_keys")
+}
+
+func OpenHandsBackupKeysCollection() *mongo.Collection {
+	return GetCollection("openhands_backup_keys")
+}
+
+func OhMyGPTKeysCollection() *mongo.Collection {
+	return GetCollection("ohmygpt_keys")
 }
 
 func Disconnect() {

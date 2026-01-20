@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
 import { userRepository } from '../repositories/user.repository.js';
-import { verifyPassword } from '../models/user.model.js';
+import { verifyPassword } from '../models/user-new.model.js';
 import { JwtPayload } from '../dtos/auth.dto.js';
 
 declare global {

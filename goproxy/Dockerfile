@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -27,10 +27,9 @@ RUN apk --no-cache add ca-certificates
 # Copy binary and config
 COPY --from=builder /app/goproxy .
 COPY --from=builder /app/config.json .
-COPY --from=builder /app/docs.html .
 
 # Expose port
-EXPOSE 8003
+EXPOSE 8080
 
 # Run
 CMD ["./goproxy"]

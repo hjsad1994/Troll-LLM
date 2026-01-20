@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 )
@@ -15,15 +16,26 @@ type Endpoint struct {
 
 // Model configuration
 type Model struct {
-	Name                  string  `json:"name"`
-	ID                    string  `json:"id"`
-	Type                  string  `json:"type"`
-	Reasoning             string  `json:"reasoning"`
-	InputPricePerMTok     float64 `json:"input_price_per_mtok"`
-	OutputPricePerMTok    float64 `json:"output_price_per_mtok"`
-	CacheWritePricePerMTok float64 `json:"cache_write_price_per_mtok"`
-	CacheHitPricePerMTok   float64 `json:"cache_hit_price_per_mtok"`
-	BillingMultiplier      float64 `json:"billing_multiplier"`
+	Name                    string   `json:"name"`
+	ID                      string   `json:"id"`
+	IDAliases               []string `json:"id_aliases,omitempty"` // Alternative model IDs that map to this model
+	Type                    string   `json:"type"`
+	Reasoning               string   `json:"reasoning"`
+	ThinkingBudget          int      `json:"thinking_budget,omitempty"` // Budget tokens for thinking mode
+	InputPricePerMTok       float64  `json:"input_price_per_mtok"`
+	OutputPricePerMTok      float64  `json:"output_price_per_mtok"`
+	CacheWritePricePerMTok  float64  `json:"cache_write_price_per_mtok"`
+	CacheHitPricePerMTok    float64  `json:"cache_hit_price_per_mtok"`
+	BatchInputPricePerMTok  float64  `json:"batch_input_price_per_mtok,omitempty"`  // Optional: Batch mode input price (defaults to 50% of regular)
+	BatchOutputPricePerMTok float64  `json:"batch_output_price_per_mtok,omitempty"` // Optional: Batch mode output price (defaults to 50% of regular)
+	BillingMultiplier       float64  `json:"billing_multiplier,omitempty"`          // Multiplier applied to final billing cost (default 1.0)
+	Upstream                string   `json:"upstream"`                              // "troll" or "main" - determines which upstream provider to use (request routing)
+	UpstreamModelID         string   `json:"upstream_model_id,omitempty"`           // Model ID to use when sending to upstream (if different from ID)
+	BillingUpstream         string   `json:"billing_upstream,omitempty"`            // "openhands" or "ohmygpt" - determines which credit field to deduct from (independent of Upstream)
+	// NOTE: BillingUpstream controls credit field selection, NOT upstream provider
+	// "openhands" = deduct from creditsNew field (chat.trollllm.xyz)
+	// "ohmygpt" = deduct from credits field (chat2.trollllm.xyz)
+	// Both can use same Upstream provider but different credit fields
 }
 
 // Config global configuration
@@ -74,16 +86,24 @@ func GetConfig() *Config {
 	return globalConfig
 }
 
-// GetModelByID gets model configuration by model ID
+// GetModelByID gets model configuration by model ID or alias
 func GetModelByID(modelID string) *Model {
 	cfg := GetConfig()
 	if cfg == nil {
 		return nil
 	}
 
-	for _, model := range cfg.Models {
+	for i := range cfg.Models {
+		model := &cfg.Models[i]
+		// Check primary ID
 		if model.ID == modelID {
-			return &model
+			return model
+		}
+		// Check aliases
+		for _, alias := range model.IDAliases {
+			if alias == modelID {
+				return model
+			}
 		}
 	}
 	return nil
@@ -137,6 +157,86 @@ func GetModelReasoning(modelID string) string {
 	return ""
 }
 
+// GetModelThinkingBudget gets thinking budget for a model
+// Returns the configured budget or a default based on reasoning level
+func GetModelThinkingBudget(modelID string) int {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return 10000 // default
+	}
+
+	// Use configured budget if set
+	if model.ThinkingBudget > 0 {
+		return model.ThinkingBudget
+	}
+
+	// Default budgets based on reasoning level
+	switch model.Reasoning {
+	case "high":
+		return 10000
+	case "medium":
+		return 5000
+	case "low":
+		return 2000
+	default:
+		return 10000
+	}
+}
+
+// GetModelUpstream gets upstream provider for a model
+// Returns "main", "troll", or "openhands" (default is "troll" if not specified)
+func GetModelUpstream(modelID string) string {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return "troll"
+	}
+	if model.Upstream != "" {
+		return model.Upstream
+	}
+	return "troll" // default to troll-key
+}
+
+// IsValidUpstream checks if upstream value is valid
+func IsValidUpstream(upstream string) bool {
+	switch upstream {
+	case "troll", "main", "openhands":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsValidBillingUpstream checks if billing_upstream value is valid
+func IsValidBillingUpstream(billingUpstream string) bool {
+	return billingUpstream == "openhands" || billingUpstream == "ohmygpt"
+}
+
+// GetModelBillingUpstream gets billing upstream for a model
+// Returns "openhands" or "ohmygpt" (defaults to "ohmygpt" if not specified)
+func GetModelBillingUpstream(modelID string) string {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return "ohmygpt" // default to ohmygpt for backward compatibility
+	}
+	if model.BillingUpstream != "" && IsValidBillingUpstream(model.BillingUpstream) {
+		return model.BillingUpstream
+	}
+	return "ohmygpt" // default to ohmygpt for backward compatibility
+}
+
+// GetUpstreamModelID gets the model ID to use when sending to upstream
+// Returns UpstreamModelID if configured, otherwise returns the original model ID
+func GetUpstreamModelID(modelID string) string {
+	model := GetModelByID(modelID)
+	if model == nil {
+		return modelID
+	}
+	if model.UpstreamModelID != "" {
+		return model.UpstreamModelID
+	}
+	return modelID // use original ID if no mapping configured
+}
+
 // IsModelSupported checks if model is supported
 func IsModelSupported(modelID string) bool {
 	return GetModelByID(modelID) != nil
@@ -157,7 +257,6 @@ const (
 	DefaultOutputPricePerMTok     = 15.0
 	DefaultCacheWritePricePerMTok = 3.75
 	DefaultCacheHitPricePerMTok   = 0.30
-	DefaultBillingMultiplier      = 1.4 // Default 40% markup
 )
 
 // GetModelPricing gets input/output pricing for a model
@@ -178,65 +277,172 @@ func GetModelPricing(modelID string) (inputPrice, outputPrice float64) {
 }
 
 // GetModelCachePricing gets cache write/hit pricing for a model
+// Returns 0 if explicitly set to 0 in config (e.g., models without cache support)
 func GetModelCachePricing(modelID string) (cacheWritePrice, cacheHitPrice float64) {
 	model := GetModelByID(modelID)
 	if model == nil {
 		return DefaultCacheWritePricePerMTok, DefaultCacheHitPricePerMTok
 	}
-	cacheWritePrice = model.CacheWritePricePerMTok
-	cacheHitPrice = model.CacheHitPricePerMTok
-	if cacheWritePrice <= 0 {
-		cacheWritePrice = DefaultCacheWritePricePerMTok
-	}
-	if cacheHitPrice <= 0 {
-		cacheHitPrice = DefaultCacheHitPricePerMTok
-	}
-	return cacheWritePrice, cacheHitPrice
+	// Use configured prices directly (including 0 if explicitly set)
+	return model.CacheWritePricePerMTok, model.CacheHitPricePerMTok
 }
 
-// GetModelMultiplier gets billing multiplier for a model
-func GetModelMultiplier(modelID string) float64 {
+// GetBillingMultiplier gets the billing multiplier for a model
+// Returns 1.0 if not configured or model not found
+func GetBillingMultiplier(modelID string) float64 {
 	model := GetModelByID(modelID)
 	if model == nil || model.BillingMultiplier <= 0 {
-		return DefaultBillingMultiplier
+		return 1.0 // Default multiplier
 	}
 	return model.BillingMultiplier
 }
 
+// GetBatchPricing gets batch input/output pricing for a model
+// Returns 50% of regular pricing if batch pricing is not explicitly configured
+func GetBatchPricing(modelID string) (inputPrice, outputPrice float64) {
+	model := GetModelByID(modelID)
+	if model == nil {
+		// Fallback to 50% of default pricing
+		return DefaultInputPricePerMTok * 0.5, DefaultOutputPricePerMTok * 0.5
+	}
+
+	// If explicitly configured, use configured values
+	if model.BatchInputPricePerMTok > 0 && model.BatchOutputPricePerMTok > 0 {
+		return model.BatchInputPricePerMTok, model.BatchOutputPricePerMTok
+	}
+
+	// Default to 50% of regular pricing
+	regularIn, regularOut := GetModelPricing(modelID)
+	return regularIn * 0.5, regularOut * 0.5
+}
+
 // CalculateBillingCost calculates the cost in USD for input/output tokens (without cache)
-// Applies per-model BillingMultiplier to the final cost
 func CalculateBillingCost(modelID string, inputTokens, outputTokens int64) float64 {
 	inputPrice, outputPrice := GetModelPricing(modelID)
-	multiplier := GetModelMultiplier(modelID)
 	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
-	return (inputCost + outputCost) * multiplier
+	return inputCost + outputCost
 }
 
 // CalculateBillingCostWithCache calculates the cost in USD including cache tokens
-// Applies per-model BillingMultiplier to the final cost
+// Note: For most providers, input_tokens includes ALL tokens (cached + uncached)
+// We subtract both cacheHit and cacheWrite from input to get uncached tokens only
+// EXCEPTION: OpenHands already returns input_tokens as uncached only, so no subtraction needed
+// Uses original cache hit tokens from upstream (no discount applied)
+// Finally applies billing_multiplier from config (default 1.0)
 func CalculateBillingCostWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
-	inputPrice, outputPrice := GetModelPricing(modelID)
+	return CalculateBillingCostWithCacheAndBatch(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens, false)
+}
+
+// CalculateBillingCostWithCacheAndBatch calculates the cost in USD including cache tokens with optional batch mode
+// isBatch: if true, applies batch pricing (50% discount by default)
+func CalculateBillingCostWithCacheAndBatch(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64, isBatch bool) float64 {
+	var inputPrice, outputPrice float64
+	var batchInputPrice, batchOutputPrice float64
+
+	model := GetModelByID(modelID)
+
+	// Get pricing info for logging
+	if isBatch {
+		inputPrice, outputPrice = GetBatchPricing(modelID)
+	} else {
+		inputPrice, outputPrice = GetModelPricing(modelID)
+	}
+
+	// Get batch pricing for comparison/logging
+	if model != nil && model.BatchInputPricePerMTok > 0 {
+		batchInputPrice = model.BatchInputPricePerMTok
+		batchOutputPrice = model.BatchOutputPricePerMTok
+	}
+
 	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
-	multiplier := GetModelMultiplier(modelID)
-	
-	inputCost := (float64(inputTokens) / 1_000_000) * inputPrice
+	multiplier := GetBillingMultiplier(modelID)
+
+	// Log pricing details for debugging
+	regularInPrice, regularOutPrice := inputPrice, outputPrice
+	if model != nil && model.InputPricePerMTok > 0 {
+		regularInPrice = model.InputPricePerMTok
+	}
+	if model != nil && model.OutputPricePerMTok > 0 {
+		regularOutPrice = model.OutputPricePerMTok
+	}
+
+	if isBatch {
+		log.Printf("💰 [PRICING] BATCH MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok cache_write=$%.2f/MTok cache_hit=$%.2f/MTok batch_in=$%.2f/MTok batch_out=$%.2f/MTok multiplier=%.2fx (regular: in=$%.2f out=$%.2f)",
+			modelID, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice, batchInputPrice, batchOutputPrice, multiplier, regularInPrice, regularOutPrice)
+	} else if batchInputPrice > 0 || batchOutputPrice > 0 {
+		log.Printf("💰 [PRICING] REGULAR MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok cache_write=$%.2f/MTok cache_hit=$%.2f/MTok batch_in=$%.2f/MTok batch_out=$%.2f/MTok multiplier=%.2fx",
+			modelID, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice, batchInputPrice, batchOutputPrice, multiplier)
+	} else {
+		log.Printf("💰 [PRICING] REGULAR MODE: model=%s in_price=$%.2f/MTok out_price=$%.2f/MTok cache_write=$%.2f/MTok cache_hit=$%.2f/MTok multiplier=%.2fx",
+			modelID, inputPrice, outputPrice, cacheWritePrice, cacheHitPrice, multiplier)
+	}
+
+	// For OpenHands: input_tokens is already uncached, don't subtract
+	// For others: input_tokens includes cache, need to subtract
+	var actualInputTokens int64
+	if model != nil && model.Upstream == "openhands" {
+		actualInputTokens = inputTokens // OpenHands already returns net input
+	} else {
+		actualInputTokens = inputTokens - cacheHitTokens - cacheWriteTokens
+		if actualInputTokens < 0 {
+			actualInputTokens = 0
+		}
+	}
+
+	inputCost := (float64(actualInputTokens) / 1_000_000) * inputPrice
 	outputCost := (float64(outputTokens) / 1_000_000) * outputPrice
 	cacheWriteCost := (float64(cacheWriteTokens) / 1_000_000) * cacheWritePrice
 	cacheHitCost := (float64(cacheHitTokens) / 1_000_000) * cacheHitPrice
-	
-	return (inputCost + outputCost + cacheWriteCost + cacheHitCost) * multiplier
+
+	baseCost := inputCost + outputCost + cacheWriteCost + cacheHitCost
+	return baseCost * multiplier
 }
 
-// CalculateBillingTokens converts cost to equivalent "billing tokens" for quota tracking
-// Uses Sonnet pricing as the base reference ($3 input, $15 output -> avg $9/MTok)
+// CalculateBillingTokens calculates tokens to deduct from user's balance (without cache)
 func CalculateBillingTokens(modelID string, inputTokens, outputTokens int64) int64 {
-	cost := CalculateBillingCost(modelID, inputTokens, outputTokens)
-	// Convert cost to billing tokens using average reference price ($9/MTok)
-	// This normalizes all models to a common billing unit
-	const referenceAvgPricePerMTok = 9.0
-	billingTokens := (cost / referenceAvgPricePerMTok) * 1_000_000
-	return int64(billingTokens)
+	return CalculateBillingTokensWithCache(modelID, inputTokens, outputTokens, 0, 0)
+}
+
+// CalculateBillingTokensWithCache calculates tokens to deduct including cache tokens
+// Cache tokens are weighted by their price ratio relative to input price:
+// - cache_write: typically 1.25x input (more expensive to write)
+// - cache_hit: typically 0.1x input (much cheaper to read from cache)
+// EXCEPTION: OpenHands already returns input_tokens as uncached only, so no subtraction needed
+// Uses original cache hit tokens from upstream (no discount applied)
+// Finally applies billing_multiplier from config (default 1.0)
+func CalculateBillingTokensWithCache(modelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) int64 {
+	inputPrice, _ := GetModelPricing(modelID)
+	cacheWritePrice, cacheHitPrice := GetModelCachePricing(modelID)
+	multiplier := GetBillingMultiplier(modelID)
+
+	// For OpenHands: input_tokens is already uncached, don't subtract
+	// For others: input_tokens includes cache, need to subtract
+	model := GetModelByID(modelID)
+	var actualInputTokens int64
+	if model != nil && model.Upstream == "openhands" {
+		actualInputTokens = inputTokens // OpenHands already returns net input
+	} else {
+		actualInputTokens = inputTokens - cacheHitTokens - cacheWriteTokens
+		if actualInputTokens < 0 {
+			actualInputTokens = 0
+		}
+	}
+
+	// Calculate cache token weights relative to input price
+	cacheWriteWeight := 1.0
+	cacheHitWeight := 0.1
+	if inputPrice > 0 {
+		cacheWriteWeight = cacheWritePrice / inputPrice
+		cacheHitWeight = cacheHitPrice / inputPrice
+	}
+
+	// Effective tokens = actual input + output + weighted cache tokens
+	effectiveTokens := float64(actualInputTokens) + float64(outputTokens) +
+		float64(cacheWriteTokens)*cacheWriteWeight +
+		float64(cacheHitTokens)*cacheHitWeight
+
+	return int64(effectiveTokens * multiplier)
 }
 
 // GetTokenMultiplier - deprecated, kept for backward compatibility

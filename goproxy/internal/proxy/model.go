@@ -98,20 +98,23 @@ func (p *Proxy) createHTTPProxyTransport() (*http.Transport, error) {
 		return nil, err
 	}
 
-	// Custom dialer with aggressive TCP KeepAlive to prevent proxy idle timeout
+	// Custom dialer with aggressive TCP KeepAlive to prevent proxy idle timeout (15s)
 	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 5 * time.Second, // Send keepalive every 5s to prevent 15s idle timeout
+		Timeout:   30 * time.Second, // Reduced from 60s for faster fail
+		KeepAlive: 3 * time.Second,  // More aggressive keepalive (every 3s)
 	}
 
 	transport := &http.Transport{
 		Proxy:                 http.ProxyURL(proxyURL),
 		DialContext:           dialer.DialContext,
-		IdleConnTimeout:       120 * time.Second,
-		ResponseHeaderTimeout: 0, // No timeout for streaming
-		ExpectContinueTimeout: 10 * time.Second,
+		IdleConnTimeout:       120 * time.Second,  // Reduced from 300s
+		ResponseHeaderTimeout: 0,                   // No timeout for streaming
+		ExpectContinueTimeout: 5 * time.Second,    // Reduced from 30s
+		TLSHandshakeTimeout:   15 * time.Second,   // Reduced from 30s
 		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   10,
+		MaxIdleConnsPerHost:   20,
+		DisableKeepAlives:     false,
+		ForceAttemptHTTP2:     false,              // Disable HTTP/2 for residential proxies
 	}
 	return transport, nil
 }
@@ -125,10 +128,10 @@ func (p *Proxy) createSOCKS5ProxyTransport() (*http.Transport, error) {
 		}
 	}
 
-	// Create base dialer with TCP KeepAlive
+	// Create base dialer with very aggressive TCP KeepAlive
 	baseDialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 5 * time.Second, // Send keepalive every 5s
+		Timeout:   40 * time.Second, // Balanced for SOCKS5 proxy
+		KeepAlive: 1 * time.Second,  // Very aggressive keepalive (every 1s) to beat 15s proxy timeout
 	}
 
 	dialer, err := proxy.SOCKS5("tcp", p.Host+":"+itoa(p.Port), auth, baseDialer)
@@ -143,18 +146,21 @@ func (p *Proxy) createSOCKS5ProxyTransport() (*http.Transport, error) {
 			if err != nil {
 				return nil, err
 			}
-			// Enable TCP KeepAlive on the connection
+			// Enable very aggressive TCP KeepAlive on the connection
 			if tcpConn, ok := conn.(*net.TCPConn); ok {
 				tcpConn.SetKeepAlive(true)
-				tcpConn.SetKeepAlivePeriod(5 * time.Second)
+				tcpConn.SetKeepAlivePeriod(1 * time.Second) // Every 1s to beat 15s proxy timeout
 			}
 			return conn, nil
 		},
-		IdleConnTimeout:       120 * time.Second,
-		ResponseHeaderTimeout: 0, // No timeout for streaming
-		ExpectContinueTimeout: 10 * time.Second,
+		IdleConnTimeout:       120 * time.Second,  // Reduced from 300s
+		ResponseHeaderTimeout: 0,                   // No timeout for streaming
+		ExpectContinueTimeout: 5 * time.Second,    // Reduced from 30s
+		TLSHandshakeTimeout:   15 * time.Second,   // Reduced from 30s
 		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   10,
+		MaxIdleConnsPerHost:   20,
+		DisableKeepAlives:     false,
+		ForceAttemptHTTP2:     false,              // Disable HTTP/2 for residential proxies
 	}
 	return transport, nil
 }

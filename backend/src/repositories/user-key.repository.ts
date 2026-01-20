@@ -16,14 +16,16 @@ export class UserKeyRepository {
   }
 
   async create(data: CreateUserKeyInput): Promise<IUserKey> {
-    const prefix = data.tier === 'pro' ? 'sk-pro-' : 'sk-dev-';
+    // Note: Unified prefix for all keys as part of tier system removal (Story 3.2)
+    // Previously: tier-based prefix (sk-pro- / sk-dev-)
+    // Now: consistent sk-troll- prefix for all User Keys
+    const prefix = 'sk-troll-';
     const id = prefix + nanoid(24);
-    
+
     const key = await UserKey.create({
       _id: id,
       name: data.name,
-      tier: data.tier,
-      totalTokens: data.totalTokens || 30000000,
+      // tier defaults to 'dev' in schema - soft deprecated, not used in logic
       notes: data.notes,
     });
     return key.toObject();
@@ -49,12 +51,11 @@ export class UserKeyRepository {
     ).lean();
   }
 
-  async getStats(): Promise<{ total: number; active: number; exhausted: number }> {
+  async getStats(): Promise<{ total: number; active: number }> {
     const keys = await UserKey.find().lean();
     const total = keys.length;
     const active = keys.filter(k => k.isActive).length;
-    const exhausted = keys.filter(k => k.tokensUsed >= k.totalTokens).length;
-    return { total, active, exhausted };
+    return { total, active };
   }
 }
 

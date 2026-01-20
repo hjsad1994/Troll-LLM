@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
-import { userRepository } from '../repositories/user.repository.js';
-import { verifyPassword } from '../models/user.model.js';
+import { userRepository, isCreditsExpired } from '../repositories/user.repository.js';
+import { verifyPassword } from '../models/user-new.model.js';
 import { LoginInput, RegisterInput, AuthResponse, JwtPayload } from '../dtos/auth.dto.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_SECRET_KEY || 'change-this-secret';
-const JWT_EXPIRES_IN = '24h';
+const JWT_EXPIRES_IN = '7d';
 
 export class AuthService {
   async login(input: LoginInput): Promise<AuthResponse> {
@@ -16,6 +16,11 @@ export class AuthService {
 
     if (!verifyPassword(input.password, user.passwordHash, user.passwordSalt)) {
       throw new Error('Invalid credentials');
+    }
+
+    // Check if credits have expired and reset if needed
+    if (isCreditsExpired(user) && user.credits > 0) {
+      await userRepository.resetExpiredCredits(input.username);
     }
 
     await userRepository.updateLastLogin(input.username);
@@ -41,6 +46,8 @@ export class AuthService {
       username: input.username,
       password: input.password,
       role: input.role || 'user',
+      // Referral system disabled
+      // referredBy: input.ref,
     });
 
     const payload: JwtPayload = { username: user._id, role: user.role };

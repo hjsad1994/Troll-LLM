@@ -9,12 +9,30 @@ import usageRoutes from './routes/usage.js';
 import proxyRoutes from './routes/proxy.js';
 import statusRoutes from './routes/status.js';
 import userRoutes from './routes/user.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
+import modelsRoutes from './routes/models.routes.js';
+import friendKeyRoutes from './routes/friend-key.routes.js';
+import openhandsRoutes from './routes/openhands.routes.js';
+import ohmygptRoutes from './routes/ohmygpt.routes.js';
+import { expirationSchedulerService } from './services/expiration-scheduler.service.js';
 
 const app = express();
 const PORT = parseInt(process.env.BACKEND_PORT || '3000', 10);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://trollllm.xyz',
+    'https://www.trollllm.xyz',
+    'https://api.trollllm.xyz',
+    'https://chat.trollllm.xyz',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+}));
 app.use(express.json());
 
 // Health check
@@ -29,16 +47,23 @@ app.get('/health', (_req, res) => {
 // Public API routes
 app.use('/api', usageRoutes);
 app.use('/api/status', statusRoutes);
+app.use('/api/models', modelsRoutes);
 
 // Auth routes (public)
 app.use('/api', authRoutes);
 
 // User routes (protected with JWT)
 app.use('/api/user', userRoutes);
+// app.use('/api/user/friend-key', friendKeyRoutes); // TEMPORARILY DISABLED
+
+// Payment routes (mixed: some public, some protected)
+app.use('/api/payment', paymentRoutes);
 
 // Admin routes (protected with JWT)
 app.use('/admin', authMiddleware, adminRoutes);
 app.use('/admin/proxies', authMiddleware, proxyRoutes);
+app.use('/admin/openhands', authMiddleware, openhandsRoutes);
+app.use('/admin/ohmygpt', authMiddleware, ohmygptRoutes);
 
 // Root
 app.get('/', (_req, res) => {
@@ -58,6 +83,12 @@ app.get('/', (_req, res) => {
         'GET /api/user/api-key',
         'POST /api/user/api-key/rotate',
         'GET /api/user/billing',
+        'GET /api/user/friend-key',
+        'POST /api/user/friend-key',
+        'POST /api/user/friend-key/rotate',
+        'DELETE /api/user/friend-key',
+        'PUT /api/user/friend-key/limits',
+        'GET /api/user/friend-key/usage',
       ],
       admin: [
         'GET /admin/keys',
@@ -66,11 +97,6 @@ app.get('/', (_req, res) => {
         'PATCH /admin/keys/:id',
         'DELETE /admin/keys/:id',
         'POST /admin/keys/:id/reset',
-        'GET /admin/factory-keys',
-        'POST /admin/factory-keys',
-        'DELETE /admin/factory-keys/:id',
-        'POST /admin/factory-keys/:id/reset',
-        'GET /admin/factory-keys/analytics',
         'GET /admin/metrics',
         'GET /admin/proxies',
         'POST /admin/proxies',
@@ -105,6 +131,10 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function main() {
   try {
     await connectDB();
+
+    // Initialize expiration scheduler after DB connection
+    const { scheduled, resetImmediately, cleanedUp } = await expirationSchedulerService.init();
+    console.log(`[Startup] Expiration scheduler: ${scheduled} scheduled, ${resetImmediately} reset, ${cleanedUp} cleaned up`);
 
     app.listen(PORT, () => {
       console.log(`F-Proxy Backend started at http://localhost:${PORT}`);

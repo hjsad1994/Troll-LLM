@@ -1,5 +1,33 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+// TEMPORARILY DISABLED - request history feature
+export default function RequestHistoryPage() {
+  return (
+    <div className="min-h-screen bg-black -m-8 p-8">
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
+      </div>
+      <div className="relative max-w-7xl mx-auto">
+        <div className="p-12 rounded-xl border border-white/5 bg-white/[0.02] text-center">
+          <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">Feature Temporarily Disabled</h3>
+          <p className="text-slate-500 text-sm max-w-md mx-auto">
+            Request History is currently under maintenance. Please check back later.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ORIGINAL CODE - TEMPORARILY DISABLED
 import { useEffect, useState, useCallback } from 'react'
 import { getRequestHistory, RequestLogEntry, RequestHistoryResponse } from '@/lib/api'
 
@@ -36,7 +64,7 @@ function StatusBadge({ statusCode, isSuccess }: { statusCode: number; isSuccess:
   )
 }
 
-export default function RequestHistoryPage() {
+function RequestHistoryPageOriginal() {
   const [data, setData] = useState<RequestHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -232,3 +260,4 @@ export default function RequestHistoryPage() {
     </div>
   )
 }
+*/

@@ -1,52 +1,83 @@
 package userkey
 
-import "time"
+import (
+	"strings"
+	"time"
+)
+
+// KeyType represents the type of API key
+type KeyType int
+
+const (
+	// KeyTypeUnknown indicates an unrecognized key format
+	KeyTypeUnknown KeyType = iota
+	// KeyTypeUser indicates a user key (sk-troll-* or sk-trollllm-* excluding friend keys)
+	KeyTypeUser
+	// KeyTypeFriend indicates a friend key (sk-trollllm-friend-*)
+	KeyTypeFriend
+)
+
+// String returns the string representation of KeyType
+func (k KeyType) String() string {
+	switch k {
+	case KeyTypeUser:
+		return "user"
+	case KeyTypeFriend:
+		return "friend"
+	default:
+		return "unknown"
+	}
+}
+
+// GetKeyType determines the key type from API key prefix
+// Performance: < 1ms (string prefix check only, no database lookup)
+func GetKeyType(apiKey string) KeyType {
+	// Friend key check must come first (more specific prefix)
+	if strings.HasPrefix(apiKey, "sk-trollllm-friend-") {
+		return KeyTypeFriend
+	}
+	// User key check (sk-troll-* or sk-trollllm-*)
+	if strings.HasPrefix(apiKey, "sk-troll") {
+		return KeyTypeUser
+	}
+	return KeyTypeUnknown
+}
 
 type UserKey struct {
 	ID            string     `bson:"_id" json:"id"`
 	Name          string     `bson:"name" json:"name"`
-	Tier          string     `bson:"tier" json:"tier"`
-	TotalTokens   int64      `bson:"totalTokens" json:"total_tokens"`
-	TokensUsed    int64      `bson:"tokensUsed" json:"tokens_used"`
-	RequestsCount int64      `bson:"requestsCount" json:"requests_count"`
+	TokensUsed    float64    `bson:"tokensUsed" json:"tokens_used"`
+	RequestsCount float64    `bson:"requestsCount" json:"requests_count"`
 	IsActive      bool       `bson:"isActive" json:"is_active"`
 	CreatedAt     time.Time  `bson:"createdAt" json:"created_at"`
 	LastUsedAt    *time.Time `bson:"lastUsedAt,omitempty" json:"last_used_at,omitempty"`
 	Notes         string     `bson:"notes,omitempty" json:"notes,omitempty"`
-}
-
-func (u *UserKey) TokensRemaining() int64 {
-	remaining := u.TotalTokens - u.TokensUsed
-	if remaining < 0 {
-		return 0
-	}
-	return remaining
-}
-
-func (u *UserKey) UsagePercent() float64 {
-	if u.TotalTokens == 0 {
-		return 0
-	}
-	return float64(u.TokensUsed) / float64(u.TotalTokens) * 100
-}
-
-func (u *UserKey) IsExhausted() bool {
-	return u.TokensUsed >= u.TotalTokens
+	ExpiresAt     *time.Time `bson:"expiresAt,omitempty" json:"expires_at,omitempty"`
 }
 
 func (u *UserKey) GetRPMLimit() int {
-	switch u.Tier {
-	case "pro":
-		return 1000
-	case "dev":
-		return 300
-	case "free":
-		return 0
-	default:
-		return 300
-	}
+	return 300 // Default RPM, use ratelimit.GetRPMForAPIKey() for key-type-specific limits
 }
 
-func (u *UserKey) IsFreeUser() bool {
-	return u.Tier == "free" || u.Tier == ""
+func (u *UserKey) IsExpired() bool {
+	if u.ExpiresAt == nil {
+		return false
+	}
+	return time.Now().After(*u.ExpiresAt)
+}
+
+// LegacyUser represents a user from the legacy "users" collection
+// Used as fallback when API key is not found in user_keys
+type LegacyUser struct {
+	ID             string     `bson:"_id" json:"id"`                                    // username
+	APIKey         string     `bson:"apiKey" json:"api_key"`                            // sk-trollllm-* format
+	IsActive       bool       `bson:"isActive" json:"is_active"`                        // account status
+	Credits        float64    `bson:"credits" json:"credits"`                           // OhMyGPT credits (port 8005, USD)
+	CreditsNew     float64    `bson:"creditsNew" json:"credits_new"`                    // OpenHands credits (port 8004, USD)
+	CreditsNewUsed float64    `bson:"creditsNewUsed" json:"credits_new_used"`           // OpenHands USD cost used (lifetime)
+	RefCredits     float64    `bson:"refCredits" json:"ref_credits"`                    // referral credits USD
+	TokensUserNew  float64    `bson:"tokensUserNew" json:"tokens_user_new"`             // OpenHands tokens count (analytics)
+	ExpiresAt      *time.Time `bson:"expiresAt,omitempty" json:"expires_at,omitempty"`  // credit expiry
+	Role           string     `bson:"role" json:"role"`                                 // user role (admin/user)
+	Migration      bool       `bson:"migration" json:"migration"`                       // true = on new rate (2500), false = needs migration
 }
