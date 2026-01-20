@@ -10,48 +10,50 @@ import { isPromoActive, getTimeRemaining, calculateBonusCredits, PROMO_CONFIG } 
 // ===== CODE TEMPLATES WITH DIFFERENT MODELS PER LANGUAGE =====
 const codeConfigs = {
   python: {
-    model: 'claude-opus-4-5',
+    model: 'claude-sonnet-4-5',
     before: `from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://chat.trollllm.xyz/v1",
+    base_url="https://api.trollllm.xyz/v1",
     api_key="your-api-key"
 )
 
 response = client.chat.completions.create(
     model="`,
     after: `",
-    messages=[{"role": "user", "content": "Hello!"}]
-)`
+    messages=[{"role": "user", "content": "Hello!"}],
+    max_tokens=1024
+)
+print(response.choices[0].message.content)`
   },
   nodejs: {
     model: 'claude-sonnet-4-5',
-    before: `import OpenAI from 'openai';
+    before: `import Anthropic from "@anthropic-ai/sdk";
 
-const client = new OpenAI({
-  baseURL: 'https://chat.trollllm.xyz/v1',
-  apiKey: 'your-api-key'
+const client = new Anthropic({
+  baseURL: "https://api.trollllm.xyz",
+  apiKey: "your-api-key"
 });
 
-const response = await client.chat.completions.create({
-  model: '`,
-    after: `',
-  messages: [{ role: 'user', content: 'Hello!' }]
-});`
+const response = await client.messages.create({
+  model: "`,
+    after: `",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "Hello!" }]
+});
+console.log(response.content[0].text);`
   },
   curl: {
-    model: 'claude-opus-4-5',
-    before: `POST https://chat.trollllm.xyz/v1/chat/completions
-Authorization: Bearer YOUR_API_KEY
-Content-Type: application/json
-
-{
-  "model": "`,
+    model: 'claude-sonnet-4-5',
+    before: `curl https://api.trollllm.xyz/v1/chat/completions \\
+  -H "Authorization: Bearer your-api-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "`,
     after: `",
-  "messages": [
-    {"role": "user", "content": "Hello!"}
-  ]
-}`
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 1024
+  }'`
   }
 }
 
@@ -139,8 +141,8 @@ function TypingCodeBlock() {
         <div className="flex-1 flex justify-center">
           <div className="flex gap-0.5 sm:gap-1 bg-gray-200 dark:bg-black/50 rounded-lg p-0.5 sm:p-1">
             {([
-              // { key: 'python', label: 'Python' },
-              // { key: 'nodejs', label: 'NodeJS' },
+              { key: 'python', label: 'Python' },
+              { key: 'nodejs', label: 'NodeJS' },
               { key: 'curl', label: 'HTTP' }
             ] as const).map((lang) => (
               <button

@@ -16,6 +16,13 @@ const sidebarNav = [
     ]
   },
   {
+    title: 'SDK Reference',
+    items: [
+      { title: 'OpenAI SDK', href: '/docs/sdk/openai' },
+      { title: 'Anthropic SDK', href: '/docs/sdk/anthropic' },
+    ]
+  },
+  {
     title: 'API Reference',
     items: [
       { title: 'Chat Completions', href: '/docs/api/chat' },
@@ -423,6 +430,13 @@ export default function QuickstartPage() {
         { title: t.docs.sidebar.introduction, href: '/docs' },
         { title: t.docs.sidebar.quickstart, href: '/docs/quickstart', active: true },
         { title: t.docs.sidebar.authentication, href: '/docs/authentication' },
+      ]
+    },
+    {
+      title: t.docs.sidebar.sdkReference,
+      items: [
+        { title: t.docs.sidebar.openaiSdk, href: '/docs/sdk/openai' },
+        { title: t.docs.sidebar.anthropicSdk, href: '/docs/sdk/anthropic' },
       ]
     },
     {
