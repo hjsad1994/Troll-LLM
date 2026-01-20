@@ -27,7 +27,7 @@
       "billing_multiplier": 1.08,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "claude-opus-4-5-20251101"
+      "upstream_model_id": "prod/claude-opus-4-5-20251101"
     },
     {
       "name": "Claude Sonnet 4.5",
@@ -43,7 +43,7 @@
       "billing_multiplier": 1.1,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "claude-sonnet-4-5-20250929"
+      "upstream_model_id": "prod/claude-sonnet-4-5-20250929"
     },
     {
       "name": "Gemini 3 Pro Preview",
@@ -71,7 +71,7 @@
       "billing_multiplier": 1.1,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "claude-haiku-4-5-20251001"
+      "upstream_model_id": "prod/claude-haiku-4-5-20251001"
     },
     {
       "name": "GPT 5.1",
