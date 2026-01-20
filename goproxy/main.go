@@ -1268,7 +1268,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
 	openhandsPool := openhandspool.GetPool()
 	if openhandsPool == nil || openhandsPool.GetKeyCount() == 0 {
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"OpenHands not configured"}}`, http.StatusInternalServerError)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Service not configured"}}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -1276,7 +1276,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	key, err := openhandsPool.SelectKey()
 	if err != nil {
 		log.Printf("❌ [Troll-LLM] No healthy keys available: %v", err)
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"No healthy OpenHands keys available"}}`, http.StatusServiceUnavailable)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Service temporarily unavailable. Please try again later."}}`, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1408,7 +1408,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", time.Since(requestStartTime), err)
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OpenHands failed"}}`, http.StatusBadGateway)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to upstream service failed"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
@@ -1542,7 +1542,7 @@ handleMessagesResponse:
 func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
 	openhandsPool := openhandspool.GetPool()
 	if openhandsPool == nil || openhandsPool.GetKeyCount() == 0 {
-		http.Error(w, `{"error": {"message": "OpenHands not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		http.Error(w, `{"error": {"message": "Service not configured", "type": "server_error"}}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -1550,7 +1550,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	key, err := openhandsPool.SelectKey()
 	if err != nil {
 		log.Printf("❌ [Troll-LLM] No healthy keys available: %v", err)
-		http.Error(w, `{"error": {"message": "No healthy OpenHands keys available", "type": "server_error"}}`, http.StatusServiceUnavailable)
+		http.Error(w, `{"error": {"message": "Service temporarily unavailable. Please try again later.", "type": "server_error"}}`, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1747,7 +1747,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", time.Since(requestStartTime), err)
-		http.Error(w, `{"error": {"message": "Request to OpenHands failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		http.Error(w, `{"error": {"message": "Request to upstream service failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
@@ -1988,7 +1988,7 @@ func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Re
 func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
 	ohmygptProvider := ohmygpt.GetOhMyGPT()
 	if ohmygptProvider == nil || !ohmygptProvider.IsConfigured() {
-		http.Error(w, `{"error": {"message": "OhMyGPT not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		http.Error(w, `{"error": {"message": "Service not configured", "type": "server_error"}}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -2014,7 +2014,7 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 	resp, err := ohmygptProvider.ForwardRequest(requestBody, isStreaming)
 	if err != nil {
 		log.Printf("❌ [OhMyGPT-OpenAI] Request failed after %v: %v", time.Since(requestStartTime), err)
-		http.Error(w, `{"error": {"message": "Request to OhMyGPT failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		http.Error(w, `{"error": {"message": "Request to upstream service failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
@@ -2078,7 +2078,7 @@ func handleOhMyGPTOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.O
 func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, isStreaming bool, modelID string, userApiKey string, username string) {
 	ohmygptProvider := ohmygpt.GetOhMyGPT()
 	if ohmygptProvider == nil || !ohmygptProvider.IsConfigured() {
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"OhMyGPT not configured"}}`, http.StatusInternalServerError)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Service not configured"}}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -2124,7 +2124,7 @@ func handleOhMyGPTMessagesRequest(w http.ResponseWriter, originalBody []byte, is
 	resp, err := ohmygptProvider.ForwardMessagesRequest(requestBody, isStreaming)
 	if err != nil {
 		log.Printf("❌ [OhMyGPT-Anthropic] Request failed after %v: %v", time.Since(requestStartTime), err)
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to OhMyGPT failed"}}`, http.StatusBadGateway)
+		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to upstream service failed"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
