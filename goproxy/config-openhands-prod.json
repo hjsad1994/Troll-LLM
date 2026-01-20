@@ -56,7 +56,7 @@
       "billing_multiplier": 1.09,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "gemini-3-pro-preview"
+      "upstream_model_id": "prod/gemini-3-pro-preview"
     },
     {
       "name": "Claude Haiku 4.5",
