@@ -14,6 +14,10 @@ export interface OpenHandsKey {
   replacedBy?: string;      // Backup key ID that replaced this key's API
   replacedAt?: Date;        // When the replacement happened
   previousApiKey?: string;  // Masked version of old API key
+  // Spend tracking
+  lastUsedAt?: Date;
+  totalSpend?: number;
+  lastSpendCheck?: Date;
 }
 
 export interface OpenHandsKeyBinding {
