@@ -1335,6 +1335,19 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		anthropicReq.System = nil
 	}
 
+	// AUTO-TRUNCATE: Check if request exceeds token limit and truncate if needed
+	maxTokensAnthropic := transformers.GetModelMaxTokens(upstreamModelID)
+	estimatedTokensAnthropic := transformers.EstimateAnthropicTokens(&anthropicReq)
+	if transformers.ShouldTruncate(estimatedTokensAnthropic, maxTokensAnthropic) {
+		log.Printf("⚠️ [OpenHands-Anthropic] Request exceeds limit (%d > %d tokens), auto-truncating...", estimatedTokensAnthropic, maxTokensAnthropic)
+		truncatedReq, truncResult := transformers.TruncateAnthropicRequest(&anthropicReq, maxTokensAnthropic)
+		if truncResult.WasTruncated {
+			anthropicReq = *truncatedReq
+			log.Printf("✂️ [OpenHands-Anthropic] Truncated: removed %d messages, %d -> %d tokens",
+				truncResult.MessagesRemoved, truncResult.OriginalTokens, truncResult.FinalTokens)
+		}
+	}
+
 	// Serialize modified request
 	requestBody, err := json.Marshal(anthropicReq)
 	if err != nil {
@@ -1672,6 +1685,19 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 			Content: mergedSystemContent,
 		}
 		openaiReq.Messages = append([]transformers.OpenAIMessage{systemMessage}, openaiReq.Messages...)
+	}
+
+	// AUTO-TRUNCATE: Check if request exceeds token limit and truncate if needed
+	maxTokens := transformers.GetModelMaxTokens(upstreamModelID)
+	estimatedTokens := transformers.EstimateOpenAITokens(openaiReq)
+	if transformers.ShouldTruncate(estimatedTokens, maxTokens) {
+		log.Printf("⚠️ [OpenHands-OpenAI] Request exceeds limit (%d > %d tokens), auto-truncating...", estimatedTokens, maxTokens)
+		truncatedReq, truncResult := transformers.TruncateOpenAIRequest(openaiReq, maxTokens)
+		if truncResult.WasTruncated {
+			openaiReq = truncatedReq
+			log.Printf("✂️ [OpenHands-OpenAI] Truncated: removed %d messages, %d -> %d tokens",
+				truncResult.MessagesRemoved, truncResult.OriginalTokens, truncResult.FinalTokens)
+		}
 	}
 
 	// Serialize modified request
