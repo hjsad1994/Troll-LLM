@@ -243,6 +243,67 @@ func ConvertAnthropicMessagesToMaps(messages []interface{}, system interface{}) 
 	return result
 }
 
+// ConvertAnthropicRequestToMaps converts transformers.AnthropicRequest messages to map format
+// This is a convenience function for use in main.go truncation logic
+func ConvertAnthropicRequestToMaps(messages interface{}, system interface{}) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0)
+
+	// Add system as first message if present
+	if system != nil {
+		var systemContent string
+		if systemStr, ok := system.(string); ok {
+			systemContent = systemStr
+		} else if systemArray, ok := system.([]interface{}); ok {
+			for _, item := range systemArray {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if text, ok := itemMap["text"].(string); ok {
+						systemContent += text
+					}
+				}
+			}
+		} else if systemArray, ok := system.([]map[string]interface{}); ok {
+			for _, item := range systemArray {
+				if text, ok := item["text"].(string); ok {
+					systemContent += text
+				}
+			}
+		}
+		if systemContent != "" {
+			result = append(result, map[string]interface{}{
+				"role":    "system",
+				"content": systemContent,
+			})
+		}
+	}
+
+	// Handle messages based on type
+	switch msgs := messages.(type) {
+	case []interface{}:
+		for _, msg := range msgs {
+			if msgMap, ok := msg.(map[string]interface{}); ok {
+				result = append(result, msgMap)
+			}
+		}
+	case []map[string]interface{}:
+		result = append(result, msgs...)
+	}
+
+	return result
+}
+
+// CountTokensForAnthropicRequest counts tokens for an Anthropic request using API
+// Returns token count and error
+func CountTokensForAnthropicRequest(apiKey string, model string, messages interface{}, system interface{}) (int64, error) {
+	messagesForCount := ConvertAnthropicRequestToMaps(messages, system)
+	return CountTokensViaAPI(OpenHandsBaseURL, apiKey, model, messagesForCount, true)
+}
+
+// CountTokensForOpenAIMessages counts tokens for OpenAI format messages using API
+// Returns token count and error
+func CountTokensForOpenAIMessages(apiKey string, model string, messages []map[string]interface{}) (int64, error) {
+	return CountTokensViaAPI(OpenHandsBaseURL, apiKey, model, messages, true)
+}
+
 // Legacy functions for backwards compatibility
 
 // LegacyCountTokensViaAPI calls the old /v1/messages/count_tokens endpoint
