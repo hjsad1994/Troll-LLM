@@ -200,11 +200,11 @@ func TestActionableError_AC3_FriendKeyNoBalance_OpenAI(t *testing.T) {
 
 	// AC3: Message must NOT contain balance information
 	forbiddenPatterns := []string{
-		"$",              // Dollar sign
-		"balance",        // Balance keyword
-		"Balance",        // Balance keyword (capitalized)
-		".00",            // Decimal balance format
-		"Current",        // "Current balance" partial
+		"$",       // Dollar sign
+		"balance", // Balance keyword
+		"Balance", // Balance keyword (capitalized)
+		".00",     // Decimal balance format
+		"Current", // "Current balance" partial
 	}
 
 	for _, pattern := range forbiddenPatterns {
@@ -236,11 +236,11 @@ func TestActionableError_AC3_FriendKeyNoBalance_Anthropic(t *testing.T) {
 
 	// AC3: Message must NOT contain balance information
 	forbiddenPatterns := []string{
-		"$",              // Dollar sign
-		"balance",        // Balance keyword
-		"Balance",        // Balance keyword (capitalized)
-		".00",            // Decimal balance format
-		"Current",        // "Current balance" partial
+		"$",       // Dollar sign
+		"balance", // Balance keyword
+		"Balance", // Balance keyword (capitalized)
+		".00",     // Decimal balance format
+		"Current", // "Current balance" partial
 	}
 
 	for _, pattern := range forbiddenPatterns {
@@ -461,9 +461,9 @@ func TestPromptTooLongError_Detection(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := isPromptTooLongError(tc.input)
+			result := IsPromptTooLongError(tc.input)
 			if result != tc.expected {
-				t.Errorf("isPromptTooLongError(%q) = %v, expected %v", tc.input, result, tc.expected)
+				t.Errorf("IsPromptTooLongError(%q) = %v, expected %v", tc.input, result, tc.expected)
 			}
 		})
 	}
