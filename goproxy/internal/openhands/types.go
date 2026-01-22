@@ -82,8 +82,8 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 		// Check for prompt too long error (preserve with user-friendly message)
 		if isPromptTooLongError(errorStr) {
 			log.Printf("⚠️ [TrollProxy] Preserving prompt too long error for user (Anthropic format)")
-			// Return a user-friendly error in Anthropic format
-			return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Prompt is too long. Your request exceeds the model's maximum context length (200,000 tokens). Please reduce the size of your messages or conversation history."}}`)
+			// Return a user-friendly error in Anthropic format (no hardcoded token limit)
+			return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Prompt is too long. Your request exceeds the model's maximum context length. Please reduce the size of your messages or conversation history."}}`)
 		}
 	}
 

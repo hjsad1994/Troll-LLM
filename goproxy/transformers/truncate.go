@@ -112,7 +112,17 @@ func TruncateOpenAIRequest(req *OpenAIRequest, maxTokens int64) (*OpenAIRequest,
 	removedCount := 0
 	removedTokens := int64(0)
 
+	// SAFETY: Prevent infinite loop - max iterations is number of messages
+	maxIterations := len(messages)
+	iterations := 0
+
 	for EstimateOpenAIRequestTokens(messages) > maxTokens {
+		iterations++
+		if iterations > maxIterations {
+			log.Printf("🚨 [Truncate] Max iterations (%d) reached, breaking to prevent infinite loop", maxIterations)
+			break
+		}
+
 		// Rebuild protected indices and tool maps each iteration (indices change after removal)
 		systemIndex := -1
 		lastUserIndex := -1
@@ -339,7 +349,17 @@ func TruncateAnthropicRequest(req *AnthropicRequest, maxTokens int64) (*Anthropi
 	removedCount := 0
 	removedTokens := int64(0)
 
+	// SAFETY: Prevent infinite loop - max iterations is number of messages
+	maxIterations := len(messages)
+	iterations := 0
+
 	for EstimateAnthropicMessagesTokens(messages) > maxTokens-estimateSystemTokens(req.System) {
+		iterations++
+		if iterations > maxIterations {
+			log.Printf("🚨 [Truncate-Anthropic] Max iterations (%d) reached, breaking to prevent infinite loop", maxIterations)
+			break
+		}
+
 		// Rebuild lastUserIndex each iteration
 		lastUserIndex := -1
 		for i, msg := range messages {
