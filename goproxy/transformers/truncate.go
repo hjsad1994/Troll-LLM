@@ -3,16 +3,30 @@ package transformers
 import (
 	"log"
 	"strings"
+	"unicode/utf8"
 )
 
 // Token limits for different models
 const (
 	// Claude models context window
 	DefaultMaxContextTokens = 200000
-	// Safety margin - leave room for output tokens and overhead
-	DefaultSafetyMargin = 10000
-	// Default max tokens to target (200K - 10K safety = 190K)
+	// Safety margin - increased for Unicode text (Vietnamese, CJK, etc.)
+	// Anthropic doesn't provide local tokenizer, so we need extra buffer
+	DefaultSafetyMargin = 15000
+	// Default max tokens to target (200K - 15K safety = 185K)
 	DefaultTargetMaxTokens = DefaultMaxContextTokens - DefaultSafetyMargin
+
+	// Token estimation ratios
+	// English text: ~4 chars per token
+	// Unicode/CJK/Vietnamese: ~1.5-2 chars per token
+	// We use rune count with conservative ratio of 3 runes per token
+	RunesPerToken = 3
+
+	// Overhead constants
+	TokensPerMessageOverhead  = 4   // Tokens for role, separators, etc.
+	TokensPerToolDefinition   = 100 // Rough estimate for tool schema
+	TokensPerImageEstimate    = 750 // Conservative estimate for images
+	TokensPerToolCallOverhead = 50  // Overhead for tool_calls structure
 )
 
 // TruncationResult contains information about what was truncated
@@ -25,48 +39,50 @@ type TruncationResult struct {
 }
 
 // EstimateOpenAITokens estimates token count for an OpenAI request
-// Uses rough estimation: 1 token ≈ 4 characters (conservative)
+// Uses rune-based estimation for better Unicode support
+// Anthropic doesn't provide a local tokenizer, so this is an approximation
 func EstimateOpenAITokens(req *OpenAIRequest) int64 {
-	var totalChars int64
+	var totalTokens int64
 
-	// Count characters in all messages
+	// Count tokens in all messages
 	for _, msg := range req.Messages {
-		totalChars += estimateMessageTokens(&msg)
+		totalTokens += estimateMessageTokens(&msg)
 	}
 
-	// Rough estimation: 1 token ≈ 4 chars
-	estimatedTokens := totalChars / 4
-
-	// Add overhead for message structure (rough estimate)
-	estimatedTokens += int64(len(req.Messages) * 4)
+	// Add overhead for message structure
+	totalTokens += int64(len(req.Messages) * TokensPerMessageOverhead)
 
 	// Add overhead for tools if present
 	if len(req.Tools) > 0 {
-		estimatedTokens += int64(len(req.Tools) * 100) // rough estimate per tool
+		totalTokens += int64(len(req.Tools) * TokensPerToolDefinition)
 	}
 
-	return estimatedTokens
+	return totalTokens
 }
 
 // estimateMessageTokens estimates tokens for a single message
+// Uses utf8.RuneCountInString for proper Unicode handling
 func estimateMessageTokens(msg *OpenAIMessage) int64 {
-	var chars int64
+	var tokens int64
 
-	// Add role chars
-	chars += int64(len(msg.Role))
+	// Add role tokens (role is always ASCII)
+	tokens += int64(len(msg.Role)) / 4
+	if tokens == 0 {
+		tokens = 1 // Minimum 1 token for role
+	}
 
-	// Add content chars
+	// Add content tokens
 	if content, ok := msg.Content.(string); ok {
-		chars += int64(len(content))
+		tokens += estimateStringTokens(content)
 	} else if parts, ok := msg.Content.([]interface{}); ok {
 		for _, part := range parts {
 			if partMap, ok := part.(map[string]interface{}); ok {
 				if text, ok := partMap["text"].(string); ok {
-					chars += int64(len(text))
+					tokens += estimateStringTokens(text)
 				}
-				// Images are roughly 85 tokens for low detail, 765+ for high detail
+				// Images have fixed token cost
 				if partMap["type"] == "image_url" {
-					chars += 3000 // Conservative estimate (~750 tokens)
+					tokens += TokensPerImageEstimate
 				}
 			}
 		}
@@ -74,10 +90,51 @@ func estimateMessageTokens(msg *OpenAIMessage) int64 {
 
 	// Add tool_calls overhead
 	if msg.ToolCalls != nil {
-		chars += 200 // rough estimate for tool call structure
+		tokens += TokensPerToolCallOverhead
+		// Estimate tokens for tool call content
+		if toolCalls, ok := msg.ToolCalls.([]interface{}); ok {
+			for _, tc := range toolCalls {
+				if tcMap, ok := tc.(map[string]interface{}); ok {
+					// Function name
+					if name, ok := tcMap["function"].(map[string]interface{}); ok {
+						if fnName, ok := name["name"].(string); ok {
+							tokens += estimateStringTokens(fnName)
+						}
+						if args, ok := name["arguments"].(string); ok {
+							tokens += estimateStringTokens(args)
+						}
+					}
+				}
+			}
+		}
 	}
 
-	return chars
+	return tokens
+}
+
+// estimateStringTokens estimates tokens for a string using rune count
+// This provides better accuracy for Unicode text (Vietnamese, CJK, etc.)
+func estimateStringTokens(s string) int64 {
+	if len(s) == 0 {
+		return 0
+	}
+
+	// Count runes (Unicode code points) instead of bytes
+	runeCount := utf8.RuneCountInString(s)
+
+	// Use conservative ratio: ~3 runes per token
+	// This works reasonably well for:
+	// - English: 1 word ≈ 1.3 tokens, average word length 4-5 chars
+	// - Vietnamese: diacritics make chars ≈ 1-2 tokens each
+	// - CJK: 1-2 characters per token
+	tokens := int64(runeCount) / RunesPerToken
+
+	// Minimum 1 token for non-empty strings
+	if tokens == 0 {
+		tokens = 1
+	}
+
+	return tokens
 }
 
 // TruncateOpenAIRequest truncates messages to fit within token limit
@@ -264,57 +321,70 @@ func TruncateOpenAIRequest(req *OpenAIRequest, maxTokens int64) (*OpenAIRequest,
 
 // EstimateOpenAIRequestTokens estimates tokens for a slice of messages
 func EstimateOpenAIRequestTokens(messages []OpenAIMessage) int64 {
-	var totalChars int64
+	var totalTokens int64
 	for _, msg := range messages {
-		totalChars += estimateMessageTokens(&msg)
+		totalTokens += estimateMessageTokens(&msg)
 	}
-	return totalChars/4 + int64(len(messages)*4)
+	return totalTokens + int64(len(messages)*TokensPerMessageOverhead)
 }
 
 // EstimateAnthropicTokens estimates token count for an Anthropic request
+// Uses rune-based estimation for better Unicode support
 func EstimateAnthropicTokens(req *AnthropicRequest) int64 {
-	var totalChars int64
+	var totalTokens int64
 
-	// Count system prompt chars
+	// Count system prompt tokens
 	if req.System != nil {
 		if systemArray, ok := req.System.([]interface{}); ok {
 			for _, item := range systemArray {
 				if itemMap, ok := item.(map[string]interface{}); ok {
 					if text, ok := itemMap["text"].(string); ok {
-						totalChars += int64(len(text))
+						totalTokens += estimateStringTokens(text)
 					}
 				}
 			}
 		} else if systemStr, ok := req.System.(string); ok {
-			totalChars += int64(len(systemStr))
+			totalTokens += estimateStringTokens(systemStr)
 		}
 	}
 
-	// Count characters in all messages
+	// Count tokens in all messages
 	for _, msg := range req.Messages {
-		totalChars += int64(len(msg.Role))
+		// Role tokens (always ASCII)
+		totalTokens += 1 // role is typically 1 token
 
 		if content, ok := msg.Content.(string); ok {
-			totalChars += int64(len(content))
+			totalTokens += estimateStringTokens(content)
 		} else if contentArray, ok := msg.Content.([]interface{}); ok {
 			for _, item := range contentArray {
 				if itemMap, ok := item.(map[string]interface{}); ok {
 					if text, ok := itemMap["text"].(string); ok {
-						totalChars += int64(len(text))
+						totalTokens += estimateStringTokens(text)
 					}
-					// Images
+					// Images have fixed token cost
 					if itemMap["type"] == "image" {
-						totalChars += 3000
+						totalTokens += TokensPerImageEstimate
+					}
+					// Tool use/result blocks
+					if itemMap["type"] == "tool_use" || itemMap["type"] == "tool_result" {
+						totalTokens += TokensPerToolCallOverhead
+						// Add content tokens if present
+						if input, ok := itemMap["input"].(string); ok {
+							totalTokens += estimateStringTokens(input)
+						}
+						if content, ok := itemMap["content"].(string); ok {
+							totalTokens += estimateStringTokens(content)
+						}
 					}
 				}
 			}
 		}
 	}
 
-	estimatedTokens := totalChars / 4
-	estimatedTokens += int64(len(req.Messages) * 4)
+	// Add message overhead
+	totalTokens += int64(len(req.Messages) * TokensPerMessageOverhead)
 
-	return estimatedTokens
+	return totalTokens
 }
 
 // TruncateAnthropicRequest truncates Anthropic messages to fit within token limit
