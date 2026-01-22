@@ -108,54 +108,51 @@ func TruncateOpenAIRequest(req *OpenAIRequest, maxTokens int64) (*OpenAIRequest,
 	messages := make([]OpenAIMessage, len(req.Messages))
 	copy(messages, req.Messages)
 
-	// Find indices of protected messages
-	systemIndex := -1
-	lastUserIndex := -1
-
-	for i, msg := range messages {
-		if msg.Role == "system" && systemIndex == -1 {
-			systemIndex = i
-		}
-		if msg.Role == "user" {
-			lastUserIndex = i
-		}
-	}
-
-	// Build a map of tool_call_id -> message index for tool results
-	// and assistant message index -> list of tool_call_ids
-	toolResultMap := make(map[string]int)      // tool_call_id -> message index
-	assistantToolCalls := make(map[int][]string) // assistant index -> tool_call_ids
-
-	for i, msg := range messages {
-		if msg.Role == "tool" && msg.ToolCallID != "" {
-			toolResultMap[msg.ToolCallID] = i
-		}
-		if msg.Role == "assistant" && msg.ToolCalls != nil {
-			if toolCalls, ok := msg.ToolCalls.([]interface{}); ok {
-				var ids []string
-				for _, tc := range toolCalls {
-					if tcMap, ok := tc.(map[string]interface{}); ok {
-						if id, ok := tcMap["id"].(string); ok && id != "" {
-							ids = append(ids, id)
-						}
-					}
-				}
-				if len(ids) > 0 {
-					assistantToolCalls[i] = ids
-				}
-			}
-		}
-	}
-
-	// Remove messages from oldest (after system) until under limit
-	// Skip: system message, last user message, and their tool pairs
+	// Remove messages from oldest until under limit
 	removedCount := 0
 	removedTokens := int64(0)
 
 	for EstimateOpenAIRequestTokens(messages) > maxTokens {
+		// Rebuild protected indices and tool maps each iteration (indices change after removal)
+		systemIndex := -1
+		lastUserIndex := -1
+		for i, msg := range messages {
+			if msg.Role == "system" && systemIndex == -1 {
+				systemIndex = i
+			}
+			if msg.Role == "user" {
+				lastUserIndex = i
+			}
+		}
+
+		// Build tool call maps fresh each iteration
+		toolResultMap := make(map[string]int)        // tool_call_id -> message index
+		assistantToolCalls := make(map[int][]string) // assistant index -> tool_call_ids
+
+		for i, msg := range messages {
+			if msg.Role == "tool" && msg.ToolCallID != "" {
+				toolResultMap[msg.ToolCallID] = i
+			}
+			if msg.Role == "assistant" && msg.ToolCalls != nil {
+				if toolCalls, ok := msg.ToolCalls.([]interface{}); ok {
+					var ids []string
+					for _, tc := range toolCalls {
+						if tcMap, ok := tc.(map[string]interface{}); ok {
+							if id, ok := tcMap["id"].(string); ok && id != "" {
+								ids = append(ids, id)
+							}
+						}
+					}
+					if len(ids) > 0 {
+						assistantToolCalls[i] = ids
+					}
+				}
+			}
+		}
+
 		// Find the oldest removable message
 		removeIndex := -1
-		for i, msg := range messages {
+		for i := range messages {
 			// Skip protected messages
 			if i == systemIndex {
 				continue
@@ -179,60 +176,52 @@ func TruncateOpenAIRequest(req *OpenAIRequest, maxTokens int64) (*OpenAIRequest,
 			break
 		}
 
-		// Check if this message is part of a tool pair
-		msg := messages[removeIndex]
-		indicesToRemove := []int{removeIndex}
+		// Mark indices to remove (tool pairs should be removed together)
+		markedForRemoval := make(map[int]bool)
+		markedForRemoval[removeIndex] = true
 
-		// If it's an assistant with tool_calls, also remove the tool results
+		msg := messages[removeIndex]
+
+		// If it's an assistant with tool_calls, also mark tool results for removal
 		if ids, ok := assistantToolCalls[removeIndex]; ok {
 			for _, id := range ids {
 				if resultIdx, exists := toolResultMap[id]; exists {
-					// Adjust index if it's after our removal point
-					for j, idx := range indicesToRemove {
-						if resultIdx > idx {
-							indicesToRemove[j] = idx
-						}
-					}
-					indicesToRemove = append(indicesToRemove, resultIdx)
+					markedForRemoval[resultIdx] = true
 				}
 			}
 		}
 
-		// If it's a tool result, also remove the corresponding assistant tool_call
+		// If it's a tool result, also mark the corresponding assistant for removal
 		if msg.Role == "tool" && msg.ToolCallID != "" {
 			for assistIdx, ids := range assistantToolCalls {
 				for _, id := range ids {
 					if id == msg.ToolCallID {
-						indicesToRemove = append(indicesToRemove, assistIdx)
+						markedForRemoval[assistIdx] = true
+						// Also mark all other tool results for this assistant
+						for _, otherId := range ids {
+							if resultIdx, exists := toolResultMap[otherId]; exists {
+								markedForRemoval[resultIdx] = true
+							}
+						}
 						break
 					}
 				}
 			}
 		}
 
-		// Sort and deduplicate indices, remove in reverse order
+		// Convert marked indices to sorted list (descending for safe removal)
+		indicesToRemove := make([]int, 0, len(markedForRemoval))
+		for idx := range markedForRemoval {
+			indicesToRemove = append(indicesToRemove, idx)
+		}
 		indicesToRemove = uniqueSortedDesc(indicesToRemove)
 
-		// Calculate tokens being removed
+		// Calculate tokens being removed and remove messages
 		for _, idx := range indicesToRemove {
 			if idx < len(messages) {
 				removedTokens += estimateMessageTokens(&messages[idx]) / 4
-			}
-		}
-
-		// Remove messages (in reverse order to maintain indices)
-		for _, idx := range indicesToRemove {
-			if idx < len(messages) {
 				messages = append(messages[:idx], messages[idx+1:]...)
 				removedCount++
-
-				// Update indices
-				if systemIndex > idx {
-					systemIndex--
-				}
-				if lastUserIndex > idx {
-					lastUserIndex--
-				}
 			}
 		}
 	}
@@ -319,6 +308,13 @@ func EstimateAnthropicTokens(req *AnthropicRequest) int64 {
 }
 
 // TruncateAnthropicRequest truncates Anthropic messages to fit within token limit
+// Strategy:
+// 1. ALWAYS preserve: last user message
+// 2. Remove oldest messages from the beginning until under limit
+// 3. Handle tool_use/tool_result content blocks - remove pairs together
+//
+// Note: In Anthropic format, tool_use appears in assistant messages and tool_result in user messages
+// as content blocks, not separate message roles like OpenAI format.
 func TruncateAnthropicRequest(req *AnthropicRequest, maxTokens int64) (*AnthropicRequest, TruncationResult) {
 	if maxTokens <= 0 {
 		maxTokens = DefaultTargetMaxTokens
@@ -339,19 +335,45 @@ func TruncateAnthropicRequest(req *AnthropicRequest, maxTokens int64) (*Anthropi
 	messages := make([]AnthropicMessage, len(req.Messages))
 	copy(messages, req.Messages)
 
-	// Find last user message index
-	lastUserIndex := -1
-	for i, msg := range messages {
-		if msg.Role == "user" {
-			lastUserIndex = i
-		}
-	}
-
 	// Remove oldest messages (keep system in req.System, not in messages)
 	removedCount := 0
 	removedTokens := int64(0)
 
 	for EstimateAnthropicMessagesTokens(messages) > maxTokens-estimateSystemTokens(req.System) {
+		// Rebuild lastUserIndex each iteration
+		lastUserIndex := -1
+		for i, msg := range messages {
+			if msg.Role == "user" {
+				lastUserIndex = i
+			}
+		}
+
+		// Build tool_use ID maps fresh each iteration
+		// In Anthropic format:
+		// - tool_use blocks appear in assistant messages with "id" field
+		// - tool_result blocks appear in user messages with "tool_use_id" field
+		toolUseMap := make(map[string]int)    // tool_use id -> assistant message index
+		toolResultMap := make(map[string]int) // tool_use_id -> user message index
+
+		for i, msg := range messages {
+			if contentArray, ok := msg.Content.([]interface{}); ok {
+				for _, item := range contentArray {
+					if itemMap, ok := item.(map[string]interface{}); ok {
+						blockType, _ := itemMap["type"].(string)
+						if blockType == "tool_use" {
+							if id, ok := itemMap["id"].(string); ok && id != "" {
+								toolUseMap[id] = i
+							}
+						} else if blockType == "tool_result" {
+							if toolUseID, ok := itemMap["tool_use_id"].(string); ok && toolUseID != "" {
+								toolResultMap[toolUseID] = i
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// Find oldest removable message
 		removeIndex := -1
 		for i := range messages {
@@ -370,17 +392,52 @@ func TruncateAnthropicRequest(req *AnthropicRequest, maxTokens int64) (*Anthropi
 			break
 		}
 
-		// Estimate tokens for removed message
+		// Mark indices to remove (tool pairs should be removed together)
+		markedForRemoval := make(map[int]bool)
+		markedForRemoval[removeIndex] = true
+
+		// Check if this message contains tool_use or tool_result blocks
 		msg := messages[removeIndex]
-		if content, ok := msg.Content.(string); ok {
-			removedTokens += int64(len(content)) / 4
+		if contentArray, ok := msg.Content.([]interface{}); ok {
+			for _, item := range contentArray {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					blockType, _ := itemMap["type"].(string)
+
+					// If assistant message has tool_use, mark corresponding tool_result message
+					if blockType == "tool_use" {
+						if id, ok := itemMap["id"].(string); ok && id != "" {
+							if resultIdx, exists := toolResultMap[id]; exists {
+								markedForRemoval[resultIdx] = true
+							}
+						}
+					}
+
+					// If user message has tool_result, mark corresponding tool_use message
+					if blockType == "tool_result" {
+						if toolUseID, ok := itemMap["tool_use_id"].(string); ok && toolUseID != "" {
+							if useIdx, exists := toolUseMap[toolUseID]; exists {
+								markedForRemoval[useIdx] = true
+							}
+						}
+					}
+				}
+			}
 		}
 
-		messages = append(messages[:removeIndex], messages[removeIndex+1:]...)
-		removedCount++
+		// Convert marked indices to sorted list (descending for safe removal)
+		indicesToRemove := make([]int, 0, len(markedForRemoval))
+		for idx := range markedForRemoval {
+			indicesToRemove = append(indicesToRemove, idx)
+		}
+		indicesToRemove = uniqueSortedDesc(indicesToRemove)
 
-		if lastUserIndex > removeIndex {
-			lastUserIndex--
+		// Calculate tokens being removed and remove messages
+		for _, idx := range indicesToRemove {
+			if idx < len(messages) {
+				removedTokens += estimateAnthropicMessageTokens(&messages[idx]) / 4
+				messages = append(messages[:idx], messages[idx+1:]...)
+				removedCount++
+			}
 		}
 	}
 
@@ -408,6 +465,30 @@ func TruncateAnthropicRequest(req *AnthropicRequest, maxTokens int64) (*Anthropi
 	}
 
 	return truncatedReq, result
+}
+
+// estimateAnthropicMessageTokens estimates tokens for a single Anthropic message
+func estimateAnthropicMessageTokens(msg *AnthropicMessage) int64 {
+	var chars int64
+	chars += int64(len(msg.Role))
+
+	if content, ok := msg.Content.(string); ok {
+		chars += int64(len(content))
+	} else if contentArray, ok := msg.Content.([]interface{}); ok {
+		for _, item := range contentArray {
+			if itemMap, ok := item.(map[string]interface{}); ok {
+				if text, ok := itemMap["text"].(string); ok {
+					chars += int64(len(text))
+				}
+				// Images
+				if itemMap["type"] == "image" {
+					chars += 3000
+				}
+			}
+		}
+	}
+
+	return chars
 }
 
 // EstimateAnthropicMessagesTokens estimates tokens for Anthropic messages
