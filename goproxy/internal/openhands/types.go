@@ -33,6 +33,13 @@ func SanitizeError(statusCode int, originalError []byte) []byte {
 			// Return a user-friendly error with the original context preserved
 			return []byte(`{"error":{"message":"Prompt is too long. Your request exceeds the model's maximum context length. Please use /compact to summarize the conversation or start a new chat.","type":"invalid_request_error","code":"context_length_exceeded"}}`)
 		}
+
+		// Check for thinking budget token error (return user-friendly message)
+		if isThinkingBudgetError(errorStr) {
+			log.Printf("⚠️ [TrollProxy] Preserving thinking budget error for user (OpenAI format)")
+			// Return a user-friendly error in OpenAI format (don't expose internal routing details)
+			return []byte(`{"error":{"message":"max_tokens must be greater than thinking.budget_tokens. Please increase max_tokens or decrease thinking.budget_tokens in your extended thinking configuration. See: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking","type":"invalid_request_error","code":"invalid_thinking_config"}}`)
+		}
 	}
 
 	switch statusCode {
@@ -72,11 +79,11 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 			return originalError
 		}
 
-		// Check for thinking budget token error (preserve original)
+		// Check for thinking budget token error (return user-friendly message)
 		if isThinkingBudgetError(errorStr) {
-			// Preserve the original error message for thinking budget errors
-			// These are actionable user errors that help users fix their extended thinking config
-			return originalError
+			log.Printf("⚠️ [TrollProxy] Preserving thinking budget error for user (Anthropic format)")
+			// Return a user-friendly error in Anthropic format (don't expose internal routing details)
+			return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"max_tokens must be greater than thinking.budget_tokens. Please increase max_tokens or decrease thinking.budget_tokens in your extended thinking configuration. See: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking"}}`)
 		}
 
 		// Check for prompt too long error (preserve with user-friendly message)
