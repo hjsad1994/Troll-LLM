@@ -1385,14 +1385,78 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		}
 	}
 
-	if transformers.ShouldTruncate(actualTokens, maxTokensAnthropic) {
-		log.Printf("⚠️ [OpenHands-Anthropic] Request exceeds limit (%d > %d tokens), auto-truncating...", actualTokens, maxTokensAnthropic)
+	// Truncation loop: Keep truncating until under limit (with API verification)
+	maxTruncationAttempts := 5
+	truncationAttempt := 0
+	for transformers.ShouldTruncate(actualTokens, maxTokensAnthropic) && truncationAttempt < maxTruncationAttempts {
+		truncationAttempt++
+		log.Printf("⚠️ [OpenHands-Anthropic] Attempt %d: Request exceeds limit (%d > %d tokens), auto-truncating...",
+			truncationAttempt, actualTokens, maxTokensAnthropic)
+
 		truncatedReq, truncResult := transformers.TruncateAnthropicRequest(&anthropicReq, maxTokensAnthropic)
 		if truncResult.WasTruncated {
 			anthropicReq = *truncatedReq
-			log.Printf("✂️ [OpenHands-Anthropic] Truncated: removed %d messages, %d -> %d tokens",
+			log.Printf("✂️ [OpenHands-Anthropic] Truncated: removed %d messages, %d -> %d tokens (estimated)",
 				truncResult.MessagesRemoved, truncResult.OriginalTokens, truncResult.FinalTokens)
+
+			// Re-verify with API after truncation to ensure we're actually under limit
+			if key != nil {
+				// Rebuild messages for count
+				messagesForRecount := make([]map[string]interface{}, 0, len(anthropicReq.Messages)+1)
+				if anthropicReq.System != nil {
+					var systemContent string
+					if systemStr, ok := anthropicReq.System.(string); ok {
+						systemContent = systemStr
+					} else if systemArray, ok := anthropicReq.System.([]interface{}); ok {
+						for _, item := range systemArray {
+							if itemMap, ok := item.(map[string]interface{}); ok {
+								if text, ok := itemMap["text"].(string); ok {
+									systemContent += text
+								}
+							}
+						}
+					}
+					if systemContent != "" {
+						messagesForRecount = append(messagesForRecount, map[string]interface{}{
+							"role":    "system",
+							"content": systemContent,
+						})
+					}
+				}
+				for _, msg := range anthropicReq.Messages {
+					msgMap := map[string]interface{}{
+						"role":    msg.Role,
+						"content": msg.Content,
+					}
+					messagesForRecount = append(messagesForRecount, msgMap)
+				}
+
+				// Call API to verify actual token count after truncation
+				verifyTokens, verifyErr := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, messagesForRecount, true)
+				if verifyErr == nil && verifyTokens > 0 {
+					actualTokens = verifyTokens
+					log.Printf("📊 [TokenCount-Anthropic] Post-truncation verify: %d tokens (limit: %d)", actualTokens, maxTokensAnthropic)
+				} else {
+					// If API fails, use estimation and break to avoid infinite loop
+					actualTokens = truncResult.FinalTokens
+					log.Printf("⚠️ [TokenCount-Anthropic] Post-truncation API failed, using estimate: %d tokens", actualTokens)
+					break
+				}
+			} else {
+				// No key available, use estimation
+				actualTokens = truncResult.FinalTokens
+				break
+			}
+		} else {
+			// Cannot truncate further (only protected messages remain)
+			log.Printf("⚠️ [OpenHands-Anthropic] Cannot truncate further - only protected messages remain")
+			break
 		}
+	}
+
+	if transformers.ShouldTruncate(actualTokens, maxTokensAnthropic) {
+		log.Printf("🚨 [OpenHands-Anthropic] WARNING: Still over limit after %d truncation attempts (%d > %d tokens)",
+			truncationAttempt, actualTokens, maxTokensAnthropic)
 	}
 
 	// Serialize modified request
@@ -1768,14 +1832,64 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 		}
 	}
 
-	if transformers.ShouldTruncate(actualTokens, maxTokens) {
-		log.Printf("⚠️ [OpenHands-OpenAI] Request exceeds limit (%d > %d tokens), auto-truncating...", actualTokens, maxTokens)
+	// Truncation loop: Keep truncating until under limit (with API verification)
+	maxTruncationAttempts := 5
+	truncationAttempt := 0
+	for transformers.ShouldTruncate(actualTokens, maxTokens) && truncationAttempt < maxTruncationAttempts {
+		truncationAttempt++
+		log.Printf("⚠️ [OpenHands-OpenAI] Attempt %d: Request exceeds limit (%d > %d tokens), auto-truncating...",
+			truncationAttempt, actualTokens, maxTokens)
+
 		truncatedReq, truncResult := transformers.TruncateOpenAIRequest(openaiReq, maxTokens)
 		if truncResult.WasTruncated {
 			openaiReq = truncatedReq
-			log.Printf("✂️ [OpenHands-OpenAI] Truncated: removed %d messages, %d -> %d tokens",
+			log.Printf("✂️ [OpenHands-OpenAI] Truncated: removed %d messages, %d -> %d tokens (estimated)",
 				truncResult.MessagesRemoved, truncResult.OriginalTokens, truncResult.FinalTokens)
+
+			// Re-verify with API after truncation to ensure we're actually under limit
+			if key != nil {
+				// Rebuild messages for count
+				messagesForRecount := make([]map[string]interface{}, 0, len(openaiReq.Messages))
+				for _, msg := range openaiReq.Messages {
+					msgMap := map[string]interface{}{
+						"role":    msg.Role,
+						"content": msg.Content,
+					}
+					if msg.ToolCallID != "" {
+						msgMap["tool_call_id"] = msg.ToolCallID
+					}
+					if msg.ToolCalls != nil {
+						msgMap["tool_calls"] = msg.ToolCalls
+					}
+					messagesForRecount = append(messagesForRecount, msgMap)
+				}
+
+				// Call API to verify actual token count after truncation
+				verifyTokens, verifyErr := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, messagesForRecount, true)
+				if verifyErr == nil && verifyTokens > 0 {
+					actualTokens = verifyTokens
+					log.Printf("📊 [TokenCount-OpenAI] Post-truncation verify: %d tokens (limit: %d)", actualTokens, maxTokens)
+				} else {
+					// If API fails, use estimation and break to avoid infinite loop
+					actualTokens = truncResult.FinalTokens
+					log.Printf("⚠️ [TokenCount-OpenAI] Post-truncation API failed, using estimate: %d tokens", actualTokens)
+					break
+				}
+			} else {
+				// No key available, use estimation
+				actualTokens = truncResult.FinalTokens
+				break
+			}
+		} else {
+			// Cannot truncate further (only protected messages remain)
+			log.Printf("⚠️ [OpenHands-OpenAI] Cannot truncate further - only protected messages remain")
+			break
 		}
+	}
+
+	if transformers.ShouldTruncate(actualTokens, maxTokens) {
+		log.Printf("🚨 [OpenHands-OpenAI] WARNING: Still over limit after %d truncation attempts (%d > %d tokens)",
+			truncationAttempt, actualTokens, maxTokens)
 	}
 
 	// Serialize modified request
