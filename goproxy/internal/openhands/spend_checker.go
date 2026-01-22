@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,13 +40,14 @@ type SpendChecker struct {
 
 // SpendCheckResult represents the result of a spend check API call
 type SpendCheckResult struct {
-	KeyID     string
-	APIKey    string
-	Spend     float64
-	Threshold float64
-	WasActive bool
-	CheckedAt time.Time
-	Error     error
+	KeyID          string
+	APIKey         string
+	Spend          float64
+	Threshold      float64
+	WasActive      bool
+	CheckedAt      time.Time
+	Error          error
+	BudgetExceeded bool // True if API returned budget_exceeded error
 }
 
 // SpendHistoryEntry represents a spend check history record
@@ -165,6 +168,25 @@ func (sc *SpendChecker) checkAllKeys() {
 
 		// Check spend for this key
 		result := sc.checkKeySpend(key, isActive)
+
+		// Handle budget_exceeded - rotate immediately
+		if result.BudgetExceeded {
+			log.Printf("🔄 [OpenHands/SpendChecker] Immediate rotation triggered for key %s (budget exceeded, spend: $%.2f)",
+				key.ID, result.Spend)
+
+			reason := fmt.Sprintf("budget_exceeded_%.2f", result.Spend)
+			newKeyID, err := sc.provider.RotateKey(key.ID, reason)
+
+			rotatedAt := time.Now()
+			if err != nil {
+				log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", key.ID, err)
+				sc.saveSpendHistory(result, nil, reason, "")
+			} else {
+				log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", key.ID, newKeyID)
+				sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
+			}
+			continue
+		}
 
 		if result.Error != nil {
 			log.Printf("⚠️ [OpenHands/SpendChecker] Failed to check key %s: %v", key.ID, result.Error)
@@ -290,7 +312,30 @@ func (sc *SpendChecker) checkKeySpend(key *OpenHandsKey, isActive bool) SpendChe
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		result.Error = fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+		bodyStr := string(body)
+
+		// Check if this is a budget_exceeded error - key needs rotation immediately
+		if resp.StatusCode == http.StatusBadRequest && strings.Contains(bodyStr, "budget_exceeded") {
+			// Parse spend from error message if possible: "Spend=10.02107649999999, Budget=10.0"
+			result.BudgetExceeded = true
+			if idx := strings.Index(bodyStr, "Spend="); idx != -1 {
+				spendStr := bodyStr[idx+6:]
+				if commaIdx := strings.Index(spendStr, ","); commaIdx != -1 {
+					spendStr = spendStr[:commaIdx]
+					if spend, err := strconv.ParseFloat(spendStr, 64); err == nil {
+						result.Spend = spend
+					}
+				}
+			}
+			// If we couldn't parse spend, set it to threshold to trigger rotation
+			if result.Spend == 0 {
+				result.Spend = sc.threshold
+			}
+			log.Printf("🚨 [OpenHands/SpendChecker] Key %s BUDGET EXCEEDED: %s", key.ID, bodyStr)
+			return result
+		}
+
+		result.Error = fmt.Errorf("API returned status %d: %s", resp.StatusCode, bodyStr)
 		return result
 	}
 
