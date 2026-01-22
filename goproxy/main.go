@@ -76,6 +76,8 @@ func init() {
 		`(?i)Cline`,
 		`(?i)Roo Code`,
 		`(?i)Cursor`,
+		// Anthropic reserved headers that cause 400 error when in system prompt
+		`(?i)x-anthropic-billing-header[^\n]*`,
 	}
 	for _, pattern := range blockedPatterns {
 		blockedPatternRegexes = append(blockedPatternRegexes, regexp.MustCompile(pattern))
@@ -573,6 +575,26 @@ func modelsHandler(w http.ResponseWriter, r *http.Request) {
 
 // OpenAI compatible chat endpoint
 func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
+	// DEBUG: Log all incoming request details
+	log.Printf("🔍 [/v1/chat/completions] ===== INCOMING REQUEST =====")
+	log.Printf("🔍 [/v1/chat/completions] Method: %s, URL: %s", r.Method, r.URL.String())
+	log.Printf("🔍 [/v1/chat/completions] RemoteAddr: %s", r.RemoteAddr)
+	log.Printf("🔍 [/v1/chat/completions] Headers:")
+	for name, values := range r.Header {
+		for _, value := range values {
+			// Mask sensitive headers
+			if strings.EqualFold(name, "Authorization") || strings.EqualFold(name, "x-api-key") {
+				if len(value) > 20 {
+					log.Printf("🔍   %s: %s...%s", name, value[:10], value[len(value)-4:])
+				} else {
+					log.Printf("🔍   %s: [MASKED]", name)
+				}
+			} else {
+				log.Printf("🔍   %s: %s", name, value)
+			}
+		}
+	}
+
 	if r.Method != http.MethodPost {
 		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 		return
@@ -3234,11 +3256,17 @@ func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []trans
 }
 
 // combineSystemText flattens Anthropic system prompt entries into a single string
+// Skips entries containing reserved Anthropic headers that cause 400 errors
 func combineSystemText(systemEntries []map[string]interface{}) string {
 	var builder strings.Builder
 	for _, entry := range systemEntries {
 		text, _ := entry["text"].(string)
 		if text == "" {
+			continue
+		}
+		// Skip entries containing reserved Anthropic headers
+		if strings.Contains(strings.ToLower(text), "x-anthropic-billing-header") {
+			log.Printf("🧹 [Sanitize] Removed system entry containing x-anthropic-billing-header")
 			continue
 		}
 		if builder.Len() > 0 {
@@ -3278,6 +3306,26 @@ func extractClientHeaders(r *http.Request) map[string]string {
 // Anthropic Messages API endpoint - Direct pass-through to Factory AI
 // Supports Anthropic native provider in Droid CLI and Anthropic SDK
 func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
+	// DEBUG: Log all incoming request details
+	log.Printf("🔍 [/v1/messages] ===== INCOMING REQUEST =====")
+	log.Printf("🔍 [/v1/messages] Method: %s, URL: %s", r.Method, r.URL.String())
+	log.Printf("🔍 [/v1/messages] RemoteAddr: %s", r.RemoteAddr)
+	log.Printf("🔍 [/v1/messages] Headers:")
+	for name, values := range r.Header {
+		for _, value := range values {
+			// Mask sensitive headers
+			if strings.EqualFold(name, "Authorization") || strings.EqualFold(name, "x-api-key") {
+				if len(value) > 20 {
+					log.Printf("🔍   %s: %s...%s", name, value[:10], value[len(value)-4:])
+				} else {
+					log.Printf("🔍   %s: [MASKED]", name)
+				}
+			} else {
+				log.Printf("🔍   %s: %s", name, value)
+			}
+		}
+	}
+
 	if r.Method != http.MethodPost {
 		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Method not allowed"}}`, http.StatusMethodNotAllowed)
 		return
@@ -3396,6 +3444,14 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
+
+	// DEBUG: Log request body (truncated for large bodies)
+	log.Printf("🔍 [/v1/messages] Body size: %d bytes", len(bodyBytes))
+	if len(bodyBytes) < 5000 {
+		log.Printf("🔍 [/v1/messages] Body: %s", string(bodyBytes))
+	} else {
+		log.Printf("🔍 [/v1/messages] Body (first 2000 chars): %s...", string(bodyBytes[:2000]))
+	}
 
 	if debugMode {
 		log.Printf("📥 /v1/messages request received (body: %d bytes)", len(bodyBytes))
