@@ -28,7 +28,7 @@ func SanitizeError(statusCode int, originalError []byte) []byte {
 		errorStr := string(originalError)
 
 		// Check for prompt too long error (preserve original - actionable user error)
-		if IsPromptTooLongError(errorStr) {
+		if isPromptTooLongError(errorStr) {
 			log.Printf("⚠️ [TrollProxy] Preserving prompt too long error for user")
 			// Return a user-friendly error with the original context preserved
 			return []byte(`{"error":{"message":"Prompt is too long. Your request exceeds the model's maximum context length. Please reduce the size of your messages or conversation history.","type":"invalid_request_error","code":"context_length_exceeded"}}`)
@@ -80,7 +80,7 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 		}
 
 		// Check for prompt too long error (preserve with user-friendly message)
-		if IsPromptTooLongError(errorStr) {
+		if isPromptTooLongError(errorStr) {
 			log.Printf("⚠️ [TrollProxy] Preserving prompt too long error for user (Anthropic format)")
 			// Return a user-friendly error in Anthropic format (no hardcoded token limit)
 			return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Prompt is too long. Your request exceeds the model's maximum context length. Please reduce the size of your messages or conversation history."}}`)
@@ -136,11 +136,10 @@ func isThinkingBudgetError(errorStr string) bool {
 	return (hasMaxTokens && hasBudgetTokens) || strings.Contains(errorLower, "thinking.budget_tokens")
 }
 
-// IsPromptTooLongError checks if a 400 error is related to prompt/context length exceeding model limits
+// isPromptTooLongError checks if a 400 error is related to prompt/context length exceeding model limits
 // Returns true if the error indicates prompt is too long (exceeds token limit)
 // This is an actionable user error that helps users understand they need to reduce their prompt size
-// Exported for use in main.go reactive truncation logic
-func IsPromptTooLongError(errorStr string) bool {
+func isPromptTooLongError(errorStr string) bool {
 	errorLower := strings.ToLower(errorStr)
 
 	// Check for various prompt length validation error indicators
