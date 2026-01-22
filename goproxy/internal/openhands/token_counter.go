@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	// OpenHands API base URL
-	OpenHandsBaseURL = "https://llm-proxy.app.all-hands.dev"
+	// OpenHands LLM Proxy base URL for token counting
+	// Note: Different from OpenHandsBaseURL in openhands.go which uses the CDN proxy
+	OpenHandsTokenCountBaseURL = "https://llm-proxy.app.all-hands.dev"
 	// OpenHands token counting endpoint (new /utils/token_counter)
 	TokenCountEndpoint = "/utils/token_counter"
 	// Legacy endpoint (kept for backwards compatibility)
@@ -208,39 +209,10 @@ func ConvertOpenAIMessagesToMaps(messages []interface{}) []map[string]interface{
 
 // ConvertAnthropicMessagesToMaps converts Anthropic format messages to map format for token counting API
 // This includes handling system prompt separately
+// Deprecated: Use ConvertAnthropicRequestToMaps instead which handles more type variations
 func ConvertAnthropicMessagesToMaps(messages []interface{}, system interface{}) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, len(messages)+1)
-
-	// Add system as first message if present
-	if system != nil {
-		var systemContent string
-		if systemStr, ok := system.(string); ok {
-			systemContent = systemStr
-		} else if systemArray, ok := system.([]interface{}); ok {
-			for _, item := range systemArray {
-				if itemMap, ok := item.(map[string]interface{}); ok {
-					if text, ok := itemMap["text"].(string); ok {
-						systemContent += text
-					}
-				}
-			}
-		}
-		if systemContent != "" {
-			result = append(result, map[string]interface{}{
-				"role":    "system",
-				"content": systemContent,
-			})
-		}
-	}
-
-	// Add remaining messages
-	for _, msg := range messages {
-		if msgMap, ok := msg.(map[string]interface{}); ok {
-			result = append(result, msgMap)
-		}
-	}
-
-	return result
+	// Delegate to the more comprehensive implementation
+	return ConvertAnthropicRequestToMaps(messages, system)
 }
 
 // ConvertAnthropicRequestToMaps converts transformers.AnthropicRequest messages to map format
@@ -295,13 +267,13 @@ func ConvertAnthropicRequestToMaps(messages interface{}, system interface{}) []m
 // Returns token count and error
 func CountTokensForAnthropicRequest(apiKey string, model string, messages interface{}, system interface{}) (int64, error) {
 	messagesForCount := ConvertAnthropicRequestToMaps(messages, system)
-	return CountTokensViaAPI(OpenHandsBaseURL, apiKey, model, messagesForCount, true)
+	return CountTokensViaAPI(OpenHandsTokenCountBaseURL, apiKey, model, messagesForCount, true)
 }
 
 // CountTokensForOpenAIMessages counts tokens for OpenAI format messages using API
 // Returns token count and error
 func CountTokensForOpenAIMessages(apiKey string, model string, messages []map[string]interface{}) (int64, error) {
-	return CountTokensViaAPI(OpenHandsBaseURL, apiKey, model, messages, true)
+	return CountTokensViaAPI(OpenHandsTokenCountBaseURL, apiKey, model, messages, true)
 }
 
 // Legacy functions for backwards compatibility

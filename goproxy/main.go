@@ -1376,7 +1376,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	// Get accurate token count from API (no estimation fallback - API is required)
 	var actualTokens int64 = 0
 	if key != nil {
-		apiTokens, err := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
+		apiTokens, err := openhands.CountTokensViaAPI(openhands.OpenHandsTokenCountBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
 		if err == nil && apiTokens > 0 {
 			actualTokens = apiTokens
 			log.Printf("📊 [TokenCount-Anthropic] API count: %d tokens (limit: %d)", actualTokens, maxTokensAnthropic)
@@ -1385,6 +1385,8 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 			// If API fails, we proceed without truncation (let upstream handle the error if too long)
 			actualTokens = 0
 		}
+	} else {
+		log.Printf("⚠️ [TokenCount-Anthropic] No OpenHands key available - skipping token count and truncation check")
 	}
 
 	// Truncation loop: Keep truncating until under limit (with API verification)
@@ -1403,7 +1405,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 
 				// Re-verify with API after truncation
 				if key != nil {
-					verifyTokens, verifyErr := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
+					verifyTokens, verifyErr := openhands.CountTokensViaAPI(openhands.OpenHandsTokenCountBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
 					if verifyErr == nil && verifyTokens > 0 {
 						actualTokens = verifyTokens
 						log.Printf("📊 [TokenCount-Anthropic] Post-truncation: %d tokens (limit: %d)", actualTokens, maxTokensAnthropic)
@@ -1790,7 +1792,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	// Get accurate token count from API (no estimation fallback - API is required)
 	var actualTokens int64 = 0
 	if key != nil {
-		apiTokens, err := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
+		apiTokens, err := openhands.CountTokensViaAPI(openhands.OpenHandsTokenCountBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
 		if err == nil && apiTokens > 0 {
 			actualTokens = apiTokens
 			log.Printf("📊 [TokenCount-OpenAI] API count: %d tokens (limit: %d)", actualTokens, maxTokens)
@@ -1799,6 +1801,8 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 			// If API fails, we proceed without truncation (let upstream handle the error if too long)
 			actualTokens = 0
 		}
+	} else {
+		log.Printf("⚠️ [TokenCount-OpenAI] No OpenHands key available - skipping token count and truncation check")
 	}
 
 	// Truncation loop: Keep truncating until under limit (with API verification)
@@ -1817,7 +1821,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 
 				// Re-verify with API after truncation
 				if key != nil {
-					verifyTokens, verifyErr := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
+					verifyTokens, verifyErr := openhands.CountTokensViaAPI(openhands.OpenHandsTokenCountBaseURL, key.APIKey, upstreamModelID, convertMessagesToMaps(), true)
 					if verifyErr == nil && verifyTokens > 0 {
 						actualTokens = verifyTokens
 						log.Printf("📊 [TokenCount-OpenAI] Post-truncation: %d tokens (limit: %d)", actualTokens, maxTokens)

@@ -43,7 +43,7 @@ func TestEstimateOpenAITokens_MultipleMessages(t *testing.T) {
 }
 
 func TestEstimateOpenAITokens_LongContent(t *testing.T) {
-	// Create a long content string (~10K chars = ~2500 tokens)
+	// Create a long content string (~10K chars = ~3333 tokens with RunesPerToken=3)
 	longContent := ""
 	for i := 0; i < 10000; i++ {
 		longContent += "a"
@@ -58,9 +58,10 @@ func TestEstimateOpenAITokens_LongContent(t *testing.T) {
 
 	tokens := EstimateOpenAITokens(req)
 
-	// 10000 chars / 4 = 2500 tokens + overhead
-	if tokens < 2400 || tokens > 2700 {
-		t.Errorf("Expected tokens around 2500, got %d", tokens)
+	// 10000 chars / 3 (RunesPerToken) = ~3333 tokens + overhead
+	// Accept range from 3200 to 3500
+	if tokens < 3200 || tokens > 3500 {
+		t.Errorf("Expected tokens around 3333, got %d", tokens)
 	}
 }
 
