@@ -189,23 +189,27 @@ func TestIsThinkingBudgetError(t *testing.T) {
 }
 
 func TestSanitizeAnthropicError_ThinkingBudget(t *testing.T) {
-	// Test that thinking budget errors are preserved
+	// Test that thinking budget errors return a clean, user-friendly message
+	// (not the raw error which may contain internal routing/fallback details)
 	thinkingBudgetError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"max_tokens must be greater than thinking.budget_tokens. Please consult our documentation."},"request_id":"req_test"}`)
 	result := SanitizeAnthropicError(400, thinkingBudgetError)
 
-	// Should return the original error unchanged
-	if string(result) != string(thinkingBudgetError) {
-		t.Errorf("Thinking budget error was not preserved.\nGot:  %s\nWant: %s", string(result), string(thinkingBudgetError))
+	// Should return a clean user-friendly error
+	expected := `{"type":"error","error":{"type":"invalid_request_error","message":"max_tokens must be greater than thinking.budget_tokens. Please increase max_tokens or decrease thinking.budget_tokens in your extended thinking configuration. See: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking"}}`
+	if string(result) != expected {
+		t.Errorf("Thinking budget error was not properly sanitized.\nGot:  %s\nWant: %s", string(result), expected)
 	}
 }
 
 func TestSanitizeAnthropicError_ThinkingBudgetWithBackticks(t *testing.T) {
 	// Test with unicode escaped backticks (as seen in real API errors)
+	// Should still return the clean user-friendly message
 	thinkingBudgetError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"\u0060max_tokens\u0060 must be greater than \u0060thinking.budget_tokens\u0060. Please consult our documentation at https://docs.claude.com/en/docs/build-with-claude/extended-thinking#max-tokens-and-context-window-size"},"request_id":"req_011CXEojawrctJ4tTo7bmsCF"}`)
 	result := SanitizeAnthropicError(400, thinkingBudgetError)
 
-	// Should return the original error unchanged
-	if string(result) != string(thinkingBudgetError) {
-		t.Errorf("Thinking budget error with backticks was not preserved.\nGot:  %s\nWant: %s", string(result), string(thinkingBudgetError))
+	// Should return a clean user-friendly error (hiding request_id and other internal details)
+	expected := `{"type":"error","error":{"type":"invalid_request_error","message":"max_tokens must be greater than thinking.budget_tokens. Please increase max_tokens or decrease thinking.budget_tokens in your extended thinking configuration. See: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking"}}`
+	if string(result) != expected {
+		t.Errorf("Thinking budget error with backticks was not properly sanitized.\nGot:  %s\nWant: %s", string(result), expected)
 	}
 }
