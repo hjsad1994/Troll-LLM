@@ -52,7 +52,7 @@ func listBackupKeysInternal() ([]OpenHandsBackupKey, int, int, error) {
 	defer cancel()
 
 	col := OpenHandsBackupKeysCollection()
-	
+
 	// Get all keys
 	cursor, err := col.Find(ctx, bson.M{}, options.Find().SetSort(bson.M{"createdAt": -1}))
 	if err != nil {
@@ -287,12 +287,15 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 		}
 	}
 	newKeys = append(newKeys, &OpenHandsKey{
-		ID:            backupKey.ID,
-		APIKey:        backupKey.APIKey,
-		Status:        OpenHandsStatusHealthy,
-		TokensUsed:    0,
-		RequestsCount: 0,
-		CreatedAt:     now,
+		ID:             backupKey.ID,
+		APIKey:         backupKey.APIKey,
+		Status:         OpenHandsStatusHealthy,
+		TokensUsed:     0,
+		RequestsCount:  0,
+		CreatedAt:      now,
+		LastUsedAt:     nil,
+		TotalSpend:     0,
+		LastSpendCheck: nil,
 	})
 	p.keys = newKeys
 	p.mu.Unlock()
