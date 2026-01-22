@@ -277,7 +277,7 @@ func (sc *SpendChecker) checkKeySpend(key *OpenHandsKey, isActive bool) SpendChe
 	q.Set("start_date", "2020-01-01")
 	q.Set("end_date", "2030-12-31")
 	q.Set("page", "1")
-	q.Set("page_size", "1")
+	q.Set("page_size", "100") // Need enough to get total_spend across all days
 	u.RawQuery = q.Encode()
 
 	// Create request
