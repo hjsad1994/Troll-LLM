@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import mongoose from 'mongoose';
 import * as openhandsService from '../services/openhands.service.js';
 
 const router = Router();
@@ -254,70 +253,6 @@ router.get('/stats', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('Error getting stats:', error);
     res.status(500).json({ error: 'Failed to get stats' });
-  }
-});
-
-// ============ SPEND MONITORING ============
-
-// GET /admin/openhands/spend-summary - Get spend summary for all keys
-router.get('/spend-summary', async (_req: Request, res: Response) => {
-  try {
-    const keys = await openhandsService.listKeys();
-    
-    const summary = {
-      total_keys: keys.length,
-      healthy_keys: keys.filter(k => k.status === 'healthy').length,
-      threshold: 9.8,
-      keys: keys.map(k => ({
-        id: k._id,
-        status: k.status,
-        total_spend: k.totalSpend || 0,
-        last_spend_check: k.lastSpendCheck,
-        last_used_at: k.lastUsedAt,
-        spend_percentage: ((k.totalSpend || 0) / 9.8) * 100,
-      })),
-    };
-
-    res.json(summary);
-  } catch (error) {
-    console.error('Error getting spend summary:', error);
-    res.status(500).json({ error: 'Failed to get spend summary' });
-  }
-});
-
-// GET /admin/openhands/spend-history - Get spend check history
-router.get('/spend-history', async (req: Request, res: Response) => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 100;
-    const keyId = req.query.keyId as string;
-    
-    const filter: Record<string, unknown> = {};
-    if (keyId) filter.keyId = keyId;
-
-    const history = await mongoose.connection.db!
-      .collection('openhands_key_spend_history')
-      .find(filter)
-      .sort({ checkedAt: -1 })
-      .limit(limit)
-      .toArray();
-
-    res.json({
-      total: history.length,
-      history: history.map(h => ({
-        key_id: h.keyId,
-        api_key_masked: h.apiKeyMasked,
-        spend: h.spend,
-        threshold: h.threshold,
-        checked_at: h.checkedAt,
-        was_active: h.wasActive,
-        rotated_at: h.rotatedAt,
-        rotation_reason: h.rotationReason,
-        new_key_id: h.newKeyId,
-      })),
-    });
-  } catch (error) {
-    console.error('Error getting spend history:', error);
-    res.status(500).json({ error: 'Failed to get spend history' });
   }
 });
 
