@@ -20,14 +20,14 @@ import (
 
 	"goproxy/config"
 	"goproxy/db"
+	"goproxy/internal/cache"
 	"goproxy/internal/keypool"
 	"goproxy/internal/maintarget"
-	"goproxy/internal/proxy"
-	"goproxy/internal/ratelimit"
+	"goproxy/internal/ohmygpt"
 	"goproxy/internal/openhands"
 	"goproxy/internal/openhandspool"
-	"goproxy/internal/ohmygpt"
-	"goproxy/internal/cache"
+	"goproxy/internal/proxy"
+	"goproxy/internal/ratelimit"
 	"goproxy/internal/usage"
 	"goproxy/internal/userkey"
 	"goproxy/transformers"
@@ -1336,10 +1336,57 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	}
 
 	// AUTO-TRUNCATE: Check if request exceeds token limit and truncate if needed
+	// First, try to get accurate token count from API (call_endpoint=true)
 	maxTokensAnthropic := transformers.GetModelMaxTokens(upstreamModelID)
 	estimatedTokensAnthropic := transformers.EstimateAnthropicTokens(&anthropicReq)
-	if transformers.ShouldTruncate(estimatedTokensAnthropic, maxTokensAnthropic) {
-		log.Printf("⚠️ [OpenHands-Anthropic] Request exceeds limit (%d > %d tokens), auto-truncating...", estimatedTokensAnthropic, maxTokensAnthropic)
+
+	// Try to get accurate token count from /utils/token_counter API
+	var actualTokens int64 = estimatedTokensAnthropic
+	if key != nil && estimatedTokensAnthropic > maxTokensAnthropic-10000 { // Only call API if close to limit
+		// Convert Anthropic messages to map format for token counting API
+		messagesForCount := make([]map[string]interface{}, 0, len(anthropicReq.Messages)+1)
+		// Add system as first message if present
+		if anthropicReq.System != nil {
+			var systemContent string
+			if systemStr, ok := anthropicReq.System.(string); ok {
+				systemContent = systemStr
+			} else if systemArray, ok := anthropicReq.System.([]interface{}); ok {
+				for _, item := range systemArray {
+					if itemMap, ok := item.(map[string]interface{}); ok {
+						if text, ok := itemMap["text"].(string); ok {
+							systemContent += text
+						}
+					}
+				}
+			}
+			if systemContent != "" {
+				messagesForCount = append(messagesForCount, map[string]interface{}{
+					"role":    "system",
+					"content": systemContent,
+				})
+			}
+		}
+		// Add conversation messages
+		for _, msg := range anthropicReq.Messages {
+			msgMap := map[string]interface{}{
+				"role":    msg.Role,
+				"content": msg.Content,
+			}
+			messagesForCount = append(messagesForCount, msgMap)
+		}
+
+		// Call token counter API with call_endpoint=true for accurate count
+		apiTokens, err := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, messagesForCount, true)
+		if err == nil && apiTokens > 0 {
+			actualTokens = apiTokens
+			log.Printf("📊 [TokenCount-Anthropic] API accurate count: %d tokens (estimated: %d)", actualTokens, estimatedTokensAnthropic)
+		} else if err != nil {
+			log.Printf("⚠️ [TokenCount-Anthropic] API call failed, using estimation: %v", err)
+		}
+	}
+
+	if transformers.ShouldTruncate(actualTokens, maxTokensAnthropic) {
+		log.Printf("⚠️ [OpenHands-Anthropic] Request exceeds limit (%d > %d tokens), auto-truncating...", actualTokens, maxTokensAnthropic)
 		truncatedReq, truncResult := transformers.TruncateAnthropicRequest(&anthropicReq, maxTokensAnthropic)
 		if truncResult.WasTruncated {
 			anthropicReq = *truncatedReq
@@ -1688,10 +1735,41 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	}
 
 	// AUTO-TRUNCATE: Check if request exceeds token limit and truncate if needed
+	// First, try to get accurate token count from API (call_endpoint=true)
 	maxTokens := transformers.GetModelMaxTokens(upstreamModelID)
 	estimatedTokens := transformers.EstimateOpenAITokens(openaiReq)
-	if transformers.ShouldTruncate(estimatedTokens, maxTokens) {
-		log.Printf("⚠️ [OpenHands-OpenAI] Request exceeds limit (%d > %d tokens), auto-truncating...", estimatedTokens, maxTokens)
+
+	// Try to get accurate token count from /utils/token_counter API
+	var actualTokens int64 = estimatedTokens
+	if key != nil && estimatedTokens > maxTokens-10000 { // Only call API if close to limit
+		// Convert OpenAI messages to map format for token counting API
+		messagesForCount := make([]map[string]interface{}, 0, len(openaiReq.Messages))
+		for _, msg := range openaiReq.Messages {
+			msgMap := map[string]interface{}{
+				"role":    msg.Role,
+				"content": msg.Content,
+			}
+			if msg.ToolCallID != "" {
+				msgMap["tool_call_id"] = msg.ToolCallID
+			}
+			if msg.ToolCalls != nil {
+				msgMap["tool_calls"] = msg.ToolCalls
+			}
+			messagesForCount = append(messagesForCount, msgMap)
+		}
+
+		// Call token counter API with call_endpoint=true for accurate count
+		apiTokens, err := openhands.CountTokensViaAPI(openhands.OpenHandsBaseURL, key.APIKey, upstreamModelID, messagesForCount, true)
+		if err == nil && apiTokens > 0 {
+			actualTokens = apiTokens
+			log.Printf("📊 [TokenCount-OpenAI] API accurate count: %d tokens (estimated: %d)", actualTokens, estimatedTokens)
+		} else if err != nil {
+			log.Printf("⚠️ [TokenCount-OpenAI] API call failed, using estimation: %v", err)
+		}
+	}
+
+	if transformers.ShouldTruncate(actualTokens, maxTokens) {
+		log.Printf("⚠️ [OpenHands-OpenAI] Request exceeds limit (%d > %d tokens), auto-truncating...", actualTokens, maxTokens)
 		truncatedReq, truncResult := transformers.TruncateOpenAIRequest(openaiReq, maxTokens)
 		if truncResult.WasTruncated {
 			openaiReq = truncatedReq
@@ -4130,10 +4208,10 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":           true,
-			"message":           "All pools reloaded successfully",
-			"proxy_count":       proxyPool.GetProxyCount(),
-			"bindings":          proxyPool.GetBindingsInfo(),
+			"success":            true,
+			"message":            "All pools reloaded successfully",
+			"proxy_count":        proxyPool.GetProxyCount(),
+			"bindings":           proxyPool.GetBindingsInfo(),
 			"openhands_reloaded": openhandsReloaded,
 			"openhands_keys":     openhandsKeyCount,
 			"ohmygpt_reloaded":   ohmygptReloaded,
