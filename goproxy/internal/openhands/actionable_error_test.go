@@ -200,11 +200,11 @@ func TestActionableError_AC3_FriendKeyNoBalance_OpenAI(t *testing.T) {
 
 	// AC3: Message must NOT contain balance information
 	forbiddenPatterns := []string{
-		"$",              // Dollar sign
-		"balance",        // Balance keyword
-		"Balance",        // Balance keyword (capitalized)
-		".00",            // Decimal balance format
-		"Current",        // "Current balance" partial
+		"$",       // Dollar sign
+		"balance", // Balance keyword
+		"Balance", // Balance keyword (capitalized)
+		".00",     // Decimal balance format
+		"Current", // "Current balance" partial
 	}
 
 	for _, pattern := range forbiddenPatterns {
@@ -236,11 +236,11 @@ func TestActionableError_AC3_FriendKeyNoBalance_Anthropic(t *testing.T) {
 
 	// AC3: Message must NOT contain balance information
 	forbiddenPatterns := []string{
-		"$",              // Dollar sign
-		"balance",        // Balance keyword
-		"Balance",        // Balance keyword (capitalized)
-		".00",            // Decimal balance format
-		"Current",        // "Current balance" partial
+		"$",       // Dollar sign
+		"balance", // Balance keyword
+		"Balance", // Balance keyword (capitalized)
+		".00",     // Decimal balance format
+		"Current", // "Current balance" partial
 	}
 
 	for _, pattern := range forbiddenPatterns {
@@ -483,8 +483,8 @@ func TestPromptTooLongError_SanitizeOpenAI(t *testing.T) {
 	}
 
 	// Should contain guidance
-	if !strings.Contains(resultStr, "reduce the size") {
-		t.Errorf("OpenAI sanitized error should contain guidance to reduce size\nGot: %s", resultStr)
+	if !strings.Contains(resultStr, "/compact") {
+		t.Errorf("OpenAI sanitized error should contain guidance to use /compact\nGot: %s", resultStr)
 	}
 
 	// Should have correct error code
@@ -514,8 +514,8 @@ func TestPromptTooLongError_SanitizeAnthropic(t *testing.T) {
 	}
 
 	// Should contain guidance
-	if !strings.Contains(resultStr, "reduce the size") {
-		t.Errorf("Anthropic sanitized error should contain guidance to reduce size\nGot: %s", resultStr)
+	if !strings.Contains(resultStr, "/compact") {
+		t.Errorf("Anthropic sanitized error should contain guidance to use /compact\nGot: %s", resultStr)
 	}
 
 	// Should have Anthropic format structure
