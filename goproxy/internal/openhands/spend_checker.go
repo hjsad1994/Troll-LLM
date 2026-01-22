@@ -20,7 +20,7 @@ import (
 // Constants for spend checking
 const (
 	OpenHandsActivityURL       = "https://llm-proxy.app.all-hands.dev/user/daily/activity"
-	DefaultSpendThreshold      = 9.8
+	DefaultSpendThreshold      = 9.95
 	DefaultActiveCheckInterval = 10 * time.Second
 	DefaultIdleCheckInterval   = 1 * time.Hour
 	ActiveKeyWindow            = 4 * time.Minute

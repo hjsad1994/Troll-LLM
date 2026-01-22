@@ -16,7 +16,7 @@ func TestDefaultConstants(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
-		{"DefaultSpendThreshold", DefaultSpendThreshold, 9.8},
+		{"DefaultSpendThreshold", DefaultSpendThreshold, 9.95},
 		{"DefaultActiveCheckInterval", DefaultActiveCheckInterval, 10 * time.Second},
 		{"DefaultIdleCheckInterval", DefaultIdleCheckInterval, 1 * time.Hour},
 		{"ActiveKeyWindow", ActiveKeyWindow, 4 * time.Minute},
