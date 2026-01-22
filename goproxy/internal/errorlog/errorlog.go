@@ -61,6 +61,9 @@ func getCollection() *mongo.Collection {
 			{
 				Keys: bson.D{{Key: "path", Value: 1}, {Key: "createdAt", Value: -1}},
 			},
+			{
+				Keys: bson.D{{Key: "statusCode", Value: 1}, {Key: "createdAt", Value: -1}},
+			},
 		}
 
 		_, err := collection.Indexes().CreateMany(ctx, indexes)
@@ -169,6 +172,9 @@ func LogError(params LogErrorParams) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
+		// Sanitize request body before logging
+		sanitizedRequestBody := SanitizeBody(params.RequestBody)
+
 		errorLog := ErrorLog{
 			Source:         "goproxy",
 			Method:         params.Request.Method,
@@ -183,7 +189,7 @@ func LogError(params LogErrorParams) {
 			ErrorMessage:   params.ErrorMessage,
 			ErrorDetails:   params.ErrorDetails,
 			RequestHeaders: GetSafeHeaders(params.Request.Header),
-			RequestBody:    params.RequestBody,
+			RequestBody:    sanitizedRequestBody,
 			LatencyMs:      params.LatencyMs,
 			CreatedAt:      time.Now(),
 		}

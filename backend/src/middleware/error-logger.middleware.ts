@@ -1,22 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
 import { ErrorLog } from '../models/error-log.model.js';
 
-// Sanitize sensitive data from request body
-function sanitizeBody(body: any): any {
-  if (!body) return undefined;
-  const sanitized = { ...body };
-  const sensitiveFields = ['password', 'token', 'apiKey', 'secret', 'authorization', 'api_key', 'accessToken', 'refreshToken'];
-  for (const field of sensitiveFields) {
-    if (sanitized[field]) sanitized[field] = '[REDACTED]';
+// Sanitize sensitive data from request/response body (recursive, max 3 levels)
+function sanitizeBody(body: any, depth: number = 0): any {
+  if (!body || depth > 3) return body;
+  if (typeof body !== 'object') return body;
+  if (Array.isArray(body)) {
+    return body.map(item => sanitizeBody(item, depth + 1));
   }
-  // Also check nested objects (one level deep)
+  
+  const sanitized = { ...body };
+  const sensitiveFields = [
+    'password', 'token', 'apiKey', 'secret', 'authorization', 
+    'api_key', 'accessToken', 'refreshToken', 'credential', 
+    'privateKey', 'private_key', 'sessionToken', 'session_token'
+  ];
+  
   for (const key of Object.keys(sanitized)) {
-    if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
-      for (const nestedField of sensitiveFields) {
-        if (sanitized[key][nestedField]) {
-          sanitized[key][nestedField] = '[REDACTED]';
-        }
-      }
+    const lowerKey = key.toLowerCase();
+    // Check if key matches sensitive field patterns
+    if (sensitiveFields.some(f => lowerKey.includes(f.toLowerCase()))) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
+      // Recursively sanitize nested objects
+      sanitized[key] = sanitizeBody(sanitized[key], depth + 1);
     }
   }
   return sanitized;
@@ -88,9 +95,8 @@ export function errorLoggerMiddleware(req: Request, res: Response, next: NextFun
             errorDetails: body?.details,
             requestHeaders: getSafeHeaders(req.headers),
             requestBody: sanitizeBody(req.body),
-            responseBody: body,
+            responseBody: sanitizeBody(body),
             latencyMs,
-            stackTrace: statusCode >= 500 ? new Error().stack : undefined,
           });
         } catch (err) {
           console.error('[ErrorLogger] Failed to log error:', err);

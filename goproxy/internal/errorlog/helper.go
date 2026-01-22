@@ -3,8 +3,58 @@ package errorlog
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 )
+
+// sensitiveFields contains keys that should be redacted from logs
+var sensitiveFields = []string{
+	"password", "token", "apikey", "secret", "authorization",
+	"api_key", "accesstoken", "refreshtoken", "credential",
+	"privatekey", "private_key", "sessiontoken", "session_token",
+}
+
+// SanitizeBody recursively sanitizes sensitive fields from request/response body
+func SanitizeBody(body interface{}) interface{} {
+	return sanitizeBodyRecursive(body, 0)
+}
+
+func sanitizeBodyRecursive(body interface{}, depth int) interface{} {
+	if body == nil || depth > 3 {
+		return body
+	}
+
+	switch v := body.(type) {
+	case map[string]interface{}:
+		sanitized := make(map[string]interface{})
+		for key, value := range v {
+			lowerKey := strings.ToLower(key)
+			if isSensitiveKey(lowerKey) {
+				sanitized[key] = "[REDACTED]"
+			} else {
+				sanitized[key] = sanitizeBodyRecursive(value, depth+1)
+			}
+		}
+		return sanitized
+	case []interface{}:
+		sanitized := make([]interface{}, len(v))
+		for i, item := range v {
+			sanitized[i] = sanitizeBodyRecursive(item, depth+1)
+		}
+		return sanitized
+	default:
+		return body
+	}
+}
+
+func isSensitiveKey(key string) bool {
+	for _, sensitive := range sensitiveFields {
+		if strings.Contains(key, sensitive) {
+			return true
+		}
+	}
+	return false
+}
 
 // HTTPError writes an error response and logs it to MongoDB
 // This is a drop-in replacement for http.Error with logging
@@ -51,14 +101,14 @@ func HTTPErrorWithContext(w http.ResponseWriter, r *http.Request, body string, s
 	// Extract error message from body
 	errorMsg := extractErrorMessage(body)
 
-	// Log asynchronously with full context
+	// Log asynchronously with full context (sanitize request body)
 	LogError(LogErrorParams{
 		Request:      r,
 		StatusCode:   statusCode,
 		ErrorMessage: errorMsg,
 		UserID:       userID,
 		UserKeyID:    userKeyID,
-		RequestBody:  requestBody,
+		RequestBody:  SanitizeBody(requestBody),
 		LatencyMs:    time.Since(startTime).Milliseconds(),
 	})
 }
@@ -101,7 +151,7 @@ func extractErrorMessage(body string) string {
 	// Try to parse as JSON and extract error message
 	var parsed map[string]interface{}
 	if err := json.Unmarshal([]byte(body), &parsed); err == nil {
-		// OpenAI format: {"error": {"message": "..."}}
+		// OpenAI/Anthropic format: {"error": {"message": "..."}}
 		if errObj, ok := parsed["error"].(map[string]interface{}); ok {
 			if msg, ok := errObj["message"].(string); ok {
 				return msg
@@ -111,11 +161,9 @@ func extractErrorMessage(body string) string {
 		if errStr, ok := parsed["error"].(string); ok {
 			return errStr
 		}
-		// Anthropic format: {"type": "error", "error": {"type": "...", "message": "..."}}
-		if errObj, ok := parsed["error"].(map[string]interface{}); ok {
-			if msg, ok := errObj["message"].(string); ok {
-				return msg
-			}
+		// Message format: {"message": "..."}
+		if msg, ok := parsed["message"].(string); ok {
+			return msg
 		}
 	}
 	// Return original body if not parseable
