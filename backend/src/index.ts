@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { connectDB } from './db/mongodb.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
+import { errorLoggerMiddleware } from './middleware/error-logger.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import usageRoutes from './routes/usage.js';
@@ -34,6 +35,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
 }));
 app.use(express.json());
+app.use(errorLoggerMiddleware);
 
 // Health check
 app.get('/health', (_req, res) => {
