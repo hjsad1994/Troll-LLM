@@ -50,6 +50,10 @@ type OpenHandsKey struct {
 	LastError     string             `bson:"lastError,omitempty" json:"last_error,omitempty"`
 	CooldownUntil *time.Time         `bson:"cooldownUntil,omitempty" json:"cooldown_until,omitempty"`
 	CreatedAt     time.Time          `bson:"createdAt" json:"created_at"`
+	// Spend tracking fields
+	LastUsedAt     *time.Time `bson:"lastUsedAt,omitempty" json:"last_used_at,omitempty"`
+	TotalSpend     float64    `bson:"totalSpend" json:"total_spend"`
+	LastSpendCheck *time.Time `bson:"lastSpendCheck,omitempty" json:"last_spend_check,omitempty"`
 }
 
 // IsAvailable returns true if the key is available for use
@@ -668,6 +672,32 @@ func (p *OpenHandsProvider) selectProxyAndKey() (*http.Client, string, *OpenHand
 func (p *OpenHandsProvider) getClientWithProxy() (*http.Client, string) {
 	client, proxyName, _, _ := p.selectProxyAndKey()
 	return client, proxyName
+}
+
+// GetClientWithProxyOnly returns HTTP client with proxy configured, WITHOUT selecting a key
+// Used by SpendChecker to check spend for a specific key while still using proxy pool
+func (p *OpenHandsProvider) GetClientWithProxyOnly() (*http.Client, string) {
+	p.mu.Lock()
+	useProxy := p.useProxy
+	pool := p.proxyPool
+	p.mu.Unlock()
+
+	if !useProxy || pool == nil {
+		return p.client, ""
+	}
+
+	selectedProxy, err := pool.SelectProxy()
+	if err != nil {
+		return p.client, ""
+	}
+
+	transport, err := selectedProxy.CreateHTTPTransport()
+	if err != nil {
+		return p.client, ""
+	}
+
+	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
+	return client, selectedProxy.Name
 }
 
 // retryWithNextKeyToEndpoint attempts request with remaining keys to specified endpoint

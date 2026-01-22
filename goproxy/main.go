@@ -1571,6 +1571,9 @@ handleMessagesResponse:
 				"tokensUsed":    input + output,
 				"requestsCount": 1,
 			},
+			"$set": bson.M{
+				"lastUsedAt": time.Now(),
+			},
 		})
 
 		if userApiKey != "" {
@@ -1995,6 +1998,9 @@ handleOpenAIResponse:
 			"$inc": bson.M{
 				"tokensUsed":    input + output,
 				"requestsCount": 1,
+			},
+			"$set": bson.M{
+				"lastUsedAt": time.Now(),
 			},
 		})
 
@@ -4120,6 +4126,30 @@ func main() {
 			if proxyPool != nil && proxyPool.HasProxies() {
 				openhandsProvider.SetProxyPool(proxyPool)
 			}
+
+			// Start SpendChecker for proactive rotation
+			spendThreshold := openhands.DefaultSpendThreshold
+			if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
+				if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+					spendThreshold = parsed
+				}
+			}
+
+			activeCheckInterval := openhands.DefaultActiveCheckInterval
+			if intervalStr := getEnv("OPENHANDS_ACTIVE_CHECK_INTERVAL", ""); intervalStr != "" {
+				if parsed, err := time.ParseDuration(intervalStr); err == nil {
+					activeCheckInterval = parsed
+				}
+			}
+
+			idleCheckInterval := openhands.DefaultIdleCheckInterval
+			if intervalStr := getEnv("OPENHANDS_IDLE_CHECK_INTERVAL", ""); intervalStr != "" {
+				if parsed, err := time.ParseDuration(intervalStr); err == nil {
+					idleCheckInterval = parsed
+				}
+			}
+
+			openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
 		} else {
 			log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 		}
@@ -4208,6 +4238,24 @@ func main() {
 	http.HandleFunc("/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/keys/status", corsMiddleware(keysStatusHandler))
 	http.HandleFunc("/openhands/backup-keys", corsMiddleware(openhandsBackupKeysHandler))
+	http.HandleFunc("/openhands/spend-stats", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		checker := openhands.GetSpendChecker()
+		if checker == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status":"not_configured","message":"SpendChecker not running"}`))
+			return
+		}
+
+		stats := checker.GetStats()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(stats)
+	}))
 	http.HandleFunc("/v1/models", corsMiddleware(modelsHandler))
 	http.HandleFunc("/v1/chat/completions", corsMiddleware(chatCompletionsHandler))
 	http.HandleFunc("/v1/messages", corsMiddleware(handleAnthropicMessagesEndpoint))
