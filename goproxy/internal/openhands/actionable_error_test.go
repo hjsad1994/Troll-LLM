@@ -200,11 +200,11 @@ func TestActionableError_AC3_FriendKeyNoBalance_OpenAI(t *testing.T) {
 
 	// AC3: Message must NOT contain balance information
 	forbiddenPatterns := []string{
-		"$",              // Dollar sign
-		"balance",        // Balance keyword
-		"Balance",        // Balance keyword (capitalized)
-		".00",            // Decimal balance format
-		"Current",        // "Current balance" partial
+		"$",       // Dollar sign
+		"balance", // Balance keyword
+		"Balance", // Balance keyword (capitalized)
+		".00",     // Decimal balance format
+		"Current", // "Current balance" partial
 	}
 
 	for _, pattern := range forbiddenPatterns {
@@ -236,11 +236,11 @@ func TestActionableError_AC3_FriendKeyNoBalance_Anthropic(t *testing.T) {
 
 	// AC3: Message must NOT contain balance information
 	forbiddenPatterns := []string{
-		"$",              // Dollar sign
-		"balance",        // Balance keyword
-		"Balance",        // Balance keyword (capitalized)
-		".00",            // Decimal balance format
-		"Current",        // "Current balance" partial
+		"$",       // Dollar sign
+		"balance", // Balance keyword
+		"Balance", // Balance keyword (capitalized)
+		".00",     // Decimal balance format
+		"Current", // "Current balance" partial
 	}
 
 	for _, pattern := range forbiddenPatterns {
@@ -404,4 +404,159 @@ func TestActionableError_SecurityBoundary(t *testing.T) {
 			t.Error("Friend Key error should NOT contain balance")
 		}
 	})
+}
+
+// =============================================================================
+// Prompt Too Long Error Tests
+// =============================================================================
+
+// TestPromptTooLongError_Detection tests that prompt too long errors are correctly detected
+func TestPromptTooLongError_Detection(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "Anthropic format - exact match",
+			input:    `{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 200076 tokens > 200000 maximum"}}`,
+			expected: true,
+		},
+		{
+			name:     "OpenAI format - context length",
+			input:    `{"error":{"message":"maximum context length is 200000 tokens, but you requested 200076 tokens"}}`,
+			expected: true,
+		},
+		{
+			name:     "Generic - too many tokens",
+			input:    `{"error":{"message":"Request contains too many tokens"}}`,
+			expected: true,
+		},
+		{
+			name:     "Generic - token limit",
+			input:    `{"error":{"message":"Token limit exceeded"}}`,
+			expected: true,
+		},
+		{
+			name:     "tokens and maximum together",
+			input:    `{"error":{"message":"200076 tokens exceeds maximum allowed"}}`,
+			expected: true,
+		},
+		{
+			name:     "Unrelated error - auth",
+			input:    `{"error":{"message":"Authentication failed"}}`,
+			expected: false,
+		},
+		{
+			name:     "Unrelated error - rate limit",
+			input:    `{"error":{"message":"Rate limit exceeded"}}`,
+			expected: false,
+		},
+		{
+			name:     "Unrelated error - budget",
+			input:    `{"error":{"message":"ExceededBudget"}}`,
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isPromptTooLongError(tc.input)
+			if result != tc.expected {
+				t.Errorf("isPromptTooLongError(%q) = %v, expected %v", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+// TestPromptTooLongError_SanitizeOpenAI verifies OpenAI format returns actionable error
+func TestPromptTooLongError_SanitizeOpenAI(t *testing.T) {
+	// Simulate the actual upstream error
+	originalError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 200076 tokens > 200000 maximum"},"request_id":"req_123"}`)
+
+	result := SanitizeError(400, originalError)
+	resultStr := string(result)
+
+	// Should contain actionable message
+	if !strings.Contains(resultStr, "Prompt is too long") {
+		t.Errorf("OpenAI sanitized error should contain 'Prompt is too long'\nGot: %s", resultStr)
+	}
+
+	// Should contain guidance
+	if !strings.Contains(resultStr, "/compact") {
+		t.Errorf("OpenAI sanitized error should contain guidance to use /compact\nGot: %s", resultStr)
+	}
+
+	// Should have correct error code
+	if !strings.Contains(resultStr, "context_length_exceeded") {
+		t.Errorf("OpenAI sanitized error should have code 'context_length_exceeded'\nGot: %s", resultStr)
+	}
+
+	// Should NOT contain request_id (security)
+	if strings.Contains(resultStr, "req_123") {
+		t.Errorf("OpenAI sanitized error should NOT expose request_id\nGot: %s", resultStr)
+	}
+
+	t.Logf("OpenAI prompt too long error: %s", resultStr)
+}
+
+// TestPromptTooLongError_SanitizeAnthropic verifies Anthropic format returns actionable error
+func TestPromptTooLongError_SanitizeAnthropic(t *testing.T) {
+	// Simulate the actual upstream error
+	originalError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 200076 tokens > 200000 maximum"},"request_id":"req_123"}`)
+
+	result := SanitizeAnthropicError(400, originalError)
+	resultStr := string(result)
+
+	// Should contain actionable message
+	if !strings.Contains(resultStr, "Prompt is too long") {
+		t.Errorf("Anthropic sanitized error should contain 'Prompt is too long'\nGot: %s", resultStr)
+	}
+
+	// Should contain guidance
+	if !strings.Contains(resultStr, "/compact") {
+		t.Errorf("Anthropic sanitized error should contain guidance to use /compact\nGot: %s", resultStr)
+	}
+
+	// Should have Anthropic format structure
+	if !strings.Contains(resultStr, `"type":"error"`) {
+		t.Errorf("Anthropic sanitized error should have outer type 'error'\nGot: %s", resultStr)
+	}
+
+	// Should have correct error type
+	if !strings.Contains(resultStr, `"type":"invalid_request_error"`) {
+		t.Errorf("Anthropic sanitized error should have inner type 'invalid_request_error'\nGot: %s", resultStr)
+	}
+
+	// Should NOT contain request_id (security)
+	if strings.Contains(resultStr, "req_123") {
+		t.Errorf("Anthropic sanitized error should NOT expose request_id\nGot: %s", resultStr)
+	}
+
+	t.Logf("Anthropic prompt too long error: %s", resultStr)
+}
+
+// TestPromptTooLongError_NonPromptErrorNotAffected verifies other 400 errors are not affected
+func TestPromptTooLongError_NonPromptErrorNotAffected(t *testing.T) {
+	// Non-prompt 400 errors should return generic message
+	nonPromptErrors := []string{
+		`{"error":{"message":"Invalid JSON"}}`,
+		`{"error":{"message":"Missing required field"}}`,
+		`{"error":{"message":"Invalid parameter value"}}`,
+	}
+
+	for _, errStr := range nonPromptErrors {
+		result := SanitizeError(400, []byte(errStr))
+		resultStr := string(result)
+
+		// Should NOT contain prompt-specific message
+		if strings.Contains(resultStr, "Prompt is too long") {
+			t.Errorf("Non-prompt error should not contain 'Prompt is too long'\nInput: %s\nGot: %s", errStr, resultStr)
+		}
+
+		// Should be generic bad request
+		if !strings.Contains(resultStr, "Bad request") {
+			t.Errorf("Non-prompt error should contain 'Bad request'\nInput: %s\nGot: %s", errStr, resultStr)
+		}
+	}
 }
