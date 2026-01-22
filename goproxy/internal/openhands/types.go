@@ -22,6 +22,19 @@ type Provider interface {
 // Story 4.1: Added "code" field to all error responses for OpenAI SDK compatibility
 func SanitizeError(statusCode int, originalError []byte) []byte {
 	log.Printf("🔒 [TrollProxy] Original error (hidden): %s", string(originalError))
+
+	// Special handling for 400 errors: check if it's an actionable user error
+	if statusCode == 400 {
+		errorStr := string(originalError)
+
+		// Check for prompt too long error (preserve original - actionable user error)
+		if isPromptTooLongError(errorStr) {
+			log.Printf("⚠️ [TrollProxy] Preserving prompt too long error for user")
+			// Return a user-friendly error with the original context preserved
+			return []byte(`{"error":{"message":"Prompt is too long. Your request exceeds the model's maximum context length. Please reduce the size of your messages or conversation history.","type":"invalid_request_error","code":"context_length_exceeded"}}`)
+		}
+	}
+
 	switch statusCode {
 	case 400:
 		return []byte(`{"error":{"message":"Bad request","type":"invalid_request_error","code":"invalid_request_error"}}`)
@@ -64,6 +77,13 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 			// Preserve the original error message for thinking budget errors
 			// These are actionable user errors that help users fix their extended thinking config
 			return originalError
+		}
+
+		// Check for prompt too long error (preserve with user-friendly message)
+		if isPromptTooLongError(errorStr) {
+			log.Printf("⚠️ [TrollProxy] Preserving prompt too long error for user (Anthropic format)")
+			// Return a user-friendly error in Anthropic format
+			return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Prompt is too long. Your request exceeds the model's maximum context length (200,000 tokens). Please reduce the size of your messages or conversation history."}}`)
 		}
 	}
 
@@ -114,4 +134,23 @@ func isThinkingBudgetError(errorStr string) bool {
 	hasBudgetTokens := strings.Contains(errorLower, "budget_tokens")
 
 	return (hasMaxTokens && hasBudgetTokens) || strings.Contains(errorLower, "thinking.budget_tokens")
+}
+
+// isPromptTooLongError checks if a 400 error is related to prompt/context length exceeding model limits
+// Returns true if the error indicates prompt is too long (exceeds token limit)
+// This is an actionable user error that helps users understand they need to reduce their prompt size
+func isPromptTooLongError(errorStr string) bool {
+	errorLower := strings.ToLower(errorStr)
+
+	// Check for various prompt length validation error indicators
+	// Pattern variations from different providers:
+	// - Anthropic/Claude: "prompt is too long: X tokens > Y maximum"
+	// - OpenAI: "maximum context length is X tokens"
+	// - Generic: "too many tokens", "token limit exceeded"
+	return strings.Contains(errorLower, "prompt is too long") ||
+		strings.Contains(errorLower, "too many tokens") ||
+		strings.Contains(errorLower, "token limit") ||
+		strings.Contains(errorLower, "context length") ||
+		strings.Contains(errorLower, "maximum context") ||
+		(strings.Contains(errorLower, "tokens") && strings.Contains(errorLower, "maximum"))
 }
