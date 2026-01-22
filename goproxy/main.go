@@ -21,6 +21,7 @@ import (
 	"goproxy/config"
 	"goproxy/db"
 	"goproxy/internal/cache"
+	"goproxy/internal/errorlog"
 	"goproxy/internal/keypool"
 	"goproxy/internal/maintarget"
 	"goproxy/internal/ohmygpt"
@@ -574,21 +575,21 @@ func modelsHandler(w http.ResponseWriter, r *http.Request) {
 // OpenAI compatible chat endpoint
 func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		errorlog.HTTPError(w, r, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Get client Authorization header
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		http.Error(w, `{"error": {"message": "Authorization header is required", "type": "invalid_request_error"}}`, http.StatusUnauthorized)
+		errorlog.HTTPError(w, r, `{"error": {"message": "Authorization header is required", "type": "invalid_request_error"}}`, http.StatusUnauthorized)
 		return
 	}
 
 	// Extract client API Key for rate limiting
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		http.Error(w, `{"error": {"message": "Invalid authorization header format", "type": "invalid_request_error"}}`, http.StatusUnauthorized)
+		errorlog.HTTPError(w, r, `{"error": {"message": "Invalid authorization header format", "type": "invalid_request_error"}}`, http.StatusUnauthorized)
 		return
 	}
 	clientAPIKey := parts[1]
@@ -608,7 +609,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		// Validate with fixed PROXY_API_KEY from env
 		if clientAPIKey != proxyAPIKey {
 			log.Printf("❌ API Key validation failed (env): %s", clientKeyMask)
-			http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+			errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			return
 		}
 		log.Printf("🔑 Key validated (env): %s", clientKeyMask)
@@ -619,18 +620,15 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("❌ Friend Key validation failed: %s - %v", clientKeyMask, err)
 			switch err {
 			case userkey.ErrFriendKeyNotFound:
-				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			case userkey.ErrFriendKeyInactive:
-				http.Error(w, `{"error": {"message": "Friend Key has been deactivated", "type": "authentication_error"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Friend Key has been deactivated", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			case userkey.ErrFriendKeyOwnerInactive:
-				http.Error(w, `{"error": {"message": "Friend Key owner account is inactive", "type": "authentication_error"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Friend Key owner account is inactive", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			case userkey.ErrFriendKeyOwnerNoCredits:
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				// Story 4.1: Updated to use consistent OpenAI error format with code field
-				w.Write([]byte(`{"error":{"message":"Insufficient credits. Please contact the key owner.","type":"insufficient_quota","code":"insufficient_credits"}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"error":{"message":"Insufficient credits. Please contact the key owner.","type":"insufficient_quota","code":"insufficient_credits"}}`, http.StatusPaymentRequired, "", clientAPIKey)
 			default:
-				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			}
 			return
 		}
@@ -644,24 +642,18 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
 			if err == userkey.ErrKeyRevoked {
-				http.Error(w, `{"error": {"message": "API key has been revoked", "type": "authentication_error"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "API key has been revoked", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			} else if err == userkey.ErrInsufficientCredits {
 				// AC3: Include balance info ($0.00 since validation failed due to no credits)
 				// Story 4.1: Updated to use consistent OpenAI error format with code field
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"error":{"message":"Insufficient credits. Current balance: $0.00","type":"insufficient_quota","code":"insufficient_credits","balance":0.00}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"error":{"message":"Insufficient credits. Current balance: $0.00","type":"insufficient_quota","code":"insufficient_credits","balance":0.00}}`, http.StatusPaymentRequired, "", clientAPIKey)
 			} else if err == userkey.ErrCreditsExpired {
 				// Story 4.1: Updated to use consistent OpenAI error format with code field
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"error":{"message":"Credits have expired. Please purchase new credits.","type":"insufficient_quota","code":"credits_expired"}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"error":{"message":"Credits have expired. Please purchase new credits.","type":"insufficient_quota","code":"credits_expired"}}`, http.StatusPaymentRequired, "", clientAPIKey)
 			} else if err == userkey.ErrMigrationRequired {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte(`{"error":{"message":"Migration required: please visit https://trollllm.xyz/dashboard to migrate your account to the new billing rate (1000→2500 VNĐ/$)","type":"migration_required","code":"migration_required"}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"error":{"message":"Migration required: please visit https://trollllm.xyz/dashboard to migrate your account to the new billing rate (1000→2500 VNĐ/$)","type":"migration_required","code":"migration_required"}}`, http.StatusForbidden, "", clientAPIKey)
 			} else {
-				http.Error(w, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			}
 			return
 		}
@@ -716,7 +708,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error: failed to read request body: %v", err)
-		http.Error(w, `{"error": {"message": "Failed to read request body", "type": "invalid_request_error"}}`, http.StatusBadRequest)
+		errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Failed to read request body", "type": "invalid_request_error"}}`, http.StatusBadRequest, username, clientAPIKey)
 		return
 	}
 	defer func() {
@@ -745,7 +737,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	var openaiReq transformers.OpenAIRequest
 	if err := json.Unmarshal(bodyBytes, &openaiReq); err != nil {
 		log.Printf("Error: failed to parse request body: %v", err)
-		http.Error(w, `{"error": {"message": "Invalid JSON", "type": "invalid_request_error"}}`, http.StatusBadRequest)
+		errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Invalid JSON", "type": "invalid_request_error"}}`, http.StatusBadRequest, username, clientAPIKey)
 		return
 	}
 
@@ -756,7 +748,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	model := config.GetModelByID(openaiReq.Model)
 	if model == nil {
 		log.Printf("❌ Unsupported model: %s", openaiReq.Model)
-		http.Error(w, fmt.Sprintf(`{"error": {"message": "Model '%s' not found", "type": "invalid_request_error"}}`, openaiReq.Model), http.StatusNotFound)
+		errorlog.HTTPErrorWithUser(w, r, fmt.Sprintf(`{"error": {"message": "Model '%s' not found", "type": "invalid_request_error"}}`, openaiReq.Model), http.StatusNotFound, username, clientAPIKey)
 		return
 	}
 
@@ -764,20 +756,15 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	if isFriendKeyRequest && friendKeyID != "" {
 		if err := userkey.CheckFriendKeyModelLimit(friendKeyID, openaiReq.Model); err != nil {
 			log.Printf("🚫 Friend Key model limit check failed: %s - %v", clientKeyMask, err)
-			w.Header().Set("Content-Type", "application/json")
 			switch err {
 			case userkey.ErrFriendKeyModelNotAllowed:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"error": {"message": "Model '%s' is not configured for this Friend Key", "type": "friend_key_model_not_allowed"}}`, openaiReq.Model)))
+				errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error": {"message": "Model '%s' is not configured for this Friend Key", "type": "friend_key_model_not_allowed"}}`, openaiReq.Model), http.StatusPaymentRequired, username, clientAPIKey)
 			case userkey.ErrFriendKeyModelDisabled:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"error": {"message": "Model '%s' is disabled for this Friend Key", "type": "friend_key_model_disabled"}}`, openaiReq.Model)))
+				errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error": {"message": "Model '%s' is disabled for this Friend Key", "type": "friend_key_model_disabled"}}`, openaiReq.Model), http.StatusPaymentRequired, username, clientAPIKey)
 			case userkey.ErrFriendKeyModelLimitExceeded:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"error": {"message": "Friend Key spending limit exceeded for model '%s'", "type": "friend_key_model_limit_exceeded"}}`, openaiReq.Model)))
+				errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error": {"message": "Friend Key spending limit exceeded for model '%s'", "type": "friend_key_model_limit_exceeded"}}`, openaiReq.Model), http.StatusPaymentRequired, username, clientAPIKey)
 			default:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"error": {"message": "Friend Key model access denied", "type": "friend_key_error"}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"error": {"message": "Friend Key model access denied", "type": "friend_key_error"}}`, http.StatusPaymentRequired, username, clientAPIKey)
 			}
 			return
 		}
@@ -813,7 +800,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	upstreamConfig, selectedProxy, err := selectUpstreamConfig(model.ID, clientAPIKey)
 	if err != nil {
 		log.Printf("❌ Failed to select upstream: %v", err)
-		http.Error(w, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError)
+		errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Server configuration error", "type": "server_error"}}`, http.StatusInternalServerError, username, clientAPIKey)
 		return
 	}
 	authHeader = "Bearer " + upstreamConfig.APIKey
@@ -837,9 +824,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 						CreditsNew float64 `bson:"creditsNew"`
 					}
 					db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusPaymentRequired)
-					w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, user.CreditsNew, user.CreditsNew)))
+					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, user.CreditsNew, user.CreditsNew), http.StatusPaymentRequired, username, clientAPIKey)
 					return
 				}
 				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
@@ -851,9 +836,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 					log.Printf("💸 Insufficient credits for user %s (billing_upstream=ohmygpt)", username)
 					credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
 					totalBalance := credits + refCredits
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusPaymentRequired)
-					w.Write([]byte(fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, totalBalance, totalBalance)))
+					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, totalBalance, totalBalance), http.StatusPaymentRequired, username, clientAPIKey)
 					return
 				}
 				log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
@@ -888,7 +871,7 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			handleOhMyGPTOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		}
 	default:
-		http.Error(w, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest)
+		errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Unsupported model type", "type": "invalid_request_error"}}`, http.StatusBadRequest, username, clientAPIKey)
 	}
 	// NEW MODEL-BASED ROUTING - END
 }
@@ -984,7 +967,7 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 	resp, err := doRequestWithRetry(client, proxyReq, reqBody)
 	if err != nil {
 		log.Printf("Error: request failed after retries: %v", err)
-		http.Error(w, `{"error": {"message": "Request to upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		errorlog.HTTPError(w, r, `{"error": {"message": "Request to upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
@@ -3285,7 +3268,7 @@ func extractClientHeaders(r *http.Request) map[string]string {
 // Supports Anthropic native provider in Droid CLI and Anthropic SDK
 func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Method not allowed"}}`, http.StatusMethodNotAllowed)
+		errorlog.HTTPError(w, r, `{"type":"error","error":{"type":"invalid_request_error","message":"Method not allowed"}}`, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -3296,7 +3279,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	if authHeader != "" {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
-			http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid authorization header format"}}`, http.StatusUnauthorized)
+			errorlog.HTTPError(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Invalid authorization header format"}}`, http.StatusUnauthorized)
 			return
 		}
 		clientAPIKey = parts[1]
@@ -3305,7 +3288,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		clientAPIKey = xAPIKey
 		authHeader = "Bearer " + xAPIKey
 	} else {
-		http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Authorization header is required"}}`, http.StatusUnauthorized)
+		errorlog.HTTPError(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Authorization header is required"}}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -3324,7 +3307,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		// Validate with fixed PROXY_API_KEY from env
 		if clientAPIKey != proxyAPIKey {
 			log.Printf("❌ API Key validation failed (env): %s", clientKeyMask)
-			http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+			errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			return
 		}
 		log.Printf("🔑 Key validated (env): %s", clientKeyMask)
@@ -3335,18 +3318,16 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			log.Printf("❌ Friend Key validation failed: %s - %v", clientKeyMask, err)
 			switch err {
 			case userkey.ErrFriendKeyNotFound:
-				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			case userkey.ErrFriendKeyInactive:
-				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key has been deactivated"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key has been deactivated"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			case userkey.ErrFriendKeyOwnerInactive:
-				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key owner account is inactive"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Friend Key owner account is inactive"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			case userkey.ErrFriendKeyOwnerNoCredits:
 				// Story 4.2 AC4: Generic message for Friend Key - do NOT expose owner's balance
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Please contact the key owner."}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Please contact the key owner."}}`, http.StatusPaymentRequired, "", clientAPIKey)
 			default:
-				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			}
 			return
 		}
@@ -3360,22 +3341,16 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("❌ API Key validation failed (db): %s - %v", clientKeyMask, err)
 			if err == userkey.ErrKeyRevoked {
-				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"API key has been revoked"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"authentication_error","message":"API key has been revoked"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			} else if err == userkey.ErrInsufficientCredits {
 				// Story 4.2 AC2: Use insufficient_credits type, include balance info
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $0.00"}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $0.00"}}`, http.StatusPaymentRequired, "", clientAPIKey)
 			} else if err == userkey.ErrCreditsExpired {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"type":"error","error":{"type":"credits_expired","message":"Credits have expired. Please purchase new credits."}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"type":"error","error":{"type":"credits_expired","message":"Credits have expired. Please purchase new credits."}}`, http.StatusPaymentRequired, "", clientAPIKey)
 			} else if err == userkey.ErrMigrationRequired {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte(`{"type":"error","error":{"type":"migration_required","message":"Migration required: please visit https://trollllm.xyz/dashboard to migrate your account to the new billing rate (1000→2500 VNĐ/$)"}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"type":"error","error":{"type":"migration_required","message":"Migration required: please visit https://trollllm.xyz/dashboard to migrate your account to the new billing rate (1000→2500 VNĐ/$)"}}`, http.StatusForbidden, "", clientAPIKey)
 			} else {
-				http.Error(w, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized)
+				errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"authentication_error","message":"Invalid API key"}}`, http.StatusUnauthorized, "", clientAPIKey)
 			}
 			return
 		}
@@ -3398,7 +3373,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v", err)
-		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Failed to read request body"}}`, http.StatusBadRequest)
+		errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"invalid_request_error","message":"Failed to read request body"}}`, http.StatusBadRequest, username, clientAPIKey)
 		return
 	}
 	defer r.Body.Close()
@@ -3424,7 +3399,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	model := config.GetModelByID(anthropicReq.Model)
 	if model == nil {
 		log.Printf("❌ Unsupported model: %s", anthropicReq.Model)
-		http.Error(w, `{"type":"error","error":{"type":"invalid_request_error","message":"Model not found"}}`, http.StatusNotFound)
+		errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"invalid_request_error","message":"Model not found"}}`, http.StatusNotFound, username, clientAPIKey)
 		return
 	}
 
@@ -3432,20 +3407,15 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	if isFriendKeyRequest && friendKeyID != "" {
 		if err := userkey.CheckFriendKeyModelLimit(friendKeyID, anthropicReq.Model); err != nil {
 			log.Printf("🚫 Friend Key model limit check failed: %s - %v", clientKeyMask, err)
-			w.Header().Set("Content-Type", "application/json")
 			switch err {
 			case userkey.ErrFriendKeyModelNotAllowed:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_not_allowed","message":"Model '%s' is not configured for this Friend Key"}}`, anthropicReq.Model)))
+				errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_not_allowed","message":"Model '%s' is not configured for this Friend Key"}}`, anthropicReq.Model), http.StatusPaymentRequired, username, clientAPIKey)
 			case userkey.ErrFriendKeyModelDisabled:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_disabled","message":"Model '%s' is disabled for this Friend Key"}}`, anthropicReq.Model)))
+				errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_disabled","message":"Model '%s' is disabled for this Friend Key"}}`, anthropicReq.Model), http.StatusPaymentRequired, username, clientAPIKey)
 			case userkey.ErrFriendKeyModelLimitExceeded:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_limit_exceeded","message":"Friend Key spending limit exceeded for model '%s'"}}`, anthropicReq.Model)))
+				errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"friend_key_model_limit_exceeded","message":"Friend Key spending limit exceeded for model '%s'"}}`, anthropicReq.Model), http.StatusPaymentRequired, username, clientAPIKey)
 			default:
-				w.WriteHeader(http.StatusPaymentRequired)
-				w.Write([]byte(`{"type":"error","error":{"type":"friend_key_error","message":"Friend Key model access denied"}}`))
+				errorlog.JSONErrorWithUser(w, r, `{"type":"error","error":{"type":"friend_key_error","message":"Friend Key model access denied"}}`, http.StatusPaymentRequired, username, clientAPIKey)
 			}
 			return
 		}
@@ -3457,7 +3427,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	upstreamConfig, selectedProxy, err := selectUpstreamConfig(model.ID, clientAPIKey)
 	if err != nil {
 		log.Printf("❌ Failed to select upstream: %v", err)
-		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Server configuration error"}}`, http.StatusInternalServerError)
+		errorlog.HTTPErrorWithUser(w, r, `{"type":"error","error":{"type":"api_error","message":"Server configuration error"}}`, http.StatusInternalServerError, username, clientAPIKey)
 		return
 	}
 	authHeader = "Bearer " + upstreamConfig.APIKey
@@ -3481,9 +3451,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 						CreditsNew float64 `bson:"creditsNew"`
 					}
 					db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusPaymentRequired)
-					w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient creditsNew. Current balance: $%.2f"}}`, user.CreditsNew)))
+					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient creditsNew. Current balance: $%.2f"}}`, user.CreditsNew), http.StatusPaymentRequired, username, clientAPIKey)
 					return
 				}
 				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
@@ -3495,9 +3463,7 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 					log.Printf("💸 Insufficient credits for user %s (billing_upstream=ohmygpt)", username)
 					credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
 					balance := credits + refCredits
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusPaymentRequired)
-					w.Write([]byte(fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, balance)))
+					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, balance), http.StatusPaymentRequired, username, clientAPIKey)
 					return
 				}
 				log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
