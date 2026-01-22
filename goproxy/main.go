@@ -3234,11 +3234,17 @@ func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []trans
 }
 
 // combineSystemText flattens Anthropic system prompt entries into a single string
+// Skips entries containing reserved Anthropic headers that cause 400 errors
 func combineSystemText(systemEntries []map[string]interface{}) string {
 	var builder strings.Builder
 	for _, entry := range systemEntries {
 		text, _ := entry["text"].(string)
 		if text == "" {
+			continue
+		}
+		// Skip entries containing reserved Anthropic headers
+		if strings.Contains(strings.ToLower(text), "x-anthropic-billing-header") {
+			log.Printf("🧹 [Sanitize] Removed system entry containing x-anthropic-billing-header")
 			continue
 		}
 		if builder.Len() > 0 {
