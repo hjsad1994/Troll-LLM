@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -47,8 +46,6 @@ var (
 	trollKeyPool  *keypool.KeyPool
 	healthChecker *proxy.HealthChecker
 	rateLimiter   *ratelimit.RateLimiter
-	// Pre-compiled regex for sanitizeBlockedContent (performance optimization)
-	blockedPatternRegexes []*regexp.Regexp
 
 	// NEW MODEL-BASED ROUTING - BEGIN
 	// Main Target Server configuration (for Sonnet 4.5 and Haiku 4.5)
@@ -56,32 +53,6 @@ var (
 	mainUpstreamKey  string
 	// NEW MODEL-BASED ROUTING - END
 )
-
-func init() {
-	// Pre-compile blocked patterns once at startup
-	blockedPatterns := []string{
-		`(?i)You are Claude Code`,
-		`(?i)You are Claude`,
-		`(?i)You'?re Claude`,
-		`(?i)Claude Code`,
-		`(?i)I am Claude Code`,
-		`(?i)I'?m Claude Code`,
-		`(?i)As Claude Code`,
-		`(?i)Claude, an AI assistant`,
-		`(?i)Claude, made by Anthropic`,
-		`(?i)Claude, created by Anthropic`,
-		`(?i)an AI assistant named Claude`,
-		`(?i)an AI called Claude`,
-		`(?i)assistant Claude`,
-		`(?i)Kilo Code`,
-		`(?i)Cline`,
-		`(?i)Roo Code`,
-		`(?i)Cursor`,
-	}
-	for _, pattern := range blockedPatterns {
-		blockedPatternRegexes = append(blockedPatternRegexes, regexp.MustCompile(pattern))
-	}
-}
 
 // Retry configuration
 const (
@@ -1286,36 +1257,13 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		delete(rawRequest, "top_p")
 	}
 
-	// Inject and merge system prompt
-	configSystemPrompt := config.GetSystemPrompt()
-	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.GetSystemAsArray()))
-	var systemEntries []map[string]interface{}
-
-	// Add config system prompt first (higher priority)
-	if configSystemPrompt != "" {
-		systemEntries = append(systemEntries, map[string]interface{}{
-			"type": "text",
-			"text": configSystemPrompt,
-		})
-		log.Printf("✅ [Troll-LLM] Injected config system prompt (%d chars)", len(configSystemPrompt))
-	}
-
-	// Add user system prompt (sanitized to remove blocked content)
-	if userSystemText != "" {
-		sanitizedUserSystem := sanitizeBlockedContent(userSystemText)
-		if sanitizedUserSystem != "" {
-			systemEntries = append(systemEntries, map[string]interface{}{
-				"type": "text",
-				"text": sanitizedUserSystem,
-			})
-			log.Printf("✅ [Troll-LLM] Merged user system prompt (%d chars)", len(sanitizedUserSystem))
-		}
-	}
-
-	if len(systemEntries) > 0 {
-		anthropicReq.System = systemEntries
-	} else {
-		anthropicReq.System = nil
+	// Keep user system prompt only - no config injection for OpenHands upstream
+	// User's system prompt is already in anthropicReq.System from the original request
+	userSystemArray := anthropicReq.GetSystemAsArray()
+	if len(userSystemArray) > 0 {
+		// Keep user system prompt as-is (no sanitization needed)
+		anthropicReq.System = userSystemArray
+		log.Printf("✅ [Troll-LLM] Using user system prompt (%d entries)", len(userSystemArray))
 	}
 
 	// ==========================================================================
@@ -1727,40 +1675,15 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 		openaiReq.TopP = 0 // Reset to zero value, will be omitempty
 	}
 
-	// Inject and merge system prompt (OpenAI format uses system message)
-	configSystemPrompt := config.GetSystemPrompt()
-	if configSystemPrompt != "" {
-		// Check if there's already a system message
-		var existingSystemContent string
-		foundSystemIndex := -1
-
-		for i, msg := range openaiReq.Messages {
-			if msg.Role == "system" {
-				if content, ok := msg.Content.(string); ok {
-					existingSystemContent = content
-					foundSystemIndex = i
-					break
-				}
+	// Keep user system prompt only - no config injection for OpenHands upstream
+	// Log if system message exists
+	for _, msg := range openaiReq.Messages {
+		if msg.Role == "system" {
+			if content, ok := msg.Content.(string); ok {
+				log.Printf("✅ [OpenHands-OpenAI] Using user system prompt (%d chars)", len(content))
 			}
+			break
 		}
-
-		// Merge: config prompt first, then user's system message
-		mergedSystemContent := configSystemPrompt
-		if existingSystemContent != "" {
-			mergedSystemContent = configSystemPrompt + "\n\n" + sanitizeBlockedContent(existingSystemContent)
-			log.Printf("✅ [OpenHands-OpenAI] Merged system prompts (config: %d chars, user: %d chars)", len(configSystemPrompt), len(existingSystemContent))
-			// Remove existing system message, we'll add merged one at the beginning
-			openaiReq.Messages = append(openaiReq.Messages[:foundSystemIndex], openaiReq.Messages[foundSystemIndex+1:]...)
-		} else {
-			log.Printf("✅ [OpenHands-OpenAI] Injected config system prompt (%d chars)", len(configSystemPrompt))
-		}
-
-		// Insert merged system message at the beginning
-		systemMessage := transformers.OpenAIMessage{
-			Role:    "system",
-			Content: mergedSystemContent,
-		}
-		openaiReq.Messages = append([]transformers.OpenAIMessage{systemMessage}, openaiReq.Messages...)
 	}
 
 	// ==========================================================================
@@ -3123,17 +3046,6 @@ func getMapKeys(m map[string]interface{}) []string {
 	return keys
 }
 
-// sanitizeBlockedContent removes or replaces content that Factory AI blocks
-// This includes phrases like "You are Claude Code" which trigger 403 errors
-// Uses pre-compiled regex patterns for performance
-func sanitizeBlockedContent(text string) string {
-	result := text
-	for _, re := range blockedPatternRegexes {
-		result = re.ReplaceAllString(result, "an AI assistant")
-	}
-	return result
-}
-
 // detectAssistantThinkingState analyzes assistant messages to determine thinking state.
 // Returns:
 //   - hasThinking: true if ANY assistant message has thinking/redacted_thinking blocks
@@ -3186,40 +3098,6 @@ func detectAssistantThinkingState(messages []transformers.AnthropicMessage) (has
 		}
 	}
 	return hasThinking, hasNonThinking
-}
-
-// sanitizeAnthropicMessages sanitizes all messages to remove blocked content
-func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []transformers.AnthropicMessage {
-	for i := range messages {
-		// Handle string content
-		if strContent, ok := messages[i].Content.(string); ok {
-			messages[i].Content = sanitizeBlockedContent(strContent)
-			continue
-		}
-
-		// Handle array content
-		if arrContent, ok := messages[i].Content.([]map[string]interface{}); ok {
-			for j := range arrContent {
-				if text, ok := arrContent[j]["text"].(string); ok {
-					arrContent[j]["text"] = sanitizeBlockedContent(text)
-				}
-			}
-			messages[i].Content = arrContent
-		}
-
-		// Handle []interface{} content
-		if arrContent, ok := messages[i].Content.([]interface{}); ok {
-			for j := range arrContent {
-				if block, ok := arrContent[j].(map[string]interface{}); ok {
-					if text, ok := block["text"].(string); ok {
-						block["text"] = sanitizeBlockedContent(text)
-					}
-				}
-			}
-			messages[i].Content = arrContent
-		}
-	}
-	return messages
 }
 
 // combineSystemText flattens Anthropic system prompt entries into a single string
@@ -3512,12 +3390,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Sanitize messages to remove blocked content (e.g., "Claude Code" phrases)
-	anthropicReq.Messages = sanitizeAnthropicMessages(anthropicReq.Messages)
-	if debugMode {
-		log.Printf("🧹 Sanitized messages to remove blocked content")
-	}
-
 	// OLD CODE - BEGIN
 	// // Get Anthropic endpoint from config (same as existing handler)
 	// endpoint := config.GetEndpointByType("anthropic")
@@ -3530,33 +3402,17 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	// NEW MODEL-BASED ROUTING - Use endpoint from upstreamConfig
 	endpointURL := upstreamConfig.EndpointURL
 
-	// Add system prompt if not present (Factory AI requires this)
-	userSystemText := sanitizeBlockedContent(combineSystemText(anthropicReq.GetSystemAsArray()))
-	// Combine proxy system prompt + user system prompt (sanitized)
-	systemPrompt := config.GetSystemPrompt()
-	var systemEntries []map[string]interface{}
-
-	// Add proxy system prompt first (higher priority)
-	if systemPrompt != "" {
-		systemEntries = append(systemEntries, map[string]interface{}{
-			"type": "text",
-			"text": systemPrompt,
-		})
-	}
-
-	// Add user system prompt (sanitized to remove blocked content)
+	// Keep user system prompt only - no config injection
+	// Use combineSystemText to filter out x-anthropic-billing-header entries
+	userSystemText := combineSystemText(anthropicReq.GetSystemAsArray())
 	if userSystemText != "" {
-		sanitizedUserSystem := sanitizeBlockedContent(userSystemText)
-		if sanitizedUserSystem != "" {
-			systemEntries = append(systemEntries, map[string]interface{}{
+		anthropicReq.System = []map[string]interface{}{
+			{
 				"type": "text",
-				"text": sanitizedUserSystem,
-			})
+				"text": userSystemText,
+			},
 		}
-	}
-
-	if len(systemEntries) > 0 {
-		anthropicReq.System = systemEntries
+		log.Printf("✅ [/v1/messages] Using user system prompt (%d chars)", len(userSystemText))
 	} else {
 		anthropicReq.System = nil
 	}
