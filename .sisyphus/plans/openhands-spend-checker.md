@@ -6,10 +6,17 @@ Implement proactive API key rotation for OpenHands upstream. Rotate keys BEFORE 
 ## Configuration
 | Parameter | Default | Env Variable |
 |-----------|---------|--------------|
-| Spend Threshold | $9.8 | `OPENHANDS_SPEND_THRESHOLD` |
+| Spend Threshold | $9.95 | `OPENHANDS_SPEND_THRESHOLD` |
 | Active Key Window | 4 minutes | hardcoded |
-| Active Check Interval | 10 seconds | `OPENHANDS_ACTIVE_CHECK_INTERVAL` |
-| Idle Check Interval | 1 hour | `OPENHANDS_IDLE_CHECK_INTERVAL` |
+
+### Tiered Check Intervals (based on current spend)
+| Spend Range | Check Interval | Description |
+|-------------|----------------|-------------|
+| < $5 (LOW) | 5 minutes | Low spend, infrequent checks |
+| $5 - $7 (MEDIUM) | 2 minutes | Moderate spend, moderate checks |
+| >= $7 (HIGH) | 10 seconds | Approaching limit, frequent checks |
+
+**Note:** The legacy `OPENHANDS_ACTIVE_CHECK_INTERVAL` and `OPENHANDS_IDLE_CHECK_INTERVAL` env vars are no longer used. The check interval is now dynamically determined by the key's current spend level.
 
 ## OpenHands API for Spend Check
 ```

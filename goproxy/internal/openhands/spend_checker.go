@@ -19,23 +19,37 @@ import (
 
 // Constants for spend checking
 const (
-	OpenHandsActivityURL       = "https://llm-proxy.app.all-hands.dev/user/daily/activity"
-	DefaultSpendThreshold      = 9.95
+	OpenHandsActivityURL   = "https://llm-proxy.app.all-hands.dev/user/daily/activity"
+	DefaultSpendThreshold  = 9.95
+	SpendHistoryCollection = "openhands_key_spend_history"
+	ActiveKeyWindow        = 4 * time.Minute
+
+	// Tiered check intervals based on spend amount
+	// High spend (>= $7): check very frequently for proactive rotation
+	HighSpendThreshold     = 7.0
+	HighSpendCheckInterval = 10 * time.Second
+
+	// Medium spend ($5-$7): moderate check frequency
+	MediumSpendThreshold     = 5.0
+	MediumSpendCheckInterval = 2 * time.Minute
+
+	// Low spend (< $5): infrequent checks
+	LowSpendCheckInterval = 5 * time.Minute
+
+	// Legacy defaults (kept for backward compatibility in StartSpendChecker signature)
 	DefaultActiveCheckInterval = 10 * time.Second
 	DefaultIdleCheckInterval   = 1 * time.Hour
-	ActiveKeyWindow            = 4 * time.Minute
-	SpendHistoryCollection     = "openhands_key_spend_history"
 )
 
 // SpendChecker monitors OpenHands key spend and triggers proactive rotation
 type SpendChecker struct {
-	provider            *OpenHandsProvider
-	threshold           float64
-	activeCheckInterval time.Duration
-	idleCheckInterval   time.Duration
-	stopChan            chan struct{}
-	running             bool
-	mu                  sync.Mutex
+	provider  *OpenHandsProvider
+	threshold float64
+	// baseCheckInterval is the ticker interval (uses fastest possible: 10s)
+	baseCheckInterval time.Duration
+	stopChan          chan struct{}
+	running           bool
+	mu                sync.Mutex
 }
 
 // SpendCheckResult represents the result of a spend check API call
@@ -65,12 +79,21 @@ type SpendHistoryEntry struct {
 
 // SpendCheckerStats represents stats for the endpoint
 type SpendCheckerStats struct {
-	Running             bool           `json:"running"`
-	Threshold           float64        `json:"threshold"`
-	ActiveCheckInterval string         `json:"active_check_interval"`
-	IdleCheckInterval   string         `json:"idle_check_interval"`
-	KeysMonitored       int            `json:"keys_monitored"`
-	KeyStats            []KeySpendStat `json:"key_stats,omitempty"`
+	Running       bool    `json:"running"`
+	Threshold     float64 `json:"threshold"`
+	KeysMonitored int     `json:"keys_monitored"`
+	// Tiered interval info
+	TieredIntervals TieredIntervalsInfo `json:"tiered_intervals"`
+	KeyStats        []KeySpendStat      `json:"key_stats,omitempty"`
+}
+
+// TieredIntervalsInfo describes the spend-based check interval tiers
+type TieredIntervalsInfo struct {
+	HighSpendThreshold       float64 `json:"high_spend_threshold"`        // >= this = high tier
+	HighSpendCheckInterval   string  `json:"high_spend_check_interval"`   // interval for high tier
+	MediumSpendThreshold     float64 `json:"medium_spend_threshold"`      // >= this = medium tier
+	MediumSpendCheckInterval string  `json:"medium_spend_check_interval"` // interval for medium tier
+	LowSpendCheckInterval    string  `json:"low_spend_check_interval"`    // interval for low tier (< medium threshold)
 }
 
 // KeySpendStat represents spend stats for a single key
@@ -78,6 +101,8 @@ type KeySpendStat struct {
 	KeyID          string     `json:"key_id"`
 	TotalSpend     float64    `json:"total_spend"`
 	SpendPercent   float64    `json:"spend_percent"`
+	SpendTier      string     `json:"spend_tier"`     // LOW, MEDIUM, HIGH
+	CheckInterval  string     `json:"check_interval"` // Current check interval for this key
 	LastSpendCheck *time.Time `json:"last_spend_check,omitempty"`
 	LastUsedAt     *time.Time `json:"last_used_at,omitempty"`
 	IsActive       bool       `json:"is_active"`
@@ -88,14 +113,14 @@ var spendChecker *SpendChecker
 var spendCheckerMu sync.Mutex
 
 // NewSpendChecker creates a new SpendChecker instance
+// Note: activeInterval and idleInterval are ignored - using tiered spend-based intervals instead
 func NewSpendChecker(provider *OpenHandsProvider, threshold float64, activeInterval, idleInterval time.Duration) *SpendChecker {
 	return &SpendChecker{
-		provider:            provider,
-		threshold:           threshold,
-		activeCheckInterval: activeInterval,
-		idleCheckInterval:   idleInterval,
-		stopChan:            make(chan struct{}),
-		running:             false,
+		provider:          provider,
+		threshold:         threshold,
+		baseCheckInterval: HighSpendCheckInterval, // Use fastest interval as base ticker
+		stopChan:          make(chan struct{}),
+		running:           false,
 	}
 }
 
@@ -109,12 +134,12 @@ func (sc *SpendChecker) Start() {
 	sc.running = true
 	sc.mu.Unlock()
 
-	log.Printf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, active: %v, idle: %v)",
-		sc.threshold, sc.activeCheckInterval, sc.idleCheckInterval)
+	log.Printf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$7=%v, >=$7=%v)",
+		sc.threshold, LowSpendCheckInterval, MediumSpendCheckInterval, HighSpendCheckInterval)
 
 	go func() {
-		// Use active check interval as the ticker - we'll skip idle keys based on their last check time
-		ticker := time.NewTicker(sc.activeCheckInterval)
+		// Use base check interval (10s) as ticker - we'll skip keys based on their spend tier
+		ticker := time.NewTicker(sc.baseCheckInterval)
 		defer ticker.Stop()
 
 		// Run immediately on startup
@@ -238,7 +263,32 @@ func (sc *SpendChecker) isKeyActive(key *OpenHandsKey, now time.Time) bool {
 	return now.Sub(*key.LastUsedAt) < ActiveKeyWindow
 }
 
-// shouldCheckKey determines if we should check this key's spend based on intervals
+// getCheckIntervalForSpend returns the appropriate check interval based on current spend
+// - Spend >= $7: check every 10 seconds (approaching limit, need frequent checks)
+// - Spend $5-$7: check every 2 minutes (moderate spend, moderate checks)
+// - Spend < $5: check every 5 minutes (low spend, infrequent checks)
+func (sc *SpendChecker) getCheckIntervalForSpend(spend float64) time.Duration {
+	if spend >= HighSpendThreshold {
+		return HighSpendCheckInterval // 10s
+	}
+	if spend >= MediumSpendThreshold {
+		return MediumSpendCheckInterval // 2m
+	}
+	return LowSpendCheckInterval // 5m
+}
+
+// getSpendTierName returns a human-readable tier name for logging
+func (sc *SpendChecker) getSpendTierName(spend float64) string {
+	if spend >= HighSpendThreshold {
+		return "HIGH"
+	}
+	if spend >= MediumSpendThreshold {
+		return "MEDIUM"
+	}
+	return "LOW"
+}
+
+// shouldCheckKey determines if we should check this key's spend based on tiered intervals
 func (sc *SpendChecker) shouldCheckKey(key *OpenHandsKey, isActive bool, now time.Time) bool {
 	// If never checked, always check
 	if key.LastSpendCheck == nil {
@@ -247,13 +297,10 @@ func (sc *SpendChecker) shouldCheckKey(key *OpenHandsKey, isActive bool, now tim
 
 	elapsed := now.Sub(*key.LastSpendCheck)
 
-	if isActive {
-		// Active keys: check every activeCheckInterval
-		return elapsed >= sc.activeCheckInterval
-	}
+	// Get the appropriate interval based on current spend
+	checkInterval := sc.getCheckIntervalForSpend(key.TotalSpend)
 
-	// Idle keys: check every idleCheckInterval
-	return elapsed >= sc.idleCheckInterval
+	return elapsed >= checkInterval
 }
 
 // checkKeySpend calls the OpenHands API to get spend for a specific key
@@ -427,10 +474,15 @@ func (sc *SpendChecker) GetStats() SpendCheckerStats {
 	sc.mu.Unlock()
 
 	stats := SpendCheckerStats{
-		Running:             running,
-		Threshold:           sc.threshold,
-		ActiveCheckInterval: sc.activeCheckInterval.String(),
-		IdleCheckInterval:   sc.idleCheckInterval.String(),
+		Running:   running,
+		Threshold: sc.threshold,
+		TieredIntervals: TieredIntervalsInfo{
+			HighSpendThreshold:       HighSpendThreshold,
+			HighSpendCheckInterval:   HighSpendCheckInterval.String(),
+			MediumSpendThreshold:     MediumSpendThreshold,
+			MediumSpendCheckInterval: MediumSpendCheckInterval.String(),
+			LowSpendCheckInterval:    LowSpendCheckInterval.String(),
+		},
 	}
 
 	if !running {
@@ -451,6 +503,8 @@ func (sc *SpendChecker) GetStats() SpendCheckerStats {
 			KeyID:          key.ID,
 			TotalSpend:     key.TotalSpend,
 			SpendPercent:   (key.TotalSpend / sc.threshold) * 100,
+			SpendTier:      sc.getSpendTierName(key.TotalSpend),
+			CheckInterval:  sc.getCheckIntervalForSpend(key.TotalSpend).String(),
 			LastSpendCheck: key.LastSpendCheck,
 			LastUsedAt:     key.LastUsedAt,
 			IsActive:       key.LastUsedAt != nil && now.Sub(*key.LastUsedAt) < ActiveKeyWindow,
