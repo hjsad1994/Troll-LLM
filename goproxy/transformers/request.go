@@ -1,50 +1,11 @@
 package transformers
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
 	"goproxy/config"
 )
-
-// Pre-compiled regex patterns for blocked content
-var blockedPatternRegexes []*regexp.Regexp
-
-func init() {
-	// Pre-compile blocked patterns once at startup
-	blockedPatterns := []string{
-		`(?i)You are Claude Code`,
-		`(?i)You are Claude`,
-		`(?i)You'?re Claude`,
-		`(?i)Claude Code`,
-		`(?i)I am Claude Code`,
-		`(?i)I'?m Claude Code`,
-		`(?i)As Claude Code`,
-		`(?i)Claude, an AI assistant`,
-		`(?i)Claude, made by Anthropic`,
-		`(?i)Claude, created by Anthropic`,
-		`(?i)an AI assistant named Claude`,
-		`(?i)an AI called Claude`,
-		`(?i)assistant Claude`,
-		`(?i)Kilo Code`,
-		`(?i)Cline`,
-		`(?i)Roo Code`,
-		`(?i)Cursor`,
-	}
-	for _, pattern := range blockedPatterns {
-		blockedPatternRegexes = append(blockedPatternRegexes, regexp.MustCompile(pattern))
-	}
-}
-
-// sanitizeBlockedContent removes or replaces content that Factory AI blocks
-func sanitizeBlockedContent(text string) string {
-	result := text
-	for _, re := range blockedPatternRegexes {
-		result = re.ReplaceAllString(result, "an AI assistant")
-	}
-	return result
-}
 
 // convertImageURLToAnthropic converts OpenAI image_url format to Anthropic image format
 // OpenAI: {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..." or "https://..."}}
@@ -99,7 +60,7 @@ func convertImageURLToAnthropic(url string) map[string]interface{} {
 // OpenAIMessage represents an OpenAI format message
 type OpenAIMessage struct {
 	Role       string      `json:"role"`
-	Content    interface{} `json:"content"`               // Can be string or []ContentPart
+	Content    interface{} `json:"content"`                // Can be string or []ContentPart
 	ToolCallID string      `json:"tool_call_id,omitempty"` // For tool result messages
 	ToolCalls  interface{} `json:"tool_calls,omitempty"`   // For assistant tool call messages
 }
@@ -126,8 +87,8 @@ type OpenAIRequest struct {
 
 // AnthropicMessage represents an Anthropic format message
 type AnthropicMessage struct {
-	Role         string      `json:"role"`
-	Content      interface{} `json:"content"` // Can be string or []map[string]interface{}
+	Role         string        `json:"role"`
+	Content      interface{}   `json:"content"` // Can be string or []map[string]interface{}
 	CacheControl *CacheControl `json:"cache_control,omitempty"`
 }
 
@@ -263,7 +224,6 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 
 	// Convert messages and extract system
 	var userSystemMessages []string
-	systemPrompt := config.GetSystemPrompt()
 
 	for _, msg := range req.Messages {
 		if msg.Role == "system" {
@@ -284,7 +244,7 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 				"type": "text",
 				"text": text,
 			}
-			
+
 			// Enable caching for user messages with substantial content (>2000 chars)
 			// This is useful for caching file contents, long contexts, etc.
 			if msg.Role == "user" && len(text) > 2000 {
@@ -292,7 +252,7 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 					"type": "ephemeral",
 				}
 			}
-			
+
 			contentArray = append(contentArray, textBlock)
 		} else if parts, ok := msg.Content.([]interface{}); ok {
 			for i, part := range parts {
@@ -310,7 +270,7 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 					} else if partType == "text" {
 						// For text blocks in multi-part content
 						textBlock := partMap
-						
+
 						// Enable caching for last text block if it's substantial
 						// (useful for caching the last context block in conversation)
 						if msg.Role == "user" && i == len(parts)-1 {
@@ -320,7 +280,7 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 								}
 							}
 						}
-						
+
 						contentArray = append(contentArray, textBlock)
 					} else {
 						contentArray = append(contentArray, partMap)
@@ -337,38 +297,24 @@ func TransformToAnthropic(req *OpenAIRequest) *AnthropicRequest {
 		anthropicReq.Messages = append(anthropicReq.Messages, anthropicMsg)
 	}
 
-	// Combine proxy system prompt + user system prompt (sanitized)
+	// Keep user system prompts only - no config injection
 	var systemEntries []map[string]interface{}
-	
-	// Add proxy system prompt first (higher priority)
-	if systemPrompt != "" {
-		systemEntries = append(systemEntries, map[string]interface{}{
-			"type": "text",
-			"text": systemPrompt,
-			// Enable prompt caching for system prompt (min 1024 tokens for Sonnet 4+)
-			// Cache TTL: 5 minutes, refreshed on each use
-			"cache_control": map[string]interface{}{
-				"type": "ephemeral",
-			},
-		})
-	}
-	
-	// Add user system prompts (sanitized to remove blocked content)
+
+	// Add user system prompts as-is (no sanitization needed)
 	if len(userSystemMessages) > 0 {
 		combinedUserSystem := strings.Join(userSystemMessages, "\n\n")
-		sanitizedUserSystem := sanitizeBlockedContent(combinedUserSystem)
-		if sanitizedUserSystem != "" {
+		if combinedUserSystem != "" {
 			systemEntries = append(systemEntries, map[string]interface{}{
 				"type": "text",
-				"text": sanitizedUserSystem,
-				// Enable caching for user system prompts too
+				"text": combinedUserSystem,
+				// Enable caching for user system prompts
 				"cache_control": map[string]interface{}{
 					"type": "ephemeral",
 				},
 			})
 		}
 	}
-	
+
 	if len(systemEntries) > 0 {
 		anthropicReq.System = systemEntries
 	}
@@ -512,8 +458,7 @@ func TransformToTrollOpenAI(req *OpenAIRequest) *TrollOpenAIRequest {
 		trollReq.Tools = req.Tools
 	}
 
-	// Extract system message as instructions
-	systemPrompt := config.GetSystemPrompt()
+	// Extract system message as instructions - keep user system prompt only
 	var userSystemMessages []string
 
 	for _, msg := range req.Messages {
@@ -570,12 +515,9 @@ func TransformToTrollOpenAI(req *OpenAIRequest) *TrollOpenAIRequest {
 		trollReq.Input = append(trollReq.Input, trollMsg)
 	}
 
-	// Set instructions
-	if systemPrompt != "" || len(userSystemMessages) > 0 {
-		instructions := systemPrompt
-		for _, msg := range userSystemMessages {
-			instructions += msg
-		}
+	// Set instructions - use user system prompt only (no sanitization needed)
+	if len(userSystemMessages) > 0 {
+		instructions := strings.Join(userSystemMessages, "\n\n")
 		trollReq.Instructions = instructions
 	}
 
@@ -646,10 +588,10 @@ func GetAnthropicHeaders(authHeader string, clientHeaders map[string]string, isS
 // Sends both x-api-key and Authorization Bearer for compatibility
 func GetMainTargetHeaders(apiKey string, clientHeaders map[string]string, isStreaming bool) map[string]string {
 	headers := map[string]string{
-		"content-type":         "application/json",
-		"x-api-key":            apiKey,
-		"authorization":        "Bearer " + apiKey,
-		"anthropic-version":    "2023-06-01",
+		"content-type":      "application/json",
+		"x-api-key":         apiKey,
+		"authorization":     "Bearer " + apiKey,
+		"anthropic-version": "2023-06-01",
 	}
 
 	if isStreaming {
