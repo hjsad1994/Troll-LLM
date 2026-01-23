@@ -1258,12 +1258,13 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	}
 
 	// Keep user system prompt only - no config injection for OpenHands upstream
-	// User's system prompt is already in anthropicReq.System from the original request
-	userSystemArray := anthropicReq.GetSystemAsArray()
+	// Filter out x-anthropic-billing-header entries while preserving array structure
+	userSystemArray := filterSystemEntries(anthropicReq.GetSystemAsArray())
 	if len(userSystemArray) > 0 {
-		// Keep user system prompt as-is (no sanitization needed)
 		anthropicReq.System = userSystemArray
 		log.Printf("✅ [Troll-LLM] Using user system prompt (%d entries)", len(userSystemArray))
+	} else {
+		anthropicReq.System = nil
 	}
 
 	// ==========================================================================
@@ -3100,6 +3101,25 @@ func detectAssistantThinkingState(messages []transformers.AnthropicMessage) (has
 	return hasThinking, hasNonThinking
 }
 
+// filterSystemEntries filters system entries, removing those containing reserved headers
+// Returns filtered array preserving original structure (keeps cache_control, etc.)
+func filterSystemEntries(systemEntries []map[string]interface{}) []map[string]interface{} {
+	var filtered []map[string]interface{}
+	for _, entry := range systemEntries {
+		text, _ := entry["text"].(string)
+		if text == "" {
+			continue
+		}
+		// Skip entries containing reserved Anthropic headers
+		if strings.Contains(strings.ToLower(text), "x-anthropic-billing-header") {
+			log.Printf("🧹 [Sanitize] Removed system entry containing x-anthropic-billing-header")
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
+
 // combineSystemText flattens Anthropic system prompt entries into a single string
 // Skips entries containing reserved Anthropic headers that cause 400 errors
 func combineSystemText(systemEntries []map[string]interface{}) string {
@@ -3403,16 +3423,11 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	endpointURL := upstreamConfig.EndpointURL
 
 	// Keep user system prompt only - no config injection
-	// Use combineSystemText to filter out x-anthropic-billing-header entries
-	userSystemText := combineSystemText(anthropicReq.GetSystemAsArray())
-	if userSystemText != "" {
-		anthropicReq.System = []map[string]interface{}{
-			{
-				"type": "text",
-				"text": userSystemText,
-			},
-		}
-		log.Printf("✅ [/v1/messages] Using user system prompt (%d chars)", len(userSystemText))
+	// Filter out x-anthropic-billing-header entries while preserving array structure
+	userSystemArray := filterSystemEntries(anthropicReq.GetSystemAsArray())
+	if len(userSystemArray) > 0 {
+		anthropicReq.System = userSystemArray
+		log.Printf("✅ [/v1/messages] Using user system prompt (%d entries)", len(userSystemArray))
 	} else {
 		anthropicReq.System = nil
 	}
