@@ -22,15 +22,12 @@ const defaultTranslations = {
     totalOrders: 'Total Orders',
   },
   filters: {
-    status: 'Status',
     all: 'All',
-    success: 'Success',
-    pending: 'Pending',
-    failed: 'Failed',
-    expired: 'Expired',
+    last24h: '24h',
+    last7d: '7d',
+    last30d: '30d',
     from: 'From',
     to: 'To',
-    clear: 'Clear',
   },
   table: {
     orderCode: 'Order Code',
@@ -284,7 +281,7 @@ export default function PaymentHistoryPage() {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Tất cả
+                {pt.filters.all}
               </button>
               <button
                 onClick={() => {
@@ -296,7 +293,7 @@ export default function PaymentHistoryPage() {
                 }}
                 className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 transition-all"
               >
-                24h
+                {pt.filters.last24h}
               </button>
               <button
                 onClick={() => {
@@ -308,7 +305,7 @@ export default function PaymentHistoryPage() {
                 }}
                 className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 transition-all"
               >
-                7d
+                {pt.filters.last7d}
               </button>
               <button
                 onClick={() => {
@@ -320,7 +317,7 @@ export default function PaymentHistoryPage() {
                 }}
                 className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 transition-all"
               >
-                30d
+                {pt.filters.last30d}
               </button>
             </div>
 
