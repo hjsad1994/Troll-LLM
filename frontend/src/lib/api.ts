@@ -509,65 +509,6 @@ export async function getPaymentHistory(): Promise<{ payments: PaymentHistoryIte
   return resp.json()
 }
 
-// Payment Stats for user dashboard
-export interface UserPaymentStats {
-  totalCredits: number
-  totalVND: number
-  successCount: number
-  pendingCount: number
-  failedCount: number
-}
-
-// Paginated payment history response
-export interface PaymentHistoryPaginatedItem {
-  id: string
-  orderCode: string
-  credits: number
-  amount: number
-  status: 'pending' | 'success' | 'failed' | 'expired'
-  createdAt: string
-  completedAt?: string
-}
-
-export interface PaymentHistoryPaginatedResponse {
-  payments: PaymentHistoryPaginatedItem[]
-  total: number
-  page: number
-  totalPages: number
-}
-
-export async function getUserPaymentStats(): Promise<UserPaymentStats> {
-  const resp = await fetchWithAuth('/api/payment/user-stats')
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to get payment stats')
-  }
-  return resp.json()
-}
-
-export async function getPaymentHistoryPaginated(params?: {
-  page?: number
-  limit?: number
-  status?: string
-  from?: string
-  to?: string
-}): Promise<PaymentHistoryPaginatedResponse> {
-  const searchParams = new URLSearchParams()
-  if (params?.page) searchParams.set('page', params.page.toString())
-  if (params?.limit) searchParams.set('limit', params.limit.toString())
-  if (params?.status) searchParams.set('status', params.status)
-  if (params?.from) searchParams.set('from', params.from)
-  if (params?.to) searchParams.set('to', params.to)
-
-  const url = `/api/payment/history-paginated${searchParams.toString() ? '?' + searchParams.toString() : ''}`
-  const resp = await fetchWithAuth(url)
-  if (!resp.ok) {
-    const data = await resp.json()
-    throw new Error(data.error || 'Failed to get payment history')
-  }
-  return resp.json()
-}
-
 // Request History
 export interface RequestLogEntry {
   _id: string

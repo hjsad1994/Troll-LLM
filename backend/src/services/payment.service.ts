@@ -373,44 +373,6 @@ export class PaymentService {
   async getPaymentHistory(userId: string): Promise<IPayment[]> {
     return paymentRepository.findByUserId(userId);
   }
-
-  async getUserPaymentStats(userId: string) {
-    return paymentRepository.getUserPaymentStats(userId);
-  }
-
-  async getPaymentHistoryPaginated(
-    userId: string,
-    options: {
-      page?: number;
-      limit?: number;
-      status?: string;
-      from?: string;
-      to?: string;
-    }
-  ) {
-    const parsedOptions: {
-      page?: number;
-      limit?: number;
-      status?: 'pending' | 'success' | 'failed' | 'expired';
-      from?: Date;
-      to?: Date;
-    } = {
-      page: options.page || 1,
-      limit: options.limit || 20,
-    };
-
-    if (options.status && ['pending', 'success', 'failed', 'expired'].includes(options.status)) {
-      parsedOptions.status = options.status as 'pending' | 'success' | 'failed' | 'expired';
-    }
-    if (options.from) {
-      parsedOptions.from = new Date(options.from);
-    }
-    if (options.to) {
-      parsedOptions.to = new Date(options.to);
-    }
-
-    return paymentRepository.findByUserIdPaginated(userId, parsedOptions);
-  }
 }
 
 export const paymentService = new PaymentService();

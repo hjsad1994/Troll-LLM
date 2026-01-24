@@ -75,60 +75,6 @@ router.post('/webhook', verifySepayWebhook, async (req: Request, res: Response) 
   }
 });
 
-// GET /api/payment/user-stats - Get user's payment statistics
-router.get('/user-stats', jwtAuth, async (req: Request, res: Response) => {
-  try {
-    const username = (req as any).user?.username;
-    if (!username) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const stats = await paymentService.getUserPaymentStats(username);
-    res.json(stats);
-  } catch (error: any) {
-    console.error('[Payment User Stats Error]', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET /api/payment/history-paginated - Get paginated payment history with filters
-router.get('/history-paginated', jwtAuth, async (req: Request, res: Response) => {
-  try {
-    const username = (req as any).user?.username;
-    if (!username) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { page, limit, status, from, to } = req.query;
-
-    const result = await paymentService.getPaymentHistoryPaginated(username, {
-      page: page ? parseInt(page as string, 10) : undefined,
-      limit: limit ? parseInt(limit as string, 10) : undefined,
-      status: status as string,
-      from: from as string,
-      to: to as string,
-    });
-
-    res.json({
-      payments: result.payments.map(p => ({
-        id: p._id,
-        orderCode: p.orderCode,
-        credits: p.credits,
-        amount: p.amount,
-        status: p.status,
-        createdAt: p.createdAt,
-        completedAt: p.completedAt,
-      })),
-      total: result.total,
-      page: result.page,
-      totalPages: result.totalPages,
-    });
-  } catch (error: any) {
-    console.error('[Payment History Paginated Error]', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // GET /api/payment/:id/status - Poll payment status
 router.get('/:id/status', jwtAuth, async (req: Request, res: Response) => {
   try {
