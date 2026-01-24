@@ -1,5 +1,9 @@
 # AGENTS.md - AI Agent Guidelines for TrollLLM
 
+**Generated:** 2026-01-25T22:28:00+07:00
+**Commit:** 9d9afb4
+**Branch:** feat/payment-history-dashboard
+
 ## Project Overview
 
 TrollLLM is an LLM proxy platform with three components:
@@ -308,3 +312,69 @@ transformers/ -> Request/response transformation
 1. Edit `goproxy/internal/usage/tracker.go`
 2. Update atomic operations carefully (see Story 2.2 comments)
 3. Add/update tests in `tracker_test.go`
+
+---
+
+<!-- BEGIN BEADS INTEGRATION -->
+## 📌 Beads Issue Tracking (for AI Agents)
+
+This project uses **Beads** - a lightweight, git-based issue tracker designed for AI coding agents.
+
+### ⚡ Quick Start for Agents
+
+```bash
+# Check what tasks are ready to work on
+bd ready --json
+
+# Claim a task before starting
+bd update <id> --status in_progress
+
+# Update progress (CRITICAL: Write notes for future agents with ZERO context)
+bd update <id> --notes "COMPLETED: X | IN PROGRESS: Y | NEXT: Z | FILES: ..."
+
+# Complete a task
+bd close <id> --reason "Done: <summary>"
+
+# Sync before session end
+bd sync
+```
+
+### 🔄 Agent Workflow
+
+1. **START** → `bd ready --json` (What can I work on?)
+2. **CLAIM** → `bd update <id> --status in_progress`
+3. **WORK** → Code, test, iterate
+4. **NOTE** → `bd update <id> --notes "..."` (Progress for future agents)
+5. **CLOSE** → `bd close <id> --reason "Done"`
+6. **REPEAT** → Back to step 1
+
+### 📋 Priority Levels
+
+| Priority | Meaning |
+|----------|---------|
+| P0 | Critical - Do immediately |
+| P1 | High - Important |
+| P2 | Medium - Normal (default) |
+| P3 | Low - Can wait |
+| P4 | Backlog - Future work |
+
+### ⚠️ Critical Rules
+
+1. **ALWAYS** run `bd ready` before starting work
+2. **ALWAYS** claim task with `in_progress` before coding
+3. **ALWAYS** write detailed notes (future agents have ZERO context after compact)
+4. **NEVER** work on blocked tasks - respect dependency graph
+5. **ALWAYS** run `bd sync` before session ends
+
+### 🔧 Common Commands
+
+```bash
+bd init --prefix troll     # Initialize Beads (one-time)
+bd ready --json            # Tasks ready to work on
+bd list --json             # All tasks
+bd show <id>               # Task details + notes
+bd create "Title" -t task -p 1  # Create new task
+bd dep add <child> <parent>     # Set dependency
+bd dep tree <id>           # View dependency tree
+```
+<!-- END BEADS INTEGRATION -->

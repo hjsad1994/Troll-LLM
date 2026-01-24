@@ -1,0 +1,38 @@
+{
+  "$schema": "https://claude.ai/settings.schema.json",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bd prime --stealth 2>/dev/null || echo '[Beads not initialized - run: bd init --prefix troll]'"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bd sync 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bd sync 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
