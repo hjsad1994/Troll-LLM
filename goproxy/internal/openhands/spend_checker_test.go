@@ -369,7 +369,7 @@ func TestNewSpendChecker(t *testing.T) {
 		t.Errorf("threshold = %v, want %v", sc.threshold, threshold)
 	}
 	// Note: activeInterval and idleInterval are now ignored - using tiered intervals instead
-	// baseCheckInterval should be CriticalSpendCheckInterval (10s) for fastest tier
+	// baseCheckInterval should be CriticalSpendCheckInterval (5s) for fastest tier
 	if sc.baseCheckInterval != CriticalSpendCheckInterval {
 		t.Errorf("baseCheckInterval = %v, want %v (CriticalSpendCheckInterval)", sc.baseCheckInterval, CriticalSpendCheckInterval)
 	}
