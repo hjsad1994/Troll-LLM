@@ -369,11 +369,6 @@ func TestFriendKey_IndependentFromUserKey(t *testing.T) {
 		t.Error("User Key should be rate limited after 2000 requests")
 	}
 
-	// User Key should now be rate limited
-	if limiter.Allow(userKey, userLimit) {
-		t.Error("User Key should be rate limited after 600 requests")
-	}
-
 	// Friend Key should still work (independent)
 	if !limiter.Allow(friendKey, friendLimit) {
 		t.Error("Friend Key should NOT be affected by User Key rate limit")
