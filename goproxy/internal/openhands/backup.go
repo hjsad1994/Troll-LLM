@@ -202,11 +202,37 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 
 	log.Printf("🔄 [OpenHands/Rotation] Starting rotation for failed key: %s (reason: %s)", failedKeyID, reason)
 
-	// 1. Find an available backup key
+	// 1. Check if key exists before fetching backup (idempotency check moved earlier)
+	keysCol := db.OpenHandsKeysCollection()
+	var existingKey struct {
+		ID string `bson:"_id"`
+	}
+	err := keysCol.FindOne(ctx, bson.M{"_id": failedKeyID}).Decode(&existingKey)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			log.Printf("⚠️ [OpenHands/Rotation] Key %s already rotated by another process, skipping", failedKeyID)
+			return "", nil
+		}
+		log.Printf("❌ [OpenHands/Rotation] Failed to check key existence: %v", err)
+		return "", err
+	}
+
+	// 2. Atomically claim an available backup key
 	backupCol := OpenHandsBackupKeysCollection()
 	var backupKey OpenHandsBackupKey
-	err := backupCol.FindOne(ctx, bson.M{"isUsed": false}).Decode(&backupKey)
-	if err != nil {
+	updateResult := backupCol.FindOneAndUpdate(
+		ctx,
+		bson.M{"isUsed": false},
+		bson.M{
+			"$set": bson.M{
+				"isUsed":  true,
+				"usedAt":  time.Now(),
+				"usedFor": failedKeyID,
+			},
+		},
+		options.FindOneAndUpdate().SetReturnDocument(options.Before),
+	)
+	if err := updateResult.Decode(&backupKey); err != nil {
 		log.Printf("❌ [OpenHands/Rotation] No backup keys available: %v", err)
 		return "", err
 	}
@@ -215,18 +241,17 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 	if len(newKeyMasked) > 12 {
 		newKeyMasked = newKeyMasked[:8] + "..." + newKeyMasked[len(newKeyMasked)-4:]
 	}
-	log.Printf("✅ [OpenHands/Rotation] Found backup key: %s (%s)", backupKey.ID, newKeyMasked)
+	log.Printf("✅ [OpenHands/Rotation] Atomically claimed backup key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 2. DELETE old key completely
-	keysCol := db.OpenHandsKeysCollection()
-	_, err = keysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
+	// 3. DELETE old key completely
+	deleteResult, err := keysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
 		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete old key: %v", err)
 	} else {
-		log.Printf("🗑️ [OpenHands/Rotation] Deleted old key: %s", failedKeyID)
+		log.Printf("🗑️ [OpenHands/Rotation] Deleted old key: %s (count: %d)", failedKeyID, deleteResult.DeletedCount)
 	}
 
-	// 3. INSERT backup key as new openhands_key
+	// 4. INSERT backup key as new openhands_key
 	now := time.Now()
 	newKeyDoc := bson.M{
 		"_id":           backupKey.ID,
@@ -244,9 +269,9 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 	}
 	log.Printf("✅ [OpenHands/Rotation] Inserted new key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 4. UPDATE bindings to point to new key ID
+	// 5. UPDATE bindings to point to new key ID
 	bindingsCol := db.GetCollection("openhands_bindings")
-	updateResult, err := bindingsCol.UpdateMany(ctx,
+	bindingsUpdateResult, err := bindingsCol.UpdateMany(ctx,
 		bson.M{"openhandsKeyId": failedKeyID},
 		bson.M{
 			"$set": bson.M{
@@ -257,25 +282,10 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 	)
 	if err != nil {
 		log.Printf("⚠️ [OpenHands/Rotation] Failed to update bindings: %v", err)
-	} else if updateResult.ModifiedCount > 0 {
-		log.Printf("✅ [OpenHands/Rotation] Updated %d bindings: %s -> %s", updateResult.ModifiedCount, failedKeyID, backupKey.ID)
+	} else if bindingsUpdateResult.ModifiedCount > 0 {
+		log.Printf("✅ [OpenHands/Rotation] Updated %d bindings: %s -> %s", bindingsUpdateResult.ModifiedCount, failedKeyID, backupKey.ID)
 	} else {
 		log.Printf("ℹ️ [OpenHands/Rotation] No bindings to update for key %s", failedKeyID)
-	}
-
-	// 5. Mark backup key as used
-	_, err = backupCol.UpdateByID(ctx, backupKey.ID, bson.M{
-		"$set": bson.M{
-			"isUsed":    true,
-			"activated": true,
-			"usedFor":   failedKeyID,
-			"usedAt":    now,
-		},
-	})
-	if err != nil {
-		log.Printf("⚠️ [OpenHands/Rotation] Failed to mark backup as used: %v", err)
-	} else {
-		log.Printf("✅ [OpenHands/Rotation] Marked backup %s as used (replaced: %s)", backupKey.ID, failedKeyID)
 	}
 
 	// 6. Update in-memory pool - remove old key, add new key

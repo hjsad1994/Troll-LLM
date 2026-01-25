@@ -212,6 +212,9 @@ func (sc *SpendChecker) checkAllKeys() {
 			if err != nil {
 				log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", key.ID, err)
 				sc.saveSpendHistory(result, nil, reason, "")
+			} else if newKeyID == "" {
+				// Key was already rotated by another process - skip history save
+				log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", key.ID)
 			} else {
 				log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", key.ID, newKeyID)
 				sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
@@ -250,6 +253,9 @@ func (sc *SpendChecker) checkAllKeys() {
 			if err != nil {
 				log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", key.ID, err)
 				sc.saveSpendHistory(result, nil, reason, "")
+			} else if newKeyID == "" {
+				// Key was already rotated by another process - skip history save
+				log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", key.ID)
 			} else {
 				log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", key.ID, newKeyID)
 				sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
