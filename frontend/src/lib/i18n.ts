@@ -271,7 +271,7 @@ export const translations = {
       },
       rateLimit: {
         title: 'Rate Limit',
-        value: '600 RPM',
+        value: '2000 RPM',
       },
     },
     // Dashboard Test Page
@@ -1770,7 +1770,7 @@ export const translations = {
       },
       rateLimit: {
         title: 'Giới hạn tốc độ',
-        value: '600 RPM',
+        value: '2000 RPM',
       },
     },
     // Dashboard Test Page
