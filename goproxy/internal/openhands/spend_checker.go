@@ -25,9 +25,9 @@ const (
 	ActiveKeyWindow        = 4 * time.Minute
 
 	// Tiered check intervals based on spend amount (4 tiers)
-	// Critical spend (>= $9.5): check every 10s for immediate rotation
-	CriticalSpendThreshold     = 9.5
-	CriticalSpendCheckInterval = 10 * time.Second
+	// Critical spend (>= $9.4): check every 5s for immediate rotation
+	CriticalSpendThreshold     = 9.4
+	CriticalSpendCheckInterval = 5 * time.Second
 
 	// High spend (>= $8.5): check every 15s for proactive rotation
 	HighSpendThreshold     = 8.5
@@ -140,7 +140,7 @@ func (sc *SpendChecker) Start() {
 	sc.running = true
 	sc.mu.Unlock()
 
-	log.Printf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$8.5=%v, $8.5-$9.5=%v, >=$9.5=%v)",
+	log.Printf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$8.5=%v, $8.5-$9.4=%v, >=$9.4=%v)",
 		sc.threshold, LowSpendCheckInterval, MediumSpendCheckInterval, HighSpendCheckInterval, CriticalSpendCheckInterval)
 
 	go func() {
@@ -276,7 +276,7 @@ func (sc *SpendChecker) isKeyActive(key *OpenHandsKey, now time.Time) bool {
 }
 
 // getCheckIntervalForSpend returns the appropriate check interval based on current spend
-// - Spend >= $9.5: check every 10 seconds (critical, near limit)
+// - Spend >= $9.4: check every 5 seconds (critical, near limit)
 // - Spend >= $8.5: check every 15 seconds (high, approaching limit)
 // - Spend $5-$8.5: check every 3 minutes (medium spend)
 // - Spend < $5: check every 6 minutes (low spend)

@@ -17,10 +17,10 @@ func TestDefaultConstants(t *testing.T) {
 		expected interface{}
 	}{
 		{"DefaultSpendThreshold", DefaultSpendThreshold, 9.95},
-		{"CriticalSpendThreshold", CriticalSpendThreshold, 9.5},
+		{"CriticalSpendThreshold", CriticalSpendThreshold, 9.4},
 		{"HighSpendThreshold", HighSpendThreshold, 8.5},
 		{"MediumSpendThreshold", MediumSpendThreshold, 5.0},
-		{"CriticalSpendCheckInterval", CriticalSpendCheckInterval, 10 * time.Second},
+		{"CriticalSpendCheckInterval", CriticalSpendCheckInterval, 5 * time.Second},
 		{"HighSpendCheckInterval", HighSpendCheckInterval, 15 * time.Second},
 		{"MediumSpendCheckInterval", MediumSpendCheckInterval, 3 * time.Minute},
 		{"LowSpendCheckInterval", LowSpendCheckInterval, 6 * time.Minute},
@@ -140,25 +140,25 @@ func TestShouldCheckKeyTieredIntervals(t *testing.T) {
 		{"medium spend, checked 3m ago", 5.0, timePtr(now.Add(-3 * time.Minute)), true, "should check - 3m interval elapsed"},
 		{"medium spend, checked 5m ago", 7.0, timePtr(now.Add(-5 * time.Minute)), true, "should check - well past 3m"},
 
-		// HIGH tier ($8.5 <= spend < $9.5) - check every 15 seconds
+		// HIGH tier ($8.5 <= spend < $9.4) - check every 15 seconds
 		{"high spend, checked 5s ago", 8.5, timePtr(now.Add(-5 * time.Second)), false, "should skip - 15s interval not elapsed"},
 		{"high spend, checked 14s ago", 9.0, timePtr(now.Add(-14 * time.Second)), false, "should skip - 15s interval not elapsed"},
 		{"high spend, checked 15s ago", 8.5, timePtr(now.Add(-15 * time.Second)), true, "should check - 15s interval elapsed"},
 		{"high spend, checked 30s ago", 9.2, timePtr(now.Add(-30 * time.Second)), true, "should check - well past 15s"},
 
-		// CRITICAL tier (spend >= $9.5) - check every 10 seconds
-		{"critical spend, checked 5s ago", 9.5, timePtr(now.Add(-5 * time.Second)), false, "should skip - 10s interval not elapsed"},
-		{"critical spend, checked 9s ago", 9.8, timePtr(now.Add(-9 * time.Second)), false, "should skip - 10s interval not elapsed"},
-		{"critical spend, checked 10s ago", 9.5, timePtr(now.Add(-10 * time.Second)), true, "should check - 10s interval elapsed"},
-		{"critical spend, checked 30s ago", 9.9, timePtr(now.Add(-30 * time.Second)), true, "should check - well past 10s"},
+		// CRITICAL tier (spend >= $9.4) - check every 5 seconds
+		{"critical spend, checked 2s ago", 9.4, timePtr(now.Add(-2 * time.Second)), false, "should skip - 5s interval not elapsed"},
+		{"critical spend, checked 4s ago", 9.8, timePtr(now.Add(-4 * time.Second)), false, "should skip - 5s interval not elapsed"},
+		{"critical spend, checked 5s ago", 9.4, timePtr(now.Add(-5 * time.Second)), true, "should check - 5s interval elapsed"},
+		{"critical spend, checked 10s ago", 9.9, timePtr(now.Add(-10 * time.Second)), true, "should check - well past 5s"},
 
 		// Boundary tests
 		{"exactly $5 spend (medium tier boundary)", 5.0, timePtr(now.Add(-3 * time.Minute)), true, "exactly $5 = medium tier"},
 		{"exactly $8.5 spend (high tier boundary)", 8.5, timePtr(now.Add(-15 * time.Second)), true, "exactly $8.5 = high tier"},
-		{"exactly $9.5 spend (critical tier boundary)", 9.5, timePtr(now.Add(-10 * time.Second)), true, "exactly $9.5 = critical tier"},
+		{"exactly $9.4 spend (critical tier boundary)", 9.4, timePtr(now.Add(-5 * time.Second)), true, "exactly $9.4 = critical tier"},
 		{"just under $5 (low tier)", 4.99, timePtr(now.Add(-3 * time.Minute)), false, "4.99 = low tier, needs 6m"},
 		{"just under $8.5 (medium tier)", 8.49, timePtr(now.Add(-15 * time.Second)), false, "8.49 = medium tier, needs 3m"},
-		{"just under $9.5 (high tier)", 9.49, timePtr(now.Add(-10 * time.Second)), false, "9.49 = high tier, needs 15s"},
+		{"just under $9.4 (high tier)", 9.39, timePtr(now.Add(-5 * time.Second)), false, "9.39 = high tier, needs 15s"},
 	}
 
 	for _, tt := range tests {
@@ -200,13 +200,13 @@ func TestGetCheckIntervalForSpend(t *testing.T) {
 		{"$6 spend", 6.0, MediumSpendCheckInterval},
 		{"$8.49 spend", 8.49, MediumSpendCheckInterval},
 
-		// High tier ($8.5 - $9.5) - 15 seconds
+		// High tier ($8.5 - $9.4) - 15 seconds
 		{"exactly $8.5", 8.5, HighSpendCheckInterval},
 		{"$9 spend", 9.0, HighSpendCheckInterval},
-		{"$9.49 spend", 9.49, HighSpendCheckInterval},
+		{"$9.39 spend", 9.39, HighSpendCheckInterval},
 
-		// Critical tier (>= $9.5) - 10 seconds
-		{"exactly $9.5", 9.5, CriticalSpendCheckInterval},
+		// Critical tier (>= $9.4) - 5 seconds
+		{"exactly $9.4", 9.4, CriticalSpendCheckInterval},
 		{"$9.8 spend", 9.8, CriticalSpendCheckInterval},
 		{"$15 spend (above threshold)", 15.0, CriticalSpendCheckInterval},
 	}
@@ -241,8 +241,8 @@ func TestGetSpendTierName(t *testing.T) {
 		{"$8.49 spend", 8.49, "MEDIUM"},
 		{"exactly $8.5", 8.5, "HIGH"},
 		{"$9 spend", 9.0, "HIGH"},
-		{"$9.49 spend", 9.49, "HIGH"},
-		{"exactly $9.5", 9.5, "CRITICAL"},
+		{"$9.39 spend", 9.39, "HIGH"},
+		{"exactly $9.4", 9.4, "CRITICAL"},
 		{"$9.8 spend", 9.8, "CRITICAL"},
 		{"$10 spend", 10.0, "CRITICAL"},
 	}
