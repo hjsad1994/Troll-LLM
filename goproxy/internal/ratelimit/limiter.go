@@ -13,7 +13,7 @@ import (
 const DefaultRPM = 300
 
 // UserKeyRPM is the rate limit for User Keys (sk-troll-* or sk-trollllm-*)
-const UserKeyRPM = 600
+const UserKeyRPM = 2000
 
 // FriendKeyRPM is the rate limit for Friend Keys (sk-trollllm-friend-*)
 const FriendKeyRPM = 60

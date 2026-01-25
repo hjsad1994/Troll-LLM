@@ -10,8 +10,8 @@ import (
 // Integration tests for rate limiting with key type detection
 // These tests verify all Acceptance Criteria from Story 1.1
 
-// AC1: User Key (sk-troll-xxx) should get 600 RPM limit
-func TestIntegration_UserKeyRateLimit600RPM(t *testing.T) {
+// AC1: User Key (sk-troll-xxx) should get 2000 RPM limit
+func TestIntegration_UserKeyRateLimit2000RPM(t *testing.T) {
 	limiter := NewRateLimiter()
 	userKey := "sk-troll-user123abc"
 
@@ -21,22 +21,22 @@ func TestIntegration_UserKeyRateLimit600RPM(t *testing.T) {
 		t.Fatalf("Expected KeyTypeUser, got %v", keyType)
 	}
 
-	// Verify RPM is 600
+	// Verify RPM is 2000
 	limit := GetRPMForAPIKey(userKey)
-	if limit != 600 {
-		t.Fatalf("Expected 600 RPM for user key, got %d", limit)
+	if limit != 2000 {
+		t.Fatalf("Expected 2000 RPM for user key, got %d", limit)
 	}
 
-	// Verify rate limiter allows up to 600 requests
-	for i := 0; i < 600; i++ {
+	// Verify rate limiter allows up to 2000 requests
+	for i := 0; i < 2000; i++ {
 		if !limiter.Allow(userKey, limit) {
-			t.Fatalf("Request %d was rate limited, expected all 600 to be allowed", i+1)
+			t.Fatalf("Request %d was rate limited, expected all 2000 to be allowed", i+1)
 		}
 	}
 
-	// 601st request should be rate limited
+	// 2001st request should be rate limited
 	if limiter.Allow(userKey, limit) {
-		t.Fatal("Request 601 should have been rate limited")
+		t.Fatal("Request 2001 should have been rate limited")
 	}
 }
 
@@ -108,7 +108,7 @@ func TestIntegration_ExistingBehaviorUnchanged(t *testing.T) {
 		apiKey   string
 		expected int
 	}{
-		{"User key", "sk-trollllm-user-abc123", 600},
+		{"User key", "sk-trollllm-user-abc123", 2000},
 		{"Friend key", "sk-trollllm-friend-xyz456", 60},
 		{"Unknown key fallback", "sk-random-key", 300},
 	}
@@ -156,9 +156,9 @@ func TestIntegration_MultipleKeyPrefixes(t *testing.T) {
 		expectedRPM int
 	}{
 		// User keys
-		{"sk-troll prefix", "sk-troll-abc", userkey.KeyTypeUser, 600},
-		{"sk-trollllm prefix", "sk-trollllm-abc", userkey.KeyTypeUser, 600},
-		{"sk-trollllm-user prefix", "sk-trollllm-user-abc", userkey.KeyTypeUser, 600},
+		{"sk-troll prefix", "sk-troll-abc", userkey.KeyTypeUser, 2000},
+		{"sk-trollllm prefix", "sk-trollllm-abc", userkey.KeyTypeUser, 2000},
+		{"sk-trollllm-user prefix", "sk-trollllm-user-abc", userkey.KeyTypeUser, 2000},
 
 		// Friend keys
 		{"sk-trollllm-friend prefix", "sk-trollllm-friend-abc", userkey.KeyTypeFriend, 60},
@@ -356,12 +356,17 @@ func TestFriendKey_IndependentFromUserKey(t *testing.T) {
 	userKey := "sk-troll-user-independent-test"
 	friendKey := "sk-trollllm-friend-independent-test"
 
-	userLimit := UserKeyRPM    // 600
+	userLimit := UserKeyRPM     // 2000
 	friendLimit := FriendKeyRPM // 60
 
 	// Exhaust User Key rate limit
-	for i := 0; i < 600; i++ {
+	for i := 0; i < 2000; i++ {
 		limiter.Allow(userKey, userLimit)
+	}
+
+	// User Key should now be rate limited
+	if limiter.Allow(userKey, userLimit) {
+		t.Error("User Key should be rate limited after 2000 requests")
 	}
 
 	// User Key should now be rate limited
@@ -466,16 +471,16 @@ func TestRateLimitHeaders_AC1_XRateLimitResetOnSuccess(t *testing.T) {
 func TestRateLimitHeaders_AC2_RetryAfterOn429(t *testing.T) {
 	limiter := NewRateLimiter()
 	userKey := "sk-troll-headers-ac2-test"
-	limit := UserKeyRPM // 600
+	limit := UserKeyRPM // 2000
 
 	// Exhaust rate limit
-	for i := 0; i < 600; i++ {
+	for i := 0; i < 2000; i++ {
 		limiter.Allow(userKey, limit)
 	}
 
 	// Verify rate limited
 	if limiter.Allow(userKey, limit) {
-		t.Fatal("Request 601 should be rate limited")
+		t.Fatal("Request 2001 should be rate limited")
 	}
 
 	// Check Retry-After value
@@ -543,8 +548,8 @@ func TestRateLimitHeaders_AC4_XRateLimitLimitPerKeyType(t *testing.T) {
 		apiKey        string
 		expectedLimit int
 	}{
-		{"User Key (sk-troll-*)", "sk-troll-headers-ac4-user", 600},
-		{"User Key (sk-trollllm-*)", "sk-trollllm-headers-ac4-user", 600},
+		{"User Key (sk-troll-*)", "sk-troll-headers-ac4-user", 2000},
+		{"User Key (sk-trollllm-*)", "sk-trollllm-headers-ac4-user", 2000},
 		{"Friend Key", "sk-trollllm-friend-headers-ac4-friend", 60},
 		{"Unknown Key", "sk-unknown-headers-ac4", 300},
 	}
@@ -611,15 +616,15 @@ func TestRateLimitHeaders_AC5_XRateLimitRemaining(t *testing.T) {
 	t.Logf("AC5: After exhausting limit, X-RateLimit-Remaining: %d", exhaustedRemaining)
 }
 
-// TestRateLimitHeaders_UserKey600_AllHeaders verifies all headers for User Key (600 RPM)
-func TestRateLimitHeaders_UserKey600_AllHeaders(t *testing.T) {
+// TestRateLimitHeaders_UserKey2000_AllHeaders verifies all headers for User Key (2000 RPM)
+func TestRateLimitHeaders_UserKey2000_AllHeaders(t *testing.T) {
 	limiter := NewRateLimiter()
 	userKey := "sk-troll-headers-userkey-test"
 	limit := GetRPMForAPIKey(userKey)
 
-	// Verify User Key limit is 600
-	if limit != 600 {
-		t.Fatalf("User Key limit should be 600, got %d", limit)
+	// Verify User Key limit is 2000
+	if limit != 2000 {
+		t.Fatalf("User Key limit should be 2000, got %d", limit)
 	}
 
 	// Make a successful request
@@ -631,14 +636,14 @@ func TestRateLimitHeaders_UserKey600_AllHeaders(t *testing.T) {
 	remaining := limiter.Remaining(userKey, limit)
 	retryAfter := limiter.RetryAfter(userKey, limit)
 
-	t.Logf("User Key (600 RPM) Headers:")
+	t.Logf("User Key (2000 RPM) Headers:")
 	t.Logf("  X-RateLimit-Limit: %d", limit)
 	t.Logf("  X-RateLimit-Remaining: %d", remaining)
 	t.Logf("  RetryAfter (for Reset calc): %d", retryAfter)
 
 	// Verify values are valid
-	if limit != 600 {
-		t.Errorf("X-RateLimit-Limit should be 600")
+	if limit != 2000 {
+		t.Errorf("X-RateLimit-Limit should be 2000")
 	}
 	if remaining < 0 || remaining > limit {
 		t.Errorf("X-RateLimit-Remaining should be 0-%d", limit)

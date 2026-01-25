@@ -13,7 +13,7 @@ func TestGetRPMForKeyType(t *testing.T) {
 		expected int
 	}{
 		{
-			name:     "User key gets 600 RPM",
+			name:     "User key gets 2000 RPM",
 			keyType:  userkey.KeyTypeUser,
 			expected: UserKeyRPM,
 		},
@@ -41,8 +41,8 @@ func TestGetRPMForKeyType(t *testing.T) {
 
 func TestRPMConstants(t *testing.T) {
 	// Verify constants match AC requirements
-	if UserKeyRPM != 600 {
-		t.Errorf("UserKeyRPM = %d, want 600", UserKeyRPM)
+	if UserKeyRPM != 2000 {
+		t.Errorf("UserKeyRPM = %d, want 2000", UserKeyRPM)
 	}
 	if FriendKeyRPM != 60 {
 		t.Errorf("FriendKeyRPM = %d, want 60", FriendKeyRPM)
@@ -87,10 +87,10 @@ func TestGetRPMForAPIKey(t *testing.T) {
 	}
 }
 
-// TestUserKeyRPMIgnoresTier verifies that User Keys always get 600 RPM
+// TestUserKeyRPMIgnoresTier verifies that User Keys always get 2000 RPM
 // regardless of any tier value in the database (AC1, AC2 from Story 1.2)
 func TestUserKeyRPMIgnoresTier(t *testing.T) {
-	// Test various User Key formats - all should get 600 RPM
+	// Test various User Key formats - all should get 2000 RPM
 	// The rate limiter uses only the key prefix, completely ignoring any tier field
 	userKeys := []struct {
 		name        string
@@ -133,14 +133,14 @@ func TestUserKeyRPMIgnoresTier(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := GetRPMForAPIKey(tt.apiKey)
 			if got != UserKeyRPM {
-				t.Errorf("GetRPMForAPIKey(%q) = %d, want %d (600 RPM for all User Keys, tier ignored)\n%s",
+				t.Errorf("GetRPMForAPIKey(%q) = %d, want %d (2000 RPM for all User Keys, tier ignored)\n%s",
 					tt.apiKey, got, UserKeyRPM, tt.description)
 			}
 		})
 	}
 
-	// Verify the constant is exactly 600 as per AC1
-	if UserKeyRPM != 600 {
-		t.Errorf("UserKeyRPM constant = %d, must be exactly 600 per AC1", UserKeyRPM)
+	// Verify the constant is exactly 2000 as per updated AC
+	if UserKeyRPM != 2000 {
+		t.Errorf("UserKeyRPM constant = %d, must be exactly 2000 per updated AC", UserKeyRPM)
 	}
 }
