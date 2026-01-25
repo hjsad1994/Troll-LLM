@@ -1564,7 +1564,7 @@ handleMessagesResponse:
 				remainingCredits = creditsNew
 			}
 		}
-		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
+		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.3f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
 	}
 
 	// Handle response using maintarget handlers (same format as Anthropic)
@@ -1967,7 +1967,7 @@ handleOpenAIResponse:
 				remainingCredits = creditsNew
 			}
 		}
-		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.2f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
+		log.Printf("📊 [Troll-LLM] Usage: model=%s in=%d out=%d cache_write=%d cache_hit=%d cost=$%.6f (multiplier=%.3f) remaining=$%.6f", modelID, input, output, cacheWrite, cacheHit, billingCost, config.GetBillingMultiplier(modelID), remainingCredits)
 	}
 
 	// Estimate input tokens from request (rough: 1 token ≈ 4 chars)
