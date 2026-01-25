@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"goproxy/db"
 	"goproxy/internal/proxy"
 )
@@ -32,11 +34,37 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 
 	log.Printf("🔄 [KeyRotation] Starting rotation for failed key: %s (reason: %s)", failedKeyID, reason)
 
-	// 1. Find an available backup key
+	// 1. Check if key exists before fetching backup (idempotency check moved earlier)
+	trollKeysCol := db.TrollKeysCollection()
+	var existingKey struct {
+		ID string `bson:"_id"`
+	}
+	err := trollKeysCol.FindOne(ctx, bson.M{"_id": failedKeyID}).Decode(&existingKey)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			log.Printf("⚠️ [KeyRotation] Key %s already rotated by another process, skipping", failedKeyID)
+			return "", nil
+		}
+		log.Printf("❌ [KeyRotation] Failed to check key existence: %v", err)
+		return "", err
+	}
+
+	// 2. Atomically claim an available backup key
 	backupKeysCol := db.GetCollection("backup_keys")
 	var backupKey BackupKey
-	err := backupKeysCol.FindOne(ctx, bson.M{"isUsed": false}).Decode(&backupKey)
-	if err != nil {
+	updateResult := backupKeysCol.FindOneAndUpdate(
+		ctx,
+		bson.M{"isUsed": false},
+		bson.M{
+			"$set": bson.M{
+				"isUsed":  true,
+				"usedAt":  time.Now(),
+				"usedFor": failedKeyID,
+			},
+		},
+		options.FindOneAndUpdate().SetReturnDocument(options.Before),
+	)
+	if err := updateResult.Decode(&backupKey); err != nil {
 		log.Printf("❌ [KeyRotation] No backup keys available: %v", err)
 		return "", err
 	}
@@ -45,8 +73,9 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 	if len(newKeyMasked) > 12 {
 		newKeyMasked = newKeyMasked[:8] + "..." + newKeyMasked[len(newKeyMasked)-4:]
 	}
+	log.Printf("✅ [KeyRotation] Atomically claimed backup key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 2. Get the proxy ID from bindings (to recreate binding later)
+	// 3. Get the proxy ID from bindings (to recreate binding later)
 	bindingsCol := db.GetCollection("proxy_key_bindings")
 	var oldBinding struct {
 		ProxyID  string `bson:"proxyId"`
@@ -57,7 +86,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 		log.Printf("⚠️ [KeyRotation] No binding found for key %s: %v", failedKeyID, err)
 	}
 
-	// 3. Delete failed key from proxy_key_bindings
+	// 4. Delete failed key from proxy_key_bindings
 	deleteResult, err := bindingsCol.DeleteMany(ctx, bson.M{"factoryKeyId": failedKeyID})
 	if err != nil {
 		log.Printf("⚠️ [KeyRotation] Failed to delete bindings: %v", err)
@@ -65,8 +94,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 		log.Printf("🗑️ [KeyRotation] Deleted %d bindings for key %s", deleteResult.DeletedCount, failedKeyID)
 	}
 
-	// 4. Delete failed key from troll_keys
-	trollKeysCol := db.TrollKeysCollection()
+	// 5. Delete failed key from troll_keys
 	deleteResult, err = trollKeysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
 		log.Printf("⚠️ [KeyRotation] Failed to delete troll key: %v", err)
@@ -74,13 +102,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 		log.Printf("🗑️ [KeyRotation] Deleted troll key: %s (count: %d)", failedKeyID, deleteResult.DeletedCount)
 	}
 
-	// Idempotency check: if DeletedCount is 0, another process already rotated this key
-	if deleteResult.DeletedCount == 0 {
-		log.Printf("⚠️ [KeyRotation] Key %s already rotated by another process, skipping insert", failedKeyID)
-		return "", nil
-	}
-
-	// 5. Insert backup key as new troll key (with reset stats)
+	// 6. Insert backup key as new troll key (with reset stats)
 	now := time.Now()
 	newTrollKeyDoc := bson.M{
 		"_id":           backupKey.ID,
@@ -107,7 +129,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 	}
 	log.Printf("✅ [KeyRotation] Inserted new troll key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 6. Create new binding for the backup key (use same proxy as failed key)
+	// 7. Create new binding for the backup key (use same proxy as failed key)
 	if oldBinding.ProxyID != "" {
 		newBinding := bson.M{
 			"proxyId":      oldBinding.ProxyID,
@@ -124,20 +146,17 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 		}
 	}
 
-	// 7. Mark backup key as used (activated)
+	// 8. Mark backup key as used (already marked atomically in step 2, but update activated flag)
 	_, err = backupKeysCol.UpdateByID(ctx, backupKey.ID, bson.M{
 		"$set": bson.M{
-			"isUsed":    true,
-			"usedAt":    now,
-			"usedFor":   failedKeyID,
 			"activated": true,
 		},
 	})
 	if err != nil {
-		log.Printf("⚠️ [KeyRotation] Failed to mark backup key as used: %v", err)
+		log.Printf("⚠️ [KeyRotation] Failed to mark backup key as activated: %v", err)
 	}
 
-	// 8. Update in-memory pool - remove old key, add new key
+	// 9. Update in-memory pool - remove old key, add new key
 	p.mu.Lock()
 	newKeys := make([]*TrollKey, 0)
 	for _, key := range p.keys {
@@ -149,7 +168,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 	p.keys = newKeys
 	p.mu.Unlock()
 
-	// 9. Reload proxy pool to pick up new bindings
+	// 10. Reload proxy pool to pick up new bindings
 	if err := proxy.GetPool().Reload(); err != nil {
 		log.Printf("⚠️ [KeyRotation] Failed to reload proxy pool: %v", err)
 	} else {
