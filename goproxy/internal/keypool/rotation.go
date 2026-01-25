@@ -13,12 +13,12 @@ import (
 
 // BackupKey represents a backup factory key stored in MongoDB
 type BackupKey struct {
-	ID        string    `bson:"_id" json:"id"`
-	APIKey    string    `bson:"apiKey" json:"api_key"`
-	IsUsed    bool      `bson:"isUsed" json:"is_used"`
-	CreatedAt time.Time `bson:"createdAt" json:"created_at"`
+	ID        string     `bson:"_id" json:"id"`
+	APIKey    string     `bson:"apiKey" json:"api_key"`
+	IsUsed    bool       `bson:"isUsed" json:"is_used"`
+	CreatedAt time.Time  `bson:"createdAt" json:"created_at"`
 	UsedAt    *time.Time `bson:"usedAt,omitempty" json:"used_at,omitempty"`
-	UsedFor   string    `bson:"usedFor,omitempty" json:"used_for,omitempty"` // Which key it replaced
+	UsedFor   string     `bson:"usedFor,omitempty" json:"used_for,omitempty"` // Which key it replaced
 }
 
 // RotateKey replaces a failed key completely:
@@ -67,11 +67,17 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 
 	// 4. Delete failed key from troll_keys
 	trollKeysCol := db.TrollKeysCollection()
-	_, err = trollKeysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
+	deleteResult, err = trollKeysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
 		log.Printf("⚠️ [KeyRotation] Failed to delete troll key: %v", err)
 	} else {
-		log.Printf("🗑️ [KeyRotation] Deleted troll key: %s", failedKeyID)
+		log.Printf("🗑️ [KeyRotation] Deleted troll key: %s (count: %d)", failedKeyID, deleteResult.DeletedCount)
+	}
+
+	// Idempotency check: if DeletedCount is 0, another process already rotated this key
+	if deleteResult.DeletedCount == 0 {
+		log.Printf("⚠️ [KeyRotation] Key %s already rotated by another process, skipping insert", failedKeyID)
+		return "", nil
 	}
 
 	// 5. Insert backup key as new troll key (with reset stats)
@@ -85,7 +91,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 		"createdAt":     now,
 	}
 	_, err = trollKeysCol.InsertOne(ctx, newTrollKeyDoc)
-	
+
 	// Also create in-memory struct
 	newTrollKey := TrollKey{
 		ID:            backupKey.ID,
@@ -152,7 +158,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 
 	log.Printf("✅ [KeyRotation] Rotation complete: %s (dead) -> %s (active)", failedKeyID, backupKey.ID)
 	log.Printf("📝 [KeyRotation] Admin can delete backup key %s from backup_keys (marked as activated)", backupKey.ID)
-	
+
 	return backupKey.ID, nil
 }
 
@@ -196,10 +202,10 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 
 	if shouldRotate {
 		log.Printf("🚫 [KeyRotation] Key %s needs rotation (reason: %s)", keyID, reason)
-		
+
 		// Check if backup keys available
 		backupCount := GetBackupKeyCount()
-		
+
 		if backupCount > 0 {
 			// Backup available - rotate to new key
 			log.Printf("🔄 [KeyRotation] Found %d backup keys, rotating key %s", backupCount, keyID)
@@ -218,7 +224,7 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 			p.MarkExhausted(keyID)
 			log.Printf("🚨 [KeyRotation] Key %s marked as exhausted (disabled) - add backup keys to restore service", keyID)
 		}
-		
+
 		// Reload proxy pool to apply changes
 		if err := proxy.GetPool().Reload(); err != nil {
 			log.Printf("⚠️ [KeyRotation] Failed to reload proxy pool: %v", err)
@@ -230,7 +236,7 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 func GetBackupKeyCount() int {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	count, err := db.GetCollection("backup_keys").CountDocuments(ctx, bson.M{"isUsed": false})
 	if err != nil {
 		return 0

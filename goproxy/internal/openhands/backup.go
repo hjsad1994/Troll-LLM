@@ -219,11 +219,17 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 
 	// 2. DELETE old key completely
 	keysCol := db.OpenHandsKeysCollection()
-	_, err = keysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
+	deleteResult, err := keysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
 		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete old key: %v", err)
 	} else {
-		log.Printf("🗑️ [OpenHands/Rotation] Deleted old key: %s", failedKeyID)
+		log.Printf("🗑️ [OpenHands/Rotation] Deleted old key: %s (count: %d)", failedKeyID, deleteResult.DeletedCount)
+	}
+
+	// Idempotency check: If DeletedCount == 0, key was already rotated by another process
+	if deleteResult.DeletedCount == 0 {
+		log.Printf("⚠️ [OpenHands/Rotation] Key %s already rotated by another process, skipping insert", failedKeyID)
+		return "", nil
 	}
 
 	// 3. INSERT backup key as new openhands_key
