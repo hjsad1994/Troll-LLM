@@ -113,7 +113,7 @@ export default function RateLimitsPage() {
   const { t } = useLanguage()
   const sidebarNav = getSidebarNav(t)
 
-  const rateLimit = '600'
+  const rateLimit = '2000'
 
   return (
     <div className="min-h-screen bg-white dark:bg-black">

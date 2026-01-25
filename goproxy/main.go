@@ -406,23 +406,13 @@ func checkRateLimit(w http.ResponseWriter, apiKey string) bool {
 	return checkRateLimitWithUsername(w, apiKey, "", false)
 }
 
-// checkRateLimitWithUsername checks rate limit with key type detection and refCredits support
-// Rate limits: User Key (sk-troll-*) = 600 RPM, Friend Key (sk-trollllm-friend-*) = 60 RPM
-// When user's main credits are exhausted and using refCredits, Pro-level RPM (1000) is applied (User Keys only)
+// checkRateLimitWithUsername checks rate limit with key type detection
+// Rate limits: User Key (sk-troll-*) = 2000 RPM, Friend Key (sk-trollllm-friend-*) = 60 RPM
 // isAnthropicEndpoint: true for /v1/messages (Anthropic format), false for /v1/chat/completions (OpenAI format)
 func checkRateLimitWithUsername(w http.ResponseWriter, apiKey string, username string, isAnthropicEndpoint bool) bool {
-	// Get rate limit based on key type (User: 600, Friend: 60, Unknown: 300)
+	// Get rate limit based on key type (User: 2000, Friend: 60, Unknown: 300)
 	limit := ratelimit.GetRPMForAPIKey(apiKey)
 	keyType := userkey.GetKeyType(apiKey)
-
-	// Check if user is using refCredits (main credits exhausted) - apply Pro RPM for User Keys only
-	if username != "" && keyType == userkey.KeyTypeUser {
-		creditResult, err := userkey.CheckUserCreditsDetailed(username)
-		if err == nil && creditResult != nil && creditResult.UseRefCredits {
-			limit = 1000 // Pro-level RPM when using refCredits
-			log.Printf("🎁 [RefCredits] Applying Pro RPM (1000) for user %s using refCredits", username)
-		}
-	}
 
 	// Log key type detection
 	log.Printf("🔑 [RateLimit] Key type: %s, limit: %d RPM for key %s...", keyType.String(), limit, apiKey[:min(8, len(apiKey))])
@@ -3949,7 +3939,7 @@ func main() {
 
 	// Initialize rate limiter
 	rateLimiter = ratelimit.NewRateLimiter()
-	log.Printf("✅ Rate limiter initialized (Dev: 300 RPM, Pro: 1000 RPM)")
+	log.Printf("✅ Rate limiter initialized (User: 2000 RPM, Friend: 60 RPM, Default: 300 RPM)")
 
 	// Initialize proxy pool and factory key pool
 	proxyPool = proxy.GetPool()
