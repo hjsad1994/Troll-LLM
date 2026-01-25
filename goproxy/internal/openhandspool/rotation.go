@@ -166,6 +166,8 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 				p.MarkExhausted(keyID)
 			} else if newKeyID != "" {
 				log.Printf("✅ [OpenHandsRotation] Rotated: %s -> %s", keyID, newKeyID)
+			} else {
+				log.Printf("ℹ️ [OpenHandsRotation] Key %s was already rotated by another process", keyID)
 			}
 		} else {
 			p.MarkExhausted(keyID)
