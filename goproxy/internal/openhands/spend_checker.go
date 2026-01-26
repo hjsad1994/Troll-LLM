@@ -25,9 +25,9 @@ const (
 	ActiveKeyWindow        = 4 * time.Minute
 
 	// Tiered check intervals based on spend amount (4 tiers)
-	// Critical spend (>= $9.5): check every 10s for immediate rotation
-	CriticalSpendThreshold     = 9.5
-	CriticalSpendCheckInterval = 10 * time.Second
+	// Critical spend (>= $9.4): check every 5s for immediate rotation
+	CriticalSpendThreshold     = 9.4
+	CriticalSpendCheckInterval = 5 * time.Second
 
 	// High spend (>= $8.5): check every 15s for proactive rotation
 	HighSpendThreshold     = 8.5
@@ -49,7 +49,7 @@ const (
 type SpendChecker struct {
 	provider  *OpenHandsProvider
 	threshold float64
-	// baseCheckInterval is the ticker interval (uses fastest possible: 10s)
+	// baseCheckInterval is the ticker interval (uses fastest possible: 5s)
 	baseCheckInterval time.Duration
 	stopChan          chan struct{}
 	running           bool
@@ -93,8 +93,8 @@ type SpendCheckerStats struct {
 
 // TieredIntervalsInfo describes the spend-based check interval tiers (4 tiers)
 type TieredIntervalsInfo struct {
-	CriticalSpendThreshold     float64 `json:"critical_spend_threshold"`      // >= this = critical tier ($9.5+)
-	CriticalSpendCheckInterval string  `json:"critical_spend_check_interval"` // interval for critical tier (10s)
+	CriticalSpendThreshold     float64 `json:"critical_spend_threshold"`      // >= this = critical tier ($9.4+)
+	CriticalSpendCheckInterval string  `json:"critical_spend_check_interval"` // interval for critical tier (5s)
 	HighSpendThreshold         float64 `json:"high_spend_threshold"`          // >= this = high tier ($8.5+)
 	HighSpendCheckInterval     string  `json:"high_spend_check_interval"`     // interval for high tier (15s)
 	MediumSpendThreshold       float64 `json:"medium_spend_threshold"`        // >= this = medium tier ($5+)
@@ -124,7 +124,7 @@ func NewSpendChecker(provider *OpenHandsProvider, threshold float64, activeInter
 	return &SpendChecker{
 		provider:          provider,
 		threshold:         threshold,
-		baseCheckInterval: CriticalSpendCheckInterval, // Use fastest interval (10s) as base ticker
+		baseCheckInterval: CriticalSpendCheckInterval, // Use fastest interval (5s) as base ticker
 		stopChan:          make(chan struct{}),
 		running:           false,
 	}
@@ -140,11 +140,11 @@ func (sc *SpendChecker) Start() {
 	sc.running = true
 	sc.mu.Unlock()
 
-	log.Printf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$8.5=%v, $8.5-$9.5=%v, >=$9.5=%v)",
+	log.Printf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$8.5=%v, $8.5-$9.4=%v, >=$9.4=%v)",
 		sc.threshold, LowSpendCheckInterval, MediumSpendCheckInterval, HighSpendCheckInterval, CriticalSpendCheckInterval)
 
 	go func() {
-		// Use base check interval (10s) as ticker - we'll skip keys based on their spend tier
+		// Use base check interval (5s) as ticker - we'll skip keys based on their spend tier
 		ticker := time.NewTicker(sc.baseCheckInterval)
 		defer ticker.Stop()
 
@@ -276,13 +276,13 @@ func (sc *SpendChecker) isKeyActive(key *OpenHandsKey, now time.Time) bool {
 }
 
 // getCheckIntervalForSpend returns the appropriate check interval based on current spend
-// - Spend >= $9.5: check every 10 seconds (critical, near limit)
+// - Spend >= $9.4: check every 5 seconds (critical, near limit)
 // - Spend >= $8.5: check every 15 seconds (high, approaching limit)
 // - Spend $5-$8.5: check every 3 minutes (medium spend)
 // - Spend < $5: check every 6 minutes (low spend)
 func (sc *SpendChecker) getCheckIntervalForSpend(spend float64) time.Duration {
 	if spend >= CriticalSpendThreshold {
-		return CriticalSpendCheckInterval // 10s
+		return CriticalSpendCheckInterval // 5s
 	}
 	if spend >= HighSpendThreshold {
 		return HighSpendCheckInterval // 15s
