@@ -1,8 +1,8 @@
 # AGENTS.md - AI Agent Guidelines for TrollLLM
 
-**Generated:** 2026-01-25T22:28:00+07:00
-**Commit:** 9d9afb4
-**Branch:** feat/payment-history-dashboard
+**Generated:** 2026-01-26T17:45:00+07:00
+**Commit:** b27c854
+**Branch:** feat/spend-checker-5s
 
 ## Project Overview
 
@@ -378,3 +378,22 @@ bd dep add <child> <parent>     # Set dependency
 bd dep tree <id>           # View dependency tree
 ```
 <!-- END BEADS INTEGRATION -->
+
+---
+
+## 📂 Component-Specific Agent Guidelines
+
+For detailed guidelines specific to each component, refer to:
+
+- **[backend/AGENTS.md](backend/AGENTS.md)** - Backend Node.js/TypeScript/Express guidelines
+- **[frontend/AGENTS.md](frontend/AGENTS.md)** - Frontend Next.js/React guidelines
+- **[frontend/src/components/AGENTS.md](frontend/src/components/AGENTS.md)** - Frontend component-specific patterns
+- **[goproxy/AGENTS.md](goproxy/AGENTS.md)** - Go proxy service guidelines
+- **[goproxy/internal/AGENTS.md](goproxy/internal/AGENTS.md)** - Go proxy internal package guidelines
+
+These component-specific guides provide:
+- Domain-specific patterns and conventions
+- Component architecture details
+- Testing strategies
+- Common pitfalls and solutions
+- Best practices for that specific codebase
