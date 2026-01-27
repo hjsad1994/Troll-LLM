@@ -560,3 +560,160 @@ func TestPromptTooLongError_NonPromptErrorNotAffected(t *testing.T) {
 		}
 	}
 }
+
+// =============================================================================
+// Tool Use / Tool Result Mismatch Error Tests
+// =============================================================================
+
+// TestToolUseResultMismatchError_Detection tests detection of tool_use/tool_result mismatch errors
+func TestToolUseResultMismatchError_Detection(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "Anthropic format - exact match",
+			input:    `{"type":"error","error":{"type":"invalid_request_error","message":"messages.145: tool_use ids were found without tool_result blocks immediately after: toolu_01LHovBrqXAyFpB7WVgvuqLF. Each tool_use block must have a corresponding tool_result block in the next message."},"request_id":"req_011CXXBb9mBc3SnGNQ699yNJ"}`,
+			expected: true,
+		},
+		{
+			name:     "Anthropic format - backticks in message",
+			input:    "messages.145: `tool_use` ids were found without `tool_result` blocks immediately after: toolu_01LHovBrqXAyFpB7WVgvuqLF. Each `tool_use` block must have a corresponding `tool_result` block in the next message.",
+			expected: true,
+		},
+		{
+			name:     "Generic - tool_use and tool_result keywords",
+			input:    `{"error":{"message":"Error: tool_use block without tool_result"}}`,
+			expected: true,
+		},
+		{
+			name:     "Exact match pattern from spec",
+			input:    `Each tool_use block must have a corresponding tool_result block`,
+			expected: true,
+		},
+		{
+			name:     "Unrelated error - auth",
+			input:    `{"error":{"message":"Authentication failed"}}`,
+			expected: false,
+		},
+		{
+			name:     "Unrelated error - rate limit",
+			input:    `{"error":{"message":"Rate limit exceeded"}}`,
+			expected: false,
+		},
+		{
+			name:     "Unrelated error - prompt too long",
+			input:    `{"error":{"message":"prompt is too long: 200076 tokens > 200000 maximum"}}`,
+			expected: false,
+		},
+		{
+			name:     "Unrelated - only tool_use without tool_result",
+			input:    `{"error":{"message":"Invalid tool_use format"}}`,
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isToolUseResultMismatchError(tc.input)
+			if result != tc.expected {
+				t.Errorf("isToolUseResultMismatchError(%q) = %v, expected %v", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+// TestToolUseResultMismatchError_SanitizeOpenAI verifies OpenAI format returns actionable error
+func TestToolUseResultMismatchError_SanitizeOpenAI(t *testing.T) {
+	// Simulate the actual upstream error
+	originalError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"messages.145: tool_use ids were found without tool_result blocks immediately after: toolu_01LHovBrqXAyFpB7WVgvuqLF. Each tool_use block must have a corresponding tool_result block in the next message."},"request_id":"req_011CXXBb9mBc3SnGNQ699yNJ"}`)
+
+	result := SanitizeError(400, originalError)
+	resultStr := string(result)
+
+	// Should contain concise actionable message
+	if !strings.Contains(resultStr, "Conversation history corrupted") {
+		t.Errorf("OpenAI sanitized error should contain 'Conversation history corrupted'\nGot: %s", resultStr)
+	}
+
+	// Should recommend starting new chat
+	if !strings.Contains(resultStr, "start a new chat") {
+		t.Errorf("OpenAI sanitized error should contain 'start a new chat'\nGot: %s", resultStr)
+	}
+
+	// Should have correct error code
+	if !strings.Contains(resultStr, "malformed_tool_history") {
+		t.Errorf("OpenAI sanitized error should have code 'malformed_tool_history'\nGot: %s", resultStr)
+	}
+
+	// Should NOT contain request_id (security)
+	if strings.Contains(resultStr, "req_011CXX") {
+		t.Errorf("OpenAI sanitized error should NOT expose request_id\nGot: %s", resultStr)
+	}
+
+	// Should NOT contain tool_use id (security)
+	if strings.Contains(resultStr, "toolu_01LH") {
+		t.Errorf("OpenAI sanitized error should NOT expose tool_use id\nGot: %s", resultStr)
+	}
+
+	t.Logf("OpenAI tool_use/tool_result mismatch error: %s", resultStr)
+}
+
+// TestToolUseResultMismatchError_SanitizeAnthropic verifies Anthropic format returns actionable error
+func TestToolUseResultMismatchError_SanitizeAnthropic(t *testing.T) {
+	// Simulate the actual upstream error
+	originalError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"messages.145: tool_use ids were found without tool_result blocks immediately after: toolu_01LHovBrqXAyFpB7WVgvuqLF. Each tool_use block must have a corresponding tool_result block in the next message."},"request_id":"req_011CXXBb9mBc3SnGNQ699yNJ"}`)
+
+	result := SanitizeAnthropicError(400, originalError)
+	resultStr := string(result)
+
+	// Should contain concise actionable message
+	if !strings.Contains(resultStr, "Conversation history corrupted") {
+		t.Errorf("Anthropic sanitized error should contain 'Conversation history corrupted'\nGot: %s", resultStr)
+	}
+
+	// Should recommend starting new chat
+	if !strings.Contains(resultStr, "start a new chat") {
+		t.Errorf("Anthropic sanitized error should contain 'start a new chat'\nGot: %s", resultStr)
+	}
+
+	// Should have Anthropic format structure
+	if !strings.Contains(resultStr, `"type":"error"`) {
+		t.Errorf("Anthropic sanitized error should have outer type 'error'\nGot: %s", resultStr)
+	}
+
+	// Should have correct error type
+	if !strings.Contains(resultStr, `"type":"invalid_request_error"`) {
+		t.Errorf("Anthropic sanitized error should have inner type 'invalid_request_error'\nGot: %s", resultStr)
+	}
+
+	// Should NOT contain request_id (security)
+	if strings.Contains(resultStr, "req_011CXX") {
+		t.Errorf("Anthropic sanitized error should NOT expose request_id\nGot: %s", resultStr)
+	}
+
+	// Should NOT contain tool_use id (security)
+	if strings.Contains(resultStr, "toolu_01LH") {
+		t.Errorf("Anthropic sanitized error should NOT expose tool_use id\nGot: %s", resultStr)
+	}
+
+	t.Logf("Anthropic tool_use/tool_result mismatch error: %s", resultStr)
+}
+
+// TestToolUseResultMismatchError_ContainsGuidance verifies error message contains fix guidance
+func TestToolUseResultMismatchError_ContainsGuidance(t *testing.T) {
+	originalError := []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"tool_use ids were found without tool_result blocks"}}`)
+
+	// Test OpenAI format
+	openAIResult := string(SanitizeError(400, originalError))
+	if !strings.Contains(openAIResult, "start a new chat") {
+		t.Error("OpenAI error should contain guidance to start a new chat")
+	}
+
+	// Test Anthropic format
+	anthropicResult := string(SanitizeAnthropicError(400, originalError))
+	if !strings.Contains(anthropicResult, "start a new chat") {
+		t.Error("Anthropic error should contain guidance to start a new chat")
+	}
+}

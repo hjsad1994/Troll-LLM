@@ -40,6 +40,13 @@ func SanitizeError(statusCode int, originalError []byte) []byte {
 			// Return a user-friendly error in OpenAI format (don't expose internal routing details)
 			return []byte(`{"error":{"message":"max_tokens must be greater than thinking.budget_tokens. Please increase max_tokens or decrease thinking.budget_tokens in your extended thinking configuration. See: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking","type":"invalid_request_error","code":"invalid_thinking_config"}}`)
 		}
+
+		// Check for tool_use/tool_result mismatch error (CLIENT-SIDE bug, not proxy)
+		if isToolUseResultMismatchError(errorStr) {
+			log.Printf("⚠️ [TrollProxy] Detected tool_use/tool_result mismatch error (client-side bug)")
+			// Return a concise user-friendly error
+			return []byte(`{"error":{"message":"Conversation history corrupted (tool_use without tool_result). Please start a new chat.","type":"invalid_request_error","code":"malformed_tool_history"}}`)
+		}
 	}
 
 	switch statusCode {
@@ -91,6 +98,13 @@ func SanitizeAnthropicError(statusCode int, originalError []byte) []byte {
 			log.Printf("⚠️ [TrollProxy] Preserving prompt too long error for user (Anthropic format)")
 			// Return a user-friendly error in Anthropic format (no hardcoded token limit)
 			return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Prompt is too long. Your request exceeds the model's maximum context length. Please use /compact to summarize the conversation or start a new chat."}}`)
+		}
+
+		// Check for tool_use/tool_result mismatch error (CLIENT-SIDE bug, not proxy)
+		if isToolUseResultMismatchError(errorStr) {
+			log.Printf("⚠️ [TrollProxy] Detected tool_use/tool_result mismatch error (client-side bug)")
+			// Return a concise user-friendly error
+			return []byte(`{"type":"error","error":{"type":"invalid_request_error","message":"Conversation history corrupted (tool_use without tool_result). Please start a new chat."}}`)
 		}
 	}
 
@@ -160,4 +174,16 @@ func isPromptTooLongError(errorStr string) bool {
 		strings.Contains(errorLower, "context length") ||
 		strings.Contains(errorLower, "maximum context") ||
 		(strings.Contains(errorLower, "tokens") && strings.Contains(errorLower, "maximum"))
+}
+
+// isToolUseResultMismatchError checks if a 400 error is related to tool_use/tool_result mismatch
+// Returns true if the error indicates malformed conversation history where tool_use blocks
+// don't have corresponding tool_result blocks.
+// This error is caused by the CLIENT sending malformed message history, not by the proxy.
+// Common cause: Client's conversation history management bug (truncation, crash during tool execution)
+func isToolUseResultMismatchError(errorStr string) bool {
+	// Check for Anthropic's specific error pattern:
+	// "tool_use ids were found without tool_result blocks immediately after"
+	return strings.Contains(errorStr, "tool_use") && strings.Contains(errorStr, "tool_result") ||
+		strings.Contains(errorStr, "Each `tool_use` block must have a corresponding `tool_result`")
 }
