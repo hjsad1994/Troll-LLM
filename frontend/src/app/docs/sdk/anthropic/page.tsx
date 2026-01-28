@@ -416,9 +416,15 @@ export default function AnthropicSDKPage() {
                   language: 'python',
                   code: `from anthropic import Anthropic
 
+CUSTOM_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
+# Note: NO /v1 suffix for Anthropic SDK (unlike OpenAI SDK)
 client = Anthropic(
+    base_url="https://chat.trollllm.xyz",
     api_key="your-trollllm-api-key",
-    base_url="https://chat.trollllm.xyz"  # NO /v1 suffix!
+    default_headers=CUSTOM_HEADERS
 )`
                 },
                 {
@@ -426,9 +432,13 @@ client = Anthropic(
                   language: 'javascript',
                   code: `import Anthropic from '@anthropic-ai/sdk';
 
+// Note: NO /v1 suffix for Anthropic SDK (unlike OpenAI SDK)
 const client = new Anthropic({
+  baseURL: 'https://chat.trollllm.xyz',
   apiKey: 'your-trollllm-api-key',
-  baseURL: 'https://chat.trollllm.xyz'  // NO /v1 suffix!
+  defaultHeaders: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  }
 });`
                 }
               ]}
@@ -450,7 +460,6 @@ const client = new Anthropic({
                   label: 'Python',
                   language: 'python',
                   code: `from anthropic import Anthropic
-import httpx
 
 # Custom User-Agent to bypass Cloudflare blocking
 CUSTOM_HEADERS = {
@@ -458,9 +467,9 @@ CUSTOM_HEADERS = {
 }
 
 client = Anthropic(
-    api_key="your-trollllm-api-key",
     base_url="https://chat.trollllm.xyz",
-    http_client=httpx.Client(headers=CUSTOM_HEADERS)
+    api_key="your-trollllm-api-key",
+    default_headers=CUSTOM_HEADERS
 )`
                 },
                 {
@@ -469,8 +478,8 @@ client = Anthropic(
                   code: `import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
-  apiKey: 'your-trollllm-api-key',
   baseURL: 'https://chat.trollllm.xyz',
+  apiKey: 'your-trollllm-api-key',
   defaultHeaders: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   }
@@ -491,24 +500,21 @@ const client = new Anthropic({
                   label: 'Python',
                   language: 'python',
                   code: `from anthropic import Anthropic
-import httpx
 
 CUSTOM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
 client = Anthropic(
-    api_key="your-trollllm-api-key",
     base_url="https://chat.trollllm.xyz",
-    http_client=httpx.Client(headers=CUSTOM_HEADERS)
+    api_key="your-trollllm-api-key",
+    default_headers=CUSTOM_HEADERS
 )
 
 response = client.messages.create(
     model="claude-sonnet-4-5-20250929",
-    max_tokens=1024,
-    messages=[
-        {"role": "user", "content": "Hello! What can you help me with?"}
-    ]
+    messages=[{"role": "user", "content": "Hello!"}],
+    max_tokens=1024
 )
 
 print(response.content[0].text)`
@@ -519,8 +525,8 @@ print(response.content[0].text)`
                   code: `import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
-  apiKey: 'your-trollllm-api-key',
   baseURL: 'https://chat.trollllm.xyz',
+  apiKey: 'your-trollllm-api-key',
   defaultHeaders: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   }
@@ -528,10 +534,8 @@ const client = new Anthropic({
 
 const response = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',
-  maxTokens: 1024,
-  messages: [
-    { role: 'user', content: 'Hello! What can you help me with?' }
-  ]
+  messages: [{ role: 'user', content: 'Hello!' }],
+  maxTokens: 1024
 });
 
 console.log(response.content[0].text);`
@@ -551,16 +555,15 @@ console.log(response.content[0].text);`
                   label: 'Python',
                   language: 'python',
                   code: `from anthropic import Anthropic
-import httpx
 
 CUSTOM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
 client = Anthropic(
-    api_key="your-trollllm-api-key",
     base_url="https://chat.trollllm.xyz",
-    http_client=httpx.Client(headers=CUSTOM_HEADERS)
+    api_key="your-trollllm-api-key",
+    default_headers=CUSTOM_HEADERS
 )
 
 with client.messages.stream(
@@ -579,8 +582,8 @@ with client.messages.stream(
                   code: `import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
-  apiKey: 'your-trollllm-api-key',
   baseURL: 'https://chat.trollllm.xyz',
+  apiKey: 'your-trollllm-api-key',
   defaultHeaders: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   }
@@ -588,10 +591,8 @@ const client = new Anthropic({
 
 const stream = client.messages.stream({
   model: 'claude-sonnet-4-5-20250929',
-  maxTokens: 256,
-  messages: [
-    { role: 'user', content: 'Write a short poem about coding' }
-  ]
+  messages: [{ role: 'user', content: 'Write a short poem about coding' }],
+  maxTokens: 256
 });
 
 for await (const event of stream) {
@@ -615,16 +616,15 @@ for await (const event of stream) {
                   label: 'Python',
                   language: 'python',
                   code: `from anthropic import Anthropic
-import httpx
 
 CUSTOM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
 client = Anthropic(
-    api_key="your-trollllm-api-key",
     base_url="https://chat.trollllm.xyz",
-    http_client=httpx.Client(headers=CUSTOM_HEADERS)
+    api_key="your-trollllm-api-key",
+    default_headers=CUSTOM_HEADERS
 )
 
 response = client.messages.create(
@@ -644,8 +644,8 @@ print(response.content[0].text)`
                   code: `import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
-  apiKey: 'your-trollllm-api-key',
   baseURL: 'https://chat.trollllm.xyz',
+  apiKey: 'your-trollllm-api-key',
   defaultHeaders: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   }
@@ -653,11 +653,9 @@ const client = new Anthropic({
 
 const response = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',
-  maxTokens: 1024,
   system: 'You are a helpful coding assistant. Always provide code examples.',
-  messages: [
-    { role: 'user', content: 'How do I read a file in Python?' }
-  ]
+  messages: [{ role: 'user', content: 'How do I read a file in Python?' }],
+  maxTokens: 1024
 });
 
 console.log(response.content[0].text);`
@@ -689,22 +687,20 @@ export ANTHROPIC_BASE_URL="https://chat.trollllm.xyz"`}
                   label: 'Python',
                   language: 'python',
                   code: `from anthropic import Anthropic
-import httpx
 
-# Still need custom headers for Cloudflare bypass
 CUSTOM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
 # Will automatically use ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL
 client = Anthropic(
-    http_client=httpx.Client(headers=CUSTOM_HEADERS)
+    default_headers=CUSTOM_HEADERS
 )
 
 response = client.messages.create(
     model="claude-sonnet-4-5-20250929",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": "Hello!"}]
+    messages=[{"role": "user", "content": "Hello!"}],
+    max_tokens=1024
 )
 print(response.content[0].text)`
                 },
@@ -714,7 +710,6 @@ print(response.content[0].text)`
                   code: `import Anthropic from '@anthropic-ai/sdk';
 
 // Will automatically use ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL
-// Still need custom headers for Cloudflare bypass
 const client = new Anthropic({
   defaultHeaders: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -723,8 +718,8 @@ const client = new Anthropic({
 
 const response = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',
-  maxTokens: 1024,
-  messages: [{ role: 'user', content: 'Hello!' }]
+  messages: [{ role: 'user', content: 'Hello!' }],
+  maxTokens: 1024
 });
 console.log(response.content[0].text);`
                 }
