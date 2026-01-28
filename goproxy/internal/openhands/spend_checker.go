@@ -141,8 +141,6 @@ func (sc *SpendChecker) Start() {
 	sc.mu.Unlock()
 
 	// Startup log disabled to reduce noise - only log on key rotation
-	_ = fmt.Sprintf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$8.5=%v, $8.5-$9.4=%v, >=$9.4=%v)",
-		sc.threshold, LowSpendCheckInterval, MediumSpendCheckInterval, HighSpendCheckInterval, CriticalSpendCheckInterval)
 
 	go func() {
 		// Use base check interval (5s) as ticker - we'll skip keys based on their spend tier
@@ -230,12 +228,6 @@ func (sc *SpendChecker) checkAllKeys() {
 
 		// Update key spend info in DB and memory
 		sc.updateKeySpendInfo(key.ID, result.Spend, result.CheckedAt)
-
-		// Calculate percentage
-		percentage := (result.Spend / sc.threshold) * 100
-
-		// Log disabled to reduce noise (only log on rotation)
-		_ = percentage
 
 		// Check if we need to rotate
 		if result.Spend >= sc.threshold {
@@ -426,10 +418,8 @@ func (sc *SpendChecker) updateKeySpendInfo(keyID string, spend float64, checkedA
 			"lastSpendCheck": checkedAt,
 		},
 	})
-	if err != nil {
-		// DB update failure log disabled to reduce noise
-		_ = err
-	}
+	// DB update failure ignored - non-critical for spend checking functionality
+	_ = err
 
 	// Update in memory
 	sc.provider.mu.Lock()
@@ -462,15 +452,11 @@ func (sc *SpendChecker) saveSpendHistory(result SpendCheckResult, rotatedAt *tim
 
 	col := db.GetCollection(SpendHistoryCollection)
 	if col == nil {
-		// History collection log disabled to reduce noise
 		return
 	}
 
-	_, err := col.InsertOne(ctx, entry)
-	if err != nil {
-		// History save failure log disabled to reduce noise
-		_ = err
-	}
+	// History save failure ignored - non-critical for spend checking functionality
+	_, _ = col.InsertOne(ctx, entry)
 }
 
 // maskAPIKey masks an API key for logging/storage
