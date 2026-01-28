@@ -416,9 +416,14 @@ export default function OpenAISDKPage() {
                   language: 'python',
                   code: `from openai import OpenAI
 
+CUSTOM_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
 client = OpenAI(
+    base_url="https://chat.trollllm.xyz/v1",
     api_key="your-trollllm-api-key",
-    base_url="https://chat.trollllm.xyz/v1"
+    default_headers=CUSTOM_HEADERS
 )`
                 },
                 {
@@ -427,8 +432,11 @@ client = OpenAI(
                   code: `import OpenAI from 'openai';
 
 const client = new OpenAI({
+  baseURL: 'https://chat.trollllm.xyz/v1',
   apiKey: 'your-trollllm-api-key',
-  baseURL: 'https://chat.trollllm.xyz/v1'
+  defaultHeaders: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  }
 });`
                 }
               ]}
@@ -450,7 +458,6 @@ const client = new OpenAI({
                   label: 'Python',
                   language: 'python',
                   code: `from openai import OpenAI
-import httpx
 
 # Custom User-Agent to bypass Cloudflare blocking
 CUSTOM_HEADERS = {
@@ -458,9 +465,9 @@ CUSTOM_HEADERS = {
 }
 
 client = OpenAI(
-    api_key="your-trollllm-api-key",
     base_url="https://chat.trollllm.xyz/v1",
-    http_client=httpx.Client(headers=CUSTOM_HEADERS)
+    api_key="your-trollllm-api-key",
+    default_headers=CUSTOM_HEADERS
 )`
                 },
                 {
@@ -492,16 +499,19 @@ const client = new OpenAI({
                   language: 'python',
                   code: `from openai import OpenAI
 
+CUSTOM_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
 client = OpenAI(
+    base_url="https://chat.trollllm.xyz/v1",
     api_key="your-trollllm-api-key",
-    base_url="https://chat.trollllm.xyz/v1"
+    default_headers=CUSTOM_HEADERS
 )
 
 response = client.chat.completions.create(
     model="claude-sonnet-4-5-20250929",
-    messages=[
-        {"role": "user", "content": "Hello! What can you help me with?"}
-    ],
+    messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=1024
 )
 
@@ -513,15 +523,16 @@ print(response.choices[0].message.content)`
                   code: `import OpenAI from 'openai';
 
 const client = new OpenAI({
+  baseURL: 'https://chat.trollllm.xyz/v1',
   apiKey: 'your-trollllm-api-key',
-  baseURL: 'https://chat.trollllm.xyz/v1'
+  defaultHeaders: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  }
 });
 
 const response = await client.chat.completions.create({
   model: 'claude-sonnet-4-5-20250929',
-  messages: [
-    { role: 'user', content: 'Hello! What can you help me with?' }
-  ],
+  messages: [{ role: 'user', content: 'Hello!' }],
   maxTokens: 1024
 });
 
@@ -543,16 +554,19 @@ console.log(response.choices[0].message.content);`
                   language: 'python',
                   code: `from openai import OpenAI
 
+CUSTOM_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
 client = OpenAI(
+    base_url="https://chat.trollllm.xyz/v1",
     api_key="your-trollllm-api-key",
-    base_url="https://chat.trollllm.xyz/v1"
+    default_headers=CUSTOM_HEADERS
 )
 
 stream = client.chat.completions.create(
     model="claude-sonnet-4-5-20250929",
-    messages=[
-        {"role": "user", "content": "Write a short poem about coding"}
-    ],
+    messages=[{"role": "user", "content": "Write a short poem about coding"}],
     max_tokens=256,
     stream=True
 )
@@ -567,15 +581,16 @@ for chunk in stream:
                   code: `import OpenAI from 'openai';
 
 const client = new OpenAI({
+  baseURL: 'https://chat.trollllm.xyz/v1',
   apiKey: 'your-trollllm-api-key',
-  baseURL: 'https://chat.trollllm.xyz/v1'
+  defaultHeaders: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  }
 });
 
 const stream = await client.chat.completions.create({
   model: 'claude-sonnet-4-5-20250929',
-  messages: [
-    { role: 'user', content: 'Write a short poem about coding' }
-  ],
+  messages: [{ role: 'user', content: 'Write a short poem about coding' }],
   maxTokens: 256,
   stream: true
 });
@@ -602,9 +617,14 @@ for await (const chunk of stream) {
                   language: 'python',
                   code: `from openai import OpenAI
 
+CUSTOM_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
 client = OpenAI(
+    base_url="https://chat.trollllm.xyz/v1",
     api_key="your-trollllm-api-key",
-    base_url="https://chat.trollllm.xyz/v1"
+    default_headers=CUSTOM_HEADERS
 )
 
 models = client.models.list()
@@ -618,8 +638,11 @@ for model in models.data:
                   code: `import OpenAI from 'openai';
 
 const client = new OpenAI({
+  baseURL: 'https://chat.trollllm.xyz/v1',
   apiKey: 'your-trollllm-api-key',
-  baseURL: 'https://chat.trollllm.xyz/v1'
+  defaultHeaders: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  }
 });
 
 const models = await client.models.list();
@@ -656,12 +679,19 @@ export OPENAI_BASE_URL="https://chat.trollllm.xyz/v1"`}
                   language: 'python',
                   code: `from openai import OpenAI
 
+CUSTOM_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
 # Will automatically use OPENAI_API_KEY and OPENAI_BASE_URL
-client = OpenAI()
+client = OpenAI(
+    default_headers=CUSTOM_HEADERS
+)
 
 response = client.chat.completions.create(
     model="claude-sonnet-4-5-20250929",
-    messages=[{"role": "user", "content": "Hello!"}]
+    messages=[{"role": "user", "content": "Hello!"}],
+    max_tokens=1024
 )
 print(response.choices[0].message.content)`
                 },
@@ -671,11 +701,16 @@ print(response.choices[0].message.content)`
                   code: `import OpenAI from 'openai';
 
 // Will automatically use OPENAI_API_KEY and OPENAI_BASE_URL
-const client = new OpenAI();
+const client = new OpenAI({
+  defaultHeaders: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  }
+});
 
 const response = await client.chat.completions.create({
   model: 'claude-sonnet-4-5-20250929',
-  messages: [{ role: 'user', content: 'Hello!' }]
+  messages: [{ role: 'user', content: 'Hello!' }],
+  maxTokens: 1024
 });
 console.log(response.choices[0].message.content);`
                 }
