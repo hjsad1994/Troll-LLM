@@ -140,7 +140,8 @@ func (sc *SpendChecker) Start() {
 	sc.running = true
 	sc.mu.Unlock()
 
-	log.Printf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$8.5=%v, $8.5-$9.4=%v, >=$9.4=%v)",
+	// Startup log disabled to reduce noise - only log on key rotation
+	_ = fmt.Sprintf("💰 [OpenHands/SpendChecker] Started (threshold: $%.2f, tiered intervals: <$5=%v, $5-$8.5=%v, $8.5-$9.4=%v, >=$9.4=%v)",
 		sc.threshold, LowSpendCheckInterval, MediumSpendCheckInterval, HighSpendCheckInterval, CriticalSpendCheckInterval)
 
 	go func() {
@@ -156,7 +157,7 @@ func (sc *SpendChecker) Start() {
 			case <-ticker.C:
 				sc.checkAllKeys()
 			case <-sc.stopChan:
-				log.Printf("💰 [OpenHands/SpendChecker] Stopped")
+				// Shutdown log disabled to reduce noise
 				return
 			}
 		}
@@ -233,13 +234,8 @@ func (sc *SpendChecker) checkAllKeys() {
 		// Calculate percentage
 		percentage := (result.Spend / sc.threshold) * 100
 
-		// Log the result
-		activeStr := "IDLE"
-		if isActive {
-			activeStr = "ACTIVE"
-		}
-		log.Printf("💰 [OpenHands/SpendChecker] Key %s %s: $%.2f / $%.2f (%.1f%%)",
-			key.ID, activeStr, result.Spend, sc.threshold, percentage)
+		// Log disabled to reduce noise (only log on rotation)
+		_ = percentage
 
 		// Check if we need to rotate
 		if result.Spend >= sc.threshold {
@@ -358,11 +354,8 @@ func (sc *SpendChecker) checkKeySpend(key *OpenHandsKey, isActive bool) SpendChe
 	req.Header.Set("Accept", "application/json")
 
 	// Get client with proxy but WITHOUT selecting a new key
-	client, proxyName := sc.provider.GetClientWithProxyOnly()
-
-	if proxyName != "" {
-		log.Printf("💰 [OpenHands/SpendChecker] Checking key %s via proxy %s", key.ID, proxyName)
-	}
+	client, _ := sc.provider.GetClientWithProxyOnly()
+	// Proxy log disabled to reduce noise
 
 	// Make request with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -434,7 +427,8 @@ func (sc *SpendChecker) updateKeySpendInfo(keyID string, spend float64, checkedA
 		},
 	})
 	if err != nil {
-		log.Printf("⚠️ [OpenHands/SpendChecker] Failed to update key %s in DB: %v", keyID, err)
+		// DB update failure log disabled to reduce noise
+		_ = err
 	}
 
 	// Update in memory
@@ -468,13 +462,14 @@ func (sc *SpendChecker) saveSpendHistory(result SpendCheckResult, rotatedAt *tim
 
 	col := db.GetCollection(SpendHistoryCollection)
 	if col == nil {
-		log.Printf("⚠️ [OpenHands/SpendChecker] History collection not available")
+		// History collection log disabled to reduce noise
 		return
 	}
 
 	_, err := col.InsertOne(ctx, entry)
 	if err != nil {
-		log.Printf("⚠️ [OpenHands/SpendChecker] Failed to save history: %v", err)
+		// History save failure log disabled to reduce noise
+		_ = err
 	}
 }
 
