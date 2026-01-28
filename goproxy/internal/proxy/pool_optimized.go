@@ -15,12 +15,12 @@ import (
 
 // OptimizedProxyPool uses xsync.Map and atomic operations for lock-free access
 type OptimizedProxyPool struct {
-	proxies     *xsync.Map[string, *Proxy]           // proxyId -> Proxy
-	proxyList   atomic.Pointer[[]*Proxy]              // ordered list for round-robin
+	proxies     *xsync.Map[string, *Proxy]             // proxyId -> Proxy
+	proxyList   atomic.Pointer[[]*Proxy]               // ordered list for round-robin
 	bindings    *xsync.Map[string, []*ProxyKeyBinding] // proxyId -> bindings
-	current     atomic.Int32                          // lock-free round-robin counter
-	keyIndex    *xsync.Map[string, *atomic.Int32]     // proxyId -> key index
-	clientCache *xsync.Map[string, *http.Client]      // proxyId -> cached HTTP client
+	current     atomic.Int32                           // lock-free round-robin counter
+	keyIndex    *xsync.Map[string, *atomic.Int32]      // proxyId -> key index
+	clientCache *xsync.Map[string, *http.Client]       // proxyId -> cached HTTP client
 }
 
 var (
@@ -94,7 +94,7 @@ func (p *OptimizedProxyPool) LoadFromDB() error {
 			return bindings[i].Priority < bindings[j].Priority
 		})
 		p.bindings.Store(proxyID, bindings)
-		
+
 		// Initialize key index if not exists
 		if _, ok := p.keyIndex.Load(proxyID); !ok {
 			idx := &atomic.Int32{}
@@ -102,7 +102,7 @@ func (p *OptimizedProxyPool) LoadFromDB() error {
 		}
 	}
 
-	log.Printf("✅ [Optimized] Loaded %d proxies with bindings", len(newProxies))
+	// Proxy loading log disabled to reduce noise
 	return nil
 }
 
@@ -115,10 +115,10 @@ func (p *OptimizedProxyPool) SelectProxy() (*Proxy, error) {
 
 	proxies := *proxyList
 	count := int32(len(proxies))
-	
+
 	// Atomic increment - NO LOCK
 	startIdx := p.current.Add(1) % count
-	
+
 	// Round-robin through available proxies
 	for i := int32(0); i < count; i++ {
 		idx := (startIdx + i) % count
@@ -149,10 +149,10 @@ func (p *OptimizedProxyPool) SelectProxyWithKeyByClient(clientAPIKey string) (*P
 
 	proxies := *proxyList
 	count := int32(len(proxies))
-	
+
 	// Atomic increment - NO LOCK
 	startIdx := p.current.Add(1) % count
-	
+
 	for i := int32(0); i < count; i++ {
 		idx := (startIdx + i) % count
 		proxy := proxies[idx]
@@ -354,14 +354,13 @@ func (p *OptimizedProxyPool) StartAutoReload(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 [Optimized] Auto-reload started (interval: %v)", interval)
+		// Auto-reload started log disabled to reduce noise
 
 		for range ticker.C {
 			if err := p.LoadFromDB(); err != nil {
 				log.Printf("⚠️ [Optimized] Auto-reload failed: %v", err)
-			} else {
-				log.Printf("🔄 [Optimized] Auto-reloaded proxy bindings (%d proxies)", p.GetProxyCount())
 			}
+			// Auto-reload success log disabled to reduce noise
 		}
 	}()
 }

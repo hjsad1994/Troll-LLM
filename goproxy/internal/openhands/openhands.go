@@ -179,7 +179,7 @@ func (p *OpenHandsProvider) LoadKeys() error {
 		}
 	}
 
-	log.Printf("✅ [Troll-LLM] Loaded %d keys, %d proxy bindings from MongoDB", len(p.keys), len(p.bindings))
+	// Key loading log disabled - use openhandspool log instead
 	return nil
 }
 
@@ -194,14 +194,13 @@ func (p *OpenHandsProvider) StartAutoReload(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 [Troll-LLM] Auto-reload started (interval: %v)", interval)
+		// Auto-reload started log disabled to reduce noise
 
 		for range ticker.C {
 			if err := p.LoadKeys(); err != nil {
 				log.Printf("⚠️ [Troll-LLM] Auto-reload failed: %v", err)
-			} else {
-				log.Printf("🔄 [Troll-LLM] Auto-reloaded keys (%d keys)", p.GetKeyCount())
 			}
+			// Auto-reload success log disabled to reduce noise
 		}
 	}()
 }
