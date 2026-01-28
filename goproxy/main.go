@@ -1258,6 +1258,69 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	}
 
 	// ==========================================================================
+	// FIX: Validate and auto-fix max_tokens vs thinking.budget_tokens
+	// Anthropic API requires: max_tokens > thinking.budget_tokens
+	// ==========================================================================
+	model := config.GetModelByID(modelID)
+	maxLimit := 64000 // Default for Sonnet/Haiku 4.5
+	if model != nil && model.ID == "claude-opus-4-5-20251101" {
+		maxLimit = 32000
+	}
+
+	// Set default max_tokens if not specified
+	if anthropicReq.MaxTokens <= 0 {
+		anthropicReq.MaxTokens = maxLimit
+		log.Printf("🔧 [OpenHands-Anthropic] Set default max_tokens: %d", anthropicReq.MaxTokens)
+	}
+
+	// If thinking is enabled (either from request or we need to enable based on config)
+	if anthropicReq.Thinking != nil && anthropicReq.Thinking.Type == "enabled" {
+		// Client sent thinking config - validate and fix if needed
+		minTokens := anthropicReq.Thinking.BudgetTokens + 4000 // Reserve space for final response
+		if anthropicReq.MaxTokens < minTokens {
+			log.Printf("🔧 [OpenHands-Anthropic] max_tokens(%d) < thinking.budget_tokens(%d)+4000, auto-fixing to %d",
+				anthropicReq.MaxTokens, anthropicReq.Thinking.BudgetTokens, minTokens)
+			anthropicReq.MaxTokens = minTokens
+		}
+	} else {
+		// Check if we should enable thinking based on model config (for new conversations)
+		hasThinking, hasNonThinking := detectAssistantThinkingState(anthropicReq.Messages)
+		reasoning := config.GetModelReasoning(modelID)
+
+		if hasThinking {
+			// Conversation has thinking blocks - MUST enable thinking
+			budgetTokens := config.GetModelThinkingBudget(modelID)
+			anthropicReq.Thinking = &transformers.ThinkingConfig{
+				Type:         "enabled",
+				BudgetTokens: budgetTokens,
+			}
+			// Ensure max_tokens is sufficient
+			minTokens := budgetTokens + 4000
+			if anthropicReq.MaxTokens < minTokens {
+				anthropicReq.MaxTokens = minTokens
+			}
+			log.Printf("🧠 [OpenHands-Anthropic] Thinking ENABLED (conversation has thinking blocks, budget=%d, max_tokens=%d)", budgetTokens, anthropicReq.MaxTokens)
+		} else if hasNonThinking {
+			// Conversation has assistant messages without thinking - MUST disable
+			anthropicReq.Thinking = nil
+			log.Printf("🧠 [OpenHands-Anthropic] Thinking DISABLED (conversation lacks thinking blocks)")
+		} else if reasoning != "" {
+			// No assistant messages - new conversation, enable based on config
+			budgetTokens := config.GetModelThinkingBudget(modelID)
+			anthropicReq.Thinking = &transformers.ThinkingConfig{
+				Type:         "enabled",
+				BudgetTokens: budgetTokens,
+			}
+			// Ensure max_tokens is sufficient
+			minTokens := budgetTokens + 4000
+			if anthropicReq.MaxTokens < minTokens {
+				anthropicReq.MaxTokens = minTokens
+			}
+			log.Printf("🧠 [OpenHands-Anthropic] Thinking ENABLED (new conversation, budget=%d, max_tokens=%d)", budgetTokens, anthropicReq.MaxTokens)
+		}
+	}
+
+	// ==========================================================================
 	// TRUNCATION DISABLED - Let upstream/client handle context length
 	// Anthropic has Context Editing feature, Claude Code should handle this
 	// Keeping code commented for future reference if needed
