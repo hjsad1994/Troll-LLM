@@ -16,8 +16,8 @@ import (
 
 	"goproxy/config"
 	"goproxy/db"
-	"goproxy/internal/proxy"
 	"goproxy/internal/cache"
+	"goproxy/internal/proxy"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"golang.org/x/net/http2"
@@ -30,7 +30,7 @@ const (
 	OhMyGPTEndpoint            = OhMyGPTCompletionsEndpoint // default for OpenAI format
 	OhMyGPTName                = "ohmygpt"
 
-	RateLimitCooldownDuration = 2 * time.Minute // Cooldown for rate-limited keys
+	RateLimitCooldownDuration = 2 * time.Minute  // Cooldown for rate-limited keys
 	AutoRecoveryCheckInterval = 30 * time.Second // Auto-recovery check interval
 )
 
@@ -38,10 +38,10 @@ const (
 type OhMyGPTKeyStatus string
 
 const (
-	OhMyGPTStatusHealthy      OhMyGPTKeyStatus = "healthy"
-	OhMyGPTStatusRateLimited  OhMyGPTKeyStatus = "rate_limited"
-	OhMyGPTStatusExhausted    OhMyGPTKeyStatus = "exhausted"
-	OhMyGPTStatusError        OhMyGPTKeyStatus = "error"
+	OhMyGPTStatusHealthy     OhMyGPTKeyStatus = "healthy"
+	OhMyGPTStatusRateLimited OhMyGPTKeyStatus = "rate_limited"
+	OhMyGPTStatusExhausted   OhMyGPTKeyStatus = "exhausted"
+	OhMyGPTStatusError       OhMyGPTKeyStatus = "error"
 )
 
 // OhMyGPTKey represents a single API key stored in MongoDB
@@ -170,8 +170,6 @@ func (p *OhMyGPTProvider) LoadKeys() error {
 		p.keys = append(p.keys, &key)
 	}
 
-	log.Printf("✅ [Troll-LLM] OhMyGPT Loaded %d keys from MongoDB", len(p.keys))
-
 	// Load bindings from ohmygpt_bindings collection
 	p.bindings = make(map[string][]*OhMyGPTKeyBinding)
 	bindingsCol := db.GetCollection("ohmygpt_bindings")
@@ -190,7 +188,7 @@ func (p *OhMyGPTProvider) LoadKeys() error {
 		}
 	}
 
-	log.Printf("✅ [Troll-LLM] OhMyGPT Loaded %d keys, %d proxy bindings from MongoDB", len(p.keys), len(p.bindings))
+	log.Printf("✅ OhMyGPT key pool loaded: %d keys", len(p.keys))
 	return nil
 }
 
@@ -205,14 +203,13 @@ func (p *OhMyGPTProvider) StartAutoReload(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 [Troll-LLM] OhMyGPT Auto-reload started (interval: %v)", interval)
+		// Auto-reload started log disabled to reduce noise
 
 		for range ticker.C {
 			if err := p.LoadKeys(); err != nil {
 				log.Printf("⚠️ [Troll-LLM] OhMyGPT Auto-reload failed: %v", err)
-			} else {
-				log.Printf("🔄 [Troll-LLM] OhMyGPT Auto-reloaded keys (%d keys)", p.GetKeyCount())
 			}
+			// Auto-reload success log disabled to reduce noise
 		}
 	}()
 }
