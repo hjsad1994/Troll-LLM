@@ -25,20 +25,20 @@ const (
 	ActiveKeyWindow        = 4 * time.Minute
 
 	// Tiered check intervals based on spend amount (4 tiers)
-	// Critical spend (>= $9.4): check every 5s for immediate rotation
+	// Critical spend (>= $9.4): check every 2.5s for immediate rotation
 	CriticalSpendThreshold     = 9.4
-	CriticalSpendCheckInterval = 5 * time.Second
+	CriticalSpendCheckInterval = 2500 * time.Millisecond
 
-	// High spend (>= $8.5): check every 15s for proactive rotation
+	// High spend (>= $8.5): check every 7.5s for proactive rotation
 	HighSpendThreshold     = 8.5
-	HighSpendCheckInterval = 15 * time.Second
+	HighSpendCheckInterval = 7500 * time.Millisecond
 
-	// Medium spend ($5-$8.5): moderate check frequency (3 min)
+	// Medium spend ($5-$8.5): moderate check frequency (1.5 min)
 	MediumSpendThreshold     = 5.0
-	MediumSpendCheckInterval = 3 * time.Minute
+	MediumSpendCheckInterval = 90 * time.Second
 
-	// Low spend (< $5): infrequent checks (6 min)
-	LowSpendCheckInterval = 6 * time.Minute
+	// Low spend (< $5): infrequent checks (3 min)
+	LowSpendCheckInterval = 3 * time.Minute
 
 	// Legacy defaults (kept for backward compatibility in StartSpendChecker signature)
 	DefaultActiveCheckInterval = 10 * time.Second
@@ -124,7 +124,7 @@ func NewSpendChecker(provider *OpenHandsProvider, threshold float64, activeInter
 	return &SpendChecker{
 		provider:          provider,
 		threshold:         threshold,
-		baseCheckInterval: CriticalSpendCheckInterval, // Use fastest interval (5s) as base ticker
+		baseCheckInterval: CriticalSpendCheckInterval, // Use fastest interval (2.5s) as base ticker
 		stopChan:          make(chan struct{}),
 		running:           false,
 	}

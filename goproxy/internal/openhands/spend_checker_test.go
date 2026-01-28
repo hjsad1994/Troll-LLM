@@ -20,10 +20,10 @@ func TestDefaultConstants(t *testing.T) {
 		{"CriticalSpendThreshold", CriticalSpendThreshold, 9.4},
 		{"HighSpendThreshold", HighSpendThreshold, 8.5},
 		{"MediumSpendThreshold", MediumSpendThreshold, 5.0},
-		{"CriticalSpendCheckInterval", CriticalSpendCheckInterval, 5 * time.Second},
-		{"HighSpendCheckInterval", HighSpendCheckInterval, 15 * time.Second},
-		{"MediumSpendCheckInterval", MediumSpendCheckInterval, 3 * time.Minute},
-		{"LowSpendCheckInterval", LowSpendCheckInterval, 6 * time.Minute},
+		{"CriticalSpendCheckInterval", CriticalSpendCheckInterval, 2500 * time.Millisecond},
+		{"HighSpendCheckInterval", HighSpendCheckInterval, 7500 * time.Millisecond},
+		{"MediumSpendCheckInterval", MediumSpendCheckInterval, 90 * time.Second},
+		{"LowSpendCheckInterval", LowSpendCheckInterval, 3 * time.Minute},
 		{"ActiveKeyWindow", ActiveKeyWindow, 4 * time.Minute},
 		{"SpendHistoryCollection", SpendHistoryCollection, "openhands_key_spend_history"},
 		{"OpenHandsActivityURL", OpenHandsActivityURL, "https://llm-proxy.app.all-hands.dev/user/daily/activity"},
@@ -128,37 +128,37 @@ func TestShouldCheckKeyTieredIntervals(t *testing.T) {
 		{"never checked, high spend", 9.0, nil, true, "first check should always happen"},
 		{"never checked, critical spend", 9.7, nil, true, "first check should always happen"},
 
-		// LOW tier (spend < $5) - check every 6 minutes
-		{"low spend, checked 1m ago", 2.0, timePtr(now.Add(-1 * time.Minute)), false, "should skip - 6m interval not elapsed"},
-		{"low spend, checked 5m ago", 4.0, timePtr(now.Add(-5 * time.Minute)), false, "should skip - 6m interval not elapsed"},
-		{"low spend, checked 6m ago", 3.0, timePtr(now.Add(-6 * time.Minute)), true, "should check - 6m interval elapsed"},
-		{"low spend, checked 10m ago", 1.0, timePtr(now.Add(-10 * time.Minute)), true, "should check - well past 6m"},
+		// LOW tier (spend < $5) - check every 3 minutes (halved from 6m)
+		{"low spend, checked 1m ago", 2.0, timePtr(now.Add(-1 * time.Minute)), false, "should skip - 3m interval not elapsed"},
+		{"low spend, checked 2m30s ago", 4.0, timePtr(now.Add(-150 * time.Second)), false, "should skip - 3m interval not elapsed"},
+		{"low spend, checked 3m ago", 3.0, timePtr(now.Add(-3 * time.Minute)), true, "should check - 3m interval elapsed"},
+		{"low spend, checked 5m ago", 1.0, timePtr(now.Add(-5 * time.Minute)), true, "should check - well past 3m"},
 
-		// MEDIUM tier ($5 <= spend < $8.5) - check every 3 minutes
-		{"medium spend, checked 1m ago", 5.5, timePtr(now.Add(-1 * time.Minute)), false, "should skip - 3m interval not elapsed"},
-		{"medium spend, checked 2m30s ago", 6.0, timePtr(now.Add(-150 * time.Second)), false, "should skip - 3m interval not elapsed"},
-		{"medium spend, checked 3m ago", 5.0, timePtr(now.Add(-3 * time.Minute)), true, "should check - 3m interval elapsed"},
-		{"medium spend, checked 5m ago", 7.0, timePtr(now.Add(-5 * time.Minute)), true, "should check - well past 3m"},
+		// MEDIUM tier ($5 <= spend < $8.5) - check every 90 seconds (halved from 3m)
+		{"medium spend, checked 30s ago", 5.5, timePtr(now.Add(-30 * time.Second)), false, "should skip - 90s interval not elapsed"},
+		{"medium spend, checked 1m15s ago", 6.0, timePtr(now.Add(-75 * time.Second)), false, "should skip - 90s interval not elapsed"},
+		{"medium spend, checked 90s ago", 5.0, timePtr(now.Add(-90 * time.Second)), true, "should check - 90s interval elapsed"},
+		{"medium spend, checked 3m ago", 7.0, timePtr(now.Add(-3 * time.Minute)), true, "should check - well past 90s"},
 
-		// HIGH tier ($8.5 <= spend < $9.4) - check every 15 seconds
-		{"high spend, checked 5s ago", 8.5, timePtr(now.Add(-5 * time.Second)), false, "should skip - 15s interval not elapsed"},
-		{"high spend, checked 14s ago", 9.0, timePtr(now.Add(-14 * time.Second)), false, "should skip - 15s interval not elapsed"},
-		{"high spend, checked 15s ago", 8.5, timePtr(now.Add(-15 * time.Second)), true, "should check - 15s interval elapsed"},
-		{"high spend, checked 30s ago", 9.2, timePtr(now.Add(-30 * time.Second)), true, "should check - well past 15s"},
+		// HIGH tier ($8.5 <= spend < $9.4) - check every 7.5 seconds (halved from 15s)
+		{"high spend, checked 3s ago", 8.5, timePtr(now.Add(-3 * time.Second)), false, "should skip - 7.5s interval not elapsed"},
+		{"high spend, checked 7s ago", 9.0, timePtr(now.Add(-7 * time.Second)), false, "should skip - 7.5s interval not elapsed"},
+		{"high spend, checked 7.5s ago", 8.5, timePtr(now.Add(-7500 * time.Millisecond)), true, "should check - 7.5s interval elapsed"},
+		{"high spend, checked 15s ago", 9.2, timePtr(now.Add(-15 * time.Second)), true, "should check - well past 7.5s"},
 
-		// CRITICAL tier (spend >= $9.4) - check every 5 seconds
-		{"critical spend, checked 2s ago", 9.4, timePtr(now.Add(-2 * time.Second)), false, "should skip - 5s interval not elapsed"},
-		{"critical spend, checked 4s ago", 9.8, timePtr(now.Add(-4 * time.Second)), false, "should skip - 5s interval not elapsed"},
-		{"critical spend, checked 5s ago", 9.4, timePtr(now.Add(-5 * time.Second)), true, "should check - 5s interval elapsed"},
-		{"critical spend, checked 10s ago", 9.9, timePtr(now.Add(-10 * time.Second)), true, "should check - well past 5s"},
+		// CRITICAL tier (spend >= $9.4) - check every 2.5 seconds (halved from 5s)
+		{"critical spend, checked 1s ago", 9.4, timePtr(now.Add(-1 * time.Second)), false, "should skip - 2.5s interval not elapsed"},
+		{"critical spend, checked 2s ago", 9.8, timePtr(now.Add(-2 * time.Second)), false, "should skip - 2.5s interval not elapsed"},
+		{"critical spend, checked 2.5s ago", 9.4, timePtr(now.Add(-2500 * time.Millisecond)), true, "should check - 2.5s interval elapsed"},
+		{"critical spend, checked 5s ago", 9.9, timePtr(now.Add(-5 * time.Second)), true, "should check - well past 2.5s"},
 
 		// Boundary tests
-		{"exactly $5 spend (medium tier boundary)", 5.0, timePtr(now.Add(-3 * time.Minute)), true, "exactly $5 = medium tier"},
-		{"exactly $8.5 spend (high tier boundary)", 8.5, timePtr(now.Add(-15 * time.Second)), true, "exactly $8.5 = high tier"},
-		{"exactly $9.4 spend (critical tier boundary)", 9.4, timePtr(now.Add(-5 * time.Second)), true, "exactly $9.4 = critical tier"},
-		{"just under $5 (low tier)", 4.99, timePtr(now.Add(-3 * time.Minute)), false, "4.99 = low tier, needs 6m"},
-		{"just under $8.5 (medium tier)", 8.49, timePtr(now.Add(-15 * time.Second)), false, "8.49 = medium tier, needs 3m"},
-		{"just under $9.4 (high tier)", 9.39, timePtr(now.Add(-5 * time.Second)), false, "9.39 = high tier, needs 15s"},
+		{"exactly $5 spend (medium tier boundary)", 5.0, timePtr(now.Add(-90 * time.Second)), true, "exactly $5 = medium tier"},
+		{"exactly $8.5 spend (high tier boundary)", 8.5, timePtr(now.Add(-7500 * time.Millisecond)), true, "exactly $8.5 = high tier"},
+		{"exactly $9.4 spend (critical tier boundary)", 9.4, timePtr(now.Add(-2500 * time.Millisecond)), true, "exactly $9.4 = critical tier"},
+		{"just under $5 (low tier)", 4.99, timePtr(now.Add(-90 * time.Second)), false, "4.99 = low tier, needs 3m"},
+		{"just under $8.5 (medium tier)", 8.49, timePtr(now.Add(-7500 * time.Millisecond)), false, "8.49 = medium tier, needs 90s"},
+		{"just under $9.4 (high tier)", 9.39, timePtr(now.Add(-2500 * time.Millisecond)), false, "9.39 = high tier, needs 7.5s"},
 	}
 
 	for _, tt := range tests {
