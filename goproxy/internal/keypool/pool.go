@@ -98,7 +98,7 @@ func (p *KeyPool) LoadKeys() error {
 		p.keys = append(p.keys, &key)
 	}
 
-	log.Printf("✅ Loaded %d troll keys", len(p.keys))
+	// Key loading log disabled - use openhandspool/ohmygpt logs instead
 	return nil
 }
 
@@ -269,14 +269,13 @@ func (p *KeyPool) StartAutoReload(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 Key pool auto-reload started (interval: %v)", interval)
+		// Auto-reload started log disabled to reduce noise
 
 		for range ticker.C {
 			if err := p.LoadKeys(); err != nil {
 				log.Printf("⚠️ Key pool auto-reload failed: %v", err)
-			} else {
-				log.Printf("🔄 Auto-reloaded troll keys (%d keys)", p.GetKeyCount())
 			}
+			// Auto-reload success log disabled to reduce noise
 		}
 	}()
 }

@@ -25,7 +25,7 @@ type ProxyPool struct {
 	proxies     []*Proxy
 	bindings    map[string][]*ProxyKeyBinding // proxyId -> bindings (sorted by priority)
 	current     int
-	keyIndex    map[string]int      // proxyId -> current key index for round-robin
+	keyIndex    map[string]int          // proxyId -> current key index for round-robin
 	clientCache map[string]*http.Client // proxyId -> cached HTTP client
 	clientMu    sync.RWMutex            // separate mutex for client cache
 }
@@ -134,7 +134,7 @@ func (p *ProxyPool) LoadFromDB() error {
 		p.keyIndex = make(map[string]int)
 	}
 
-	log.Printf("✅ Loaded %d proxies with bindings", len(p.proxies))
+	// Proxy loading log disabled to reduce noise
 	return nil
 }
 
@@ -416,14 +416,13 @@ func (p *ProxyPool) StartAutoReload(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 Auto-reload started (interval: %v)", interval)
+		// Auto-reload started log disabled to reduce noise
 
 		for range ticker.C {
 			if err := p.LoadFromDB(); err != nil {
 				log.Printf("⚠️ Auto-reload failed: %v", err)
-			} else {
-				log.Printf("🔄 Auto-reloaded proxy bindings (%d proxies)", p.GetProxyCount())
 			}
+			// Auto-reload success log disabled to reduce noise
 		}
 	}()
 }

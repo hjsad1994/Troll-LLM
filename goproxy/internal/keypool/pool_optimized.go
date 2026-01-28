@@ -15,7 +15,7 @@ import (
 type OptimizedKeyPool struct {
 	keys    *xsync.Map[string, *TrollKey] // keyId -> TrollKey
 	keyList atomic.Pointer[[]*TrollKey]   // ordered list for round-robin
-	current atomic.Int32                   // lock-free round-robin counter
+	current atomic.Int32                  // lock-free round-robin counter
 }
 
 var (
@@ -61,7 +61,7 @@ func (p *OptimizedKeyPool) LoadKeys() error {
 	// Update atomic key list
 	p.keyList.Store(&newKeys)
 
-	log.Printf("✅ [Optimized] Loaded %d troll keys", len(newKeys))
+	// Key loading log disabled - use openhandspool/ohmygpt logs instead
 	return nil
 }
 
@@ -176,7 +176,7 @@ func (p *OptimizedKeyPool) GetStats() map[string]int {
 // GetAllKeysStatus returns all keys with their status
 func (p *OptimizedKeyPool) GetAllKeysStatus() []map[string]interface{} {
 	result := make([]map[string]interface{}, 0)
-	
+
 	p.keys.Range(func(id string, key *TrollKey) bool {
 		keyInfo := map[string]interface{}{
 			"id":        key.ID,
@@ -237,9 +237,8 @@ func (p *OptimizedKeyPool) StartAutoReload(interval time.Duration) {
 		for range ticker.C {
 			if err := p.LoadKeys(); err != nil {
 				log.Printf("⚠️ [Optimized] Key pool auto-reload failed: %v", err)
-			} else {
-				log.Printf("🔄 [Optimized] Auto-reloaded troll keys (%d keys)", p.GetKeyCount())
 			}
+			// Auto-reload success log disabled to reduce noise
 		}
 	}()
 }
@@ -247,7 +246,7 @@ func (p *OptimizedKeyPool) StartAutoReload(interval time.Duration) {
 // AddKey adds a new key to the pool (used during rotation)
 func (p *OptimizedKeyPool) AddKey(key *TrollKey) {
 	p.keys.Store(key.ID, key)
-	
+
 	// Update key list
 	keyList := p.keyList.Load()
 	var newKeys []*TrollKey
@@ -261,7 +260,7 @@ func (p *OptimizedKeyPool) AddKey(key *TrollKey) {
 // RemoveKey removes a key from the pool
 func (p *OptimizedKeyPool) RemoveKey(keyID string) {
 	p.keys.Delete(keyID)
-	
+
 	// Update key list
 	keyList := p.keyList.Load()
 	if keyList != nil {

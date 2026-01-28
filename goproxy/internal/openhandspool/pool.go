@@ -94,7 +94,7 @@ func (p *KeyPool) LoadKeys() error {
 		p.keys = append(p.keys, &key)
 	}
 
-	log.Printf("✅ Loaded %d openhands keys (from %d bindings)", len(p.keys), len(boundKeyIDs))
+	log.Printf("✅ OpenHands key pool loaded: %d keys", len(p.keys))
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (p *KeyPool) loadAllKeys(ctx context.Context) error {
 		p.keys = append(p.keys, &key)
 	}
 
-	log.Printf("✅ Loaded %d openhands keys (all keys, no bindings)", len(p.keys))
+	log.Printf("✅ OpenHands key pool loaded: %d keys", len(p.keys))
 	return nil
 }
 
@@ -290,14 +290,13 @@ func (p *KeyPool) StartAutoReload(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		log.Printf("🔄 OpenHands key pool auto-reload started (interval: %v)", interval)
+		// Auto-reload started log disabled to reduce noise
 
 		for range ticker.C {
 			if err := p.LoadKeys(); err != nil {
 				log.Printf("⚠️ OpenHands key pool auto-reload failed: %v", err)
-			} else {
-				log.Printf("🔄 Auto-reloaded openhands keys (%d keys)", p.GetKeyCount())
 			}
+			// Auto-reload success log disabled to reduce noise
 		}
 	}()
 }
