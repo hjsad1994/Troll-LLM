@@ -476,8 +476,8 @@ client = OpenAI(
                   code: `import OpenAI from 'openai';
 
 const client = new OpenAI({
-  apiKey: 'your-trollllm-api-key',
   baseURL: 'https://chat.trollllm.xyz/v1',
+  apiKey: 'your-trollllm-api-key',
   defaultHeaders: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   }

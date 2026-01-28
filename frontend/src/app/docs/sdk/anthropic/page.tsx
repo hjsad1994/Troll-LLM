@@ -420,6 +420,7 @@ CUSTOM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
+# Note: NO /v1 suffix for Anthropic SDK (unlike OpenAI SDK)
 client = Anthropic(
     base_url="https://chat.trollllm.xyz",
     api_key="your-trollllm-api-key",
@@ -431,6 +432,7 @@ client = Anthropic(
                   language: 'javascript',
                   code: `import Anthropic from '@anthropic-ai/sdk';
 
+// Note: NO /v1 suffix for Anthropic SDK (unlike OpenAI SDK)
 const client = new Anthropic({
   baseURL: 'https://chat.trollllm.xyz',
   apiKey: 'your-trollllm-api-key',
