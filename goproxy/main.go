@@ -1261,10 +1261,17 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	// FIX: Validate and auto-fix max_tokens vs thinking.budget_tokens
 	// Anthropic API requires: max_tokens > thinking.budget_tokens
 	// ==========================================================================
+	const (
+		responseTokenBuffer  = 4000  // Reserve space for final response after thinking
+		maxTokensOpus        = 32000 // Claude Opus 4.x max output tokens
+		maxTokensSonnetHaiku = 64000 // Claude Sonnet/Haiku 4.5 max output tokens
+	)
+
 	model := config.GetModelByID(modelID)
-	maxLimit := 64000 // Default for Sonnet/Haiku 4.5
-	if model != nil && model.ID == "claude-opus-4-5-20251101" {
-		maxLimit = 32000
+	maxLimit := maxTokensSonnetHaiku // Default for Sonnet/Haiku 4.5
+	// Opus models have lower max output tokens limit
+	if model != nil && strings.Contains(strings.ToLower(model.ID), "opus") {
+		maxLimit = maxTokensOpus
 	}
 
 	// Set default max_tokens if not specified
@@ -1273,15 +1280,20 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		log.Printf("🔧 [OpenHands-Anthropic] Set default max_tokens: %d", anthropicReq.MaxTokens)
 	}
 
+	// Helper function to ensure max_tokens is sufficient for thinking budget
+	ensureMinTokens := func(budgetTokens int) {
+		minTokens := budgetTokens + responseTokenBuffer
+		if anthropicReq.MaxTokens < minTokens {
+			log.Printf("🔧 [OpenHands-Anthropic] max_tokens(%d) < thinking.budget_tokens(%d)+%d, auto-fixing to %d",
+				anthropicReq.MaxTokens, budgetTokens, responseTokenBuffer, minTokens)
+			anthropicReq.MaxTokens = minTokens
+		}
+	}
+
 	// If thinking is enabled (either from request or we need to enable based on config)
 	if anthropicReq.Thinking != nil && anthropicReq.Thinking.Type == "enabled" {
 		// Client sent thinking config - validate and fix if needed
-		minTokens := anthropicReq.Thinking.BudgetTokens + 4000 // Reserve space for final response
-		if anthropicReq.MaxTokens < minTokens {
-			log.Printf("🔧 [OpenHands-Anthropic] max_tokens(%d) < thinking.budget_tokens(%d)+4000, auto-fixing to %d",
-				anthropicReq.MaxTokens, anthropicReq.Thinking.BudgetTokens, minTokens)
-			anthropicReq.MaxTokens = minTokens
-		}
+		ensureMinTokens(anthropicReq.Thinking.BudgetTokens)
 	} else {
 		// Check if we should enable thinking based on model config (for new conversations)
 		hasThinking, hasNonThinking := detectAssistantThinkingState(anthropicReq.Messages)
@@ -1294,11 +1306,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 				Type:         "enabled",
 				BudgetTokens: budgetTokens,
 			}
-			// Ensure max_tokens is sufficient
-			minTokens := budgetTokens + 4000
-			if anthropicReq.MaxTokens < minTokens {
-				anthropicReq.MaxTokens = minTokens
-			}
+			ensureMinTokens(budgetTokens)
 			log.Printf("🧠 [OpenHands-Anthropic] Thinking ENABLED (conversation has thinking blocks, budget=%d, max_tokens=%d)", budgetTokens, anthropicReq.MaxTokens)
 		} else if hasNonThinking {
 			// Conversation has assistant messages without thinking - MUST disable
@@ -1311,11 +1319,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 				Type:         "enabled",
 				BudgetTokens: budgetTokens,
 			}
-			// Ensure max_tokens is sufficient
-			minTokens := budgetTokens + 4000
-			if anthropicReq.MaxTokens < minTokens {
-				anthropicReq.MaxTokens = minTokens
-			}
+			ensureMinTokens(budgetTokens)
 			log.Printf("🧠 [OpenHands-Anthropic] Thinking ENABLED (new conversation, budget=%d, max_tokens=%d)", budgetTokens, anthropicReq.MaxTokens)
 		}
 	}
