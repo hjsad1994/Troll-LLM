@@ -40,7 +40,7 @@ const requestLogSchema = new mongoose.Schema({
   statusCode: { type: Number, required: true },
   latencyMs: { type: Number },
   isSuccess: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now, expires: 2592000 },
+  createdAt: { type: Date, default: Date.now },
 });
 
 requestLogSchema.index({ createdAt: -1 });
