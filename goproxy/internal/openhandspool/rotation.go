@@ -194,3 +194,42 @@ func GetBackupKeyCount() int {
 	}
 	return int(count)
 }
+
+// NeedReloadKey represents a key that needs manual reloading
+type NeedReloadKey struct {
+	Email     string    `bson:"email"`
+	KeyID     string    `bson:"keyId"`
+	Reason    string    `bson:"reason"`
+	CreatedAt time.Time `bson:"createdAt"`
+}
+
+// NeedReloadKeysCollection returns the collection for keys that need reloading
+const NeedReloadKeysCollectionName = "openhands_need_reload_keys"
+
+// SaveNeedReloadKey saves a rotated key to the need_reload_keys collection
+// Adds @hotmail.com suffix to the key ID to form the email
+func SaveNeedReloadKey(keyID string, reason string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	email := keyID + "@hotmail.com"
+	entry := NeedReloadKey{
+		Email:     email,
+		KeyID:     keyID,
+		Reason:    reason,
+		CreatedAt: time.Now(),
+	}
+
+	col := db.GetCollection(NeedReloadKeysCollectionName)
+	if col == nil {
+		log.Printf("⚠️ [NeedReloadKey] Failed to get collection")
+		return
+	}
+
+	_, err := col.InsertOne(ctx, entry)
+	if err != nil {
+		log.Printf("⚠️ [NeedReloadKey] Failed to save key %s: %v", keyID, err)
+	} else {
+		log.Printf("📧 [NeedReloadKey] Saved for reload: %s", email)
+	}
+}

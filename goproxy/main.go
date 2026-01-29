@@ -4079,7 +4079,9 @@ func main() {
 				}
 			}
 
-			openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
+			// TEMPORARILY DISABLED: SpendChecker
+			// openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
+			log.Printf("⚠️ SpendChecker is DISABLED (temporarily)")
 		} else {
 			log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 		}
