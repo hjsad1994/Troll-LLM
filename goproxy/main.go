@@ -767,14 +767,13 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	authHeader = "Bearer " + upstreamConfig.APIKey
 	trollKeyID := upstreamConfig.KeyID
 
-	// Credit pre-check based on billing_upstream config (not upstream provider)
-	// billing_upstream="openhands" → check creditsNew field
-	// billing_upstream="ohmygpt" → check credits+refCredits fields
+	// Credit pre-check based on billing_upstream config
+	// Both billing_upstream="openhands" and "ohmygpt" now use creditsNew field
 	if username != "" {
 		billingUpstream := config.GetModelBillingUpstream(model.ID)
 
 		if billingUpstream == "openhands" {
-			// Check creditsNew field for chat.trollllm.xyz
+			// Check creditsNew field for chat.trollllm.xyz (OpenHands upstream)
 			if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
 				if err == userkey.ErrInsufficientCredits {
 					log.Printf("💸 Insufficient creditsNew for user %s (billing_upstream=openhands)", username)
@@ -791,16 +790,16 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
 			}
 		} else {
-			// Check credits+refCredits fields for chat2.trollllm.xyz
+			// Check creditsNew field for chat.trollllm.xyz (OhMyGPT upstream)
+			// Both upstreams now use the same creditsNew field
 			if err := userkey.CheckUserCredits(username); err != nil {
 				if err == userkey.ErrInsufficientCredits {
-					log.Printf("💸 Insufficient credits for user %s (billing_upstream=ohmygpt)", username)
-					credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
-					totalBalance := credits + refCredits
-					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, totalBalance, totalBalance), http.StatusPaymentRequired, username, clientAPIKey)
+					log.Printf("💸 Insufficient creditsNew for user %s (billing_upstream=ohmygpt)", username)
+					creditsNew, _ := userkey.GetUserCredits(username)
+					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error":{"message":"Insufficient credits. Current balance: $%.2f","type":"insufficient_quota","code":"insufficient_credits","balance":%.2f}}`, creditsNew, creditsNew), http.StatusPaymentRequired, username, clientAPIKey)
 					return
 				}
-				log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
 			}
 		}
 	}
@@ -3394,14 +3393,13 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	authHeader = "Bearer " + upstreamConfig.APIKey
 	trollKeyID := upstreamConfig.KeyID
 
-	// Credit pre-check based on billing_upstream config (not upstream provider)
-	// billing_upstream="openhands" → check creditsNew field
-	// billing_upstream="ohmygpt" → check credits+refCredits fields
+	// Credit pre-check based on billing_upstream config
+	// Both billing_upstream="openhands" and "ohmygpt" now use creditsNew field
 	if username != "" {
 		billingUpstream := config.GetModelBillingUpstream(model.ID)
 
 		if billingUpstream == "openhands" {
-			// Check creditsNew field for chat.trollllm.xyz
+			// Check creditsNew field for chat.trollllm.xyz (OpenHands upstream)
 			if err := userkey.CheckUserCreditsOpenHands(username); err != nil {
 				if err == userkey.ErrInsufficientCredits {
 					log.Printf("💸 Insufficient creditsNew for user %s (billing_upstream=openhands)", username)
@@ -3418,16 +3416,16 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
 			}
 		} else {
-			// Check credits+refCredits fields for chat2.trollllm.xyz
+			// Check creditsNew field for chat.trollllm.xyz (OhMyGPT upstream)
+			// Both upstreams now use the same creditsNew field
 			if err := userkey.CheckUserCredits(username); err != nil {
 				if err == userkey.ErrInsufficientCredits {
-					log.Printf("💸 Insufficient credits for user %s (billing_upstream=ohmygpt)", username)
-					credits, refCredits, _ := userkey.GetUserCreditsWithRef(username)
-					balance := credits + refCredits
-					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, balance), http.StatusPaymentRequired, username, clientAPIKey)
+					log.Printf("💸 Insufficient creditsNew for user %s (billing_upstream=ohmygpt)", username)
+					creditsNew, _ := userkey.GetUserCredits(username)
+					errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"insufficient_credits","message":"Insufficient credits. Current balance: $%.2f"}}`, creditsNew), http.StatusPaymentRequired, username, clientAPIKey)
 					return
 				}
-				log.Printf("⚠️ Failed to check credits for user %s: %v", username, err)
+				log.Printf("⚠️ Failed to check creditsNew for user %s: %v", username, err)
 			}
 		}
 	}
@@ -4055,32 +4053,18 @@ func main() {
 				openhandsProvider.SetProxyPool(proxyPool)
 			}
 
-			// Start SpendChecker for proactive rotation (tiered intervals based on spend)
-			spendThreshold := openhands.DefaultSpendThreshold
-			if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
-				if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
-					spendThreshold = parsed
-				}
-			}
-
-			// Note: activeCheckInterval and idleCheckInterval are legacy params,
-			// spend checker now uses tiered intervals based on current spend amount
-			activeCheckInterval := openhands.DefaultActiveCheckInterval
-			if intervalStr := getEnv("OPENHANDS_ACTIVE_CHECK_INTERVAL", ""); intervalStr != "" {
-				if parsed, err := time.ParseDuration(intervalStr); err == nil {
-					activeCheckInterval = parsed
-				}
-			}
-
-			idleCheckInterval := openhands.DefaultIdleCheckInterval
-			if intervalStr := getEnv("OPENHANDS_IDLE_CHECK_INTERVAL", ""); intervalStr != "" {
-				if parsed, err := time.ParseDuration(intervalStr); err == nil {
-					idleCheckInterval = parsed
-				}
-			}
-
-			// TEMPORARILY DISABLED: SpendChecker
+			// SpendChecker configuration (TEMPORARILY DISABLED)
+			// Uncomment when SpendChecker is re-enabled
+			// spendThreshold := openhands.DefaultSpendThreshold
+			// if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
+			// 	if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+			// 		spendThreshold = parsed
+			// 	}
+			// }
+			// activeCheckInterval := openhands.DefaultActiveCheckInterval
+			// idleCheckInterval := openhands.DefaultIdleCheckInterval
 			// openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
+
 			log.Printf("⚠️ SpendChecker is DISABLED (temporarily)")
 		} else {
 			log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")

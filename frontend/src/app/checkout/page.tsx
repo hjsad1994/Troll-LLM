@@ -9,9 +9,9 @@ import Header from '@/components/Header'
 import { isPromoActive, getTimeRemaining, PROMO_CONFIG, getBonusAmount } from '@/lib/promo'
 import { PAYMENTS_ENABLED } from '@/lib/payments'
 
-const MIN_AMOUNT = 20
+const MIN_AMOUNT = 12
 const MAX_AMOUNT = 100
-const VND_RATE = 1500
+const VND_RATE = 2500
 
 function CheckoutContent() {
   const searchParams = useSearchParams()

@@ -441,10 +441,11 @@ func DeductCreditsOpenHands(username string, cost float64, tokensUsed, inputToke
 	return nil
 }
 
-// DeductCreditsOhMyGPT deducts credits from credits/creditsUsed for OhMyGPT (port 8005)
-// IMPORTANT: Function name refers to credit field ('credits'), NOT upstream provider
-// Used by chat2.trollllm.xyz with OpenHands upstream
-// Deducts from 'credits' and 'refCredits' fields
+// DeductCreditsOhMyGPT deducts credits for OhMyGPT (port 8005)
+// IMPORTANT: Function name refers to upstream provider, NOT credit field
+// Used by chat.trollllm.xyz with OhMyGPT upstream
+// Transition period: Deducts from creditsNew first, fallback to credits+refCredits
+// Uses usersNew document with fields: creditsNew, creditsNewUsed, tokensUserNew
 func DeductCreditsOhMyGPT(username string, cost float64, tokensUsed, inputTokens, outputTokens int64) error {
 	if username == "" {
 		return nil
@@ -455,11 +456,132 @@ func DeductCreditsOhMyGPT(username string, cost float64, tokensUsed, inputTokens
 		return nil
 	}
 
-	// Note: Batched writes not supported for OpenHands (uses separate UsersNewCollection)
-	// Always use synchronous deduction
+	// Synchronous deduction for OhMyGPT
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	// Synchronous deduction for OhMyGPT (same as legacy logic)
-	return deductCreditsAtomic(username, cost, inputTokens, outputTokens)
+	// Get current balances (creditsNew, credits, refCredits for transition)
+	var user struct {
+		Credits    float64 `bson:"credits"`
+		CreditsNew float64 `bson:"creditsNew"`
+		RefCredits float64 `bson:"refCredits"`
+	}
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		log.Printf("❌ [OhMyGPT] Failed to get user %s: %v", username, err)
+		return err
+	}
+
+	// Calculate deduction: prioritize creditsNew, then credits, then refCredits
+	var deductFromNew, deductFromCredits, deductFromRef float64
+	remaining := cost
+
+	// Use creditsNew first
+	if user.CreditsNew > 0 {
+		if user.CreditsNew >= remaining {
+			deductFromNew = remaining
+			remaining = 0
+		} else {
+			deductFromNew = user.CreditsNew
+			remaining -= user.CreditsNew
+		}
+	}
+
+	// Then use credits (legacy)
+	if remaining > 0 && user.Credits > 0 {
+		if user.Credits >= remaining {
+			deductFromCredits = remaining
+			remaining = 0
+		} else {
+			deductFromCredits = user.Credits
+			remaining -= user.Credits
+		}
+	}
+
+	// Finally use refCredits
+	if remaining > 0 && user.RefCredits > 0 {
+		if user.RefCredits >= remaining {
+			deductFromRef = remaining
+			remaining = 0
+		} else {
+			deductFromRef = user.RefCredits
+			remaining -= user.RefCredits
+		}
+	}
+
+	// Check if total balance is sufficient
+	totalBalance := user.CreditsNew + user.Credits + user.RefCredits
+	if totalBalance < cost {
+		log.Printf("💸 [OhMyGPT] [%s] Insufficient credits: cost=$%.6f > balance=$%.6f", username, cost, totalBalance)
+		return ErrInsufficientBalance
+	}
+
+	// Build atomic update
+	incFields := bson.M{
+		"creditsNewUsed": cost,        // Always track USD cost in creditsNewUsed
+		"tokensUserNew":  tokensUsed,  // Track tokens count for analytics
+	}
+
+	if deductFromNew > 0 {
+		incFields["creditsNew"] = -deductFromNew
+	}
+	if deductFromCredits > 0 {
+		incFields["credits"] = -deductFromCredits
+		incFields["creditsUsed"] = deductFromCredits
+	}
+	if deductFromRef > 0 {
+		incFields["refCredits"] = -deductFromRef
+	}
+
+	// Track input/output tokens for analytics
+	if inputTokens > 0 {
+		incFields["totalInputTokens"] = inputTokens
+	}
+	if outputTokens > 0 {
+		incFields["totalOutputTokens"] = outputTokens
+	}
+
+	// Atomic conditional update with proper balance check
+	filter := bson.M{
+		"_id": username,
+		"$expr": bson.M{
+			"$gte": bson.A{
+				bson.M{"$add": []interface{}{"$creditsNew", "$credits", "$refCredits"}},
+				cost,
+			},
+		},
+	}
+
+	update := bson.M{
+		"$inc": incFields,
+	}
+
+	result, err := db.UsersNewCollection().UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Printf("❌ [OhMyGPT] Failed to update user %s: %v", username, err)
+		return err
+	}
+
+	// If ModifiedCount == 0, balance was insufficient (race condition or insufficient)
+	if result.ModifiedCount == 0 {
+		log.Printf("💸 [OhMyGPT] [%s] Atomic deduction failed: balance check failed (cost=$%.6f)", username, cost)
+		return ErrInsufficientBalance
+	}
+
+	// Log which fields were deducted from
+	if deductFromNew > 0 && deductFromCredits > 0 {
+		log.Printf("💰 [OhMyGPT] [%s] Deducted $%.6f from creditsNew + $%.6f from credits (in=%d, out=%d)", username, deductFromNew, deductFromCredits, inputTokens, outputTokens)
+	} else if deductFromCredits > 0 && deductFromRef > 0 {
+		log.Printf("💰 [OhMyGPT] [%s] Deducted $%.6f from credits + $%.6f from refCredits (in=%d, out=%d)", username, deductFromCredits, deductFromRef, inputTokens, outputTokens)
+	} else if deductFromNew > 0 {
+		log.Printf("💰 [OhMyGPT] [%s] Deducted $%.6f from creditsNew (in=%d, out=%d)", username, deductFromNew, inputTokens, outputTokens)
+	} else if deductFromCredits > 0 {
+		log.Printf("💰 [OhMyGPT] [%s] Deducted $%.6f from credits (in=%d, out=%d)", username, deductFromCredits, inputTokens, outputTokens)
+	} else {
+		log.Printf("💰 [OhMyGPT] [%s] Deducted $%.6f from refCredits (in=%d, out=%d)", username, deductFromRef, inputTokens, outputTokens)
+	}
+
+	return nil
 }
 
 // IsFriendKey checks if an API key is a Friend Key

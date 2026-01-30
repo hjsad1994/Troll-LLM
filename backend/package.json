@@ -10,7 +10,8 @@
     "seed": "tsx src/seed.ts",
     "lint": "eslint src/**/*.ts",
     "generate-referral-codes": "tsx src/scripts/generate-referral-codes.ts",
-    "migrate:2500-to-1500": "tsx scripts/migrate-credits-2500-to-1500.ts"
+    "migrate:2500-to-1500": "tsx scripts/migrate-credits-2500-to-1500.ts",
+    "migrate:creditsnew-1500-to-2500": "tsx scripts/migrate-creditsnew-1500-to-2500.ts"
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",

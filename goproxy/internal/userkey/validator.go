@@ -78,7 +78,12 @@ func validateFromUsersNewCollection(apiKey string) (*UserKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var user LegacyUser
+	var user struct {
+		LegacyUser
+		Credits    float64 `bson:"credits"`
+		CreditsNew float64 `bson:"creditsNew"`
+		RefCredits float64 `bson:"refCredits"`
+	}
 	err := db.UsersNewCollection().FindOne(ctx, bson.M{"apiKey": apiKey}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -101,8 +106,9 @@ func validateFromUsersNewCollection(apiKey string) (*UserKey, error) {
 		return nil, ErrMigrationRequired
 	}
 
-	// Check if user has credits (either OhMyGPT or OpenHands balance)
-	if user.Credits <= 0 && user.CreditsNew <= 0 && user.RefCredits <= 0 {
+	// Check if user has any credits (creditsNew + credits + refCredits)
+	totalBalance := user.CreditsNew + user.Credits + user.RefCredits
+	if totalBalance <= 0 {
 		return nil, ErrInsufficientCredits
 	}
 
@@ -140,9 +146,9 @@ func GetKeyByID(apiKey string) (*UserKey, error) {
 // UserCredits represents the credits balance info from usersNew collection
 type UserCredits struct {
 	Username   string  `bson:"_id"`
-	Credits    float64 `bson:"credits"`       // OhMyGPT balance (port 8005)
-	CreditsNew float64 `bson:"creditsNew"`    // OpenHands balance (port 8004)
-	RefCredits float64 `bson:"refCredits"`
+	Credits    float64 `bson:"credits"`       // DEPRECATED - Legacy balance
+	CreditsNew float64 `bson:"creditsNew"`    // Main balance for both OpenHands and OhMyGPT
+	RefCredits float64 `bson:"refCredits"`    // Referral credits (legacy)
 }
 
 // CreditCheckResult contains the result of credits balance check
@@ -153,8 +159,9 @@ type CreditCheckResult struct {
 	RefCredits    float64 // referral credits balance (USD)
 }
 
-// CheckUserCredits checks if user has sufficient credits (credits > 0 or refCredits > 0)
-// Returns nil if user has credits, ErrInsufficientCredits if both <= 0
+// CheckUserCredits checks if user has sufficient credits balance
+// Checks creditsNew first (unified billing), falls back to credits for transition
+// Returns nil if user has credits, ErrInsufficientCredits if all <= 0
 func CheckUserCredits(username string) error {
 	if username == "" {
 		return nil // No username means env-based auth, skip check
@@ -163,7 +170,11 @@ func CheckUserCredits(username string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var user UserCredits
+	var user struct {
+		Credits    float64 `bson:"credits"`
+		CreditsNew float64 `bson:"creditsNew"`
+		RefCredits float64 `bson:"refCredits"`
+	}
 	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -172,8 +183,10 @@ func CheckUserCredits(username string) error {
 		return err
 	}
 
-	// Block if both credits <= 0 AND refCredits <= 0
-	if user.Credits <= 0 && user.RefCredits <= 0 {
+	// Check creditsNew first (new unified billing), fallback to credits for transition
+	// Also check refCredits for legacy users
+	totalBalance := user.CreditsNew + user.Credits + user.RefCredits
+	if totalBalance <= 0 {
 		return ErrInsufficientCredits
 	}
 
@@ -246,7 +259,8 @@ func CheckUserCreditsDetailed(username string) (*CreditCheckResult, error) {
 	return result, nil
 }
 
-// GetUserCredits returns the current credits balance for a user (USD)
+// GetUserCredits returns the current total credits balance for a user (USD)
+// Transition period: Returns creditsNew + credits + refCredits
 func GetUserCredits(username string) (float64, error) {
 	if username == "" {
 		return 0, nil
@@ -255,7 +269,11 @@ func GetUserCredits(username string) (float64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var user UserCredits
+	var user struct {
+		Credits    float64 `bson:"credits"`
+		CreditsNew float64 `bson:"creditsNew"`
+		RefCredits float64 `bson:"refCredits"`
+	}
 	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -264,7 +282,7 @@ func GetUserCredits(username string) (float64, error) {
 		return 0, err
 	}
 
-	return user.Credits, nil
+	return user.CreditsNew + user.Credits + user.RefCredits, nil
 }
 
 // GetUserCreditsNew returns the current creditsNew balance (OpenHands) for a user (USD)
@@ -326,6 +344,7 @@ type AffordabilityResult struct {
 // CanAffordRequest checks if user has sufficient credits for a specific request cost
 // Returns AffordabilityResult with balance details for error messages
 // AC1: Block request if cost > balance (before processing)
+// Transition period: Checks creditsNew + credits + refCredits
 func CanAffordRequest(username string, cost float64) (*AffordabilityResult, error) {
 	// Zero cost always passes
 	if cost <= 0 {
@@ -346,7 +365,11 @@ func CanAffordRequest(username string, cost float64) (*AffordabilityResult, erro
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var user UserCredits
+	var user struct {
+		Credits    float64 `bson:"credits"`
+		CreditsNew float64 `bson:"creditsNew"`
+		RefCredits float64 `bson:"refCredits"`
+	}
 	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -360,13 +383,13 @@ func CanAffordRequest(username string, cost float64) (*AffordabilityResult, erro
 		return nil, err
 	}
 
-	totalBalance := user.Credits + user.RefCredits
+	totalBalance := user.CreditsNew + user.Credits + user.RefCredits
 	canAfford := totalBalance >= cost
 
 	result := &AffordabilityResult{
 		CanAfford:        canAfford,
-		Credits:          user.Credits,
-		RefCredits:       user.RefCredits,
+		Credits:          user.CreditsNew, // Primary balance shown
+		RefCredits:       user.Credits + user.RefCredits, // Secondary balance
 		TotalBalance:     totalBalance,
 		RequestCost:      cost,
 		RemainingBalance: totalBalance - cost,

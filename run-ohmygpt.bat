@@ -16,4 +16,4 @@ echo OhMyGPT Endpoint: https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg
 echo ========================================
 echo.
 
-build\goproxy.exe
+goproxy\goproxy.exe
