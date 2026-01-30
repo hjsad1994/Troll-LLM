@@ -1324,7 +1324,6 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		}
 	}
 
-
 	// Serialize request
 	requestBody, err := json.Marshal(anthropicReq)
 	if err != nil {
@@ -1641,7 +1640,6 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 			break
 		}
 	}
-
 
 	// Serialize request
 	requestBody, err := json.Marshal(openaiReq)
@@ -3828,8 +3826,8 @@ func main() {
 	healthChecker = proxy.NewHealthChecker(proxyPool)
 	healthChecker.Start()
 
-	// Start auto-reload for proxy bindings (default 30s, configurable via BINDING_RELOAD_INTERVAL)
-	reloadInterval := 30 * time.Second
+	// Start auto-reload for proxy bindings (default 5s, configurable via BINDING_RELOAD_INTERVAL)
+	reloadInterval := 5 * time.Second
 	if intervalStr := getEnv("BINDING_RELOAD_INTERVAL", ""); intervalStr != "" {
 		if parsed, err := time.ParseDuration(intervalStr); err == nil {
 			reloadInterval = parsed
@@ -3870,31 +3868,31 @@ func main() {
 			// Start SpendChecker for proactive rotation (tiered intervals based on spend)
 			// TEMPORARILY DISABLED: SpendChecker - commented out env parsing
 			/*
-			spendThreshold := openhands.DefaultSpendThreshold
-			if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
-				if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
-					spendThreshold = parsed
+				spendThreshold := openhands.DefaultSpendThreshold
+				if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
+					if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+						spendThreshold = parsed
+					}
 				}
-			}
 
-			// Note: activeCheckInterval and idleCheckInterval are legacy params,
-			// spend checker now uses tiered intervals based on current spend amount
-			activeCheckInterval := openhands.DefaultActiveCheckInterval
-			if intervalStr := getEnv("OPENHANDS_ACTIVE_CHECK_INTERVAL", ""); intervalStr != "" {
-				if parsed, err := time.ParseDuration(intervalStr); err == nil {
-					activeCheckInterval = parsed
+				// Note: activeCheckInterval and idleCheckInterval are legacy params,
+				// spend checker now uses tiered intervals based on current spend amount
+				activeCheckInterval := openhands.DefaultActiveCheckInterval
+				if intervalStr := getEnv("OPENHANDS_ACTIVE_CHECK_INTERVAL", ""); intervalStr != "" {
+					if parsed, err := time.ParseDuration(intervalStr); err == nil {
+						activeCheckInterval = parsed
+					}
 				}
-			}
 
-			idleCheckInterval := openhands.DefaultIdleCheckInterval
-			if intervalStr := getEnv("OPENHANDS_IDLE_CHECK_INTERVAL", ""); intervalStr != "" {
-				if parsed, err := time.ParseDuration(intervalStr); err == nil {
-					idleCheckInterval = parsed
+				idleCheckInterval := openhands.DefaultIdleCheckInterval
+				if intervalStr := getEnv("OPENHANDS_IDLE_CHECK_INTERVAL", ""); intervalStr != "" {
+					if parsed, err := time.ParseDuration(intervalStr); err == nil {
+						idleCheckInterval = parsed
+					}
 				}
-			}
 
-			// TEMPORARILY DISABLED: SpendChecker
-			// openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
+				// TEMPORARILY DISABLED: SpendChecker
+				// openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
 			*/
 			log.Printf("⚠️ SpendChecker is DISABLED (temporarily)")
 		} else {
