@@ -140,6 +140,7 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody string) {
 	shouldRotate := false
 	reason := ""
+	isAuthError := false // Track if this is an authentication error (needs refresh, not exhausted)
 
 	switch statusCode {
 	case 400:
@@ -152,12 +153,14 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 	case 401:
 		shouldRotate = true
 		reason = "unauthorized"
+		isAuthError = true
 	case 402:
 		shouldRotate = true
 		reason = "payment_required"
 	case 403:
 		shouldRotate = true
 		reason = "forbidden"
+		isAuthError = true
 	case 429:
 		p.MarkRateLimited(keyID)
 		return
@@ -170,17 +173,36 @@ func (p *KeyPool) CheckAndRotateOnError(keyID string, statusCode int, errorBody 
 			newKeyID, err := p.RotateKey(keyID, reason)
 			if err != nil {
 				log.Printf("❌ [OpenHandsRotation] Rotation failed: %v", err)
-				p.MarkExhausted(keyID)
+				// Mark appropriately based on error type
+				if isAuthError {
+					p.MarkNeedRefresh(keyID, truncateError(errorBody, 500))
+				} else {
+					p.MarkExhausted(keyID)
+				}
 			} else if newKeyID != "" {
 				log.Printf("✅ [OpenHandsRotation] Rotated: %s -> %s", keyID, newKeyID)
 			} else {
 				log.Printf("ℹ️ [OpenHandsRotation] Key %s was already rotated by another process", keyID)
 			}
 		} else {
-			p.MarkExhausted(keyID)
-			log.Printf("🚨 [OpenHandsRotation] No backup keys, %s disabled", keyID)
+			// No backup keys - mark appropriately based on error type
+			if isAuthError {
+				p.MarkNeedRefresh(keyID, truncateError(errorBody, 500))
+				log.Printf("🔄 [OpenHandsRotation] No backup keys, %s marked as need_refresh", keyID)
+			} else {
+				p.MarkExhausted(keyID)
+				log.Printf("🚨 [OpenHandsRotation] No backup keys, %s disabled", keyID)
+			}
 		}
 	}
+}
+
+// truncateError truncates error message to maxLen characters
+func truncateError(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // GetBackupKeyCount returns the number of available backup keys

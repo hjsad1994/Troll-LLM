@@ -8,6 +8,7 @@ const (
 	StatusHealthy     OpenHandsKeyStatus = "healthy"
 	StatusRateLimited OpenHandsKeyStatus = "rate_limited"
 	StatusExhausted   OpenHandsKeyStatus = "exhausted"
+	StatusNeedRefresh OpenHandsKeyStatus = "need_refresh" // Key needs manual refresh on upstream (e.g., token_not_found_in_db)
 	StatusError       OpenHandsKeyStatus = "error"
 )
 
@@ -23,8 +24,8 @@ type OpenHandsKey struct {
 }
 
 func (k *OpenHandsKey) IsAvailable() bool {
-	// Exhausted keys should NEVER be auto-retried (require manual re-enable or backup rotation)
-	if k.Status == StatusExhausted {
+	// Exhausted and NeedRefresh keys should NEVER be auto-retried (require manual action)
+	if k.Status == StatusExhausted || k.Status == StatusNeedRefresh {
 		return false
 	}
 	if k.Status != StatusHealthy {

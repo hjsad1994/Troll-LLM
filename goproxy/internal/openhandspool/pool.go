@@ -198,6 +198,10 @@ func (p *KeyPool) MarkExhausted(keyID string) {
 	p.MarkStatus(keyID, StatusExhausted, 24*time.Hour, "Token quota exhausted")
 }
 
+func (p *KeyPool) MarkNeedRefresh(keyID string, lastError string) {
+	p.MarkStatus(keyID, StatusNeedRefresh, 0, lastError)
+}
+
 func (p *KeyPool) MarkError(keyID string, err string) {
 	p.MarkStatus(keyID, StatusError, 30*time.Second, err)
 }
@@ -211,6 +215,7 @@ func (p *KeyPool) GetStats() map[string]int {
 		"healthy":      0,
 		"rate_limited": 0,
 		"exhausted":    0,
+		"need_refresh": 0,
 		"error":        0,
 	}
 
@@ -222,6 +227,8 @@ func (p *KeyPool) GetStats() map[string]int {
 			stats["rate_limited"]++
 		case StatusExhausted:
 			stats["exhausted"]++
+		case StatusNeedRefresh:
+			stats["need_refresh"]++
 		case StatusError:
 			stats["error"]++
 		}

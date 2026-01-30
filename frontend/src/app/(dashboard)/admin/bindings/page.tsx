@@ -444,9 +444,13 @@ export default function OpenHandsBindingsPage() {
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                             key.status === 'healthy'
                               ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                              : key.status === 'need_refresh'
+                              ? 'bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400'
                               : 'bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400'
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${key.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              key.status === 'healthy' ? 'bg-emerald-500' : key.status === 'need_refresh' ? 'bg-amber-500' : 'bg-red-500'
+                            }`}></span>
                             {key.status}
                           </span>
                         </td>
@@ -585,9 +589,13 @@ export default function OpenHandsBindingsPage() {
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
                                 binding.keyStatus === 'healthy'
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  : binding.keyStatus === 'need_refresh'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                                   : 'bg-red-500/10 text-red-600 dark:text-red-400'
                               }`}>
-                                <span className={`w-1 h-1 rounded-full ${binding.keyStatus === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                <span className={`w-1 h-1 rounded-full ${
+                                  binding.keyStatus === 'healthy' ? 'bg-emerald-500' : binding.keyStatus === 'need_refresh' ? 'bg-amber-500' : 'bg-red-500'
+                                }`}></span>
                                 {binding.keyStatus || 'unknown'}
                               </span>
                             </div>
