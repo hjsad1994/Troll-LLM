@@ -516,8 +516,7 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+key.APIKey)
-	req.Header.Set("x-api-key", key.APIKey)
+	req.Header.Set("x-litellm-api-key", key.APIKey)
 	// Add User-Agent from config (openhands-cli/1.0.0 for official CLI appearance)
 	if userAgent := config.GetUserAgent(); userAgent != "" {
 		req.Header.Set("User-Agent", userAgent)
@@ -717,8 +716,7 @@ func (p *OpenHandsProvider) retryWithNextKeyToEndpoint(endpoint string, body []b
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+key.APIKey)
-	req.Header.Set("x-api-key", key.APIKey)
+	req.Header.Set("x-litellm-api-key", key.APIKey)
 	// Add User-Agent from config (openhands-cli/1.0.0 for official CLI appearance)
 	if userAgent := config.GetUserAgent(); userAgent != "" {
 		req.Header.Set("User-Agent", userAgent)
