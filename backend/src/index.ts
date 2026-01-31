@@ -15,6 +15,7 @@ import modelsRoutes from './routes/models.routes.js';
 import friendKeyRoutes from './routes/friend-key.routes.js';
 import openhandsRoutes from './routes/openhands.routes.js';
 import ohmygptRoutes from './routes/ohmygpt.routes.js';
+import webhookRoutes from './routes/webhook.routes.js';
 import { expirationSchedulerService } from './services/expiration-scheduler.service.js';
 
 const app = express();
@@ -66,6 +67,9 @@ app.use('/admin', authMiddleware, adminRoutes);
 app.use('/admin/proxies', authMiddleware, proxyRoutes);
 app.use('/admin/openhands', authMiddleware, openhandsRoutes);
 app.use('/admin/ohmygpt', authMiddleware, ohmygptRoutes);
+
+// Webhook routes (no JWT auth - uses X-Webhook-Secret header)
+app.use('/webhook', webhookRoutes);
 
 // Root
 app.get('/', (_req, res) => {
