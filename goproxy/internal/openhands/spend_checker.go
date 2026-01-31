@@ -25,8 +25,8 @@ const (
 	SpendHistoryCollection = "openhands_key_spend_history"
 	ActiveKeyWindow        = 4 * time.Minute
 
-	// Fixed check interval for ALL keys - 2 seconds
-	SpendCheckInterval = 2 * time.Second
+	// Fixed check interval for ALL keys - 1 second
+	SpendCheckInterval = 1 * time.Second
 
 	// Legacy defaults (kept for backward compatibility in StartSpendChecker signature)
 	DefaultActiveCheckInterval = 10 * time.Second
