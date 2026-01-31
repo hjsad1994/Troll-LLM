@@ -3865,36 +3865,21 @@ func main() {
 				openhandsProvider.SetProxyPool(proxyPool)
 			}
 
-			// Start SpendChecker for proactive rotation (tiered intervals based on spend)
-			// TEMPORARILY DISABLED: SpendChecker - commented out env parsing
-			/*
-				spendThreshold := openhands.DefaultSpendThreshold
-				if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
-					if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
-						spendThreshold = parsed
-					}
+			// Start SpendChecker for proactive rotation (fixed 5s interval for all keys)
+			spendThreshold := openhands.DefaultSpendThreshold
+			if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
+				if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+					spendThreshold = parsed
 				}
+			}
 
-				// Note: activeCheckInterval and idleCheckInterval are legacy params,
-				// spend checker now uses tiered intervals based on current spend amount
-				activeCheckInterval := openhands.DefaultActiveCheckInterval
-				if intervalStr := getEnv("OPENHANDS_ACTIVE_CHECK_INTERVAL", ""); intervalStr != "" {
-					if parsed, err := time.ParseDuration(intervalStr); err == nil {
-						activeCheckInterval = parsed
-					}
-				}
+			// Note: activeCheckInterval and idleCheckInterval are legacy params,
+			// spend checker now uses fixed 5s interval for all keys
+			activeCheckInterval := openhands.DefaultActiveCheckInterval
+			idleCheckInterval := openhands.DefaultIdleCheckInterval
 
-				idleCheckInterval := openhands.DefaultIdleCheckInterval
-				if intervalStr := getEnv("OPENHANDS_IDLE_CHECK_INTERVAL", ""); intervalStr != "" {
-					if parsed, err := time.ParseDuration(intervalStr); err == nil {
-						idleCheckInterval = parsed
-					}
-				}
-
-				// TEMPORARILY DISABLED: SpendChecker
-				// openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
-			*/
-			log.Printf("⚠️ SpendChecker is DISABLED (temporarily)")
+			openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
+			log.Printf("✅ SpendChecker ENABLED (5s interval, threshold: $%.2f)", spendThreshold)
 		} else {
 			log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 		}

@@ -11,6 +11,7 @@ router.use(webhookAuthMiddleware);
 // Validation schema for adding a new key
 const addKeySchema = z.object({
   apiKey: z.string().min(1, 'API key is required'),
+  replaceKeyId: z.string().optional(),  // ID of the old key to replace/delete
 });
 
 /**
@@ -46,6 +47,7 @@ router.get('/openhands/status', async (_req: Request, res: Response) => {
 /**
  * POST /webhook/openhands/keys
  * Add a new OpenHands API key and bind it to proxy-6.
+ * If replaceKeyId is provided, delete ONLY that specific key first.
  * Key name is auto-generated.
  */
 router.post('/openhands/keys', async (req: Request, res: Response) => {
@@ -53,16 +55,34 @@ router.post('/openhands/keys', async (req: Request, res: Response) => {
     // Validate request body
     const input = addKeySchema.parse(req.body);
     
-    // Generate unique key ID
+    let deletedKey: string | null = null;
+    
+    // Step 1: If replaceKeyId provided, delete ONLY that specific key
+    if (input.replaceKeyId) {
+      try {
+        const deleted = await openhandsService.deleteKey(input.replaceKeyId);
+        if (deleted) {
+          deletedKey = input.replaceKeyId;
+          console.log(`[Webhook] Deleted old key: ${input.replaceKeyId}`);
+        } else {
+          console.log(`[Webhook] Key not found for deletion: ${input.replaceKeyId}`);
+        }
+      } catch (deleteError: any) {
+        console.error(`[Webhook] Failed to delete key ${input.replaceKeyId}:`, deleteError);
+      }
+    }
+    
+    // Step 2: Generate unique key ID and create new key
     const keyId = `oh-key-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     
-    // Create the key
     const key = await openhandsService.createKey({
       id: keyId,
       apiKey: input.apiKey,
     });
     
-    // Try to bind to proxy-6 with priority 1
+    console.log(`[Webhook] Created new key: ${keyId}`);
+    
+    // Step 3: Bind new key to proxy-6 with priority 1
     let binding = null;
     let bindingWarning: string | undefined;
     
@@ -72,6 +92,7 @@ router.post('/openhands/keys', async (req: Request, res: Response) => {
         openhandsKeyId: keyId,
         priority: 1,
       });
+      console.log(`[Webhook] Bound key ${keyId} to proxy-6`);
     } catch (bindError: any) {
       console.error('[Webhook] Failed to create binding for key:', keyId, bindError);
       bindingWarning = `Key created but binding to proxy-6 failed: ${bindError.message}`;
@@ -90,6 +111,7 @@ router.post('/openhands/keys', async (req: Request, res: Response) => {
         priority: binding.priority,
         isActive: binding.isActive,
       } : null,
+      replaced_key: deletedKey,
       binding_warning: bindingWarning,
     });
   } catch (error) {
