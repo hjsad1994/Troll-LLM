@@ -64,6 +64,16 @@ export default function OpenHandsBindingsPage() {
 
   const { showToast } = useToast()
 
+  // Generate random key name (format: omg-XXXX where X is alphanumeric)
+  function generateRandomKeyName(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let suffix = ''
+    for (let i = 0; i < 4; i++) {
+      suffix += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return `omg-${suffix}`
+  }
+
   // Group bindings by proxy
   const groupedBindings = useMemo(() => {
     const groups: GroupedBindings = {}
@@ -144,9 +154,30 @@ export default function OpenHandsBindingsPage() {
         const err = await resp.json()
         throw new Error(err.error || 'Failed to create key')
       }
+      
+      // Auto-create binding to proxy-6
+      const keyId = keyForm.id
+      try {
+        const bindingResp = await fetchWithAuth('/admin/openhands/bindings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            proxyId: 'proxy-6',
+            openhandsKeyId: keyId,
+            priority: 1,
+          }),
+        })
+        if (bindingResp.ok) {
+          showToast('Key created and bound to proxy-6')
+        } else {
+          showToast('Key created, but binding to proxy-6 failed', 'error')
+        }
+      } catch {
+        showToast('Key created, but binding to proxy-6 failed', 'error')
+      }
+      
       setCreateKeyModal(false)
       setKeyForm({ id: '', apiKey: '' })
-      showToast('Key created successfully')
       loadData()
     } catch (err: any) {
       showToast(err.message || 'Failed to create key', 'error')
@@ -385,7 +416,10 @@ export default function OpenHandsBindingsPage() {
               <h2 className="text-xl font-semibold text-[var(--theme-text)]">OpenHands Keys</h2>
             </div>
             <button
-              onClick={() => setCreateKeyModal(true)}
+              onClick={() => {
+                setKeyForm({ id: generateRandomKeyName(), apiKey: '' })
+                setCreateKeyModal(true)
+              }}
               className="px-4 py-2 rounded-lg bg-emerald-600 dark:bg-emerald-500 text-white font-medium text-sm hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -666,14 +700,26 @@ export default function OpenHandsBindingsPage() {
         <form onSubmit={createKey} className="space-y-5">
           <div>
             <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">Key ID</label>
-            <input
-              type="text"
-              value={keyForm.id}
-              onChange={(e) => setKeyForm({...keyForm, id: e.target.value})}
-              required
-              placeholder="e.g., omg-1"
-              className="w-full px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-[var(--theme-text)] placeholder-[var(--theme-text-subtle)] focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400/50 transition-colors"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={keyForm.id}
+                onChange={(e) => setKeyForm({...keyForm, id: e.target.value})}
+                required
+                placeholder="e.g., omg-1"
+                className="flex-1 px-4 py-3 rounded-lg bg-slate-100 dark:bg-[#0a0a0a] border border-slate-300 dark:border-white/10 text-[var(--theme-text)] placeholder-[var(--theme-text-subtle)] focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400/50 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setKeyForm({...keyForm, id: generateRandomKeyName()})}
+                className="px-4 py-3 rounded-lg border border-slate-300 dark:border-white/10 text-[var(--theme-text)] hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                title="Generate random name"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-[var(--theme-text)] text-sm font-medium mb-2">API Key</label>
