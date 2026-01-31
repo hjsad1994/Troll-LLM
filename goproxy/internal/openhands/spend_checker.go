@@ -25,8 +25,8 @@ const (
 	SpendHistoryCollection = "openhands_key_spend_history"
 	ActiveKeyWindow        = 4 * time.Minute
 
-	// Fixed check interval for ALL keys - 5 seconds
-	SpendCheckInterval = 5 * time.Second
+	// Fixed check interval for ALL keys - 2 seconds
+	SpendCheckInterval = 2 * time.Second
 
 	// Legacy defaults (kept for backward compatibility in StartSpendChecker signature)
 	DefaultActiveCheckInterval = 10 * time.Second
@@ -201,6 +201,10 @@ func (sc *SpendChecker) checkAllKeys() {
 			log.Printf("⚠️ [OpenHands/SpendChecker] Failed to check key %s: %v", key.ID, result.Error)
 			continue
 		}
+
+		// Log spend check result
+		spendPercent := (result.Spend / sc.threshold) * 100
+		log.Printf("💵 [SpendChecker] %s: $%.2f / $%.2f (%.1f%%)", key.ID, result.Spend, sc.threshold, spendPercent)
 
 		// Update key spend info in DB and memory
 		sc.updateKeySpendInfo(key.ID, result.Spend, result.CheckedAt)
