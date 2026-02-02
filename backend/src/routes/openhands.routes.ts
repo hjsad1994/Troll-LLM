@@ -124,6 +124,7 @@ router.get('/bindings', async (_req: Request, res: Response) => {
           ...b,
           proxyName: proxyMap.get(b.proxyId)?.name || b.proxyId,
           keyStatus: updatedKeyMap.get(b.openhandsKeyId)?.status || 'unknown',
+          keyTotalSpend: updatedKeyMap.get(b.openhandsKeyId)?.totalSpend || 0,
         }));
 
         // Group by proxy
@@ -151,6 +152,7 @@ router.get('/bindings', async (_req: Request, res: Response) => {
       ...b,
       proxyName: proxyMap.get(b.proxyId)?.name || b.proxyId,
       keyStatus: keyMap.get(b.openhandsKeyId)?.status || 'unknown',
+      keyTotalSpend: keyMap.get(b.openhandsKeyId)?.totalSpend || 0,
     }));
 
     // Group by proxy

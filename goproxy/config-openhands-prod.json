@@ -53,7 +53,7 @@
       "input_price_per_mtok": 2.2,
       "output_price_per_mtok": 12.0,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.06,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gemini-3-pro-preview"
@@ -81,7 +81,7 @@
       "input_price_per_mtok": 1.5,
       "output_price_per_mtok": 12.0,
       "cache_hit_price_per_mtok": 0.13,
-      "billing_multiplier": 1.08,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.1"
@@ -94,7 +94,7 @@
       "input_price_per_mtok": 2,
       "output_price_per_mtok": 14.00,
       "cache_hit_price_per_mtok": 0.17,
-      "billing_multiplier": 1.08,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.2"
@@ -106,7 +106,7 @@
       "reasoning": "high",
       "input_price_per_mtok": 0.6,
       "output_price_per_mtok": 2.5,
-      "billing_multiplier": 1.08,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "kimi-k2-thinking"
@@ -120,7 +120,7 @@
       "output_price_per_mtok": 12.0,
       "cache_write_price_per_mtok": 1.56,
       "cache_hit_price_per_mtok": 0.13,
-      "billing_multiplier": 1.08,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.1-codex-max"
@@ -134,7 +134,7 @@
       "output_price_per_mtok": 14.0,
       "cache_write_price_per_mtok": 1.56,
       "cache_hit_price_per_mtok": 0.17,
-      "billing_multiplier": 1.08,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.2-codex"

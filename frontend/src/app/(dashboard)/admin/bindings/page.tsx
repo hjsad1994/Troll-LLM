@@ -16,6 +16,7 @@ interface OpenHandsKey {
   tokensUsed: number
   requestsCount: number
   apiKey: string
+  totalSpend?: number
 }
 
 interface Proxy {
@@ -32,6 +33,7 @@ interface Binding {
   isActive: boolean
   proxyName?: string
   keyStatus?: string
+  keyTotalSpend?: number
 }
 
 interface GroupedBindings {
@@ -434,18 +436,19 @@ export default function OpenHandsBindingsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/10">
-                    <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Key ID</th>
-                    <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">API Key</th>
-                    <th className="px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-right text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Tokens</th>
-                    <th className="px-6 py-4 text-right text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Requests</th>
-                    <th className="px-6 py-4 text-right text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Actions</th>
+                    <th className="px-4 md:px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Key ID</th>
+                    <th className="hidden md:table-cell px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">API Key</th>
+                    <th className="px-4 md:px-6 py-4 text-left text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Status</th>
+                    <th className="px-4 md:px-6 py-4 text-right text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Total Spend</th>
+                    <th className="hidden lg:table-cell px-6 py-4 text-right text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Tokens</th>
+                    <th className="hidden lg:table-cell px-6 py-4 text-right text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Requests</th>
+                    <th className="px-4 md:px-6 py-4 text-right text-[var(--theme-text-subtle)] text-xs uppercase font-semibold tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-white/5">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-12">
+                      <td colSpan={7} className="text-center py-12">
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-8 h-8 border-2 border-black/20 dark:border-white/20 border-t-emerald-500 rounded-full animate-spin" />
                           <p className="text-[var(--theme-text-subtle)] text-sm">Loading keys...</p>
@@ -454,7 +457,7 @@ export default function OpenHandsBindingsPage() {
                     </tr>
                   ) : keys.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-12">
+                      <td colSpan={7} className="text-center py-12">
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 flex items-center justify-center">
                             <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -468,13 +471,13 @@ export default function OpenHandsBindingsPage() {
                   ) : (
                     keys.map((key) => (
                       <tr key={key._id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
-                        <td className="px-6 py-4">
-                          <code className="text-sm font-mono text-[var(--theme-text)] px-2 py-1 rounded bg-slate-100 dark:bg-white/5">{key._id}</code>
+                        <td className="px-4 md:px-6 py-4">
+                          <code className="text-xs md:text-sm font-mono text-[var(--theme-text)] px-2 py-1 rounded bg-slate-100 dark:bg-white/5 block truncate max-w-[150px] md:max-w-none">{key._id}</code>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="hidden md:table-cell px-6 py-4">
                           <code className="text-xs font-mono text-[var(--theme-text-muted)]">{key.apiKey}</code>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 md:px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                             key.status === 'healthy'
                               ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
@@ -485,28 +488,50 @@ export default function OpenHandsBindingsPage() {
                             <span className={`w-1.5 h-1.5 rounded-full ${
                               key.status === 'healthy' ? 'bg-emerald-500' : key.status === 'need_refresh' ? 'bg-amber-500' : 'bg-red-500'
                             }`}></span>
-                            {key.status}
+                            <span className="hidden sm:inline">{key.status}</span>
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right text-[var(--theme-text-muted)] text-sm font-mono">
+                        <td className="px-4 md:px-6 py-4 text-right">
+                          {typeof key.totalSpend === 'number' ? (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className={`text-xs md:text-sm font-mono font-semibold ${
+                                key.totalSpend >= 9.5 
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : key.totalSpend >= 8.0
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-emerald-600 dark:text-emerald-400'
+                              }`}>
+                                ${key.totalSpend.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] md:text-xs text-[var(--theme-text-subtle)]">
+                                {((key.totalSpend / 9.95) * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-[var(--theme-text-subtle)]">-</span>
+                          )}
+                        </td>
+                        <td className="hidden lg:table-cell px-6 py-4 text-right text-[var(--theme-text-muted)] text-sm font-mono">
                           {key.tokensUsed?.toLocaleString() || 0}
                         </td>
-                        <td className="px-6 py-4 text-right text-[var(--theme-text-muted)] text-sm font-mono">
+                        <td className="hidden lg:table-cell px-6 py-4 text-right text-[var(--theme-text-muted)] text-sm font-mono">
                           {key.requestsCount?.toLocaleString() || 0}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-4 md:px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1 md:gap-2">
                             <button
                               onClick={() => resetKey(key._id)}
-                              className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/10 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-500/10 transition-colors"
+                              className="px-2 md:px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/10 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-500/10 transition-colors"
                             >
-                              Reset
+                              <span className="hidden sm:inline">Reset</span>
+                              <span className="sm:hidden">R</span>
                             </button>
                             <button
                               onClick={() => confirm(`Delete key ${key._id}?`, () => deleteKey(key._id))}
-                              className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
+                              className="px-2 md:px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
                             >
-                              Delete
+                              <span className="hidden sm:inline">Delete</span>
+                              <span className="sm:hidden">D</span>
                             </button>
                           </div>
                         </td>
@@ -607,36 +632,65 @@ export default function OpenHandsBindingsPage() {
                   {/* Bindings List */}
                   <div className="divide-y divide-slate-200 dark:divide-white/5">
                     {group.bindings.map((binding, idx) => (
-                      <div key={`${binding.proxyId}-${binding.openhandsKeyId}`} className="px-6 py-4 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                      <div key={`${binding.proxyId}-${binding.openhandsKeyId}`} className="px-4 md:px-6 py-4 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          {/* Left Section: Priority + Key Info */}
+                          <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
                             {/* Priority Badge */}
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-sm font-bold">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-sm font-bold shrink-0">
                               #{binding.priority}
                             </div>
 
-                            {/* Key Info */}
-                            <div className="flex items-center gap-3">
-                              <code className="text-sm font-mono text-[var(--theme-text)] px-2 py-1 rounded bg-slate-100 dark:bg-white/5">
-                                {binding.openhandsKeyId}
-                              </code>
-                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                binding.keyStatus === 'healthy'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                  : binding.keyStatus === 'need_refresh'
-                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                  : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                              }`}>
-                                <span className={`w-1 h-1 rounded-full ${
-                                  binding.keyStatus === 'healthy' ? 'bg-emerald-500' : binding.keyStatus === 'need_refresh' ? 'bg-amber-500' : 'bg-red-500'
-                                }`}></span>
-                                {binding.keyStatus || 'unknown'}
-                              </span>
+                            {/* Key Info - Wraps on mobile */}
+                            <div className="flex flex-col gap-2 min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <code className="text-xs md:text-sm font-mono text-[var(--theme-text)] px-2 py-1 rounded bg-slate-100 dark:bg-white/5 truncate max-w-[200px] md:max-w-none">
+                                  {binding.openhandsKeyId}
+                                </code>
+                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
+                                  binding.keyStatus === 'healthy'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                    : binding.keyStatus === 'need_refresh'
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                }`}>
+                                  <span className={`w-1 h-1 rounded-full ${
+                                    binding.keyStatus === 'healthy' ? 'bg-emerald-500' : binding.keyStatus === 'need_refresh' ? 'bg-amber-500' : 'bg-red-500'
+                                  }`}></span>
+                                  {binding.keyStatus || 'unknown'}
+                                </span>
+                              </div>
+                              
+                              {/* Total Spend - Show on all screen sizes */}
+                              {typeof binding.keyTotalSpend === 'number' && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-[var(--theme-text-subtle)]">Spend:</span>
+                                  <span className={`text-xs font-mono font-semibold ${
+                                    binding.keyTotalSpend >= 9.5 
+                                      ? 'text-red-600 dark:text-red-400'
+                                      : binding.keyTotalSpend >= 8.0
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-emerald-600 dark:text-emerald-400'
+                                  }`}>
+                                    ${binding.keyTotalSpend.toFixed(2)}
+                                  </span>
+                                  <span className="text-xs text-[var(--theme-text-subtle)]">/ $9.95</span>
+                                  <span className={`text-xs font-medium ${
+                                    binding.keyTotalSpend >= 9.5 
+                                      ? 'text-red-600 dark:text-red-400'
+                                      : binding.keyTotalSpend >= 8.0
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-[var(--theme-text-subtle)]'
+                                  }`}>
+                                    ({((binding.keyTotalSpend / 9.95) * 100).toFixed(1)}%)
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
 
-                          {/* Actions */}
-                          <div className="flex items-center gap-2">
+                          {/* Right Section: Actions - Stack on mobile, row on desktop */}
+                          <div className="flex items-center gap-2 flex-wrap md:shrink-0">
                             <button
                               onClick={() => {
                                 setEditBindingForm({
