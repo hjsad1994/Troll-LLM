@@ -25,8 +25,8 @@ const (
 	SpendHistoryCollection = "openhands_key_spend_history"
 	ActiveKeyWindow        = 4 * time.Minute
 
-	// Fixed check interval for ALL keys - 1 second
-	SpendCheckInterval = 1 * time.Second
+	// Fixed check interval for ALL keys - 0.5 seconds
+	SpendCheckInterval = 500 * time.Millisecond
 
 	// Legacy defaults (kept for backward compatibility in StartSpendChecker signature)
 	DefaultActiveCheckInterval = 10 * time.Second
@@ -37,7 +37,7 @@ const (
 type SpendChecker struct {
 	provider  *OpenHandsProvider
 	threshold float64
-	// baseCheckInterval is the ticker interval (uses fastest possible: 5s)
+	// baseCheckInterval is the ticker interval (uses fastest possible: 0.5s)
 	baseCheckInterval time.Duration
 	stopChan          chan struct{}
 	running           bool
@@ -95,12 +95,12 @@ var spendChecker *SpendChecker
 var spendCheckerMu sync.Mutex
 
 // NewSpendChecker creates a new SpendChecker instance
-// Note: activeInterval and idleInterval are ignored - using fixed 5s interval for all keys
+// Note: activeInterval and idleInterval are ignored - using fixed 0.5s interval for all keys
 func NewSpendChecker(provider *OpenHandsProvider, threshold float64, activeInterval, idleInterval time.Duration) *SpendChecker {
 	return &SpendChecker{
 		provider:          provider,
 		threshold:         threshold,
-		baseCheckInterval: SpendCheckInterval, // Fixed 5s interval for all keys
+		baseCheckInterval: SpendCheckInterval, // Fixed 0.5s interval for all keys
 		stopChan:          make(chan struct{}),
 		running:           false,
 	}
@@ -119,7 +119,7 @@ func (sc *SpendChecker) Start() {
 	// Startup log disabled to reduce noise - only log on key rotation
 
 	go func() {
-		// Use base check interval (5s) as ticker - we'll skip keys based on their spend tier
+		// Use base check interval (0.5s) as ticker - we'll skip keys based on their spend tier
 		ticker := time.NewTicker(sc.baseCheckInterval)
 		defer ticker.Stop()
 
@@ -243,7 +243,7 @@ func (sc *SpendChecker) isKeyActive(key *OpenHandsKey, now time.Time) bool {
 	return now.Sub(*key.LastUsedAt) < ActiveKeyWindow
 }
 
-// getCheckIntervalForSpend returns fixed 5s interval for all keys
+// getCheckIntervalForSpend returns fixed 0.5s interval for all keys
 func (sc *SpendChecker) getCheckIntervalForSpend(spend float64) time.Duration {
 	return SpendCheckInterval
 }

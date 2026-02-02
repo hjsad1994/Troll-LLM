@@ -3865,7 +3865,7 @@ func main() {
 				openhandsProvider.SetProxyPool(proxyPool)
 			}
 
-			// Start SpendChecker for proactive rotation (fixed 5s interval for all keys)
+			// Start SpendChecker for proactive rotation (fixed 0.5s interval for all keys)
 			spendThreshold := openhands.DefaultSpendThreshold
 			if thresholdStr := getEnv("OPENHANDS_SPEND_THRESHOLD", ""); thresholdStr != "" {
 				if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
@@ -3874,12 +3874,12 @@ func main() {
 			}
 
 			// Note: activeCheckInterval and idleCheckInterval are legacy params,
-			// spend checker now uses fixed 5s interval for all keys
+			// spend checker now uses fixed 0.5s interval for all keys
 			activeCheckInterval := openhands.DefaultActiveCheckInterval
 			idleCheckInterval := openhands.DefaultIdleCheckInterval
 
 			openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
-			log.Printf("✅ SpendChecker ENABLED (5s interval, threshold: $%.2f)", spendThreshold)
+			log.Printf("✅ SpendChecker ENABLED (0.5s interval, threshold: $%.2f)", spendThreshold)
 		} else {
 			log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 		}

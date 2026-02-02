@@ -77,8 +77,21 @@ export async function updateKey(id: string, data: Partial<OpenHandsKey>): Promis
 }
 
 export async function deleteKey(id: string): Promise<boolean> {
-  await getCollection('openhands_bindings').deleteMany({ openhandsKeyId: id });
+  // Check if key exists first (avoid unnecessary deletes)
+  const key = await getKey(id);
+  if (!key) {
+    console.log(`[DeleteKey] Key ${id} not found (already deleted)`);
+    return false;
+  }
+
+  // Delete all bindings for this key (no history needed - key can't be reused)
+  const bindingsResult = await getCollection('openhands_bindings').deleteMany({ openhandsKeyId: id });
+  console.log(`[DeleteKey] Deleted ${bindingsResult.deletedCount} bindings for key ${id}`);
+
+  // Delete the key from database
   const result = await getCollection('openhands_keys').deleteOne({ _id: id as any });
+  console.log(`[DeleteKey] Deleted key ${id} (deleted: ${result.deletedCount > 0})`);
+  
   return result.deletedCount > 0;
 }
 

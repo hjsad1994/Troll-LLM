@@ -75,7 +75,12 @@ func (p *KeyPool) LoadKeys() error {
 		keyIDs = append(keyIDs, keyID)
 	}
 
-	cursor, err := db.OpenHandsKeysCollection().Find(ctx, bson.M{"_id": bson.M{"$in": keyIDs}})
+	// Load keys but exclude bad statuses (need_refresh, exhausted, error)
+	// These keys should not be used until manually fixed
+	cursor, err := db.OpenHandsKeysCollection().Find(ctx, bson.M{
+		"_id":    bson.M{"$in": keyIDs},
+		"status": bson.M{"$nin": []string{"need_refresh", "exhausted", "error"}},
+	})
 	if err != nil {
 		return err
 	}
@@ -85,6 +90,8 @@ func (p *KeyPool) LoadKeys() error {
 	defer p.mu.Unlock()
 
 	p.keys = make([]*OpenHandsKey, 0)
+	loadedCount := 0
+	skippedCount := 0
 	for cursor.Next(ctx) {
 		var key OpenHandsKey
 		if err := cursor.Decode(&key); err != nil {
@@ -92,9 +99,15 @@ func (p *KeyPool) LoadKeys() error {
 			continue
 		}
 		p.keys = append(p.keys, &key)
+		loadedCount++
 	}
 
-	log.Printf("✅ OpenHands key pool loaded: %d keys", len(p.keys))
+	// Log if any keys were skipped due to bad status
+	skippedCount = len(keyIDs) - loadedCount
+	if skippedCount > 0 {
+		log.Printf("⚠️ OpenHands key pool: skipped %d keys with bad status (need_refresh/exhausted/error)", skippedCount)
+	}
+	log.Printf("✅ OpenHands key pool loaded: %d healthy keys", len(p.keys))
 	return nil
 }
 
@@ -166,12 +179,29 @@ func (p *KeyPool) MarkStatus(keyID string, status OpenHandsKeyStatus, cooldown t
 			break
 		}
 	}
+
+	// If status is terminal (need_refresh, exhausted, error), remove from pool immediately
+	// This ensures the key is not used even before next reload
+	if status == StatusNeedRefresh || status == StatusExhausted || status == StatusError {
+		newKeys := make([]*OpenHandsKey, 0)
+		for _, key := range p.keys {
+			if key.ID != keyID {
+				newKeys = append(newKeys, key)
+			}
+		}
+		removedCount := len(p.keys) - len(newKeys)
+		p.keys = newKeys
+		if removedCount > 0 {
+			log.Printf("🚫 Removed key %s from pool (status: %s, pool size: %d)", keyID, status, len(p.keys))
+		}
+	}
 }
 
 func (p *KeyPool) updateKeyStatus(keyID string, status OpenHandsKeyStatus, cooldownUntil *time.Time, lastError string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Update key status in database
 	update := bson.M{
 		"$set": bson.M{
 			"status":        status,
@@ -183,6 +213,19 @@ func (p *KeyPool) updateKeyStatus(keyID string, status OpenHandsKeyStatus, coold
 	_, err := db.OpenHandsKeysCollection().UpdateByID(ctx, keyID, update)
 	if err != nil {
 		log.Printf("⚠️ Failed to update openhands key status: %v", err)
+	}
+
+	// If status is terminal (need_refresh, exhausted, error) - DELETE bindings ONLY
+	// Keep the key document for admin to manually check and delete
+	// This prevents user requests from using this key (bindings removed from pool)
+	if status == StatusNeedRefresh || status == StatusExhausted || status == StatusError {
+		bindingsCol := db.GetCollection("openhands_bindings")
+		deleteBindingsResult, err := bindingsCol.DeleteMany(ctx, bson.M{"openhandsKeyId": keyID})
+		if err != nil {
+			log.Printf("⚠️ Failed to delete bindings for key %s: %v", keyID, err)
+		} else if deleteBindingsResult.DeletedCount > 0 {
+			log.Printf("🗑️ Deleted %d bindings for key %s (status: %s). Key document kept for manual review.", deleteBindingsResult.DeletedCount, keyID, status)
+		}
 	}
 }
 
