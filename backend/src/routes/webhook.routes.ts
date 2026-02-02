@@ -12,6 +12,7 @@ router.use(webhookAuthMiddleware);
 const addKeySchema = z.object({
   apiKey: z.string().min(1, 'API key is required'),
   replaceKeyId: z.string().optional(),  // ID of the old key to replace/delete
+  name: z.string().optional(),  // Name from third-party (e.g., "tai-p1" from Python script)
 });
 
 /**
@@ -48,7 +49,8 @@ router.get('/openhands/status', async (_req: Request, res: Response) => {
  * POST /webhook/openhands/keys
  * Add a new OpenHands API key and bind it to proxy-6.
  * If replaceKeyId is provided, delete ONLY that specific key first.
- * Key name is auto-generated.
+ * Key name can be provided by third-party (e.g., "tai-p1" from Python script).
+ * If no name provided, defaults to "oh-key" prefix.
  */
 router.post('/openhands/keys', async (req: Request, res: Response) => {
   try {
@@ -73,7 +75,9 @@ router.post('/openhands/keys', async (req: Request, res: Response) => {
     }
     
     // Step 2: Generate unique key ID and create new key
-    const keyId = `oh-key-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // Use provided name or fallback to "oh-key" prefix
+    const keyPrefix = input.name || 'oh-key';
+    const keyId = `${keyPrefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     
     const key = await openhandsService.createKey({
       id: keyId,
