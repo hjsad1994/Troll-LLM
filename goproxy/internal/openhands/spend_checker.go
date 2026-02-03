@@ -151,7 +151,7 @@ func (sc *SpendChecker) Stop() {
 	sc.running = false
 }
 
-// checkAllKeys checks spend for all healthy keys
+// checkAllKeys checks spend for all healthy keys in parallel
 func (sc *SpendChecker) checkAllKeys() {
 	sc.provider.mu.Lock()
 	keys := make([]*OpenHandsKey, len(sc.provider.keys))
@@ -159,6 +159,9 @@ func (sc *SpendChecker) checkAllKeys() {
 	sc.provider.mu.Unlock()
 
 	now := time.Now()
+
+	// Use WaitGroup for parallel execution
+	var wg sync.WaitGroup
 
 	for _, key := range keys {
 		if key.Status != OpenHandsStatusHealthy {
@@ -172,67 +175,76 @@ func (sc *SpendChecker) checkAllKeys() {
 			continue
 		}
 
-		// Check spend for this key
-		result := sc.checkKeySpend(key, isActive)
+		// Launch goroutine for parallel checking
+		wg.Add(1)
+		go func(k *OpenHandsKey, active bool) {
+			defer wg.Done()
 
-		// Handle budget_exceeded - rotate immediately
-		if result.BudgetExceeded {
-			log.Printf("🔄 [OpenHands/SpendChecker] Immediate rotation triggered for key %s (budget exceeded, spend: $%.2f)",
-				key.ID, result.Spend)
+			// Check spend for this key
+			result := sc.checkKeySpend(k, active)
 
-			reason := fmt.Sprintf("budget_exceeded_%.2f", result.Spend)
-			newKeyID, err := sc.provider.RotateKey(key.ID, reason)
+			// Handle budget_exceeded - rotate immediately
+			if result.BudgetExceeded {
+				log.Printf("🔄 [OpenHands/SpendChecker] Immediate rotation triggered for key %s (budget exceeded, spend: $%.2f)",
+					k.ID, result.Spend)
 
-			rotatedAt := time.Now()
-			if err != nil {
-				log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", key.ID, err)
-				sc.saveSpendHistory(result, nil, reason, "")
-			} else if newKeyID == "" {
-				// Key was already rotated by another process - skip history save
-				log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", key.ID)
-			} else {
-				log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", key.ID, newKeyID)
-				sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
+				reason := fmt.Sprintf("budget_exceeded_%.2f", result.Spend)
+				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
+
+				rotatedAt := time.Now()
+				if err != nil {
+					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
+					sc.saveSpendHistory(result, nil, reason, "")
+				} else if newKeyID == "" {
+					// Key was already rotated by another process - skip history save
+					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
+				} else {
+					log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", k.ID, newKeyID)
+					sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
+				}
+				return
 			}
-			continue
-		}
 
-		if result.Error != nil {
-			log.Printf("⚠️ [OpenHands/SpendChecker] Failed to check key %s: %v", key.ID, result.Error)
-			continue
-		}
-
-		// Log spend check result
-		spendPercent := (result.Spend / sc.threshold) * 100
-		log.Printf("💵 [SpendChecker] %s: $%.2f / $%.2f (%.1f%%)", key.ID, result.Spend, sc.threshold, spendPercent)
-
-		// Update key spend info in DB and memory
-		sc.updateKeySpendInfo(key.ID, result.Spend, result.CheckedAt)
-
-		// Check if we need to rotate
-		if result.Spend >= sc.threshold {
-			log.Printf("🔄 [OpenHands/SpendChecker] Proactive rotation triggered for key %s (spend: $%.2f >= threshold: $%.2f)",
-				key.ID, result.Spend, sc.threshold)
-
-			reason := fmt.Sprintf("proactive_threshold_%.2f", result.Spend)
-			newKeyID, err := sc.provider.RotateKey(key.ID, reason)
-
-			rotatedAt := time.Now()
-			if err != nil {
-				log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", key.ID, err)
-				sc.saveSpendHistory(result, nil, reason, "")
-			} else if newKeyID == "" {
-				// Key was already rotated by another process - skip history save
-				log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", key.ID)
-			} else {
-				log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", key.ID, newKeyID)
-				sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
+			if result.Error != nil {
+				log.Printf("⚠️ [OpenHands/SpendChecker] Failed to check key %s: %v", k.ID, result.Error)
+				return
 			}
-		} else {
-			// Save history without rotation
-			sc.saveSpendHistory(result, nil, "", "")
-		}
+
+			// Log spend check result
+			spendPercent := (result.Spend / sc.threshold) * 100
+			log.Printf("💵 [SpendChecker] %s: $%.2f / $%.2f (%.1f%%)", k.ID, result.Spend, sc.threshold, spendPercent)
+
+			// Update key spend info in DB and memory
+			sc.updateKeySpendInfo(k.ID, result.Spend, result.CheckedAt)
+
+			// Check if we need to rotate
+			if result.Spend >= sc.threshold {
+				log.Printf("🔄 [OpenHands/SpendChecker] Proactive rotation triggered for key %s (spend: $%.2f >= threshold: $%.2f)",
+					k.ID, result.Spend, sc.threshold)
+
+				reason := fmt.Sprintf("proactive_threshold_%.2f", result.Spend)
+				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
+
+				rotatedAt := time.Now()
+				if err != nil {
+					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
+					sc.saveSpendHistory(result, nil, reason, "")
+				} else if newKeyID == "" {
+					// Key was already rotated by another process - skip history save
+					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
+				} else {
+					log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", k.ID, newKeyID)
+					sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
+				}
+			} else {
+				// Save history without rotation
+				sc.saveSpendHistory(result, nil, "", "")
+			}
+		}(key, isActive)
 	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
 }
 
 // isKeyActive returns true if the key was used within ActiveKeyWindow
