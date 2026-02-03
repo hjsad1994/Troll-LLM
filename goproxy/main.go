@@ -872,9 +872,21 @@ func handleAnthropicRequest(w http.ResponseWriter, r *http.Request, openaiReq *t
 		}
 		log.Printf("🧠 [/v1/chat/completions] Thinking: ENABLED (conversation has thinking blocks, budget=%d)", anthropicReq.Thinking.BudgetTokens)
 	} else if hasNonThinking {
-		// Conversation has assistant messages without thinking - MUST disable
-		anthropicReq.Thinking = nil
-		log.Printf("🧠 [/v1/chat/completions] Thinking: DISABLED (conversation lacks thinking blocks)")
+		// Conversation lacks thinking blocks BUT model might support it - check config
+		reasoning := config.GetModelReasoning(openaiReq.Model)
+		if reasoning != "" {
+			// Model supports thinking - ENABLE IT
+			budgetTokens := config.GetModelThinkingBudget(openaiReq.Model)
+			anthropicReq.Thinking = &transformers.ThinkingConfig{
+				Type:         "enabled",
+				BudgetTokens: budgetTokens,
+			}
+			log.Printf("🧠 [/v1/chat/completions] Thinking: ENABLED (force enable for model with reasoning, budget=%d)", budgetTokens)
+		} else {
+			// Model doesn't support thinking - disable
+			anthropicReq.Thinking = nil
+			log.Printf("🧠 [/v1/chat/completions] Thinking: DISABLED (model has no reasoning config)")
+		}
 	} else {
 		// No assistant messages - new conversation, use config
 		if anthropicReq.Thinking != nil && anthropicReq.Thinking.Type == "enabled" {
@@ -1308,10 +1320,15 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 			}
 			ensureMinTokens(budgetTokens)
 			log.Printf("🧠 [OpenHands-Anthropic] Thinking ENABLED (conversation has thinking blocks, budget=%d, max_tokens=%d)", budgetTokens, anthropicReq.MaxTokens)
-		} else if hasNonThinking {
-			// Conversation has assistant messages without thinking - MUST disable
-			anthropicReq.Thinking = nil
-			log.Printf("🧠 [OpenHands-Anthropic] Thinking DISABLED (conversation lacks thinking blocks)")
+		} else if hasNonThinking && reasoning != "" {
+			// Conversation lacks thinking blocks BUT model supports thinking - ENABLE IT
+			budgetTokens := config.GetModelThinkingBudget(modelID)
+			anthropicReq.Thinking = &transformers.ThinkingConfig{
+				Type:         "enabled",
+				BudgetTokens: budgetTokens,
+			}
+			ensureMinTokens(budgetTokens)
+			log.Printf("🧠 [OpenHands-Anthropic] Thinking ENABLED (force enable for model with reasoning, budget=%d, max_tokens=%d)", budgetTokens, anthropicReq.MaxTokens)
 		} else if reasoning != "" {
 			// No assistant messages - new conversation, enable based on config
 			budgetTokens := config.GetModelThinkingBudget(modelID)
@@ -3315,10 +3332,14 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			BudgetTokens: budgetTokens,
 		}
 		log.Printf("🧠 [/v1/messages] Thinking: ENABLED (conversation has thinking blocks, budget=%d)", budgetTokens)
-	} else if hasNonThinking {
-		// Conversation has assistant messages without thinking - MUST disable
-		anthropicReq.Thinking = nil
-		log.Printf("🧠 [/v1/messages] Thinking: DISABLED (conversation lacks thinking blocks)")
+	} else if hasNonThinking && reasoning != "" {
+		// Conversation lacks thinking blocks BUT model supports thinking - ENABLE IT
+		budgetTokens := config.GetModelThinkingBudget(anthropicReq.Model)
+		anthropicReq.Thinking = &transformers.ThinkingConfig{
+			Type:         "enabled",
+			BudgetTokens: budgetTokens,
+		}
+		log.Printf("🧠 [/v1/messages] Thinking: ENABLED (force enable for model with reasoning, budget=%d)", budgetTokens)
 	} else if reasoning != "" {
 		// No assistant messages - new conversation, enable based on config
 		budgetTokens := config.GetModelThinkingBudget(anthropicReq.Model)

@@ -50,14 +50,14 @@ func init() {
 
 	// Pre-compile identity replacements
 	identityReplacements := map[string]string{
-		"I am Droid":           "I am Claude",
-		"I'm Droid":            "I'm Claude",
-		"my name is Droid":     "my name is Claude",
-		"called Droid":         "called Claude",
-		"as Droid":             "as Claude",
-		"Droid here":           "Claude here",
-		"This is Droid":        "This is Claude",
-		"Droid, an AI":         "Claude, an AI",
+		"I am Droid":                            "I am Claude",
+		"I'm Droid":                             "I'm Claude",
+		"my name is Droid":                      "my name is Claude",
+		"called Droid":                          "called Claude",
+		"as Droid":                              "as Claude",
+		"Droid here":                            "Claude here",
+		"This is Droid":                         "This is Claude",
+		"Droid, an AI":                          "Claude, an AI",
 		"I am an AI software engineering agent": "I am an AI assistant",
 		"AI software engineering agent":         "AI assistant",
 	}
@@ -138,7 +138,7 @@ func FilterDroidIdentity(content string, isStreaming ...bool) string {
 
 	// Clean up extra whitespace/newlines
 	result = whitespaceRegex.ReplaceAllString(result, "\n\n")
-	
+
 	// Only trim space for non-streaming responses
 	// Streaming chunks need to preserve leading/trailing spaces to avoid text concatenation issues
 	streaming := len(isStreaming) > 0 && isStreaming[0]
@@ -210,8 +210,8 @@ const (
 	ThinkingFilterRegex
 )
 
-// Current filter mode - set to Redact to completely hide thinking content from users
-var currentThinkingFilterMode = ThinkingFilterRedact
+// Current filter mode - set to Keyword to show thinking with sensitive keyword filtering
+var currentThinkingFilterMode = ThinkingFilterKeyword
 
 // FilterThinkingContent removes system prompt references from thinking blocks
 // This allows users to see the thinking process without exposing internal instructions
@@ -338,7 +338,7 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 	var textContent string
 	var thinkingContent string
 	var toolCalls []map[string]interface{}
-	
+
 	if content, ok := anthropicResp["content"].([]interface{}); ok && len(content) > 0 {
 		for _, item := range content {
 			if contentItem, ok := item.(map[string]interface{}); ok {
@@ -350,7 +350,7 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 					}
 					continue
 				}
-				
+
 				switch contentType {
 				case "thinking":
 					// Extract thinking block content for user visibility (filtered to hide system prompt)
@@ -382,7 +382,7 @@ func (t *AnthropicResponseTransformer) TransformNonStreamResponse(anthropicResp 
 			}
 		}
 	}
-	
+
 	openaiResp.Choices[0].Message.Content = textContent
 	if len(toolCalls) > 0 {
 		openaiResp.Choices[0].Message.ToolCalls = toolCalls
@@ -453,7 +453,7 @@ func (t *AnthropicResponseTransformer) TransformStreamChunk(eventType string, ev
 	case "content_block_delta":
 		if delta, ok := eventData["delta"].(map[string]interface{}); ok {
 			deltaType, _ := delta["type"].(string)
-			
+
 			switch deltaType {
 			case "thinking_delta":
 				// Stream thinking content to user (filtered to hide system prompt)
