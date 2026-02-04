@@ -35,7 +35,7 @@ import (
 	"github.com/andybalholm/brotli"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
-	"golang.org/x/net/http2"
+	// "golang.org/x/net/http2" // Disabled - HTTP/2 causes issues with OpenHands
 )
 
 var (
@@ -118,10 +118,10 @@ func initHTTPClient() {
 		InsecureSkipVerify: false,
 	}
 
-	// Create HTTP/2 capable Transport with improved settings
+	// Create HTTP/1.1 Transport (HTTP/2 disabled for OpenHands compatibility)
 	transport := &http.Transport{
 		TLSClientConfig:       tlsConfig,
-		ForceAttemptHTTP2:     true,
+		ForceAttemptHTTP2:     false, // Disable HTTP/2 - OpenHands has issues with it
 		MaxIdleConns:          100,
 		MaxIdleConnsPerHost:   10,
 		MaxConnsPerHost:       20,
@@ -132,17 +132,17 @@ func initHTTPClient() {
 		DisableKeepAlives:     false,
 	}
 
-	// Configure HTTP/2
-	if err := http2.ConfigureTransport(transport); err != nil {
-		log.Printf("⚠️ HTTP/2 configuration failed, will use HTTP/1.1: %v", err)
-	}
+	// HTTP/2 disabled for OpenHands compatibility
+	// if err := http2.ConfigureTransport(transport); err != nil {
+	// 	log.Printf("⚠️ HTTP/2 configuration failed, will use HTTP/1.1: %v", err)
+	// }
 
 	httpClient = &http.Client{
 		Transport: transport,
 		Timeout:   0, // No timeout for streaming responses
 	}
 
-	log.Printf("✅ HTTP client initialized successfully (HTTP/2 enabled)")
+	log.Printf("✅ HTTP client initialized successfully (HTTP/1.1 mode)")
 }
 
 // Get environment variable with default value support
@@ -1406,7 +1406,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-litellm-api-key", key.APIKey)
+	req.Header.Set("Authorization", "Bearer "+key.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
 
 	// Send request
@@ -1444,7 +1444,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 					// Create new request with new key
 					retryReq, _ := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/messages", bytes.NewBuffer(requestBody))
 					retryReq.Header.Set("Content-Type", "application/json")
-					retryReq.Header.Set("x-litellm-api-key", newKey.APIKey)
+					retryReq.Header.Set("Authorization", "Bearer "+newKey.APIKey)
 					retryReq.Header.Set("anthropic-version", "2023-06-01")
 
 					retryResp, retryDoErr := httpClient.Do(retryReq)
@@ -1712,7 +1712,11 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	}
 
 	isStreaming := openaiReq.Stream
-	log.Printf("📤 [OpenHands-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, key=%s)", upstreamModelID, isStreaming, key.ID)
+	apiKeyPreview := key.APIKey
+	if len(apiKeyPreview) > 12 {
+		apiKeyPreview = apiKeyPreview[:12] + "..."
+	}
+	log.Printf("📤 [OpenHands-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, key=%s, apiKey=%s)", upstreamModelID, isStreaming, key.ID, apiKeyPreview)
 
 	// Create HTTP request
 	req, err := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/chat/completions", bytes.NewBuffer(requestBody))
@@ -1722,19 +1726,25 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 		return
 	}
 
-	// Set headers
+	// Set headers - mimic standard API client
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-litellm-api-key", key.APIKey)
+	req.Header.Set("Authorization", "Bearer "+key.APIKey)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "OpenAI/v1 GoProxy/1.0")
+	log.Printf("🔑 [OpenHands-OpenAI] Using Authorization: Bearer %s", apiKeyPreview)
 
 	// Send request
+	log.Printf("🌐 [OpenHands-OpenAI] Sending request to: %s", req.URL.String())
 	requestStartTime := time.Now()
 	resp, err := httpClient.Do(req)
+	elapsed := time.Since(requestStartTime)
 	if err != nil {
-		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", time.Since(requestStartTime), err)
+		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", elapsed, err)
 		http.Error(w, `{"error": {"message": "Request to upstream service failed", "type": "upstream_error"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
+	log.Printf("📥 [OpenHands-OpenAI] Response received in %v, status=%d", elapsed, resp.StatusCode)
 
 	// Check for errors and handle key rotation
 	if resp.StatusCode >= 400 {
@@ -1761,7 +1771,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 					// Create new request with new key
 					retryReq, _ := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/chat/completions", bytes.NewBuffer(requestBody))
 					retryReq.Header.Set("Content-Type", "application/json")
-					retryReq.Header.Set("x-litellm-api-key", newKey.APIKey)
+					retryReq.Header.Set("Authorization", "Bearer "+newKey.APIKey)
 
 					retryResp, retryDoErr := httpClient.Do(retryReq)
 					if retryDoErr == nil {

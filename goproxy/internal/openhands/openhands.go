@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	OpenHandsBaseURL             = "https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg"
+	OpenHandsBaseURL             = "https://llm-proxy.app.all-hands.dev"
 	OpenHandsMessagesEndpoint    = OpenHandsBaseURL + "/v1/messages"
 	OpenHandsCompletionsEndpoint = OpenHandsBaseURL + "/v1/chat/completions"
 	OpenHandsEndpoint            = OpenHandsCompletionsEndpoint // default for OpenAI format
@@ -179,7 +179,11 @@ func (p *OpenHandsProvider) LoadKeys() error {
 		}
 	}
 
-	// Key loading log disabled - use openhandspool log instead
+	// Log all loaded keys for debugging
+	log.Printf("✅ [Troll-LLM] Loaded %d OpenHands keys:", len(p.keys))
+	for i, key := range p.keys {
+		log.Printf("   [%d] ID=%s, Status=%s, Available=%v", i, key.ID, key.Status, key.IsAvailable())
+	}
 	return nil
 }
 
@@ -516,13 +520,11 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-litellm-api-key", key.APIKey)
+	req.Header.Set("Authorization", "Bearer "+key.APIKey)
 	// Add User-Agent from config (openhands-cli/1.0.0 for official CLI appearance)
 	if userAgent := config.GetUserAgent(); userAgent != "" {
 		req.Header.Set("User-Agent", userAgent)
 	}
-	// Add x-openhands-client header to match official CLI behavior
-	req.Header.Set("x-openhands-client", "cli")
 	// Add common headers to avoid detection
 	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -532,11 +534,15 @@ func (p *OpenHandsProvider) forwardToEndpoint(endpoint string, body []byte, isSt
 		req.Header.Set("Accept", "application/json")
 	}
 
-	// Log request
+	// Log request with API key prefix for debugging
+	apiKeyPrefix := key.APIKey
+	if len(apiKeyPrefix) > 10 {
+		apiKeyPrefix = apiKeyPrefix[:10] + "..."
+	}
 	if proxyName != "" {
-		log.Printf("📤 [Troll-LLM] POST %s (key=%s, proxy=%s, stream=%v)", endpoint, key.ID, proxyName, isStreaming)
+		log.Printf("📤 [Troll-LLM] POST %s (key=%s, apiKey=%s, proxy=%s, stream=%v)", endpoint, key.ID, apiKeyPrefix, proxyName, isStreaming)
 	} else {
-		log.Printf("📤 [Troll-LLM] POST %s (key=%s, direct, stream=%v)", endpoint, key.ID, isStreaming)
+		log.Printf("📤 [Troll-LLM] POST %s (key=%s, apiKey=%s, direct, stream=%v)", endpoint, key.ID, apiKeyPrefix, isStreaming)
 	}
 
 	startTime := time.Now()
@@ -716,13 +722,11 @@ func (p *OpenHandsProvider) retryWithNextKeyToEndpoint(endpoint string, body []b
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-litellm-api-key", key.APIKey)
+	req.Header.Set("Authorization", "Bearer "+key.APIKey)
 	// Add User-Agent from config (openhands-cli/1.0.0 for official CLI appearance)
 	if userAgent := config.GetUserAgent(); userAgent != "" {
 		req.Header.Set("User-Agent", userAgent)
 	}
-	// Add x-openhands-client header to match official CLI behavior
-	req.Header.Set("x-openhands-client", "cli")
 	// Add common headers to avoid detection
 	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
