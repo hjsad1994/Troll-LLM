@@ -66,6 +66,12 @@ interface OpenHandsKey {
   totalSpend?: number
 }
 
+interface OpenHandsBackupStats {
+  total: number
+  available: number
+  used: number
+}
+
 interface Proxy {
   _id: string
   name: string
@@ -179,6 +185,7 @@ export default function AdminDashboard() {
 const [userKeys, setUserKeys] = useState<UserKey[]>([])
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
   const [openhandsKeys, setOpenhandsKeys] = useState<OpenHandsKey[]>([])
+  const [openhandsBackupStats, setOpenhandsBackupStats] = useState<OpenHandsBackupStats>({ total: 0, available: 0, used: 0 })
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
   const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_creditsNew: 0, total_creditsNewUsed: 0, total_input_tokens: 0, total_output_tokens: 0 })
@@ -196,7 +203,7 @@ const [userKeys, setUserKeys] = useState<UserKey[]>([])
 
 const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
     try {
-      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp, modelStatsResp, openhandsResp] = await Promise.all([
+      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp, modelStatsResp, openhandsResp, backupKeysResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
         fetchWithAuth('/admin/troll-keys').catch(() => null),
         fetchWithAuth('/admin/proxies').catch(() => null),
@@ -205,6 +212,7 @@ const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
         fetchWithAuth(`/admin/user-stats?period=${period}`).catch(() => null),
         getModelStats(period).catch(() => ({ models: [] })),
         fetchWithAuth('/admin/openhands/keys').catch(() => null),
+        fetchWithAuth('/admin/openhands/backup-keys').catch(() => null),
       ])
 
       const keysData = keysResp?.ok ? await keysResp.json() : { total: 0, keys: [] }
@@ -214,6 +222,7 @@ const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
       const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_input_tokens: 0, total_output_tokens: 0 }
       const openhandsData = openhandsResp?.ok ? await openhandsResp.json() : { keys: [] }
+      const backupKeysData = backupKeysResp?.ok ? await backupKeysResp.json() : { total: 0, available: 0, used: 0 }
 
       setStats({
         totalKeys: keysData.total || 0,
@@ -238,6 +247,11 @@ const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
 setUserStats(userStatsData)
       setModelStats(modelStatsResp.models || [])
       setOpenhandsKeys(openhandsData.keys || [])
+      setOpenhandsBackupStats({
+        total: backupKeysData.total || 0,
+        available: backupKeysData.available || 0,
+        used: backupKeysData.used || 0,
+      })
 
       // Set detailed data for tables
       setUserKeys((keysData.keys || []).slice(0, 5))
@@ -314,15 +328,48 @@ setUserStats(userStatsData)
           </div>
         </header>
 
-{/* Stats Grid - 3 columns */}
+{/* Stats Grid - 4 columns */}
         <section className="py-8 border-y border-gray-300 dark:border-white/10">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-amber-600 dark:text-amber-400 mb-2">
-                {loading ? '-' : openhandsKeys.length}
+                {loading ? '-' : (
+                  <>
+                    {openhandsKeys.length}
+                    <span className="text-gray-400 dark:text-neutral-600 mx-1">/</span>
+                    <span className="text-gray-500 dark:text-neutral-500">{openhandsKeys.length + openhandsBackupStats.available}</span>
+                  </>
+                )}
               </div>
-              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">OpenHands</div>
-              <div className="text-emerald-500 dark:text-emerald-400 text-xs mt-1">{openhandsKeys.filter(k => k.status === 'healthy').length} healthy</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">OpenHands Keys</div>
+              <div className="text-emerald-500 dark:text-emerald-400 text-xs mt-1">
+                {openhandsKeys.filter(k => k.status === 'healthy').length} healthy · {openhandsBackupStats.available} backup
+              </div>
+            </div>
+            <div className="text-center">
+              {(() => {
+                const totalSpent = openhandsKeys.reduce((sum, k) => sum + (k.totalSpend || 0), 0)
+                const totalQuota = openhandsKeys.length * 10
+                const remaining = totalQuota - totalSpent
+                const percentage = totalQuota > 0 ? (totalSpent / totalQuota) * 100 : 0
+                return loading ? (
+                  <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">-</div>
+                ) : (
+                  <>
+                    <div className="text-4xl md:text-5xl font-bold mb-2">
+                      <span className={`${percentage >= 80 ? 'text-red-500' : percentage >= 50 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        ${remaining.toFixed(1)}
+                      </span>
+                      <span className="text-gray-400 dark:text-neutral-600 mx-1">/</span>
+                      <span className="text-gray-500 dark:text-neutral-500">${totalQuota}</span>
+                    </div>
+                    <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">Quota</div>
+                    <div className={`text-xs mt-1 ${percentage >= 80 ? 'text-red-400' : percentage >= 50 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                      ${totalSpent.toFixed(2)} used ({percentage.toFixed(0)}%)
+                    </div>
+                  </>
+                )
+              })()}
             </div>
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
