@@ -4,9 +4,11 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -108,4 +110,28 @@ func Disconnect() {
 			log.Printf("⚠️ Error disconnecting from MongoDB: %v", err)
 		}
 	}
+}
+
+// EnsureIndexes creates required indexes for collections
+func EnsureIndexes() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// TTL index for spend history - auto-delete after 3 hours
+	spendHistoryCol := GetCollection("openhands_key_spend_history")
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "checkedAt", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(10800), // 3 hours
+	}
+
+	_, err := spendHistoryCol.Indexes().CreateOne(ctx, indexModel)
+	if err != nil {
+		// Index may already exist - check if it's a duplicate key error
+		if !strings.Contains(err.Error(), "already exists") {
+			log.Printf("⚠️ [MongoDB] Failed to create TTL index: %v", err)
+		}
+		return
+	}
+
+	log.Printf("✅ [MongoDB] TTL index ensured for openhands_key_spend_history (3h expiry)")
 }

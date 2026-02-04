@@ -3853,6 +3853,7 @@ func main() {
 
 	// Initialize MongoDB connection
 	_ = db.GetClient() // This initializes the connection
+	db.EnsureIndexes() // Create TTL indexes
 	log.Printf("✅ MongoDB initialized")
 
 	// Initialize rate limiter
