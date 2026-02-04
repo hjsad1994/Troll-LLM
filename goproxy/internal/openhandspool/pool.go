@@ -269,6 +269,52 @@ func (p *KeyPool) RemoveKey(keyID string) {
 	}
 }
 
+// ReplaceKey replaces an exhausted key with a new backup key in the pool.
+// It loads the new key from DB and swaps it in place of the old key.
+// Use this after RotateKey() succeeds to immediately update the pool.
+func (p *KeyPool) ReplaceKey(oldKeyID string, newKeyID string) error {
+	if newKeyID == "" {
+		// No new key to replace with, just remove the old one
+		p.RemoveKey(oldKeyID)
+		return nil
+	}
+
+	// Load new key from database
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var newKey OpenHandsKey
+	err := db.OpenHandsKeysCollection().FindOne(ctx, bson.M{"_id": newKeyID}).Decode(&newKey)
+	if err != nil {
+		log.Printf("⚠️ [OpenHandsPool] Failed to load new key %s from DB: %v", newKeyID, err)
+		// Still remove old key even if we can't load new one
+		p.RemoveKey(oldKeyID)
+		return err
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Find and replace the old key
+	replaced := false
+	for i, key := range p.keys {
+		if key.ID == oldKeyID {
+			p.keys[i] = &newKey
+			replaced = true
+			log.Printf("🔄 [OpenHandsPool] Replaced key %s with %s in memory pool", oldKeyID, newKeyID)
+			break
+		}
+	}
+
+	// If old key wasn't in pool, just add the new one
+	if !replaced {
+		p.keys = append(p.keys, &newKey)
+		log.Printf("➕ [OpenHandsPool] Added new key %s to memory pool (old key %s not found)", newKeyID, oldKeyID)
+	}
+
+	return nil
+}
+
 func (p *KeyPool) GetStats() map[string]int {
 	p.mu.Lock()
 	defer p.mu.Unlock()

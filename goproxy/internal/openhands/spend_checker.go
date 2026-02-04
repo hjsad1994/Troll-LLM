@@ -195,11 +195,13 @@ func (sc *SpendChecker) checkAllKeys() {
 					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
 				}
 
-				// Also remove from openhandspool in-memory cache (separate pool)
-				openhandspool.GetPool().RemoveKey(k.ID)
-
 				// Rotate to get new key
 				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
+
+				// Replace old key with new key in openhandspool (separate pool)
+				if replaceErr := openhandspool.GetPool().ReplaceKey(k.ID, newKeyID); replaceErr != nil {
+					log.Printf("⚠️ [OpenHands/SpendChecker] Failed to replace key in pool: %v", replaceErr)
+				}
 
 				rotatedAt := time.Now()
 				if err != nil {
@@ -241,11 +243,13 @@ func (sc *SpendChecker) checkAllKeys() {
 					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
 				}
 
-				// Also remove from openhandspool in-memory cache (separate pool)
-				openhandspool.GetPool().RemoveKey(k.ID)
-
 				// Rotate to get new key
 				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
+
+				// Replace old key with new key in openhandspool (separate pool)
+				if replaceErr := openhandspool.GetPool().ReplaceKey(k.ID, newKeyID); replaceErr != nil {
+					log.Printf("⚠️ [OpenHands/SpendChecker] Failed to replace key in pool: %v", replaceErr)
+				}
 
 				rotatedAt := time.Now()
 				if err != nil {
