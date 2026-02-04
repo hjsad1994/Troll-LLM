@@ -1394,7 +1394,11 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		log.Printf("✅ [Pre-Check] [%s] Balance OK: estimated=$%.6f, balance=$%.6f (field=%s)", username, estimatedCost, totalBalance, billingUpstream)
 	}
 
-	log.Printf("📤 [OpenHands-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, key=%s)", upstreamModelID, isStreaming, key.ID)
+	apiKeyPreview := key.APIKey
+	if len(apiKeyPreview) > 12 {
+		apiKeyPreview = apiKeyPreview[:12] + "..."
+	}
+	log.Printf("📤 [OpenHands-Anthropic] Forwarding /v1/messages (model=%s, stream=%v, key=%s, apiKey=%s)", upstreamModelID, isStreaming, key.ID, apiKeyPreview)
 
 	// Create HTTP request
 	req, err := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/messages", bytes.NewBuffer(requestBody))
@@ -1404,20 +1408,26 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		return
 	}
 
-	// Set headers
+	// Set headers - mimic standard API client
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+key.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Anthropic/v1 GoProxy/1.0")
+	log.Printf("🔑 [OpenHands-Anthropic] Using Authorization: Bearer %s", apiKeyPreview)
 
 	// Send request
+	log.Printf("🌐 [OpenHands-Anthropic] Sending request to: %s", req.URL.String())
 	requestStartTime := time.Now()
 	resp, err := httpClient.Do(req)
+	elapsed := time.Since(requestStartTime)
 	if err != nil {
-		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", time.Since(requestStartTime), err)
+		log.Printf("❌ [Troll-LLM] Request failed after %v: %v", elapsed, err)
 		http.Error(w, `{"type":"error","error":{"type":"api_error","message":"Request to upstream service failed"}}`, http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
+	log.Printf("📥 [OpenHands-Anthropic] Response received in %v, status=%d", elapsed, resp.StatusCode)
 
 	// Check for errors and handle key rotation
 	if resp.StatusCode >= 400 {
