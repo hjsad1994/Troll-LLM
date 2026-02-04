@@ -217,9 +217,11 @@ func (sc *SpendChecker) checkAllKeys() {
 				return
 			}
 
-			// Log spend check result
+			// Log spend check result only if spend >= 80% threshold
 			spendPercent := (result.Spend / sc.threshold) * 100
-			log.Printf("💵 [SpendChecker] %s: $%.2f / $%.2f (%.1f%%)", k.ID, result.Spend, sc.threshold, spendPercent)
+			if spendPercent >= 80.0 {
+				log.Printf("💵 [SpendChecker] %s: $%.2f / $%.2f (%.1f%%) ⚠️", k.ID, result.Spend, sc.threshold, spendPercent)
+			}
 
 			// Update key spend info in DB and memory
 			sc.updateKeySpendInfo(k.ID, result.Spend, result.CheckedAt)
