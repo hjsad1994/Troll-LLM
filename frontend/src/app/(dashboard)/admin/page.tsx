@@ -58,6 +58,14 @@ interface FactoryKey {
   provider?: string
 }
 
+interface OpenHandsKey {
+  _id: string
+  status: string
+  tokensUsed: number
+  requestsCount: number
+  totalSpend?: number
+}
+
 interface Proxy {
   _id: string
   name: string
@@ -138,6 +146,17 @@ function maskApiKey(key: string): string {
   return key.slice(0, 8) + '...' + key.slice(-4)
 }
 
+function formatOpenhandsCredits(totalSpend: number | undefined): { remain: string; total: string; percentage: number } {
+  const TOTAL = 10 // $10 per key
+  const spent = totalSpend || 0
+  const remain = Math.max(0, TOTAL - spent)
+  return {
+    remain: `$${remain.toFixed(2)}`,
+    total: `$${TOTAL.toFixed(2)}`,
+    percentage: (spent / TOTAL) * 100
+  }
+}
+
 export default function AdminDashboard() {
   const { user } = useAuth()
   const router = useRouter()
@@ -157,15 +176,16 @@ export default function AdminDashboard() {
     avgLatencyMs: 0,
     successRate: 0,
   })
-  const [userKeys, setUserKeys] = useState<UserKey[]>([])
+const [userKeys, setUserKeys] = useState<UserKey[]>([])
   const [factoryKeys, setFactoryKeys] = useState<FactoryKey[]>([])
+  const [openhandsKeys, setOpenhandsKeys] = useState<OpenHandsKey[]>([])
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([])
   const [userStats, setUserStats] = useState<UserStats>({ total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_creditsNew: 0, total_creditsNewUsed: 0, total_input_tokens: 0, total_output_tokens: 0 })
   const [modelStats, setModelStats] = useState<ModelStats[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
-  const [metricsPeriod, setMetricsPeriod] = useState<'1h' | '3h' | '8h' | '24h' | '7d' | 'all'>('all')
+  const [metricsPeriod, setMetricsPeriod] = useState<'1h' | '2h' | '3h' | '4h' | '8h' | '24h' | '3d' | '7d' | '30d' | 'all'>('8h')
 
   // Redirect non-admin users
   useEffect(() => {
@@ -174,9 +194,9 @@ export default function AdminDashboard() {
     }
   }, [user, isAdmin, router])
 
-  const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
+const loadDashboard = useCallback(async (period: string = metricsPeriod) => {
     try {
-      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp, modelStatsResp] = await Promise.all([
+      const [keysResp, factoryResp, proxiesResp, statusResp, metricsResp, userStatsResp, modelStatsResp, openhandsResp] = await Promise.all([
         fetchWithAuth('/admin/keys').catch(() => null),
         fetchWithAuth('/admin/troll-keys').catch(() => null),
         fetchWithAuth('/admin/proxies').catch(() => null),
@@ -184,6 +204,7 @@ export default function AdminDashboard() {
         fetchWithAuth(`/admin/metrics?period=${period}`).catch(() => null),
         fetchWithAuth(`/admin/user-stats?period=${period}`).catch(() => null),
         getModelStats(period).catch(() => ({ models: [] })),
+        fetchWithAuth('/admin/openhands/keys').catch(() => null),
       ])
 
       const keysData = keysResp?.ok ? await keysResp.json() : { total: 0, keys: [] }
@@ -192,6 +213,7 @@ export default function AdminDashboard() {
       const statusData = statusResp?.ok ? await statusResp.json() : { status: 'unknown', summary: { healthy: 0, total: 0 } }
       const metricsData = metricsResp?.ok ? await metricsResp.json() : {}
       const userStatsData = userStatsResp?.ok ? await userStatsResp.json() : { total_users: 0, active_users: 0, total_credits_used: 0, total_credits: 0, total_ref_credits: 0, total_input_tokens: 0, total_output_tokens: 0 }
+      const openhandsData = openhandsResp?.ok ? await openhandsResp.json() : { keys: [] }
 
       setStats({
         totalKeys: keysData.total || 0,
@@ -213,8 +235,9 @@ export default function AdminDashboard() {
         requestsThisWeek: metricsData.requests_this_week || 0,
       })
 
-      setUserStats(userStatsData)
+setUserStats(userStatsData)
       setModelStats(modelStatsResp.models || [])
+      setOpenhandsKeys(openhandsData.keys || [])
 
       // Set detailed data for tables
       setUserKeys((keysData.keys || []).slice(0, 5))
@@ -291,15 +314,15 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Stats Grid - 3 columns */}
+{/* Stats Grid - 3 columns */}
         <section className="py-8 border-y border-gray-300 dark:border-white/10">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
-                {loading ? '-' : stats.totalFactoryKeys}
+              <div className="text-4xl md:text-5xl font-bold text-amber-600 dark:text-amber-400 mb-2">
+                {loading ? '-' : openhandsKeys.length}
               </div>
-              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">Troll-Keys</div>
-              <div className="text-gray-600 dark:text-neutral-400 text-xs mt-1">{healthyFactoryKeys} healthy</div>
+              <div className="text-gray-500 dark:text-neutral-600 text-sm uppercase tracking-wider">OpenHands</div>
+              <div className="text-emerald-500 dark:text-emerald-400 text-xs mt-1">{openhandsKeys.filter(k => k.status === 'healthy').length} healthy</div>
             </div>
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
@@ -321,7 +344,7 @@ export default function AdminDashboard() {
         {/* Period Filter */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-gray-500 dark:text-neutral-500 text-sm mr-2">Period:</span>
-          {(['1h', '3h', '8h', '24h', '7d', 'all'] as const).map((period) => (
+{(['1h', '2h', '3h', '4h', '8h', '24h', '3d', '7d', '30d', 'all'] as const).map((period) => (
             <button
               key={period}
               onClick={() => setMetricsPeriod(period)}
@@ -564,6 +587,80 @@ export default function AdminDashboard() {
               <div className="text-center py-8 text-neutral-500">
                 <p>No model usage data</p>
                 <p className="text-xs mt-1">API requests will appear here grouped by model</p>
+              </div>
+)}
+          </div>
+        </section>
+
+        {/* OpenHands Keys Section */}
+        <section className="rounded-xl border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-neutral-900/80 backdrop-blur-sm overflow-hidden">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-300 dark:border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">OpenHands Keys</h3>
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                Credits
+              </span>
+            </div>
+            <Link
+              href="/admin/bindings"
+              className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              Manage →
+            </Link>
+          </div>
+          <div className="p-4">
+            {openhandsKeys.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {openhandsKeys.map((key) => {
+                  const credits = formatOpenhandsCredits(key.totalSpend)
+                  return (
+                    <div
+                      key={key._id}
+                      className={`p-3 rounded-lg border ${
+                        key.status === 'healthy'
+                          ? 'border-emerald-300 dark:border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-500/5'
+                          : 'border-amber-300 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-mono text-xs text-gray-600 dark:text-neutral-400 truncate max-w-[80px]">
+                          {key._id}
+                        </span>
+                        <span className={`w-2 h-2 rounded-full ${
+                          key.status === 'healthy' ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`}></span>
+                      </div>
+                      <div className="text-center">
+                        <span className={`text-lg font-bold ${
+                          credits.percentage >= 95
+                            ? 'text-red-600 dark:text-red-400'
+                            : credits.percentage >= 80
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-emerald-600 dark:text-emerald-400'
+                        }`}>
+                          {credits.remain}
+                        </span>
+                        <span className="text-gray-400 dark:text-neutral-600 mx-1">/</span>
+                        <span className="text-sm text-gray-500 dark:text-neutral-500">{credits.total}</span>
+                      </div>
+                      <div className="mt-1 text-center">
+                        <span className="text-[10px] text-gray-500 dark:text-neutral-500">
+                          {credits.percentage.toFixed(0)}% used
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-neutral-500">
+                <p>No OpenHands keys</p>
+                <p className="text-xs mt-1">Configure keys in the Bindings page</p>
               </div>
             )}
           </div>

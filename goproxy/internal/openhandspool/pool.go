@@ -249,6 +249,26 @@ func (p *KeyPool) MarkError(keyID string, err string) {
 	p.MarkStatus(keyID, StatusError, 30*time.Second, err)
 }
 
+// RemoveKey removes a key from the in-memory pool without touching the database.
+// Use this when the key has already been deleted from DB by another process (e.g., SpendChecker).
+// This ensures the key is not used even before the next auto-reload.
+func (p *KeyPool) RemoveKey(keyID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	newKeys := make([]*OpenHandsKey, 0, len(p.keys))
+	for _, key := range p.keys {
+		if key.ID != keyID {
+			newKeys = append(newKeys, key)
+		}
+	}
+
+	if len(newKeys) < len(p.keys) {
+		p.keys = newKeys
+		log.Printf("🗑️ [OpenHandsPool] Removed key %s from memory pool (pool size: %d)", keyID, len(p.keys))
+	}
+}
+
 func (p *KeyPool) GetStats() map[string]int {
 	p.mu.Lock()
 	defer p.mu.Unlock()

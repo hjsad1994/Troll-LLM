@@ -190,10 +190,13 @@ func (sc *SpendChecker) checkAllKeys() {
 
 				reason := fmt.Sprintf("budget_exceeded_%.2f", result.Spend)
 
-				// Delete the exhausted key
+				// Delete the exhausted key from DB and OpenHandsProvider memory
 				if err := sc.provider.DeleteKey(k.ID); err != nil {
 					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
 				}
+
+				// Also remove from openhandspool in-memory cache (separate pool)
+				openhandspool.GetPool().RemoveKey(k.ID)
 
 				// Rotate to get new key
 				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
@@ -233,10 +236,13 @@ func (sc *SpendChecker) checkAllKeys() {
 
 				reason := fmt.Sprintf("proactive_threshold_%.2f", result.Spend)
 
-				// Delete the exhausted key
+				// Delete the exhausted key from DB and OpenHandsProvider memory
 				if err := sc.provider.DeleteKey(k.ID); err != nil {
 					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
 				}
+
+				// Also remove from openhandspool in-memory cache (separate pool)
+				openhandspool.GetPool().RemoveKey(k.ID)
 
 				// Rotate to get new key
 				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
