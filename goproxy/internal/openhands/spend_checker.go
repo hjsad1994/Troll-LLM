@@ -185,35 +185,40 @@ func (sc *SpendChecker) checkAllKeys() {
 
 			// Handle budget_exceeded - rotate immediately
 			if result.BudgetExceeded {
-				log.Printf("🔄 [OpenHands/SpendChecker] Budget exceeded for key %s (spend: $%.2f) - deleting key",
+				log.Printf("🔄 [OpenHands/SpendChecker] Budget exceeded for key %s (spend: $%.2f) - rotating key",
 					k.ID, result.Spend)
 
 				reason := fmt.Sprintf("budget_exceeded_%.2f", result.Spend)
 
-				// Delete the exhausted key from DB and OpenHandsProvider memory
-				if err := sc.provider.DeleteKey(k.ID); err != nil {
-					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
+				// Rotate FIRST to get new key (handles bindings internally)
+				// RotateKey: gets old bindings -> marks old key exhausted -> creates new key -> creates new bindings
+				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
+
+				rotatedAt := time.Now()
+				if err != nil {
+					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
+					sc.saveSpendHistory(result, nil, reason, "")
+					return
 				}
 
-				// Rotate to get new key
-				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
+				if newKeyID == "" {
+					// Key was already rotated by another process - skip
+					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
+					return
+				}
+
+				// Rotation succeeded - now delete the old key document from DB
+				if err := sc.provider.DeleteKey(k.ID); err != nil {
+					log.Printf("⚠️ [OpenHands/SpendChecker] Failed to delete old key %s: %v", k.ID, err)
+				}
 
 				// Replace old key with new key in openhandspool (separate pool)
 				if replaceErr := openhandspool.GetPool().ReplaceKey(k.ID, newKeyID); replaceErr != nil {
 					log.Printf("⚠️ [OpenHands/SpendChecker] Failed to replace key in pool: %v", replaceErr)
 				}
 
-				rotatedAt := time.Now()
-				if err != nil {
-					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
-					sc.saveSpendHistory(result, nil, reason, "")
-				} else if newKeyID == "" {
-					// Key was already rotated by another process - skip history save
-					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
-				} else {
-					log.Printf("✅ [OpenHands/SpendChecker] Deleted %s, rotated to %s", k.ID, newKeyID)
-					sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
-				}
+				log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s (old key deleted)", k.ID, newKeyID)
+				sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
 				return
 			}
 
@@ -233,33 +238,34 @@ func (sc *SpendChecker) checkAllKeys() {
 
 			// Check if we need to rotate
 			if result.Spend >= sc.threshold {
-				log.Printf("🔄 [OpenHands/SpendChecker] Proactive rotation triggered for key %s (spend: $%.2f >= threshold: $%.2f) - deleting key",
+				log.Printf("🔄 [OpenHands/SpendChecker] Proactive rotation triggered for key %s (spend: $%.2f >= threshold: $%.2f) - rotating key",
 					k.ID, result.Spend, sc.threshold)
 
 				reason := fmt.Sprintf("proactive_threshold_%.2f", result.Spend)
 
-				// Delete the exhausted key from DB and OpenHandsProvider memory
-				if err := sc.provider.DeleteKey(k.ID); err != nil {
-					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
-				}
-
-				// Rotate to get new key
+				// Rotate FIRST to get new key (handles bindings internally)
+				// RotateKey: gets old bindings -> marks old key exhausted -> creates new key -> creates new bindings
 				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
-
-				// Replace old key with new key in openhandspool (separate pool)
-				if replaceErr := openhandspool.GetPool().ReplaceKey(k.ID, newKeyID); replaceErr != nil {
-					log.Printf("⚠️ [OpenHands/SpendChecker] Failed to replace key in pool: %v", replaceErr)
-				}
 
 				rotatedAt := time.Now()
 				if err != nil {
 					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
 					sc.saveSpendHistory(result, nil, reason, "")
 				} else if newKeyID == "" {
-					// Key was already rotated by another process - skip history save
+					// Key was already rotated by another process - skip
 					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
 				} else {
-					log.Printf("✅ [OpenHands/SpendChecker] Deleted %s, rotated to %s", k.ID, newKeyID)
+					// Rotation succeeded - now delete the old key document from DB
+					if err := sc.provider.DeleteKey(k.ID); err != nil {
+						log.Printf("⚠️ [OpenHands/SpendChecker] Failed to delete old key %s: %v", k.ID, err)
+					}
+
+					// Replace old key with new key in openhandspool (separate pool)
+					if replaceErr := openhandspool.GetPool().ReplaceKey(k.ID, newKeyID); replaceErr != nil {
+						log.Printf("⚠️ [OpenHands/SpendChecker] Failed to replace key in pool: %v", replaceErr)
+					}
+
+					log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s (old key deleted)", k.ID, newKeyID)
 					sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
 				}
 			} else {
