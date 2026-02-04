@@ -289,6 +289,40 @@ func (p *OpenHandsProvider) MarkExhausted(keyID string) {
 	log.Printf("❌ [Troll-LLM] Key %s exhausted (cooldown: 24h)", keyID)
 }
 
+// DeleteKey removes a key from both database and memory pool
+func (p *OpenHandsProvider) DeleteKey(keyID string) error {
+	// Delete from MongoDB
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := db.OpenHandsKeysCollection().DeleteOne(ctx, bson.M{"_id": keyID})
+	if err != nil {
+		log.Printf("❌ [Troll-LLM] Failed to delete key %s from DB: %v", keyID, err)
+		return err
+	}
+
+	if result.DeletedCount == 0 {
+		log.Printf("⚠️ [Troll-LLM] Key %s not found in DB (already deleted?)", keyID)
+	} else {
+		log.Printf("🗑️ [Troll-LLM] Deleted key %s from DB", keyID)
+	}
+
+	// Remove from memory
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	newKeys := make([]*OpenHandsKey, 0, len(p.keys))
+	for _, key := range p.keys {
+		if key.ID != keyID {
+			newKeys = append(newKeys, key)
+		}
+	}
+	p.keys = newKeys
+
+	log.Printf("🗑️ [Troll-LLM] Removed key %s from memory pool (remaining: %d keys)", keyID, len(p.keys))
+	return nil
+}
+
 func (p *OpenHandsProvider) MarkError(keyID string, err string) {
 	p.MarkStatus(keyID, OpenHandsStatusError, 30*time.Second, err)
 	log.Printf("⚠️ [Troll-LLM] Key %s error: %s", keyID, err)
@@ -327,19 +361,27 @@ func (p *OpenHandsProvider) CheckAndRotateOnError(keyID string, statusCode int, 
 	}
 
 	if shouldRotate {
-		log.Printf("🚫 [Troll-LLM] Key %s error %d, rotating...", keyID, statusCode)
+		log.Printf("🚫 [Troll-LLM] Key %s error %d, deleting and rotating...", keyID, statusCode)
 		backupCount := GetOpenHandsBackupKeyCount()
 		if backupCount > 0 {
+			// Delete the exhausted key
+			if err := p.DeleteKey(keyID); err != nil {
+				log.Printf("❌ [Troll-LLM] Failed to delete key %s: %v", keyID, err)
+			}
+
+			// Rotate to get new key
 			newKeyID, err := p.RotateKey(keyID, reason)
 			if err != nil {
 				log.Printf("❌ [Troll-LLM] Rotation failed: %v", err)
-				p.MarkExhausted(keyID)
 			} else {
-				log.Printf("✅ [Troll-LLM] Rotated: %s -> %s", keyID, newKeyID)
+				log.Printf("✅ [Troll-LLM] Deleted %s, rotated to %s", keyID, newKeyID)
 			}
 		} else {
-			p.MarkExhausted(keyID)
-			log.Printf("🚨 [Troll-LLM] No backup keys, %s disabled", keyID)
+			// No backup keys - delete the exhausted key
+			if err := p.DeleteKey(keyID); err != nil {
+				log.Printf("❌ [Troll-LLM] Failed to delete key %s: %v", keyID, err)
+			}
+			log.Printf("🚨 [Troll-LLM] No backup keys, deleted %s", keyID)
 		}
 	}
 }

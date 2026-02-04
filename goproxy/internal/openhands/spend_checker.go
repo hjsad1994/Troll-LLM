@@ -185,10 +185,17 @@ func (sc *SpendChecker) checkAllKeys() {
 
 			// Handle budget_exceeded - rotate immediately
 			if result.BudgetExceeded {
-				log.Printf("🔄 [OpenHands/SpendChecker] Immediate rotation triggered for key %s (budget exceeded, spend: $%.2f)",
+				log.Printf("🔄 [OpenHands/SpendChecker] Budget exceeded for key %s (spend: $%.2f) - deleting key",
 					k.ID, result.Spend)
 
 				reason := fmt.Sprintf("budget_exceeded_%.2f", result.Spend)
+
+				// Delete the exhausted key
+				if err := sc.provider.DeleteKey(k.ID); err != nil {
+					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
+				}
+
+				// Rotate to get new key
 				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
 
 				rotatedAt := time.Now()
@@ -199,7 +206,7 @@ func (sc *SpendChecker) checkAllKeys() {
 					// Key was already rotated by another process - skip history save
 					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
 				} else {
-					log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", k.ID, newKeyID)
+					log.Printf("✅ [OpenHands/SpendChecker] Deleted %s, rotated to %s", k.ID, newKeyID)
 					sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
 				}
 				return
@@ -219,10 +226,17 @@ func (sc *SpendChecker) checkAllKeys() {
 
 			// Check if we need to rotate
 			if result.Spend >= sc.threshold {
-				log.Printf("🔄 [OpenHands/SpendChecker] Proactive rotation triggered for key %s (spend: $%.2f >= threshold: $%.2f)",
+				log.Printf("🔄 [OpenHands/SpendChecker] Proactive rotation triggered for key %s (spend: $%.2f >= threshold: $%.2f) - deleting key",
 					k.ID, result.Spend, sc.threshold)
 
 				reason := fmt.Sprintf("proactive_threshold_%.2f", result.Spend)
+
+				// Delete the exhausted key
+				if err := sc.provider.DeleteKey(k.ID); err != nil {
+					log.Printf("❌ [OpenHands/SpendChecker] Failed to delete key %s: %v", k.ID, err)
+				}
+
+				// Rotate to get new key
 				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
 
 				rotatedAt := time.Now()
@@ -233,7 +247,7 @@ func (sc *SpendChecker) checkAllKeys() {
 					// Key was already rotated by another process - skip history save
 					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
 				} else {
-					log.Printf("✅ [OpenHands/SpendChecker] Rotated: %s -> %s", k.ID, newKeyID)
+					log.Printf("✅ [OpenHands/SpendChecker] Deleted %s, rotated to %s", k.ID, newKeyID)
 					sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
 				}
 			} else {
