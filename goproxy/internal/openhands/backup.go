@@ -190,25 +190,22 @@ func StartBackupKeyCleanupJob(interval time.Duration) {
 }
 
 // RotateOpenHandsKey replaces a failed key with a backup key:
-// 1. Check if key exists and not already exhausted (early idempotency check)
-// 2. Get bindings BEFORE marking exhausted (to recreate for new key)
-// 3. Mark old key as EXHAUSTED (auto-deletes bindings via DB update)
-// 4. Atomically claim backup key
-// 5. INSERT backup key as new openhands_key
-// 6. Recreate bindings for new key
-// 7. Update in-memory pool
-// 8. Keep old key in DB with exhausted status for admin review
+// 1. Check if key exists (early idempotency check)
+// 2. Atomically claim backup key
+// 3. DELETE the old openhands_key document completely
+// 4. INSERT backup key as new openhands_key
+// 5. UPDATE bindings to point to new key ID
+// 6. Update in-memory pool
 func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	log.Printf("🔄 [OpenHands/Rotation] Starting rotation for failed key: %s (reason: %s)", failedKeyID, reason)
 
-	// 1. Check if key exists and get current status
+	// 1. Check if key exists before fetching backup (idempotency check)
 	keysCol := db.OpenHandsKeysCollection()
 	var existingKey struct {
-		ID     string             `bson:"_id"`
-		Status OpenHandsKeyStatus `bson:"status"`
+		ID string `bson:"_id"`
 	}
 	err := keysCol.FindOne(ctx, bson.M{"_id": failedKeyID}).Decode(&existingKey)
 	if err != nil {
@@ -220,59 +217,10 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 		return "", err
 	}
 
-	// If key is already exhausted, skip rotation (idempotent)
-	if existingKey.Status == OpenHandsStatusExhausted {
-		log.Printf("⚠️ [OpenHands/Rotation] Key %s already marked as exhausted, skipping rotation", failedKeyID)
-		return "", nil
-	}
-
-	// 2. Get bindings BEFORE marking exhausted (so we can recreate them for new key)
-	bindingsCol := db.GetCollection("openhands_bindings")
-	cursor, err := bindingsCol.Find(ctx, bson.M{"openhandsKeyId": failedKeyID})
-	if err != nil {
-		log.Printf("⚠️ [OpenHands/Rotation] Failed to fetch bindings for key %s: %v", failedKeyID, err)
-	}
-
-	type BindingInfo struct {
-		ProxyID  string `bson:"proxyId"`
-		Priority int    `bson:"priority"`
-	}
-	var oldBindings []BindingInfo
-	if cursor != nil {
-		defer cursor.Close(ctx)
-		if err := cursor.All(ctx, &oldBindings); err != nil {
-			log.Printf("⚠️ [OpenHands/Rotation] Failed to decode bindings: %v", err)
-			oldBindings = []BindingInfo{} // Continue without bindings
-		}
-	}
-	log.Printf("📋 [OpenHands/Rotation] Found %d bindings for key %s", len(oldBindings), failedKeyID)
-
-	// 3. Mark key as EXHAUSTED and delete bindings
-	_, err = keysCol.UpdateByID(ctx, failedKeyID, bson.M{
-		"$set": bson.M{
-			"status":    OpenHandsStatusExhausted,
-			"lastError": reason,
-			"updatedAt": time.Now(),
-		},
-	})
-	if err != nil {
-		log.Printf("⚠️ [OpenHands/Rotation] Failed to mark key exhausted: %v", err)
-	} else {
-		log.Printf("🚫 [OpenHands/Rotation] Marked key %s as exhausted", failedKeyID)
-	}
-
-	// Delete bindings (key should stop receiving traffic)
-	deleteBindingsResult, err := bindingsCol.DeleteMany(ctx, bson.M{"openhandsKeyId": failedKeyID})
-	if err != nil {
-		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete bindings: %v", err)
-	} else if deleteBindingsResult.DeletedCount > 0 {
-		log.Printf("🗑️ [OpenHands/Rotation] Deleted %d bindings for key %s", deleteBindingsResult.DeletedCount, failedKeyID)
-	}
-
-	// 4. Atomically claim an available backup key
+	// 2. Atomically claim an available backup key
 	backupCol := OpenHandsBackupKeysCollection()
 	var backupKey OpenHandsBackupKey
-	findResult := backupCol.FindOneAndUpdate(
+	updateResult := backupCol.FindOneAndUpdate(
 		ctx,
 		bson.M{"isUsed": false},
 		bson.M{
@@ -284,7 +232,7 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 		},
 		options.FindOneAndUpdate().SetReturnDocument(options.Before),
 	)
-	if err = findResult.Decode(&backupKey); err != nil {
+	if err := updateResult.Decode(&backupKey); err != nil {
 		log.Printf("❌ [OpenHands/Rotation] No backup keys available: %v", err)
 		return "", err
 	}
@@ -295,7 +243,15 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 	}
 	log.Printf("✅ [OpenHands/Rotation] Atomically claimed backup key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 5. INSERT backup key as new openhands_key (DO NOT delete old key - keep for review)
+	// 3. DELETE old key completely
+	deleteResult, err := keysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
+	if err != nil {
+		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete old key: %v", err)
+	} else {
+		log.Printf("🗑️ [OpenHands/Rotation] Deleted old key: %s (count: %d)", failedKeyID, deleteResult.DeletedCount)
+	}
+
+	// 4. INSERT backup key as new openhands_key
 	now := time.Now()
 	newKeyDoc := bson.M{
 		"_id":           backupKey.ID,
@@ -313,37 +269,34 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 	}
 	log.Printf("✅ [OpenHands/Rotation] Inserted new key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 6. Recreate bindings for new key
-	if len(oldBindings) > 0 {
-		for _, binding := range oldBindings {
-			newBinding := bson.M{
-				"proxyId":        binding.ProxyID,
+	// 5. UPDATE bindings to point to new key ID (instead of delete+recreate)
+	bindingsCol := db.GetCollection("openhands_bindings")
+	bindingsUpdateResult, err := bindingsCol.UpdateMany(ctx,
+		bson.M{"openhandsKeyId": failedKeyID},
+		bson.M{
+			"$set": bson.M{
 				"openhandsKeyId": backupKey.ID,
-				"priority":       binding.Priority,
-				"isActive":       true,
-				"createdAt":      now,
-			}
-			_, err := bindingsCol.InsertOne(ctx, newBinding)
-			if err != nil {
-				log.Printf("⚠️ [OpenHands/Rotation] Failed to create binding for proxy %s: %v", binding.ProxyID, err)
-			}
-		}
-		log.Printf("✅ [OpenHands/Rotation] Recreated %d bindings for new key %s", len(oldBindings), backupKey.ID)
+				"updatedAt":      now,
+			},
+		},
+	)
+	if err != nil {
+		log.Printf("⚠️ [OpenHands/Rotation] Failed to update bindings: %v", err)
+	} else if bindingsUpdateResult.ModifiedCount > 0 {
+		log.Printf("✅ [OpenHands/Rotation] Updated %d bindings: %s -> %s", bindingsUpdateResult.ModifiedCount, failedKeyID, backupKey.ID)
 	} else {
-		log.Printf("ℹ️ [OpenHands/Rotation] No bindings to recreate for key %s", backupKey.ID)
+		log.Printf("ℹ️ [OpenHands/Rotation] No bindings to update for key %s", failedKeyID)
 	}
 
-	// 7. Update in-memory pool - mark old key exhausted in memory, add new key
+	// 6. Update in-memory pool - remove old key, add new key
 	p.mu.Lock()
-	// Update old key status in memory (if still present)
+	newKeys := make([]*OpenHandsKey, 0)
 	for _, key := range p.keys {
-		if key.ID == failedKeyID {
-			key.Status = OpenHandsStatusExhausted
-			break
+		if key.ID != failedKeyID {
+			newKeys = append(newKeys, key)
 		}
 	}
-	// Add new key to pool
-	p.keys = append(p.keys, &OpenHandsKey{
+	newKeys = append(newKeys, &OpenHandsKey{
 		ID:             backupKey.ID,
 		APIKey:         backupKey.APIKey,
 		Status:         OpenHandsStatusHealthy,
@@ -354,8 +307,9 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 		TotalSpend:     0,
 		LastSpendCheck: nil,
 	})
+	p.keys = newKeys
 	p.mu.Unlock()
 
-	log.Printf("✅ [OpenHands/Rotation] Complete: %s (kept as exhausted) -> %s (new healthy key)", failedKeyID, backupKey.ID)
+	log.Printf("✅ [OpenHands/Rotation] Complete: %s (deleted) -> %s (new)", failedKeyID, backupKey.ID)
 	return backupKey.ID, nil
 }
