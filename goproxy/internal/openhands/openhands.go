@@ -179,11 +179,11 @@ func (p *OpenHandsProvider) LoadKeys() error {
 		}
 	}
 
-	// Log all loaded keys for debugging
-	log.Printf("✅ [Troll-LLM] Loaded %d OpenHands keys:", len(p.keys))
-	for i, key := range p.keys {
-		log.Printf("   [%d] ID=%s, Status=%s, Available=%v", i, key.ID, key.Status, key.IsAvailable())
-	}
+	// Debug logging disabled - uncomment if needed
+	// log.Printf("✅ [Troll-LLM] Loaded %d OpenHands keys:", len(p.keys))
+	// for i, key := range p.keys {
+	// 	log.Printf("   [%d] ID=%s, Status=%s, Available=%v", i, key.ID, key.Status, key.IsAvailable())
+	// }
 	return nil
 }
 
