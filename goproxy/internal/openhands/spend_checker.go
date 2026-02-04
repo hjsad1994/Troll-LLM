@@ -322,7 +322,7 @@ func (sc *SpendChecker) checkKeySpend(key *OpenHandsKey, isActive bool) SpendChe
 	}
 
 	// Set the specific key's API key in header
-	req.Header.Set("x-litellm-api-key", key.APIKey)
+	req.Header.Set("Authorization", "Bearer "+key.APIKey)
 	req.Header.Set("Accept", "application/json")
 
 	// Get client with proxy but WITHOUT selecting a new key
