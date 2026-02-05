@@ -17,15 +17,8 @@ func TestDefaultConstants(t *testing.T) {
 		expected interface{}
 	}{
 		{"DefaultSpendThreshold", DefaultSpendThreshold, 9.95},
-		{"CriticalSpendThreshold", CriticalSpendThreshold, 9.4},
-		{"HighSpendThreshold", HighSpendThreshold, 8.5},
-		{"MediumSpendThreshold", MediumSpendThreshold, 5.0},
-		{"CriticalSpendCheckInterval", CriticalSpendCheckInterval, 2500 * time.Millisecond},
-		{"HighSpendCheckInterval", HighSpendCheckInterval, 7500 * time.Millisecond},
-		{"MediumSpendCheckInterval", MediumSpendCheckInterval, 90 * time.Second},
-		{"LowSpendCheckInterval", LowSpendCheckInterval, 3 * time.Minute},
+		{"SpendCheckInterval", SpendCheckInterval, 500 * time.Millisecond},
 		{"ActiveKeyWindow", ActiveKeyWindow, 4 * time.Minute},
-		{"SpendHistoryCollection", SpendHistoryCollection, "openhands_key_spend_history"},
 		{"OpenHandsActivityURL", OpenHandsActivityURL, "https://llm-proxy.app.all-hands.dev/user/daily/activity"},
 	}
 
@@ -73,7 +66,7 @@ func TestKeyActiveDetection(t *testing.T) {
 
 	// Create a mock SpendChecker for testing
 	sc := &SpendChecker{
-		baseCheckInterval: HighSpendCheckInterval,
+		baseCheckInterval: SpendCheckInterval,
 		threshold:         DefaultSpendThreshold,
 	}
 
@@ -107,11 +100,11 @@ func TestKeyActiveDetection(t *testing.T) {
 	}
 }
 
-func TestShouldCheckKeyTieredIntervals(t *testing.T) {
+func TestShouldCheckKeyFixedInterval(t *testing.T) {
 	now := time.Now()
 
 	sc := &SpendChecker{
-		baseCheckInterval: CriticalSpendCheckInterval,
+		baseCheckInterval: SpendCheckInterval,
 		threshold:         DefaultSpendThreshold,
 	}
 
@@ -124,41 +117,12 @@ func TestShouldCheckKeyTieredIntervals(t *testing.T) {
 	}{
 		// Never checked - always check
 		{"never checked, low spend", 2.0, nil, true, "first check should always happen"},
-		{"never checked, medium spend", 6.0, nil, true, "first check should always happen"},
 		{"never checked, high spend", 9.0, nil, true, "first check should always happen"},
-		{"never checked, critical spend", 9.7, nil, true, "first check should always happen"},
 
-		// LOW tier (spend < $5) - check every 3 minutes (halved from 6m)
-		{"low spend, checked 1m ago", 2.0, timePtr(now.Add(-1 * time.Minute)), false, "should skip - 3m interval not elapsed"},
-		{"low spend, checked 2m30s ago", 4.0, timePtr(now.Add(-150 * time.Second)), false, "should skip - 3m interval not elapsed"},
-		{"low spend, checked 3m ago", 3.0, timePtr(now.Add(-3 * time.Minute)), true, "should check - 3m interval elapsed"},
-		{"low spend, checked 5m ago", 1.0, timePtr(now.Add(-5 * time.Minute)), true, "should check - well past 3m"},
-
-		// MEDIUM tier ($5 <= spend < $8.5) - check every 90 seconds (halved from 3m)
-		{"medium spend, checked 30s ago", 5.5, timePtr(now.Add(-30 * time.Second)), false, "should skip - 90s interval not elapsed"},
-		{"medium spend, checked 1m15s ago", 6.0, timePtr(now.Add(-75 * time.Second)), false, "should skip - 90s interval not elapsed"},
-		{"medium spend, checked 90s ago", 5.0, timePtr(now.Add(-90 * time.Second)), true, "should check - 90s interval elapsed"},
-		{"medium spend, checked 3m ago", 7.0, timePtr(now.Add(-3 * time.Minute)), true, "should check - well past 90s"},
-
-		// HIGH tier ($8.5 <= spend < $9.4) - check every 7.5 seconds (halved from 15s)
-		{"high spend, checked 3s ago", 8.5, timePtr(now.Add(-3 * time.Second)), false, "should skip - 7.5s interval not elapsed"},
-		{"high spend, checked 7s ago", 9.0, timePtr(now.Add(-7 * time.Second)), false, "should skip - 7.5s interval not elapsed"},
-		{"high spend, checked 7.5s ago", 8.5, timePtr(now.Add(-7500 * time.Millisecond)), true, "should check - 7.5s interval elapsed"},
-		{"high spend, checked 15s ago", 9.2, timePtr(now.Add(-15 * time.Second)), true, "should check - well past 7.5s"},
-
-		// CRITICAL tier (spend >= $9.4) - check every 2.5 seconds (halved from 5s)
-		{"critical spend, checked 1s ago", 9.4, timePtr(now.Add(-1 * time.Second)), false, "should skip - 2.5s interval not elapsed"},
-		{"critical spend, checked 2s ago", 9.8, timePtr(now.Add(-2 * time.Second)), false, "should skip - 2.5s interval not elapsed"},
-		{"critical spend, checked 2.5s ago", 9.4, timePtr(now.Add(-2500 * time.Millisecond)), true, "should check - 2.5s interval elapsed"},
-		{"critical spend, checked 5s ago", 9.9, timePtr(now.Add(-5 * time.Second)), true, "should check - well past 2.5s"},
-
-		// Boundary tests
-		{"exactly $5 spend (medium tier boundary)", 5.0, timePtr(now.Add(-90 * time.Second)), true, "exactly $5 = medium tier"},
-		{"exactly $8.5 spend (high tier boundary)", 8.5, timePtr(now.Add(-7500 * time.Millisecond)), true, "exactly $8.5 = high tier"},
-		{"exactly $9.4 spend (critical tier boundary)", 9.4, timePtr(now.Add(-2500 * time.Millisecond)), true, "exactly $9.4 = critical tier"},
-		{"just under $5 (low tier)", 4.99, timePtr(now.Add(-90 * time.Second)), false, "4.99 = low tier, needs 3m"},
-		{"just under $8.5 (medium tier)", 8.49, timePtr(now.Add(-7500 * time.Millisecond)), false, "8.49 = medium tier, needs 90s"},
-		{"just under $9.4 (high tier)", 9.39, timePtr(now.Add(-2500 * time.Millisecond)), false, "9.39 = high tier, needs 7.5s"},
+		// Fixed 0.5s interval for ALL spend levels
+		{"any spend, checked 0.3s ago", 5.0, timePtr(now.Add(-300 * time.Millisecond)), false, "should skip - 0.5s interval not elapsed"},
+		{"any spend, checked 0.5s ago", 5.0, timePtr(now.Add(-500 * time.Millisecond)), true, "should check - 0.5s interval elapsed"},
+		{"any spend, checked 1s ago", 9.5, timePtr(now.Add(-1 * time.Second)), true, "should check - well past 0.5s"},
 	}
 
 	for _, tt := range tests {
@@ -181,7 +145,7 @@ func TestShouldCheckKeyTieredIntervals(t *testing.T) {
 
 func TestGetCheckIntervalForSpend(t *testing.T) {
 	sc := &SpendChecker{
-		baseCheckInterval: CriticalSpendCheckInterval,
+		baseCheckInterval: SpendCheckInterval,
 		threshold:         DefaultSpendThreshold,
 	}
 
@@ -190,25 +154,11 @@ func TestGetCheckIntervalForSpend(t *testing.T) {
 		spend            float64
 		expectedInterval time.Duration
 	}{
-		// Low tier (< $5) - 6 minutes
-		{"zero spend", 0.0, LowSpendCheckInterval},
-		{"$1 spend", 1.0, LowSpendCheckInterval},
-		{"$4.99 spend", 4.99, LowSpendCheckInterval},
-
-		// Medium tier ($5 - $8.5) - 3 minutes
-		{"exactly $5", 5.0, MediumSpendCheckInterval},
-		{"$6 spend", 6.0, MediumSpendCheckInterval},
-		{"$8.49 spend", 8.49, MediumSpendCheckInterval},
-
-		// High tier ($8.5 - $9.4) - 15 seconds
-		{"exactly $8.5", 8.5, HighSpendCheckInterval},
-		{"$9 spend", 9.0, HighSpendCheckInterval},
-		{"$9.39 spend", 9.39, HighSpendCheckInterval},
-
-		// Critical tier (>= $9.4) - 5 seconds
-		{"exactly $9.4", 9.4, CriticalSpendCheckInterval},
-		{"$9.8 spend", 9.8, CriticalSpendCheckInterval},
-		{"$15 spend (above threshold)", 15.0, CriticalSpendCheckInterval},
+		// Fixed 0.5s interval for all spend levels
+		{"zero spend", 0.0, SpendCheckInterval},
+		{"$5 spend", 5.0, SpendCheckInterval},
+		{"$9 spend", 9.0, SpendCheckInterval},
+		{"$10 spend", 10.0, SpendCheckInterval},
 	}
 
 	for _, tt := range tests {
@@ -224,27 +174,32 @@ func TestGetCheckIntervalForSpend(t *testing.T) {
 
 func TestGetSpendTierName(t *testing.T) {
 	sc := &SpendChecker{
-		baseCheckInterval: CriticalSpendCheckInterval,
-		threshold:         DefaultSpendThreshold,
+		baseCheckInterval: SpendCheckInterval,
+		threshold:         DefaultSpendThreshold, // 9.95
 	}
 
+	// Tier boundaries based on percentage of threshold (9.95):
+	// - LOW: < 50% (< $4.975)
+	// - MEDIUM: 50% - 85% ($4.975 - $8.4575)
+	// - HIGH: 85% - 94% ($8.4575 - $9.353)
+	// - CRITICAL: >= 94% (>= $9.353)
 	tests := []struct {
 		name         string
 		spend        float64
 		expectedTier string
 	}{
 		{"zero spend", 0.0, "LOW"},
-		{"$3 spend", 3.0, "LOW"},
-		{"$4.99 spend", 4.99, "LOW"},
-		{"exactly $5", 5.0, "MEDIUM"},
-		{"$6 spend", 6.0, "MEDIUM"},
-		{"$8.49 spend", 8.49, "MEDIUM"},
-		{"exactly $8.5", 8.5, "HIGH"},
-		{"$9 spend", 9.0, "HIGH"},
-		{"$9.39 spend", 9.39, "HIGH"},
-		{"exactly $9.4", 9.4, "CRITICAL"},
-		{"$9.8 spend", 9.8, "CRITICAL"},
-		{"$10 spend", 10.0, "CRITICAL"},
+		{"$3 spend (30%)", 3.0, "LOW"},
+		{"$4.97 spend (just under 50%)", 4.97, "LOW"},
+		{"$4.98 spend (50%)", 4.98, "MEDIUM"},
+		{"$6 spend (60%)", 6.0, "MEDIUM"},
+		{"$8.45 spend (just under 85%)", 8.45, "MEDIUM"},
+		{"$8.46 spend (85%)", 8.46, "HIGH"},
+		{"$9 spend (90%)", 9.0, "HIGH"},
+		{"$9.35 spend (just under 94%)", 9.35, "HIGH"},
+		{"$9.36 spend (94%)", 9.36, "CRITICAL"},
+		{"$9.8 spend (98%)", 9.8, "CRITICAL"},
+		{"$10 spend (>100%)", 10.0, "CRITICAL"},
 	}
 
 	for _, tt := range tests {
@@ -279,48 +234,6 @@ func TestMaskAPIKey(t *testing.T) {
 				t.Errorf("maskAPIKey(%q) = %q, want %q", tt.apiKey, masked, tt.expected)
 			}
 		})
-	}
-}
-
-func TestSpendHistoryEntryFields(t *testing.T) {
-	now := time.Now()
-	rotatedAt := now.Add(1 * time.Second)
-
-	entry := SpendHistoryEntry{
-		KeyID:          "key-123",
-		APIKeyMasked:   "sk-ab...1234",
-		Spend:          9.85,
-		Threshold:      9.8,
-		CheckedAt:      now,
-		WasActive:      true,
-		RotatedAt:      &rotatedAt,
-		RotationReason: "proactive_threshold_9.85",
-		NewKeyID:       "key-456",
-	}
-
-	if entry.KeyID != "key-123" {
-		t.Errorf("KeyID = %v, want key-123", entry.KeyID)
-	}
-	if entry.APIKeyMasked != "sk-ab...1234" {
-		t.Errorf("APIKeyMasked = %v, want sk-ab...1234", entry.APIKeyMasked)
-	}
-	if entry.Spend != 9.85 {
-		t.Errorf("Spend = %v, want 9.85", entry.Spend)
-	}
-	if entry.Threshold != 9.8 {
-		t.Errorf("Threshold = %v, want 9.8", entry.Threshold)
-	}
-	if !entry.WasActive {
-		t.Errorf("WasActive = %v, want true", entry.WasActive)
-	}
-	if entry.RotatedAt == nil || !entry.RotatedAt.Equal(rotatedAt) {
-		t.Errorf("RotatedAt = %v, want %v", entry.RotatedAt, rotatedAt)
-	}
-	if entry.RotationReason != "proactive_threshold_9.85" {
-		t.Errorf("RotationReason = %v, want proactive_threshold_9.85", entry.RotationReason)
-	}
-	if entry.NewKeyID != "key-456" {
-		t.Errorf("NewKeyID = %v, want key-456", entry.NewKeyID)
 	}
 }
 
@@ -368,10 +281,10 @@ func TestNewSpendChecker(t *testing.T) {
 	if sc.threshold != threshold {
 		t.Errorf("threshold = %v, want %v", sc.threshold, threshold)
 	}
-	// Note: activeInterval and idleInterval are now ignored - using tiered intervals instead
-	// baseCheckInterval should be CriticalSpendCheckInterval (5s) for fastest tier
-	if sc.baseCheckInterval != CriticalSpendCheckInterval {
-		t.Errorf("baseCheckInterval = %v, want %v (CriticalSpendCheckInterval)", sc.baseCheckInterval, CriticalSpendCheckInterval)
+	// Note: activeInterval and idleInterval are now ignored - using fixed 0.5s interval
+	// baseCheckInterval should be SpendCheckInterval (0.5s)
+	if sc.baseCheckInterval != SpendCheckInterval {
+		t.Errorf("baseCheckInterval = %v, want %v (SpendCheckInterval)", sc.baseCheckInterval, SpendCheckInterval)
 	}
 	if sc.running {
 		t.Error("should not be running initially")

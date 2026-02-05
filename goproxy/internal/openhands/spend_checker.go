@@ -20,10 +20,9 @@ import (
 
 // Constants for spend checking
 const (
-	OpenHandsActivityURL   = "https://llm-proxy.app.all-hands.dev/user/daily/activity"
-	DefaultSpendThreshold  = 9.95
-	SpendHistoryCollection = "openhands_key_spend_history"
-	ActiveKeyWindow        = 4 * time.Minute
+	OpenHandsActivityURL  = "https://llm-proxy.app.all-hands.dev/user/daily/activity"
+	DefaultSpendThreshold = 9.95
+	ActiveKeyWindow       = 4 * time.Minute
 
 	// Fixed check interval for ALL keys - 0.5 seconds
 	SpendCheckInterval = 500 * time.Millisecond
@@ -54,19 +53,6 @@ type SpendCheckResult struct {
 	CheckedAt      time.Time
 	Error          error
 	BudgetExceeded bool // True if API returned budget_exceeded error
-}
-
-// SpendHistoryEntry represents a spend check history record
-type SpendHistoryEntry struct {
-	KeyID          string     `bson:"keyId"`
-	APIKeyMasked   string     `bson:"apiKeyMasked"`
-	Spend          float64    `bson:"spend"`
-	Threshold      float64    `bson:"threshold"`
-	CheckedAt      time.Time  `bson:"checkedAt"`
-	WasActive      bool       `bson:"wasActive"`
-	RotatedAt      *time.Time `bson:"rotatedAt,omitempty"`
-	RotationReason string     `bson:"rotationReason,omitempty"`
-	NewKeyID       string     `bson:"newKeyId,omitempty"`
 }
 
 // SpendCheckerStats represents stats for the endpoint
@@ -202,7 +188,6 @@ func (sc *SpendChecker) checkAllKeys() {
 				rotatedAt := time.Now()
 				if err != nil {
 					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
-					sc.saveSpendHistory(result, nil, reason, "")
 					return
 				}
 
@@ -212,8 +197,7 @@ func (sc *SpendChecker) checkAllKeys() {
 					return
 				}
 
-				log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s", k.ID, newKeyID)
-				sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
+				log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s (at %v)", k.ID, newKeyID, rotatedAt.Format(time.RFC3339))
 				return
 			}
 
@@ -250,17 +234,12 @@ func (sc *SpendChecker) checkAllKeys() {
 				rotatedAt := time.Now()
 				if err != nil {
 					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
-					sc.saveSpendHistory(result, nil, reason, "")
 				} else if newKeyID == "" {
 					// Key was already rotated by another process - skip
 					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
 				} else {
-					log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s", k.ID, newKeyID)
-					sc.saveSpendHistory(result, &rotatedAt, reason, newKeyID)
+					log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s (at %v)", k.ID, newKeyID, rotatedAt.Format(time.RFC3339))
 				}
-			} else {
-				// Save history without rotation
-				sc.saveSpendHistory(result, nil, "", "")
 			}
 		}(key, isActive)
 	}
@@ -445,32 +424,6 @@ func (sc *SpendChecker) updateKeySpendInfo(keyID string, spend float64, checkedA
 		}
 	}
 	sc.provider.mu.Unlock()
-}
-
-// saveSpendHistory saves a spend check result to the history collection
-func (sc *SpendChecker) saveSpendHistory(result SpendCheckResult, rotatedAt *time.Time, reason string, newKeyID string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	entry := SpendHistoryEntry{
-		KeyID:          result.KeyID,
-		APIKeyMasked:   maskAPIKey(result.APIKey),
-		Spend:          result.Spend,
-		Threshold:      result.Threshold,
-		CheckedAt:      result.CheckedAt,
-		WasActive:      result.WasActive,
-		RotatedAt:      rotatedAt,
-		RotationReason: reason,
-		NewKeyID:       newKeyID,
-	}
-
-	col := db.GetCollection(SpendHistoryCollection)
-	if col == nil {
-		return
-	}
-
-	// History save failure ignored - non-critical for spend checking functionality
-	_, _ = col.InsertOne(ctx, entry)
 }
 
 // maskAPIKey masks an API key for logging/storage
