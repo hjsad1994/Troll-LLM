@@ -206,9 +206,10 @@ func (sc *SpendChecker) checkAllKeys() {
 				return
 			}
 
-			// Log spend check result only if spend >= 80% threshold
+			// Log spend check result only if spend >= 80% threshold AND spend < $8
+			// (Suppress noisy logs for users who already spent $8+)
 			spendPercent := (result.Spend / sc.threshold) * 100
-			if spendPercent >= 80.0 {
+			if spendPercent >= 80.0 && result.Spend < 8.0 {
 				log.Printf("💵 [SpendChecker] %s: $%.2f / $%.2f (%.1f%%) ⚠️", k.ID, result.Spend, sc.threshold, spendPercent)
 			}
 
