@@ -19,12 +19,18 @@ function getPeriodSince(period: string): Date | undefined {
   switch (period) {
     case '1h':
       return new Date(Date.now() - 60 * 60 * 1000);
+    case '2h':
+      return new Date(Date.now() - 2 * 60 * 60 * 1000);
     case '3h':
       return new Date(Date.now() - 3 * 60 * 60 * 1000);
+    case '4h':
+      return new Date(Date.now() - 4 * 60 * 60 * 1000);
     case '8h':
       return new Date(Date.now() - 8 * 60 * 60 * 1000);
     case '24h':
       return new Date(Date.now() - 24 * 60 * 60 * 1000);
+    case '3d':
+      return new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     case '7d':
       return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     case '30d':

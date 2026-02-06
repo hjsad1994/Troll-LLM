@@ -167,7 +167,7 @@ router.post('/keys/:id/reset', async (req: Request, res: Response) => {
 router.get('/metrics', async (req: Request, res: Response) => {
   try {
     const period = (req.query.period as string) || 'all';
-    const validPeriods = ['1h', '24h', '7d', '30d', 'all'];
+    const validPeriods = ['1h', '2h', '3h', '4h', '8h', '24h', '3d', '7d', '30d', 'all'];
 
     if (!validPeriods.includes(period)) {
       res.status(400).json({
@@ -197,7 +197,7 @@ router.get('/metrics', async (req: Request, res: Response) => {
 router.get('/metrics/rate-limit', async (req: Request, res: Response) => {
   try {
     const period = (req.query.period as string) || 'all';
-    const validPeriods = ['1h', '24h', '7d', '30d', 'all'];
+    const validPeriods = ['1h', '2h', '3h', '4h', '8h', '24h', '3d', '7d', '30d', 'all'];
 
     if (!validPeriods.includes(period)) {
       res.status(400).json({

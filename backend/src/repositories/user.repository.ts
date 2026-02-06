@@ -295,8 +295,14 @@ export class UserRepository {
         case '1h':
           startDate = new Date(now.getTime() - 60 * 60 * 1000);
           break;
+        case '2h':
+          startDate = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+          break;
         case '3h':
           startDate = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+          break;
+        case '4h':
+          startDate = new Date(now.getTime() - 4 * 60 * 60 * 1000);
           break;
         case '8h':
           startDate = new Date(now.getTime() - 8 * 60 * 60 * 1000);
@@ -304,8 +310,14 @@ export class UserRepository {
         case '24h':
           startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
           break;
+        case '3d':
+          startDate = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+          break;
         case '7d':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
         default:
           startDate = new Date(0);
@@ -321,7 +333,8 @@ export class UserRepository {
           _id: null,
           totalCreditsUsed: { $sum: '$creditsCost' },
           totalInputTokens: { $sum: '$inputTokens' },
-          totalOutputTokens: { $sum: '$outputTokens' }
+          totalOutputTokens: { $sum: '$outputTokens' },
+          activeUserIds: { $addToSet: '$userId' }
         }
       }
     ]);
@@ -342,6 +355,12 @@ export class UserRepository {
       }
     ]);
 
+    // For 'all' period, count users with credits > 0 as active
+    // For specific periods, count distinct users who had activity in that period
+    const activeUsers = period === 'all' 
+      ? (userAgg[0]?.activeUsers || 0)
+      : (logAgg[0]?.activeUserIds?.filter((id: string | null) => id != null).length || 0);
+
     return {
       total,
       totalCreditsUsed: logAgg[0]?.totalCreditsUsed || 0,
@@ -351,7 +370,7 @@ export class UserRepository {
       totalCreditsNewUsed: openhandsAgg[0]?.totalCreditsNewUsed || 0,
       totalInputTokens: logAgg[0]?.totalInputTokens || 0,
       totalOutputTokens: logAgg[0]?.totalOutputTokens || 0,
-      activeUsers: userAgg[0]?.activeUsers || 0
+      activeUsers
     };
   }
 

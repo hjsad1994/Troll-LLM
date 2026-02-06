@@ -355,8 +355,14 @@ router.get('/model-stats', requireAdmin, async (req: Request, res: Response) => 
       case '1h':
         since = new Date(now.getTime() - 60 * 60 * 1000);
         break;
+      case '2h':
+        since = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        break;
       case '3h':
         since = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+        break;
+      case '4h':
+        since = new Date(now.getTime() - 4 * 60 * 60 * 1000);
         break;
       case '8h':
         since = new Date(now.getTime() - 8 * 60 * 60 * 1000);
@@ -371,8 +377,14 @@ router.get('/model-stats', requireAdmin, async (req: Request, res: Response) => 
         since = new Date(startOfTodayVN.getTime() - vnOffsetMs);
         break;
       }
+      case '3d':
+        since = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+        break;
       case '7d':
         since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
         since = undefined;

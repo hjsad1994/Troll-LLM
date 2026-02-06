@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as metricsService from '../services/metrics.service.js';
 
-const validPeriods = ['1h', '3h', '8h', '24h', '7d', '30d', 'all'];
+const validPeriods = ['1h', '2h', '3h', '4h', '8h', '24h', '3d', '7d', '30d', 'all'];
 
 export class MetricsController {
   async getSystemMetrics(req: Request, res: Response): Promise<void> {
