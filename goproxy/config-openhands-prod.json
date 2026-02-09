@@ -15,6 +15,21 @@
   ],
   "models": [
     {
+      "name": "Claude Opus 4.6",
+      "id": "claude-opus-4-6",
+      "type": "openhands",
+      "reasoning": "high",
+      "thinking_budget": 16000,
+      "input_price_per_mtok": 5.0,
+      "output_price_per_mtok": 25.0,
+      "cache_write_price_per_mtok": 6.25,
+      "cache_hit_price_per_mtok": 0.5,
+      "billing_multiplier": 1.02,
+      "billing_upstream": "openhands",
+      "upstream": "openhands",
+      "upstream_model_id": "prod/claude-opus-4-6"
+    },
+    {
       "name": "Claude Opus 4.5",
       "id": "claude-opus-4-5-20251101",
       "type": "openhands",
@@ -27,7 +42,7 @@
       "billing_multiplier": 1.02,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "claude-opus-4-5-20251101"
+      "upstream_model_id": "prod/claude-opus-4-5-20251101"
     },
     {
       "name": "Claude Sonnet 4.5",
@@ -43,7 +58,7 @@
       "billing_multiplier": 1.02,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "claude-sonnet-4-5-20250929"
+      "upstream_model_id": "prod/claude-sonnet-4-5-20250929"
     },
     {
       "name": "Gemini 3 Pro Preview",
@@ -57,6 +72,19 @@
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gemini-3-pro-preview"
+    },
+    {
+      "name": "Gemini 3 Flash Preview",
+      "id": "gemini-3-flash-preview",
+      "type": "openhands",
+      "reasoning": "high",
+      "input_price_per_mtok": 0.5,
+      "output_price_per_mtok": 12.0,
+      "cache_hit_price_per_mtok": 0.5,
+      "billing_multiplier": 1.05,
+      "billing_upstream": "openhands",
+      "upstream": "openhands",
+      "upstream_model_id": "gemini-3-flash-preview"
     },
     {
       "name": "Claude Haiku 4.5",
