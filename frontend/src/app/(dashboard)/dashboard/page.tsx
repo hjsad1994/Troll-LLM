@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useLanguage } from '@/components/LanguageProvider'
 import DashboardPaymentModal from '@/components/DashboardPaymentModal'
 import MigrationBanner from '@/components/MigrationBanner'
+import NewModelsAnnouncement from '@/components/NewModelsAnnouncement'
 import { PAYMENTS_ENABLED } from '@/lib/payments'
 
 function formatLargeNumber(num: number | undefined | null): string {
@@ -319,6 +320,9 @@ export default function UserDashboard() {
             onMigrate={handleMigration}
           />
         )}
+
+        {/* New Models Announcement */}
+        <NewModelsAnnouncement />
 
         {/* Header - Compact */}
         <header className="flex items-center justify-between gap-4 opacity-0 animate-fade-in-up">

@@ -21,8 +21,8 @@ export const translations = {
     },
     // Hero Section
     hero: {
-      badge: 'Opus 4.5 Available',
-      title1: 'Access Opus 4.5',
+      badge: 'Opus 4.6 Available',
+      title1: 'Access Opus 4.6',
       title2: 'with One API Key',
       description: 'Premium access to Claude models. Access Opus, Sonnet, and Haiku through a single API. Compatible with OpenAI & Anthropic SDKs.',
       cta: 'Get Started',
@@ -116,7 +116,7 @@ export const translations = {
       },
       q2: {
         question: 'Which Claude models are supported?',
-        answer: 'We support Claude Opus 4.5, Claude Sonnet 4.5, and Claude Haiku 4.5 - the latest and most capable Claude models from Anthropic.',
+        answer: 'We support Claude Opus 4.6, Claude Sonnet 4.5, and Claude Haiku 4.5 - the latest and most capable Claude models from Anthropic.',
       },
       q3: {
         question: 'Is my data secure?',
@@ -1520,8 +1520,8 @@ export const translations = {
     },
     // Hero Section
     hero: {
-      badge: 'Opus 4.5 Đã có sẵn',
-      title1: 'Truy cập Opus 4.5',
+      badge: 'Opus 4.6 Đã có sẵn',
+      title1: 'Truy cập Opus 4.6',
       title2: 'chỉ với Một API Key',
       description: 'Truy cập cao cấp các mô hình Claude. Sử dụng Opus, Sonnet và Haiku thông qua một API duy nhất. Hỗ trợ OpenAI & Anthropic SDK.',
       cta: 'Bắt đầu ngay',
@@ -1615,7 +1615,7 @@ export const translations = {
       },
       q2: {
         question: 'Những mô hình Claude nào được hỗ trợ?',
-        answer: 'Chúng tôi hỗ trợ Claude Opus 4.5, Claude Sonnet 4.5 và Claude Haiku 4.5 - các mô hình Claude mới nhất và mạnh nhất từ Anthropic.',
+        answer: 'Chúng tôi hỗ trợ Claude Opus 4.6, Claude Sonnet 4.5 và Claude Haiku 4.5 - các mô hình Claude mới nhất và mạnh nhất từ Anthropic.',
       },
       q3: {
         question: 'Dữ liệu của tôi có an toàn không?',
