@@ -131,12 +131,12 @@ export default function ModelsPage() {
       { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', type: 'anthropic', reasoning: 'high', inputPricePerMTok: 5.0, outputPricePerMTok: 25.0, cacheWritePricePerMTok: 6.25, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.02 },
       { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', type: 'anthropic', reasoning: 'high', inputPricePerMTok: 3.0, outputPricePerMTok: 15.0, cacheWritePricePerMTok: 3.75, cacheHitPricePerMTok: 0.3, billingMultiplier: 1.02 },
       { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', type: 'anthropic', reasoning: 'low', inputPricePerMTok: 1.0, outputPricePerMTok: 5.0, cacheWritePricePerMTok: 1.25, cacheHitPricePerMTok: 0.1, billingMultiplier: 1.02 },
-      { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', type: 'google', reasoning: 'high', inputPricePerMTok: 2.0, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.05 },
-      { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', type: 'google', reasoning: 'high', inputPricePerMTok: 0.5, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.5, billingMultiplier: 1.05 },
-      { id: 'gpt-5.1', name: 'GPT 5.1', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.05 },
-      { id: 'gpt-5.2', name: 'GPT-5.2', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0.17, billingMultiplier: 1.05 },
-      { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 1.56, cacheHitPricePerMTok: 0.13, billingMultiplier: 1.07 },
-      { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 1.56, cacheHitPricePerMTok: 0.17, billingMultiplier: 1.07 },
+      { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', type: 'google', reasoning: 'high', inputPricePerMTok: 2.0, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.05 },
+      { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', type: 'google', reasoning: 'high', inputPricePerMTok: 0.5, outputPricePerMTok: 3.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.05 },
+      { id: 'gpt-5.1', name: 'GPT 5.1', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.05 },
+      { id: 'gpt-5.2', name: 'GPT-5.2', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.05 },
+      { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.25, outputPricePerMTok: 12.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.07 },
+      { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', type: 'openai', reasoning: 'high', inputPricePerMTok: 1.75, outputPricePerMTok: 14.0, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.07 },
       { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', type: 'other', reasoning: 'high', inputPricePerMTok: 0.6, outputPricePerMTok: 2.5, cacheWritePricePerMTok: 0, cacheHitPricePerMTok: 0, billingMultiplier: 1.07 },
     ]
     setModels(fallbackModels.map(transformApiModel))
@@ -397,14 +397,18 @@ export default function ModelsPage() {
                   <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-xs mb-0.5 sm:mb-1">{t.dashboardModels.card.output}</p>
                   <p className="text-[var(--theme-text)] text-xs sm:text-sm font-semibold">${model.output_price_per_mtok.toFixed(2)}<span className="text-[10px] sm:text-xs text-[var(--theme-text-subtle)] font-normal">{t.dashboardModels.card.perMTok}</span></p>
                 </div>
-                <div className="p-2 sm:p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
-                  <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-xs mb-0.5 sm:mb-1">{t.dashboardModels.card.cacheWrite}</p>
-                  <p className="text-[var(--theme-text)] text-xs sm:text-sm font-semibold">${model.cache_write_price_per_mtok.toFixed(2)}<span className="text-[10px] sm:text-xs text-[var(--theme-text-subtle)] font-normal">{t.dashboardModels.card.perMTok}</span></p>
-                </div>
-                <div className="p-2 sm:p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
-                  <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-xs mb-0.5 sm:mb-1">{t.dashboardModels.card.cacheHit}</p>
-                  <p className="text-[var(--theme-text)] text-xs sm:text-sm font-semibold">${model.cache_hit_price_per_mtok.toFixed(2)}<span className="text-[10px] sm:text-xs text-[var(--theme-text-subtle)] font-normal">{t.dashboardModels.card.perMTok}</span></p>
-                </div>
+                {(model.cache_write_price_per_mtok > 0 || model.cache_hit_price_per_mtok > 0) && (
+                  <>
+                    <div className="p-2 sm:p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
+                      <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-xs mb-0.5 sm:mb-1">{t.dashboardModels.card.cacheWrite}</p>
+                      <p className="text-[var(--theme-text)] text-xs sm:text-sm font-semibold">${model.cache_write_price_per_mtok.toFixed(2)}<span className="text-[10px] sm:text-xs text-[var(--theme-text-subtle)] font-normal">{t.dashboardModels.card.perMTok}</span></p>
+                    </div>
+                    <div className="p-2 sm:p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
+                      <p className="text-[var(--theme-text-subtle)] text-[10px] sm:text-xs mb-0.5 sm:mb-1">{t.dashboardModels.card.cacheHit}</p>
+                      <p className="text-[var(--theme-text)] text-xs sm:text-sm font-semibold">${model.cache_hit_price_per_mtok.toFixed(2)}<span className="text-[10px] sm:text-xs text-[var(--theme-text-subtle)] font-normal">{t.dashboardModels.card.perMTok}</span></p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ))}

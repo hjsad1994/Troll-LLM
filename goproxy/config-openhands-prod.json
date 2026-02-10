@@ -79,7 +79,7 @@
       "type": "openhands",
       "reasoning": "high",
       "input_price_per_mtok": 0.5,
-      "output_price_per_mtok": 12.0,
+      "output_price_per_mtok": 3.0,
       "cache_hit_price_per_mtok": 0.5,
       "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
