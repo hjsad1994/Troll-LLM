@@ -24,7 +24,7 @@
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.03,
+      "billing_multiplier": 1.025,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "prod/claude-opus-4-6"
@@ -39,7 +39,7 @@
       "output_price_per_mtok": 25.0,
       "cache_write_price_per_mtok": 6.25,
       "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.03,
+      "billing_multiplier": 1.025,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "prod/claude-opus-4-5-20251101"
@@ -55,7 +55,7 @@
       "output_price_per_mtok": 15.0,
       "cache_write_price_per_mtok": 3.75,
       "cache_hit_price_per_mtok": 0.3,
-      "billing_multiplier": 1.03,
+      "billing_multiplier": 1.025,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "prod/claude-sonnet-4-5-20250929"
@@ -96,7 +96,7 @@
       "output_price_per_mtok": 5.0,
       "cache_write_price_per_mtok": 1.25,
       "cache_hit_price_per_mtok": 0.1,
-      "billing_multiplier": 1.035,
+      "billing_multiplier": 1.04,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "claude-haiku-4-5-20251001"
@@ -134,7 +134,7 @@
       "reasoning": "high",
       "input_price_per_mtok": 0.6,
       "output_price_per_mtok": 2.5,
-      "billing_multiplier": 1.07,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "kimi-k2-thinking"
@@ -148,7 +148,7 @@
       "output_price_per_mtok": 12.0,
       "cache_write_price_per_mtok": 1.56,
       "cache_hit_price_per_mtok": 0.13,
-      "billing_multiplier": 1.07,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.1-codex-max"
@@ -162,7 +162,7 @@
       "output_price_per_mtok": 14.0,
       "cache_write_price_per_mtok": 1.56,
       "cache_hit_price_per_mtok": 0.17,
-      "billing_multiplier": 1.07,
+      "billing_multiplier": 1.05,
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.2-codex"
