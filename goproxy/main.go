@@ -3866,8 +3866,8 @@ func main() {
 	healthChecker = proxy.NewHealthChecker(proxyPool)
 	healthChecker.Start()
 
-	// Start auto-reload for proxy bindings (default 2.5s, configurable via BINDING_RELOAD_INTERVAL)
-	reloadInterval := 2500 * time.Millisecond
+	// Start auto-reload for proxy bindings (default 10s, configurable via BINDING_RELOAD_INTERVAL)
+	reloadInterval := 10 * time.Second
 	if intervalStr := getEnv("BINDING_RELOAD_INTERVAL", ""); intervalStr != "" {
 		if parsed, err := time.ParseDuration(intervalStr); err == nil {
 			reloadInterval = parsed
@@ -3943,27 +3943,24 @@ func main() {
 	// Start OpenHands backup key cleanup job (runs every 1 minute, deletes keys used > 12h)
 	openhands.StartBackupKeyCleanupJob(1 * time.Minute)
 
-	// Load OhMyGPT configuration via TrollProxy (from MongoDB)
-	if err := ohmygpt.ConfigureOhMyGPT(); err != nil {
-		log.Printf("⚠️ OhMyGPT configuration failed: %v", err)
-	} else {
-		ohmygptProvider := ohmygpt.GetOhMyGPT()
-		if ohmygptProvider.GetKeyCount() > 0 {
-			// Start auto-reload for OhMyGPT keys
-			ohmygptProvider.StartAutoReload(reloadInterval)
-			log.Printf("✅ OhMyGPT key pool loaded: %d keys", ohmygptProvider.GetKeyCount())
-
-			// Set proxy pool for OhMyGPT (use same pool as Troll)
-			if proxyPool != nil && proxyPool.HasProxies() {
-				ohmygptProvider.SetProxyPool(proxyPool)
-			}
-		} else {
-			log.Printf("⚠️ OhMyGPT not configured (no keys in ohmygpt_keys collection)")
-		}
-	}
-
-	// Start OhMyGPT backup key cleanup job (runs every 1 minute, deletes keys used > 12h)
-	ohmygpt.StartOhMyGPTBackupKeyCleanupJob(1 * time.Minute)
+	// OhMyGPT key pool disabled - only using OpenHands keys
+	// If you need to re-enable, uncomment below:
+	// if err := ohmygpt.ConfigureOhMyGPT(); err != nil {
+	// 	log.Printf("⚠️ OhMyGPT configuration failed: %v", err)
+	// } else {
+	// 	ohmygptProvider := ohmygpt.GetOhMyGPT()
+	// 	if ohmygptProvider.GetKeyCount() > 0 {
+	// 		ohmygptProvider.StartAutoReload(reloadInterval)
+	// 		log.Printf("✅ OhMyGPT key pool loaded: %d keys", ohmygptProvider.GetKeyCount())
+	// 		if proxyPool != nil && proxyPool.HasProxies() {
+	// 			ohmygptProvider.SetProxyPool(proxyPool)
+	// 		}
+	// 	} else {
+	// 		log.Printf("⚠️ OhMyGPT not configured (no keys in ohmygpt_keys collection)")
+	// 	}
+	// }
+	// ohmygpt.StartOhMyGPTBackupKeyCleanupJob(1 * time.Minute)
+	log.Printf("ℹ️ OhMyGPT key pool DISABLED (only OpenHands keys active)")
 
 	// Initialize cache fallback detection
 	cacheDetectionEnabled := getEnv("CACHE_FALLBACK_DETECTION", "false") == "true"
