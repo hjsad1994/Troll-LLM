@@ -14,7 +14,7 @@ interface DashboardPaymentModalProps {
 
 const MIN_AMOUNT = 20
 const MAX_AMOUNT = 100
-const VND_RATE = 1500
+const VND_RATE = 2500
 
 export default function DashboardPaymentModal({ isOpen, onClose, onSuccess }: DashboardPaymentModalProps) {
   const { t } = useLanguage()

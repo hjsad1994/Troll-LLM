@@ -8,7 +8,7 @@ export type PaymentMethod = 'sepay';
 export const MIN_CREDITS = 20;
 export const MAX_CREDITS = 100;
 export const VND_RATE = 2500; // 2500 VND = $1 (legacy reference, not used for new purchases)
-export const VND_RATE_NEW = 1500; // 1500 VND = $1 (current rate for new purchases)
+export const VND_RATE_NEW = 2500; // 2500 VND = $1 (current rate for new purchases)
 export const VALIDITY_DAYS = 7;
 
 // Profit calculation constants

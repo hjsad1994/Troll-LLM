@@ -452,7 +452,7 @@ export default function LandingPage() {
             {/* Price */}
             <div className="text-center mb-8">
               <div className="flex items-baseline justify-center">
-                <span className="text-5xl sm:text-6xl font-bold text-[var(--theme-text)]">30.000</span>
+                <span className="text-5xl sm:text-6xl font-bold text-[var(--theme-text)]">50.000</span>
                 <span className="text-[var(--theme-text-muted)] ml-2">VND {t.pricing.min}</span>
               </div>
               {isPromoActive() ? (
