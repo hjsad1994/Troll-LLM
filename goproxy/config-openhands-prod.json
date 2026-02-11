@@ -99,7 +99,7 @@
       "billing_multiplier": 1.1,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "prod/claude-haiku-4-5-20251001"
+      "upstream_model_id": "glm-4.6"
     },
     {
       "name": "GPT 5.1",
@@ -167,6 +167,7 @@
       "upstream": "openhands",
       "upstream_model_id": "gpt-5.2-codex"
     }
+    
   ],
   "system_prompt": "",
   "user_agent": "openhands-cli/1.0.0"
