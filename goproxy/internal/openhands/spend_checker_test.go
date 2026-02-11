@@ -17,7 +17,7 @@ func TestDefaultConstants(t *testing.T) {
 		expected interface{}
 	}{
 		{"DefaultSpendThreshold", DefaultSpendThreshold, 9.95},
-		{"SpendCheckInterval", SpendCheckInterval, 500 * time.Millisecond},
+		{"SpendCheckInterval", SpendCheckInterval, 2 * time.Second},
 		{"ActiveKeyWindow", ActiveKeyWindow, 4 * time.Minute},
 		{"OpenHandsActivityURL", OpenHandsActivityURL, "https://llm-proxy.app.all-hands.dev/user/daily/activity"},
 	}
@@ -119,10 +119,10 @@ func TestShouldCheckKeyFixedInterval(t *testing.T) {
 		{"never checked, low spend", 2.0, nil, true, "first check should always happen"},
 		{"never checked, high spend", 9.0, nil, true, "first check should always happen"},
 
-		// Fixed 0.5s interval for ALL spend levels
-		{"any spend, checked 0.3s ago", 5.0, timePtr(now.Add(-300 * time.Millisecond)), false, "should skip - 0.5s interval not elapsed"},
-		{"any spend, checked 0.5s ago", 5.0, timePtr(now.Add(-500 * time.Millisecond)), true, "should check - 0.5s interval elapsed"},
-		{"any spend, checked 1s ago", 9.5, timePtr(now.Add(-1 * time.Second)), true, "should check - well past 0.5s"},
+		// Fixed 2s interval for ALL spend levels
+		{"any spend, checked 1s ago", 5.0, timePtr(now.Add(-1 * time.Second)), false, "should skip - 2s interval not elapsed"},
+		{"any spend, checked 2s ago", 5.0, timePtr(now.Add(-2 * time.Second)), true, "should check - 2s interval elapsed"},
+		{"any spend, checked 3s ago", 9.5, timePtr(now.Add(-3 * time.Second)), true, "should check - well past 2s"},
 	}
 
 	for _, tt := range tests {
@@ -154,7 +154,7 @@ func TestGetCheckIntervalForSpend(t *testing.T) {
 		spend            float64
 		expectedInterval time.Duration
 	}{
-		// Fixed 0.5s interval for all spend levels
+		// Fixed 2s interval for all spend levels
 		{"zero spend", 0.0, SpendCheckInterval},
 		{"$5 spend", 5.0, SpendCheckInterval},
 		{"$9 spend", 9.0, SpendCheckInterval},
@@ -281,8 +281,8 @@ func TestNewSpendChecker(t *testing.T) {
 	if sc.threshold != threshold {
 		t.Errorf("threshold = %v, want %v", sc.threshold, threshold)
 	}
-	// Note: activeInterval and idleInterval are now ignored - using fixed 0.5s interval
-	// baseCheckInterval should be SpendCheckInterval (0.5s)
+	// Note: activeInterval and idleInterval are now ignored - using fixed 2s interval
+	// baseCheckInterval should be SpendCheckInterval (2s)
 	if sc.baseCheckInterval != SpendCheckInterval {
 		t.Errorf("baseCheckInterval = %v, want %v (SpendCheckInterval)", sc.baseCheckInterval, SpendCheckInterval)
 	}

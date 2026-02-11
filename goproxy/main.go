@@ -618,7 +618,6 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		log.Printf("🔑 Key validated (db): %s", clientKeyMask)
 		username = userKey.Name // Store username for credit deduction
 
 		// NOTE: Credit check moved to after upstream routing to support dual-credit system
@@ -3162,7 +3161,6 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		log.Printf("🔑 Key validated (db): %s", clientKeyMask)
 		username = userKey.Name // Store username for credit deduction
 
 		// NOTE: Credit check moved to after upstream routing to support dual-credit system
@@ -3907,7 +3905,7 @@ func main() {
 				openhandsProvider.SetProxyPool(proxyPool)
 			}
 
-			// Start SpendChecker for proactive rotation (fixed 0.5s interval for all keys)
+			// Start SpendChecker for proactive rotation (fixed 2s interval for all keys)
 			// Can be disabled by setting SPEND_CHECKER_ENABLED=false
 			if getEnv("SPEND_CHECKER_ENABLED", "true") == "true" {
 				spendThreshold := openhands.DefaultSpendThreshold
@@ -3918,12 +3916,12 @@ func main() {
 				}
 
 				// Note: activeCheckInterval and idleCheckInterval are legacy params,
-				// spend checker now uses fixed 0.5s interval for all keys
+				// spend checker now uses fixed 2s interval for all keys
 				activeCheckInterval := openhands.DefaultActiveCheckInterval
 				idleCheckInterval := openhands.DefaultIdleCheckInterval
 
 				openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
-				log.Printf("✅ SpendChecker ENABLED (0.5s interval, threshold: $%.2f)", spendThreshold)
+				log.Printf("✅ SpendChecker ENABLED (2s interval, threshold: $%.2f)", spendThreshold)
 			} else {
 				log.Printf("⚠️ SpendChecker DISABLED (SPEND_CHECKER_ENABLED=false)")
 			}
