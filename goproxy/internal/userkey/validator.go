@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -28,6 +29,8 @@ func ValidateKey(apiKey string) (*UserKey, error) {
 	// Check cache first
 	cache := GetKeyCache()
 	if userKey, err, hit := cache.Get(apiKey); hit {
+		keyMask := apiKey[:min(4, len(apiKey))] + "..." + apiKey[max(0, len(apiKey)-4):]
+		log.Printf("🔑 Key validated (cache): %s", keyMask)
 		return userKey, err
 	}
 
