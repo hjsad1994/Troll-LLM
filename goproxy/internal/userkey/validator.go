@@ -20,6 +20,28 @@ var (
 )
 
 func ValidateKey(apiKey string) (*UserKey, error) {
+	// Bypass cache if disabled
+	if !UseKeyCache {
+		return validateKeyFromDB(apiKey)
+	}
+
+	// Check cache first
+	cache := GetKeyCache()
+	if userKey, err, hit := cache.Get(apiKey); hit {
+		return userKey, err
+	}
+
+	// Cache miss — query database
+	userKey, err := validateKeyFromDB(apiKey)
+
+	// Store in cache (only deterministic results are cached)
+	cache.Set(apiKey, userKey, err)
+
+	return userKey, err
+}
+
+// validateKeyFromDB performs the actual database lookup for key validation
+func validateKeyFromDB(apiKey string) (*UserKey, error) {
 	// 1. Try user_keys collection first
 	userKey, err := validateFromUserKeys(apiKey)
 	if err == nil {
@@ -140,8 +162,8 @@ func GetKeyByID(apiKey string) (*UserKey, error) {
 // UserCredits represents the credits balance info from usersNew collection
 type UserCredits struct {
 	Username   string  `bson:"_id"`
-	Credits    float64 `bson:"credits"`       // OhMyGPT balance (port 8005)
-	CreditsNew float64 `bson:"creditsNew"`    // OpenHands balance (port 8004)
+	Credits    float64 `bson:"credits"`    // OhMyGPT balance (port 8005)
+	CreditsNew float64 `bson:"creditsNew"` // OpenHands balance (port 8004)
 	RefCredits float64 `bson:"refCredits"`
 }
 
