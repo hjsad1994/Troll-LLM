@@ -3866,8 +3866,8 @@ func main() {
 	healthChecker = proxy.NewHealthChecker(proxyPool)
 	healthChecker.Start()
 
-	// Start auto-reload for proxy bindings (default 10s, configurable via BINDING_RELOAD_INTERVAL)
-	reloadInterval := 10 * time.Second
+	// Start auto-reload for proxy bindings (default 5s, configurable via BINDING_RELOAD_INTERVAL)
+	reloadInterval := 5 * time.Second
 	if intervalStr := getEnv("BINDING_RELOAD_INTERVAL", ""); intervalStr != "" {
 		if parsed, err := time.ParseDuration(intervalStr); err == nil {
 			reloadInterval = parsed
