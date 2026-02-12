@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o goproxy main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o goproxy .
 
 # Runtime stage
 FROM alpine:3.19
