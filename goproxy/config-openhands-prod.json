@@ -61,7 +61,7 @@
       "billing_upstream": "openhands",
       "upstream": "openhands",
       "upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-4.6"],
-      "upstream_model_weights": [50, 50]
+      "upstream_model_weights": [70, 30]
     },
     {
       "name": "Claude Haiku 4.5",
