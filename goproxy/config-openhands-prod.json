@@ -27,7 +27,8 @@
       "billing_multiplier": 1.1,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "prod/claude-sonnet-4-5-20250929"
+      "upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-4.6"],
+      "upstream_model_weights": [70, 30]
     },
     {
       "name": "Claude Opus 4.5",
@@ -42,7 +43,8 @@
       "billing_multiplier": 1.1,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "prod/claude-sonnet-4-5-20250929"
+      "upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-4.6"],
+      "upstream_model_weights": [70, 30]
     },
     {
       "name": "Claude Sonnet 4.5",
@@ -58,7 +60,8 @@
       "billing_multiplier": 1.1,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "prod/claude-sonnet-4-5-20250929"
+      "upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-4.6"],
+      "upstream_model_weights": [50, 50]
     },
     {
       "name": "Claude Haiku 4.5",
@@ -73,7 +76,7 @@
       "billing_multiplier": 1.15,
       "billing_upstream": "openhands",
       "upstream": "openhands",
-      "upstream_model_id": "glm-4.6"
+      "upstream_model_id": " "
     }
   ],
   "system_prompt": "",

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"sync"
+	"time"
 )
 
 // Endpoint configuration
@@ -16,22 +18,23 @@ type Endpoint struct {
 
 // Model configuration
 type Model struct {
-	Name                    string   `json:"name"`
-	ID                      string   `json:"id"`
-	IDAliases               []string `json:"id_aliases,omitempty"` // Alternative model IDs that map to this model
-	Type                    string   `json:"type"`
-	Reasoning               string   `json:"reasoning"`
-	ThinkingBudget          int      `json:"thinking_budget,omitempty"` // Budget tokens for thinking mode
-	InputPricePerMTok       float64  `json:"input_price_per_mtok"`
-	OutputPricePerMTok      float64  `json:"output_price_per_mtok"`
-	CacheWritePricePerMTok  float64  `json:"cache_write_price_per_mtok"`
-	CacheHitPricePerMTok    float64  `json:"cache_hit_price_per_mtok"`
-	BatchInputPricePerMTok  float64  `json:"batch_input_price_per_mtok,omitempty"`  // Optional: Batch mode input price (defaults to 50% of regular)
-	BatchOutputPricePerMTok float64  `json:"batch_output_price_per_mtok,omitempty"` // Optional: Batch mode output price (defaults to 50% of regular)
-	BillingMultiplier       float64  `json:"billing_multiplier,omitempty"`          // Multiplier applied to final billing cost (default 1.0)
-	Upstream                string   `json:"upstream"`                              // "troll" or "main" - determines which upstream provider to use (request routing)
-	UpstreamModelID         string   `json:"upstream_model_id,omitempty"`           // Model ID to use when sending to upstream (if different from ID)
-	BillingUpstream         string   `json:"billing_upstream,omitempty"`            // "openhands" or "ohmygpt" - determines which credit field to deduct from (independent of Upstream)
+	Name                    string      `json:"name"`
+	ID                      string      `json:"id"`
+	IDAliases               []string    `json:"id_aliases,omitempty"` // Alternative model IDs that map to this model
+	Type                    string      `json:"type"`
+	Reasoning               string      `json:"reasoning"`
+	ThinkingBudget          int         `json:"thinking_budget,omitempty"` // Budget tokens for thinking mode
+	InputPricePerMTok       float64     `json:"input_price_per_mtok"`
+	OutputPricePerMTok      float64     `json:"output_price_per_mtok"`
+	CacheWritePricePerMTok  float64     `json:"cache_write_price_per_mtok"`
+	CacheHitPricePerMTok    float64     `json:"cache_hit_price_per_mtok"`
+	BatchInputPricePerMTok  float64     `json:"batch_input_price_per_mtok,omitempty"`  // Optional: Batch mode input price (defaults to 50% of regular)
+	BatchOutputPricePerMTok float64     `json:"batch_output_price_per_mtok,omitempty"` // Optional: Batch mode output price (defaults to 50% of regular)
+	BillingMultiplier       float64     `json:"billing_multiplier,omitempty"`          // Multiplier applied to final billing cost (default 1.0)
+	Upstream                string      `json:"upstream"`                              // "troll" or "main" - determines which upstream provider to use (request routing)
+	UpstreamModelID         interface{} `json:"upstream_model_id,omitempty"`           // Model ID to use when sending to upstream (can be string or []string for random selection)
+	UpstreamModelWeights    []int       `json:"upstream_model_weights,omitempty"`      // Optional weights for random selection (must match length of UpstreamModelID array)
+	BillingUpstream         string      `json:"billing_upstream,omitempty"`            // "openhands" or "ohmygpt" - determines which credit field to deduct from (independent of Upstream)
 	// NOTE: BillingUpstream controls credit field selection, NOT upstream provider
 	// "openhands" = deduct from creditsNew field (chat.trollllm.xyz)
 	// "ohmygpt" = deduct from credits field (chat2.trollllm.xyz)
@@ -50,6 +53,8 @@ type Config struct {
 var (
 	globalConfig *Config
 	configMutex  sync.RWMutex
+	rng          = rand.New(rand.NewSource(time.Now().UnixNano()))
+	rngMutex     sync.Mutex
 )
 
 // LoadConfig loads configuration file
@@ -226,15 +231,109 @@ func GetModelBillingUpstream(modelID string) string {
 
 // GetUpstreamModelID gets the model ID to use when sending to upstream
 // Returns UpstreamModelID if configured, otherwise returns the original model ID
+// Supports both single string and array of strings for random/weighted selection
 func GetUpstreamModelID(modelID string) string {
 	model := GetModelByID(modelID)
 	if model == nil {
 		return modelID
 	}
-	if model.UpstreamModelID != "" {
-		return model.UpstreamModelID
+
+	if model.UpstreamModelID == nil {
+		return modelID // use original ID if no mapping configured
 	}
-	return modelID // use original ID if no mapping configured
+
+	// Handle single string (backward compatible)
+	if strID, ok := model.UpstreamModelID.(string); ok {
+		if strID != "" {
+			return strID
+		}
+		return modelID
+	}
+
+	// Handle array of strings for random selection
+	if arrID, ok := model.UpstreamModelID.([]interface{}); ok {
+		if len(arrID) == 0 {
+			return modelID
+		}
+
+		// Convert to string array
+		modelIDs := make([]string, 0, len(arrID))
+		for _, id := range arrID {
+			if strID, ok := id.(string); ok && strID != "" {
+				modelIDs = append(modelIDs, strID)
+			}
+		}
+
+		if len(modelIDs) == 0 {
+			return modelID
+		}
+
+		// If only one model, return it
+		if len(modelIDs) == 1 {
+			return modelIDs[0]
+		}
+
+		// Random selection with optional weights
+		selectedID := selectUpstreamWithWeights(modelIDs, model.UpstreamModelWeights)
+		log.Printf("🎲 [RANDOM SELECT] model=%s selected_upstream=%s from_pool=%v weights=%v",
+			modelID, selectedID, modelIDs, model.UpstreamModelWeights)
+		return selectedID
+	}
+
+	return modelID // fallback
+}
+
+// selectUpstreamWithWeights selects a model ID from the pool using weighted random selection
+// If weights are not provided or invalid, uses uniform random distribution
+func selectUpstreamWithWeights(modelIDs []string, weights []int) string {
+	if len(modelIDs) == 0 {
+		return ""
+	}
+	if len(modelIDs) == 1 {
+		return modelIDs[0]
+	}
+
+	// Thread-safe random number generation
+	rngMutex.Lock()
+	defer rngMutex.Unlock()
+
+	// Check if weights are valid
+	if len(weights) != len(modelIDs) || !hasValidWeights(weights) {
+		// Uniform random selection
+		return modelIDs[rng.Intn(len(modelIDs))]
+	}
+
+	// Weighted random selection
+	totalWeight := 0
+	for _, w := range weights {
+		totalWeight += w
+	}
+
+	randNum := rng.Intn(totalWeight)
+
+	cumulative := 0
+	for i, w := range weights {
+		cumulative += w
+		if randNum < cumulative {
+			return modelIDs[i]
+		}
+	}
+
+	// Fallback to last element
+	return modelIDs[len(modelIDs)-1]
+}
+
+// hasValidWeights checks if weights array has all positive values
+func hasValidWeights(weights []int) bool {
+	if len(weights) == 0 {
+		return false
+	}
+	for _, w := range weights {
+		if w <= 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // IsModelSupported checks if model is supported
