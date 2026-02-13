@@ -16,8 +16,8 @@ func TestDefaultConstants(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
-		{"DefaultSpendThreshold", DefaultSpendThreshold, 9.95},
-		{"SpendCheckInterval", SpendCheckInterval, 2 * time.Second},
+		{"DefaultSpendThreshold", DefaultSpendThreshold, 10.0},
+		{"SpendCheckInterval", SpendCheckInterval, 10 * time.Second},
 		{"ActiveKeyWindow", ActiveKeyWindow, 4 * time.Minute},
 		{"OpenHandsActivityURL", OpenHandsActivityURL, "https://llm-proxy.app.all-hands.dev/user/daily/activity"},
 	}
@@ -119,10 +119,10 @@ func TestShouldCheckKeyFixedInterval(t *testing.T) {
 		{"never checked, low spend", 2.0, nil, true, "first check should always happen"},
 		{"never checked, high spend", 9.0, nil, true, "first check should always happen"},
 
-		// Fixed 2s interval for ALL spend levels
-		{"any spend, checked 1s ago", 5.0, timePtr(now.Add(-1 * time.Second)), false, "should skip - 2s interval not elapsed"},
-		{"any spend, checked 2s ago", 5.0, timePtr(now.Add(-2 * time.Second)), true, "should check - 2s interval elapsed"},
-		{"any spend, checked 3s ago", 9.5, timePtr(now.Add(-3 * time.Second)), true, "should check - well past 2s"},
+		// Fixed 10s interval for ALL spend levels
+		{"any spend, checked 9s ago", 5.0, timePtr(now.Add(-9 * time.Second)), false, "should skip - 10s interval not elapsed"},
+		{"any spend, checked 10s ago", 5.0, timePtr(now.Add(-10 * time.Second)), true, "should check - 10s interval elapsed"},
+		{"any spend, checked 11s ago", 9.5, timePtr(now.Add(-11 * time.Second)), true, "should check - past 10s"},
 	}
 
 	for _, tt := range tests {
@@ -154,7 +154,7 @@ func TestGetCheckIntervalForSpend(t *testing.T) {
 		spend            float64
 		expectedInterval time.Duration
 	}{
-		// Fixed 2s interval for all spend levels
+		// Fixed 10s interval for all spend levels
 		{"zero spend", 0.0, SpendCheckInterval},
 		{"$5 spend", 5.0, SpendCheckInterval},
 		{"$9 spend", 9.0, SpendCheckInterval},
@@ -175,14 +175,14 @@ func TestGetCheckIntervalForSpend(t *testing.T) {
 func TestGetSpendTierName(t *testing.T) {
 	sc := &SpendChecker{
 		baseCheckInterval: SpendCheckInterval,
-		threshold:         DefaultSpendThreshold, // 9.95
+		threshold:         DefaultSpendThreshold, // 10.0
 	}
 
-	// Tier boundaries based on percentage of threshold (9.95):
-	// - LOW: < 50% (< $4.975)
-	// - MEDIUM: 50% - 85% ($4.975 - $8.4575)
-	// - HIGH: 85% - 94% ($8.4575 - $9.353)
-	// - CRITICAL: >= 94% (>= $9.353)
+	// Tier boundaries based on percentage of threshold (10.0):
+	// - LOW: < 50% (< $5.00)
+	// - MEDIUM: 50% - 85% ($5.00 - $8.50)
+	// - HIGH: 85% - 94% ($8.50 - $9.40)
+	// - CRITICAL: >= 94% (>= $9.40)
 	tests := []struct {
 		name         string
 		spend        float64
@@ -190,14 +190,14 @@ func TestGetSpendTierName(t *testing.T) {
 	}{
 		{"zero spend", 0.0, "LOW"},
 		{"$3 spend (30%)", 3.0, "LOW"},
-		{"$4.97 spend (just under 50%)", 4.97, "LOW"},
-		{"$4.98 spend (50%)", 4.98, "MEDIUM"},
+		{"$4.99 spend (just under 50%)", 4.99, "LOW"},
+		{"$5.00 spend (50%)", 5.00, "MEDIUM"},
 		{"$6 spend (60%)", 6.0, "MEDIUM"},
-		{"$8.45 spend (just under 85%)", 8.45, "MEDIUM"},
-		{"$8.46 spend (85%)", 8.46, "HIGH"},
+		{"$8.49 spend (just under 85%)", 8.49, "MEDIUM"},
+		{"$8.50 spend (85%)", 8.50, "HIGH"},
 		{"$9 spend (90%)", 9.0, "HIGH"},
-		{"$9.35 spend (just under 94%)", 9.35, "HIGH"},
-		{"$9.36 spend (94%)", 9.36, "CRITICAL"},
+		{"$9.39 spend (just under 94%)", 9.39, "HIGH"},
+		{"$9.40 spend (94%)", 9.40, "CRITICAL"},
 		{"$9.8 spend (98%)", 9.8, "CRITICAL"},
 		{"$10 spend (>100%)", 10.0, "CRITICAL"},
 	}
@@ -281,8 +281,8 @@ func TestNewSpendChecker(t *testing.T) {
 	if sc.threshold != threshold {
 		t.Errorf("threshold = %v, want %v", sc.threshold, threshold)
 	}
-	// Note: activeInterval and idleInterval are now ignored - using fixed 2s interval
-	// baseCheckInterval should be SpendCheckInterval (2s)
+	// Note: activeInterval and idleInterval are now ignored - using fixed 10s interval
+	// baseCheckInterval should be SpendCheckInterval (10s)
 	if sc.baseCheckInterval != SpendCheckInterval {
 		t.Errorf("baseCheckInterval = %v, want %v (SpendCheckInterval)", sc.baseCheckInterval, SpendCheckInterval)
 	}

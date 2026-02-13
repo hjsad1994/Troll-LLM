@@ -1,0 +1,34 @@
+# Progress Log
+
+Bead: bd-3kr
+Started: 2026-02-13
+
+## Codebase Patterns
+
+- Spend checker defaults live in `goproxy/internal/openhands/spend_checker.go`.
+- Runtime wiring and startup logging live in `goproxy/main.go`.
+- Verification expectations are in `goproxy/internal/openhands/spend_checker_test.go`.
+
+---
+
+<!-- Task logs below - APPEND ONLY -->
+
+## 2026-02-13 - backend-1 Update spend checker defaults
+
+- Updated defaults in `goproxy/internal/openhands/spend_checker.go`: threshold `9.95 -> 10.0`, check interval `2s -> 10s`.
+- Verification:
+  - `go test ./internal/openhands -run TestDefaultConstants -v` (pass)
+  - `go test ./internal/openhands -run TestSpendThresholdLogic -v` (pass)
+
+## 2026-02-13 - backend-2 Align runtime messaging
+
+- Updated startup spend checker messages in `goproxy/main.go` from `2s` interval text to `10s`.
+- Verification:
+  - `go test ./internal/openhands/...` (pass)
+
+## 2026-02-13 - test-1 Update spend checker tests
+
+- Updated test expectations and boundary cases in `goproxy/internal/openhands/spend_checker_test.go` for threshold `10.0` and interval `10s`.
+- Verification:
+  - `go test ./internal/openhands -run "TestShouldCheckKeyFixedInterval|TestGetCheckIntervalForSpend|TestDefaultConstants" -v` (pass)
+  - `go test ./internal/openhands/...` (pass)

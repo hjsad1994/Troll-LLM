@@ -21,11 +21,11 @@ import (
 // Constants for spend checking
 const (
 	OpenHandsActivityURL  = "https://llm-proxy.app.all-hands.dev/user/daily/activity"
-	DefaultSpendThreshold = 9.95
+	DefaultSpendThreshold = 10.0
 	ActiveKeyWindow       = 4 * time.Minute
 
-	// Fixed check interval for ALL keys - 2 seconds
-	SpendCheckInterval = 2 * time.Second
+	// Fixed check interval for ALL keys - 10 seconds
+	SpendCheckInterval = 10 * time.Second
 
 	// Legacy defaults (kept for backward compatibility in StartSpendChecker signature)
 	DefaultActiveCheckInterval = 10 * time.Second
@@ -36,7 +36,7 @@ const (
 type SpendChecker struct {
 	provider  *OpenHandsProvider
 	threshold float64
-	// baseCheckInterval is the ticker interval (uses fixed 2s)
+	// baseCheckInterval is the ticker interval (uses fixed 10s)
 	baseCheckInterval time.Duration
 	stopChan          chan struct{}
 	running           bool
@@ -81,12 +81,12 @@ var spendChecker *SpendChecker
 var spendCheckerMu sync.Mutex
 
 // NewSpendChecker creates a new SpendChecker instance
-// Note: activeInterval and idleInterval are ignored - using fixed 2s interval for all keys
+// Note: activeInterval and idleInterval are ignored - using fixed 10s interval for all keys
 func NewSpendChecker(provider *OpenHandsProvider, threshold float64, activeInterval, idleInterval time.Duration) *SpendChecker {
 	return &SpendChecker{
 		provider:          provider,
 		threshold:         threshold,
-		baseCheckInterval: SpendCheckInterval, // Fixed 2s interval for all keys
+		baseCheckInterval: SpendCheckInterval, // Fixed 10s interval for all keys
 		stopChan:          make(chan struct{}),
 		running:           false,
 	}
@@ -105,7 +105,7 @@ func (sc *SpendChecker) Start() {
 	// Startup log disabled to reduce noise - only log on key rotation
 
 	go func() {
-		// Use base check interval (2s) as ticker - we'll skip keys based on their spend tier
+		// Use base check interval (10s) as ticker - we'll skip keys based on their spend tier
 		ticker := time.NewTicker(sc.baseCheckInterval)
 		defer ticker.Stop()
 
@@ -254,7 +254,7 @@ func (sc *SpendChecker) isKeyActive(key *OpenHandsKey, now time.Time) bool {
 	return now.Sub(*key.LastUsedAt) < ActiveKeyWindow
 }
 
-// getCheckIntervalForSpend returns fixed 2s interval for all keys
+// getCheckIntervalForSpend returns fixed 10s interval for all keys
 func (sc *SpendChecker) getCheckIntervalForSpend(spend float64) time.Duration {
 	return SpendCheckInterval
 }

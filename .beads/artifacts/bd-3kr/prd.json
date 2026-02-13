@@ -1,0 +1,78 @@
+{
+	"beadId": "bd-3kr",
+	"prdName": "spend-checker-threshold-interval-update",
+	"tasks": [
+		{
+			"id": "backend-1",
+			"category": "backend",
+			"title": "Update spend checker defaults",
+			"description": "goproxy spend checker initializes with default threshold 10.0 and fixed check interval 10s while preserving current compare and override mechanics.",
+			"steps": [
+				"go test ./internal/openhands -run TestDefaultConstants -v",
+				"go test ./internal/openhands -run TestCheckAndRotateKeyThresholdReached -v"
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/openhands/spend_checker.go"]
+			}
+		},
+		{
+			"id": "backend-2",
+			"category": "backend",
+			"title": "Align runtime messaging",
+			"description": "Startup logging in goproxy/main.go accurately reports the new spend checker default cadence and threshold context.",
+			"steps": ["go test ./internal/openhands/..."],
+			"passes": true,
+			"metadata": {
+				"depends_on": ["Update spend checker defaults"],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/main.go"]
+			}
+		},
+		{
+			"id": "test-1",
+			"category": "test",
+			"title": "Update spend checker tests",
+			"description": "Unit tests assert the updated default threshold and fixed interval without changing expected threshold-trigger semantics.",
+			"steps": [
+				"go test ./internal/openhands -run \"TestShouldCheckKeyFixedInterval|TestGetCheckIntervalForSpend|TestDefaultConstants\" -v",
+				"go test ./internal/openhands/..."
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": ["Update spend checker defaults"],
+				"parallel": true,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/openhands/spend_checker_test.go"]
+			}
+		}
+	],
+	"context": {
+		"patterns": [
+			"Constants-based spend checker config in goproxy/internal/openhands/spend_checker.go",
+			"Runtime startup wiring in goproxy/main.go uses openhands.DefaultSpendThreshold and OPENHANDS_SPEND_THRESHOLD override",
+			"Unit tests in goproxy/internal/openhands/spend_checker_test.go assert constants, threshold behavior, and interval behavior"
+		],
+		"keyFiles": [
+			"goproxy/internal/openhands/spend_checker.go",
+			"goproxy/main.go",
+			"goproxy/internal/openhands/spend_checker_test.go"
+		],
+		"nonGoals": [
+			"Changing OPENHANDS_SPEND_THRESHOLD env override behavior",
+			"Redesigning spend check algorithm or adding adaptive intervals",
+			"Changing backend scripts outside goproxy runtime behavior"
+		]
+	},
+	"beadMetadata": {
+		"depends_on": [],
+		"parallel": true,
+		"conflicts_with": [],
+		"blocks": [],
+		"estimated_hours": 1
+	}
+}
