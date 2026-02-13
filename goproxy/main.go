@@ -1263,6 +1263,13 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		return
 	}
 
+	// Anthropic rejects empty text blocks: "messages: text content blocks must be non-empty"
+	sanitizedMessages, removedTextBlocks, removedMessages := sanitizeAnthropicMessages(anthropicReq.Messages)
+	anthropicReq.Messages = sanitizedMessages
+	if removedTextBlocks > 0 || removedMessages > 0 {
+		log.Printf("🧹 [OpenHands-Anthropic] Sanitized messages: removed_empty_text_blocks=%d removed_empty_messages=%d", removedTextBlocks, removedMessages)
+	}
+
 	// Get upstream model ID (may be different from client-requested model ID)
 	upstreamModelID := config.GetUpstreamModelID(modelID)
 	if upstreamModelID == "glm-5" {
@@ -3115,6 +3122,85 @@ func detectAssistantThinkingState(messages []transformers.AnthropicMessage) (has
 		}
 	}
 	return hasThinking, hasNonThinking
+}
+
+// sanitizeAnthropicMessages removes empty text blocks that Anthropic rejects.
+// Also removes messages that become empty after sanitization.
+func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) ([]transformers.AnthropicMessage, int, int) {
+	sanitized := make([]transformers.AnthropicMessage, 0, len(messages))
+	removedTextBlocks := 0
+	removedMessages := 0
+
+	for _, msg := range messages {
+		skipMessage := false
+
+		switch content := msg.Content.(type) {
+		case string:
+			if strings.TrimSpace(content) == "" {
+				removedTextBlocks++
+				skipMessage = true
+			}
+		case []interface{}:
+			filtered := make([]interface{}, 0, len(content))
+			for _, block := range content {
+				blockMap, ok := block.(map[string]interface{})
+				if !ok {
+					filtered = append(filtered, block)
+					continue
+				}
+
+				blockType, _ := blockMap["type"].(string)
+				if blockType == "text" {
+					text, _ := blockMap["text"].(string)
+					if strings.TrimSpace(text) == "" {
+						removedTextBlocks++
+						continue
+					}
+				}
+
+				filtered = append(filtered, block)
+			}
+
+			if len(filtered) == 0 {
+				skipMessage = true
+			} else {
+				msg.Content = filtered
+			}
+		case []map[string]interface{}:
+			filtered := make([]map[string]interface{}, 0, len(content))
+			for _, blockMap := range content {
+				blockType, _ := blockMap["type"].(string)
+				if blockType == "text" {
+					text, _ := blockMap["text"].(string)
+					if strings.TrimSpace(text) == "" {
+						removedTextBlocks++
+						continue
+					}
+				}
+
+				filtered = append(filtered, blockMap)
+			}
+
+			if len(filtered) == 0 {
+				skipMessage = true
+			} else {
+				msg.Content = filtered
+			}
+		default:
+			if msg.Content == nil {
+				skipMessage = true
+			}
+		}
+
+		if skipMessage {
+			removedMessages++
+			continue
+		}
+
+		sanitized = append(sanitized, msg)
+	}
+
+	return sanitized, removedTextBlocks, removedMessages
 }
 
 // filterSystemEntries filters system entries, removing those containing reserved headers
