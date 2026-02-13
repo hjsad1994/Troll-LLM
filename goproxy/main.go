@@ -1265,6 +1265,11 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 
 	// Get upstream model ID (may be different from client-requested model ID)
 	upstreamModelID := config.GetUpstreamModelID(modelID)
+	if upstreamModelID == "glm-5" {
+		// /v1/messages uses Anthropic format; GLM-5 is only supported on /v1/chat/completions via Modal.
+		log.Printf("🔁 [OpenHands-Anthropic] Fallback upstream model for /v1/messages: glm-5 -> glm-4.6")
+		upstreamModelID = "glm-4.6"
+	}
 	anthropicReq.Model = upstreamModelID
 
 	// Claude/Anthropic doesn't allow both temperature and top_p
