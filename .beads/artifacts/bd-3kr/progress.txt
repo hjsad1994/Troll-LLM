@@ -19,3 +19,9 @@ Started: 2026-02-13
 - Verification:
   - `go test ./internal/openhands -run TestDefaultConstants -v` (pass)
   - `go test ./internal/openhands -run TestSpendThresholdLogic -v` (pass)
+
+## 2026-02-13 - backend-2 Align runtime messaging
+
+- Updated startup spend checker messages in `goproxy/main.go` from `2s` interval text to `10s`.
+- Verification:
+  - `go test ./internal/openhands/...` (pass)

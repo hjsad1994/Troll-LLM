@@ -25,7 +25,7 @@
 			"title": "Align runtime messaging",
 			"description": "Startup logging in goproxy/main.go accurately reports the new spend checker default cadence and threshold context.",
 			"steps": ["go test ./internal/openhands/..."],
-			"passes": false,
+			"passes": true,
 			"metadata": {
 				"depends_on": ["Update spend checker defaults"],
 				"parallel": false,
