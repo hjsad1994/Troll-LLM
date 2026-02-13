@@ -1,0 +1,32 @@
+# Progress Log
+
+Bead: bd-28i
+Started: 2026-02-13
+
+## Codebase Patterns
+
+- OpenHands flow dispatches in `goproxy/main.go` and then stream/non-stream handlers finalize response output.
+- Response model masking logic is expected at handler/transformer boundary where payload/chunk model fields are emitted.
+
+---
+
+<!-- Task logs below - APPEND ONLY -->
+
+## Task: Lock response-model contract for OpenHands handlers
+
+- Status: completed
+- Changes: added optional model-rewrite path to Anthropic passthrough handlers and wired OpenHands `/v1/messages` path to pass requested model ID.
+- Verification: `go build -o /dev/null ./...`, `go test ./...`
+
+## Task: Ensure transformer-level masking parity (stream + non-stream)
+
+- Status: completed
+- Changes: verified existing transformer-layer masking already rewrites outgoing `model` to requested model; no extra transformer code change required.
+- Verification: `go test ./...`, `go test ./internal/openhands/... -v`
+
+## Task: Add regression coverage for alias masking by endpoint type
+
+- Status: completed
+- Changes: added Anthropic stream/non-stream masking tests and matrix coverage for all OpenHands configured model IDs and aliases.
+- Follow-up: extended matrix coverage to OpenAI stream/non-stream responses for the same OpenHands model/alias set.
+- Verification: `go test -run Mask ./...`, `go test ./...`, `go build -o /dev/null ./...`
