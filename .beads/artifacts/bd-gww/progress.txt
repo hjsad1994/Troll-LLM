@@ -45,3 +45,16 @@ Started: 2026-02-13
 - Verification:
   - `go build ./...` passed
   - `go test ./internal/maintarget/...` passed (`[no test files]`)
+
+## 2026-02-13 Task backend-4
+
+- Status: completed
+- Commit: pending
+- Changes:
+  - Threaded user-facing `modelID` through OpenAI passthrough call sites in `goproxy/main.go`.
+  - Updated OpenHands response helper signatures to accept `modelID` and pass it to maintarget handlers.
+  - Updated Modal/OpenHands response paths to provide `modelID` when forwarding responses.
+- Verification:
+  - `go build ./...` passed
+  - `go vet ./...` passed
+  - `go test ./...` passed

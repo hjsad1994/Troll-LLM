@@ -1065,9 +1065,9 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 	}
 
 	if isStreaming {
-		maintarget.HandleOpenAIStreamResponse(w, resp, "", onUsage)
+		maintarget.HandleOpenAIStreamResponse(w, resp, modelID, onUsage)
 	} else {
-		maintarget.HandleOpenAINonStreamResponse(w, resp, "", onUsage)
+		maintarget.HandleOpenAINonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1149,9 +1149,9 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 
 	// Handle response (passthrough OpenAI format)
 	if isStreaming {
-		maintarget.HandleOpenAIStreamResponse(w, resp, "", onUsage)
+		maintarget.HandleOpenAIStreamResponse(w, resp, modelID, onUsage)
 	} else {
-		maintarget.HandleOpenAINonStreamResponse(w, resp, "", onUsage)
+		maintarget.HandleOpenAINonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1903,9 +1903,9 @@ handleOpenAIResponse:
 
 	// Handle response (OpenHands /v1/chat/completions returns OpenAI-compatible format)
 	if isStreaming {
-		handleOpenHandsOpenAIStreamResponse(w, resp, onUsage, estimatedInput)
+		handleOpenHandsOpenAIStreamResponse(w, resp, modelID, onUsage, estimatedInput)
 	} else {
-		handleOpenHandsOpenAINonStreamResponse(w, resp, onUsage)
+		handleOpenHandsOpenAINonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1982,7 +1982,7 @@ func estimateAnthropicInputTokens(req *transformers.AnthropicRequest) int64 {
 }
 
 // handleOpenHandsOpenAIStreamResponse handles OpenHands streaming response with proper logging
-func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), estimatedInputTokens int64) {
+func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64), estimatedInputTokens int64) {
 	// Wrap onUsage to inject estimated input tokens if not provided by stream
 	wrappedOnUsage := func(input, output, cacheWrite, cacheHit int64) {
 		// If stream doesn't provide input tokens, use estimation
@@ -1996,11 +1996,11 @@ func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Respo
 		}
 	}
 
-	maintarget.HandleOpenAIStreamResponse(w, resp, "", wrappedOnUsage)
+	maintarget.HandleOpenAIStreamResponse(w, resp, modelID, wrappedOnUsage)
 }
 
 // handleOpenHandsOpenAINonStreamResponse handles OpenHands non-streaming response with proper logging
-func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64)) {
 	log.Printf("📋 [OpenHands-OpenAI] Handling non-streaming response")
 
 	// Wrap onUsage to add OpenHands-specific logging
@@ -2011,7 +2011,7 @@ func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Re
 		}
 	}
 
-	maintarget.HandleOpenAINonStreamResponse(w, resp, "", wrappedOnUsage)
+	maintarget.HandleOpenAINonStreamResponse(w, resp, modelID, wrappedOnUsage)
 }
 
 // handleModalOpenAIRequest handles /v1/chat/completions requests routed to Modal (GLM-5)
@@ -2097,9 +2097,9 @@ func handleModalOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.Ope
 	// Handle response — reuse OpenHands response handlers (Modal returns OpenAI-compatible format)
 	if isStreaming {
 		estimatedInput := estimateInputTokens(openaiReq)
-		handleOpenHandsOpenAIStreamResponse(w, resp, onUsage, estimatedInput)
+		handleOpenHandsOpenAIStreamResponse(w, resp, modelID, onUsage, estimatedInput)
 	} else {
-		handleOpenHandsOpenAINonStreamResponse(w, resp, onUsage)
+		handleOpenHandsOpenAINonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
