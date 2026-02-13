@@ -325,8 +325,6 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, mode
 		return
 	}
 
-	_ = modelID
-
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -369,6 +367,15 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, mode
 								if content, ok := delta["content"].(string); ok {
 									estimatedOutputChars += int64(len(content))
 								}
+							}
+						}
+					}
+
+					if modelID != "" {
+						if _, ok := event["model"]; ok {
+							event["model"] = modelID
+							if rewritten, err := json.Marshal(event); err == nil {
+								line = "data: " + string(rewritten)
 							}
 						}
 					}
