@@ -76,7 +76,7 @@ Started: 2026-02-13
 ## 2026-02-13 Scope correction: OhMyGPT passthrough masking
 
 - Status: completed
-- Commit: pending
+- Commit: `73f1b5d`
 - Changes:
   - Added model field rewriting in `goproxy/internal/ohmygpt/ohmygpt.go` for both stream and non-stream OpenAI responses when `modelID` is provided.
   - Added tests in `goproxy/internal/ohmygpt/response_masking_test.go` for rewrite behavior and invalid JSON fallback.
