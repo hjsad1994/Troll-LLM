@@ -1008,6 +1008,15 @@ func (p *OhMyGPTProvider) HandleStreamResponse(w http.ResponseWriter, resp *http
 							}
 						}
 					}
+
+					if modelID != "" {
+						if _, ok := event["model"]; ok {
+							event["model"] = modelID
+							if rewritten, err := json.Marshal(event); err == nil {
+								line = "data: " + string(rewritten)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1078,6 +1087,15 @@ func (p *OhMyGPTProvider) HandleNonStreamResponse(w http.ResponseWriter, resp *h
 			}
 			if onUsage != nil && (input > 0 || output > 0) {
 				onUsage(input, output, 0, cachedTokens)
+			}
+		}
+
+		if modelID != "" {
+			if _, ok := response["model"]; ok {
+				response["model"] = modelID
+				if rewritten, marshalErr := json.Marshal(response); marshalErr == nil {
+					body = rewritten
+				}
 			}
 		}
 	}
