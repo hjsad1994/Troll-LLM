@@ -42,7 +42,7 @@
 				"go test ./internal/openhands -run \"TestShouldCheckKeyFixedInterval|TestGetCheckIntervalForSpend|TestDefaultConstants\" -v",
 				"go test ./internal/openhands/..."
 			],
-			"passes": false,
+			"passes": true,
 			"metadata": {
 				"depends_on": ["Update spend checker defaults"],
 				"parallel": true,
