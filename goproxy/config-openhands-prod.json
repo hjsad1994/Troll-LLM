@@ -1,6 +1,6 @@
 {
 	"_comment": "Configuration for chat.trollllm.xyz (port 8004) - goproxy-openhands container",
-	"_comment2": "Uses OpenHands upstream (70%) and Modal/GLM-5 (30%), deducts from 'creditsNew' field",
+	"_comment2": "Opus: OpenHands 20% / GLM-5 80%, Sonnet: OpenHands 40% / GLM-5 60%, Haiku: 100% GLM-5",
 	"_comment3": "billing_upstream='openhands' means requests bill to creditsNew (not credits)",
 	"_comment4": "glm-5 requests route to Modal provider (MODAL_API_KEY env var required)",
 	"port": 8004,
@@ -29,7 +29,7 @@
 			"billing_upstream": "openhands",
 			"upstream": "openhands",
 			"upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-5"],
-			"upstream_model_weights": [70, 30]
+			"upstream_model_weights": [20, 80]
 		},
 		{
 			"name": "Claude Opus 4.5",
@@ -45,7 +45,7 @@
 			"billing_upstream": "openhands",
 			"upstream": "openhands",
 			"upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-5"],
-			"upstream_model_weights": [70, 30]
+			"upstream_model_weights": [20, 80]
 		},
 		{
 			"name": "Claude Sonnet 4.5",
@@ -62,7 +62,7 @@
 			"billing_upstream": "openhands",
 			"upstream": "openhands",
 			"upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-5"],
-			"upstream_model_weights": [70, 30]
+			"upstream_model_weights": [40, 60]
 		},
 		{
 			"name": "Claude Haiku 4.5",
