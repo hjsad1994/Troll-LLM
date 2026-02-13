@@ -1,0 +1,77 @@
+{
+	"beadId": "bd-2uc",
+	"prdName": "spendchecker-monitor-only-no-rotation",
+	"tasks": [
+		{
+			"id": "backend-1",
+			"category": "backend",
+			"title": "Remove SpendChecker rotation side effects",
+			"description": "SpendChecker.checkAllKeys and related spend-check error handling become monitoring-only and do not call rotation actions.",
+			"steps": [
+				"cd goproxy && rg \"RotateKey\\(|CheckAndRotateOnError\\(\" internal/openhands/spend_checker.go",
+				"cd goproxy && go test ./internal/openhands -run TestSpendChecker -count=1"
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/openhands/spend_checker.go"]
+			}
+		},
+		{
+			"id": "test-1",
+			"category": "test",
+			"title": "Update SpendChecker tests for non-rotation behavior",
+			"description": "Unit tests encode that threshold and API error conditions in SpendChecker do not perform key rotation and still preserve spend monitoring behavior.",
+			"steps": [
+				"cd goproxy && go test ./internal/openhands -run \"SpendChecker|Threshold|budget\" -count=1"
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": ["Remove SpendChecker rotation side effects"],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/openhands/spend_checker_test.go"]
+			}
+		},
+		{
+			"id": "ops-1",
+			"category": "ops",
+			"title": "Align runtime messaging with monitoring-only SpendChecker",
+			"description": "Startup/log wording no longer claims proactive key rotation from SpendChecker and matches the monitoring-only behavior.",
+			"steps": ["cd goproxy && go test ./..."],
+			"passes": true,
+			"metadata": {
+				"depends_on": ["Remove SpendChecker rotation side effects"],
+				"parallel": true,
+				"conflicts_with": [],
+				"files": ["goproxy/main.go"]
+			}
+		}
+	],
+	"context": {
+		"patterns": [
+			"Spend checker polling and spend metadata updates in goproxy/internal/openhands/spend_checker.go",
+			"Request-path error rotation in goproxy/internal/openhands/openhands.go"
+		],
+		"keyFiles": [
+			"goproxy/internal/openhands/spend_checker.go",
+			"goproxy/internal/openhands/spend_checker_test.go",
+			"goproxy/internal/openhands/openhands.go",
+			"goproxy/main.go"
+		],
+		"nonGoals": [
+			"Change request-path rotation behavior in OpenHandsProvider.CheckAndRotateOnError",
+			"Modify model routing or fallback model-group configuration",
+			"Redesign key pool or backup key lifecycle"
+		]
+	},
+	"beadMetadata": {
+		"depends_on": [],
+		"parallel": true,
+		"conflicts_with": [],
+		"blocks": [],
+		"estimated_hours": 2
+	}
+}

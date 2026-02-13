@@ -1,9 +1,29 @@
 package openhands
 
 import (
+	"io"
+	"net/http"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func newTestSpendCheckerWithHTTPResponder(t *testing.T, threshold float64, responder roundTripFunc) *SpendChecker {
+	t.Helper()
+
+	provider := &OpenHandsProvider{
+		client: &http.Client{Transport: responder},
+	}
+
+	return NewSpendChecker(provider, threshold, DefaultActiveCheckInterval, DefaultIdleCheckInterval)
+}
 
 // Helper function to create time pointers
 func timePtr(t time.Time) *time.Time {
@@ -33,10 +53,10 @@ func TestDefaultConstants(t *testing.T) {
 
 func TestSpendThresholdLogic(t *testing.T) {
 	tests := []struct {
-		name         string
-		spend        float64
-		threshold    float64
-		shouldRotate bool
+		name                 string
+		spend                float64
+		threshold            float64
+		isAtOrAboveThreshold bool
 	}{
 		{"spend below threshold", 5.0, 9.8, false},
 		{"spend at threshold", 9.8, 9.8, true},
@@ -51,13 +71,106 @@ func TestSpendThresholdLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// The rotation logic: spend >= threshold
-			shouldRotate := tt.spend >= tt.threshold
-			if shouldRotate != tt.shouldRotate {
+			isAtOrAboveThreshold := tt.spend >= tt.threshold
+			if isAtOrAboveThreshold != tt.isAtOrAboveThreshold {
 				t.Errorf("spend %.2f >= threshold %.2f = %v, want %v",
-					tt.spend, tt.threshold, shouldRotate, tt.shouldRotate)
+					tt.spend, tt.threshold, isAtOrAboveThreshold, tt.isAtOrAboveThreshold)
 			}
 		})
+	}
+}
+
+func TestSpendCheckerIsMonitorOnly_NoRotationCalls(t *testing.T) {
+	content, err := os.ReadFile("spend_checker.go")
+	if err != nil {
+		t.Fatalf("failed to read spend_checker.go: %v", err)
+	}
+
+	source := string(content)
+	forbidden := []string{"RotateKey(", "CheckAndRotateOnError("}
+
+	for _, token := range forbidden {
+		if strings.Contains(source, token) {
+			t.Errorf("spend_checker.go must stay monitor-only, found forbidden call: %s", token)
+		}
+	}
+}
+
+func TestCheckKeySpend_BudgetExceededParsing(t *testing.T) {
+	responseBody := `{"error":{"message":"budget_exceeded Spend=10.02107649999999, Budget=10.0"}}`
+
+	sc := newTestSpendCheckerWithHTTPResponder(t, 10.0, func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       io.NopCloser(strings.NewReader(responseBody)),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	})
+
+	key := &OpenHandsKey{ID: "k1", APIKey: "sk-test", Status: OpenHandsStatusHealthy}
+	result := sc.checkKeySpend(key, true)
+
+	if !result.BudgetExceeded {
+		t.Fatalf("expected BudgetExceeded to be true")
+	}
+	if result.Error != nil {
+		t.Fatalf("expected no error for budget_exceeded path, got: %v", result.Error)
+	}
+	if result.Spend <= 10.0 {
+		t.Fatalf("expected parsed spend > threshold, got %.6f", result.Spend)
+	}
+}
+
+func TestCheckKeySpend_BudgetExceededFallbackToThreshold(t *testing.T) {
+	responseBody := `{"error":{"message":"budget_exceeded"}}`
+
+	sc := newTestSpendCheckerWithHTTPResponder(t, 10.0, func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       io.NopCloser(strings.NewReader(responseBody)),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	})
+
+	key := &OpenHandsKey{ID: "k2", APIKey: "sk-test", Status: OpenHandsStatusHealthy}
+	result := sc.checkKeySpend(key, true)
+
+	if !result.BudgetExceeded {
+		t.Fatalf("expected BudgetExceeded to be true")
+	}
+	if result.Error != nil {
+		t.Fatalf("expected no error for budget_exceeded path, got: %v", result.Error)
+	}
+	if result.Spend != 10.0 {
+		t.Fatalf("expected fallback spend to threshold 10.0, got %.2f", result.Spend)
+	}
+}
+
+func TestCheckKeySpend_UnauthorizedReturnsError(t *testing.T) {
+	responseBody := `{"error":"unauthorized"}`
+
+	sc := newTestSpendCheckerWithHTTPResponder(t, 10.0, func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusUnauthorized,
+			Body:       io.NopCloser(strings.NewReader(responseBody)),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	})
+
+	key := &OpenHandsKey{ID: "k3", APIKey: "sk-test", Status: OpenHandsStatusHealthy}
+	result := sc.checkKeySpend(key, true)
+
+	if result.BudgetExceeded {
+		t.Fatalf("expected BudgetExceeded to be false")
+	}
+	if result.Error == nil {
+		t.Fatalf("expected auth error for 401 response")
+	}
+	if !strings.Contains(result.Error.Error(), "auth error 401") {
+		t.Fatalf("expected auth error message, got: %v", result.Error)
 	}
 }
 
