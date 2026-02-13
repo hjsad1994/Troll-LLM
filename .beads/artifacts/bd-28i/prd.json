@@ -39,7 +39,7 @@
 			"title": "Add regression coverage for alias masking by endpoint type",
 			"description": "Regression tests validate that requests using all configured OpenHands model IDs and aliases never expose upstream model IDs in Anthropic or OpenAI responses.",
 			"steps": ["go test ./...", "go test -run Mask ./..."],
-			"passes": false,
+			"passes": true,
 			"metadata": {
 				"depends_on": [
 					"Lock response-model contract for OpenHands handlers",
