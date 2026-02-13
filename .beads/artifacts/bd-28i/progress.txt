@@ -1,0 +1,19 @@
+# Progress Log
+
+Bead: bd-28i
+Started: 2026-02-13
+
+## Codebase Patterns
+
+- OpenHands flow dispatches in `goproxy/main.go` and then stream/non-stream handlers finalize response output.
+- Response model masking logic is expected at handler/transformer boundary where payload/chunk model fields are emitted.
+
+---
+
+<!-- Task logs below - APPEND ONLY -->
+
+## Task: Lock response-model contract for OpenHands handlers
+
+- Status: completed
+- Changes: added optional model-rewrite path to Anthropic passthrough handlers and wired OpenHands `/v1/messages` path to pass requested model ID.
+- Verification: `go build -o /dev/null ./...`, `go test ./...`

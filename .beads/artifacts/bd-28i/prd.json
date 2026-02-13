@@ -1,0 +1,83 @@
+{
+	"beadId": "bd-28i",
+	"prdName": "openhands-model-alias-masking-response",
+	"tasks": [
+		{
+			"id": "backend-1",
+			"category": "backend",
+			"title": "Lock response-model contract for OpenHands handlers",
+			"description": "OpenHands handler flow always propagates the client-requested model ID into downstream response rewrite paths for both API surfaces.",
+			"steps": ["go build -o /dev/null ./...", "go test ./..."],
+			"passes": true,
+			"metadata": {
+				"depends_on": [],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/main.go"]
+			}
+		},
+		{
+			"id": "backend-2",
+			"category": "backend",
+			"title": "Ensure transformer-level masking parity (stream + non-stream)",
+			"description": "All relevant transformers emit requested model ID consistently in final responses and stream chunks, regardless of upstream returned model.",
+			"steps": ["go test ./...", "go test ./internal/openhands/... -v"],
+			"passes": false,
+			"metadata": {
+				"depends_on": ["Lock response-model contract for OpenHands handlers"],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": [
+					"goproxy/transformers/response.go",
+					"goproxy/internal/openhands/openhands.go"
+				]
+			}
+		},
+		{
+			"id": "test-1",
+			"category": "test",
+			"title": "Add regression coverage for alias masking by endpoint type",
+			"description": "Regression tests validate that requests using all configured OpenHands model IDs and aliases never expose upstream model IDs in Anthropic or OpenAI responses.",
+			"steps": ["go test ./...", "go test -run Mask ./..."],
+			"passes": false,
+			"metadata": {
+				"depends_on": [
+					"Lock response-model contract for OpenHands handlers",
+					"Ensure transformer-level masking parity (stream + non-stream)"
+				],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": [
+					"goproxy/internal/openhands/types_test.go",
+					"goproxy/internal/openhands/spend_checker_test.go",
+					"goproxy/transformers/truncate_test.go",
+					"goproxy/main.go"
+				]
+			}
+		}
+	],
+	"context": {
+		"patterns": [
+			"OpenHands request handling enters via goproxy/main.go and uses stream/non-stream helper paths",
+			"Response model rewriting already exists in maintarget handler helpers and response transformers"
+		],
+		"keyFiles": [
+			"goproxy/main.go",
+			"goproxy/internal/maintarget/handler.go",
+			"goproxy/transformers/response.go",
+			"goproxy/config-openhands-prod.json"
+		],
+		"nonGoals": [
+			"Pricing/billing formula changes",
+			"Adding new aliases or changing routing weights",
+			"Broad non-OpenHands refactors"
+		]
+	},
+	"beadMetadata": {
+		"depends_on": [],
+		"parallel": true,
+		"conflicts_with": ["bd-15k"],
+		"blocks": [],
+		"estimated_hours": 2
+	}
+}
