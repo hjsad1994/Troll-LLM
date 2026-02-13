@@ -1,84 +1,85 @@
 {
-  "_comment": "Configuration for chat.trollllm.xyz (port 8004) - goproxy-openhands container",
-  "_comment2": "Uses OpenHands upstream and deducts from 'creditsNew' field",
-  "_comment3": "billing_upstream='openhands' means requests bill to creditsNew (not credits)",
-  "port": 8004,
-  "endpoints": [
-    {
-      "name": "openhands-openai",
-      "base_url": "https://llm-proxy.app.all-hands.dev/v1/chat/completions"
-    },
-    {
-      "name": "openhands-anthropic",
-      "base_url": "https://llm-proxy.app.all-hands.dev/v1/messages"
-    }
-  ],
-  "models": [
-    {
-      "name": "Claude Opus 4.6",
-      "id": "claude-opus-4-6",
-      "type": "openhands",
-      "reasoning": "high",
-      "thinking_budget": 16000,
-      "input_price_per_mtok": 5.0,
-      "output_price_per_mtok": 25.0,
-      "cache_write_price_per_mtok": 6.25,
-      "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.1,
-      "billing_upstream": "openhands",
-      "upstream": "openhands",
-      "upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-4.6"],
-      "upstream_model_weights": [70, 30]
-    },
-    {
-      "name": "Claude Opus 4.5",
-      "id": "claude-opus-4-5-20251101",
-      "type": "openhands",
-      "reasoning": "high",
-      "thinking_budget": 16000,
-      "input_price_per_mtok": 5.0,
-      "output_price_per_mtok": 25.0,
-      "cache_write_price_per_mtok": 6.25,
-      "cache_hit_price_per_mtok": 0.5,
-      "billing_multiplier": 1.1,
-      "billing_upstream": "openhands",
-      "upstream": "openhands",
-      "upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-4.6"],
-      "upstream_model_weights": [70, 30]
-    },
-    {
-      "name": "Claude Sonnet 4.5",
-      "id": "claude-sonnet-4-5-20250929",
-      "id_aliases": ["claude-sonnet-4-5"],
-      "type": "openhands",
-      "reasoning": "high",
-      "thinking_budget": 16000,
-      "input_price_per_mtok": 3.0,
-      "output_price_per_mtok": 15.0,
-      "cache_write_price_per_mtok": 3.75,
-      "cache_hit_price_per_mtok": 0.3,
-      "billing_multiplier": 1.1,
-      "billing_upstream": "openhands",
-      "upstream": "openhands",
-      "upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-4.6"],
-      "upstream_model_weights": [70, 30]
-    },
-    {
-      "name": "Claude Haiku 4.5",
-      "id": "claude-haiku-4-5-20251001",
-      "id_aliases": ["claude-haiku-4-5"],
-      "type": "openhands",
-      "reasoning": "low",
-      "input_price_per_mtok": 1.0,
-      "output_price_per_mtok": 5.0,
-      "cache_write_price_per_mtok": 1.25,
-      "cache_hit_price_per_mtok": 0.1,
-      "billing_multiplier": 1.15,
-      "billing_upstream": "openhands",
-      "upstream": "openhands",
-      "upstream_model_id": "glm-4.6"
-    }
-  ],
-  "system_prompt": "",
-  "user_agent": "openhands-cli/1.0.0"
+	"_comment": "Configuration for chat.trollllm.xyz (port 8004) - goproxy-openhands container",
+	"_comment2": "Opus: OpenHands 20% / GLM-5 80%, Sonnet: OpenHands 40% / GLM-5 60%, Haiku: 100% GLM-5",
+	"_comment3": "billing_upstream='openhands' means requests bill to creditsNew (not credits)",
+	"_comment4": "glm-5 requests route to Modal provider (MODAL_API_KEY env var required)",
+	"port": 8004,
+	"endpoints": [
+		{
+			"name": "openhands-openai",
+			"base_url": "https://llm-proxy.app.all-hands.dev/v1/chat/completions"
+		},
+		{
+			"name": "openhands-anthropic",
+			"base_url": "https://llm-proxy.app.all-hands.dev/v1/messages"
+		}
+	],
+	"models": [
+		{
+			"name": "Claude Opus 4.6",
+			"id": "claude-opus-4-6",
+			"type": "openhands",
+			"reasoning": "high",
+			"thinking_budget": 16000,
+			"input_price_per_mtok": 5.0,
+			"output_price_per_mtok": 25.0,
+			"cache_write_price_per_mtok": 6.25,
+			"cache_hit_price_per_mtok": 0.5,
+			"billing_multiplier": 1.1,
+			"billing_upstream": "openhands",
+			"upstream": "openhands",
+			"upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-5"],
+			"upstream_model_weights": [20, 80]
+		},
+		{
+			"name": "Claude Opus 4.5",
+			"id": "claude-opus-4-5-20251101",
+			"type": "openhands",
+			"reasoning": "high",
+			"thinking_budget": 16000,
+			"input_price_per_mtok": 5.0,
+			"output_price_per_mtok": 25.0,
+			"cache_write_price_per_mtok": 6.25,
+			"cache_hit_price_per_mtok": 0.5,
+			"billing_multiplier": 1.1,
+			"billing_upstream": "openhands",
+			"upstream": "openhands",
+			"upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-5"],
+			"upstream_model_weights": [20, 80]
+		},
+		{
+			"name": "Claude Sonnet 4.5",
+			"id": "claude-sonnet-4-5-20250929",
+			"id_aliases": ["claude-sonnet-4-5"],
+			"type": "openhands",
+			"reasoning": "high",
+			"thinking_budget": 16000,
+			"input_price_per_mtok": 3.0,
+			"output_price_per_mtok": 15.0,
+			"cache_write_price_per_mtok": 3.75,
+			"cache_hit_price_per_mtok": 0.3,
+			"billing_multiplier": 1.1,
+			"billing_upstream": "openhands",
+			"upstream": "openhands",
+			"upstream_model_id": ["prod/claude-sonnet-4-5-20250929", "glm-5"],
+			"upstream_model_weights": [40, 60]
+		},
+		{
+			"name": "Claude Haiku 4.5",
+			"id": "claude-haiku-4-5-20251001",
+			"id_aliases": ["claude-haiku-4-5"],
+			"type": "openhands",
+			"reasoning": "low",
+			"input_price_per_mtok": 1.0,
+			"output_price_per_mtok": 5.0,
+			"cache_write_price_per_mtok": 1.25,
+			"cache_hit_price_per_mtok": 0.1,
+			"billing_multiplier": 1.15,
+			"billing_upstream": "openhands",
+			"upstream": "openhands",
+			"upstream_model_id": "glm-5"
+		}
+	],
+	"system_prompt": "",
+	"user_agent": "openhands-cli/1.0.0"
 }
