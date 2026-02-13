@@ -1,0 +1,19 @@
+# Progress Log
+
+Bead: bd-2uc
+Started: 2026-02-14
+
+## Codebase Patterns
+
+- Spend monitoring and key metadata updates are centralized in `goproxy/internal/openhands/spend_checker.go`.
+- Request-path key rotation behavior is in `goproxy/internal/openhands/openhands.go` and remains outside this bead scope.
+
+---
+
+## Session Notes
+
+- `/start` initialized: bead set to `in_progress`, branch created, PRD converted to executable JSON tasks.
+- Task `backend-1` complete: SpendChecker rotation calls removed from threshold, budget_exceeded, and 401 error paths.
+- Task `test-1` complete: monitoring-only tests updated/added in `spend_checker_test.go`.
+- Task `ops-1` complete: SpendChecker startup messaging updated to monitor-only wording.
+- Verification: `go test ./internal/openhands -run TestSpendChecker -count=1` (pass), `go test ./internal/openhands -run "SpendChecker|Threshold|budget" -count=1` (pass), `go test ./...` (pass), `go build ./...` (pass), `golangci-lint run` (tool missing in environment).
