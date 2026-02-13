@@ -1,0 +1,16 @@
+# Progress Log
+
+Bead: bd-34y
+Started: 2026-02-13
+
+## Codebase Patterns
+
+- Provider pattern: `internal/<provider>/<provider>.go` with `ForwardRequest()` + `forwardToEndpoint()`
+- Config routing: `main.go` `selectUpstreamConfig()` switches on `model.upstream` field
+- Random model selection: `config/config.go` `GetUpstreamModelID()` handles string/array with weighted selection
+- API keys: MongoDB pools for OpenHands/OhMyGPT; env vars for MainTarget
+- Model struct: `config/config.go:20-42` — `UpstreamModelID interface{}` (string or array), `UpstreamModelWeights []int`
+
+---
+
+<!-- Task logs below - APPEND ONLY -->

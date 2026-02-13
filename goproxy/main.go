@@ -23,6 +23,7 @@ import (
 	"goproxy/internal/errorlog"
 	"goproxy/internal/keypool"
 	"goproxy/internal/maintarget"
+	"goproxy/internal/modal"
 	"goproxy/internal/ohmygpt"
 	"goproxy/internal/openhands"
 	"goproxy/internal/openhandspool"
@@ -204,6 +205,21 @@ func selectUpstreamConfig(modelID string, clientAPIKey string) (*UpstreamConfig,
 			APIKey:      "", // handled by OpenHands provider with key rotation
 			UseProxy:    false,
 			KeyID:       "openhands",
+		}, nil, nil
+	}
+
+	// Modal routing (GLM-5 via Modal API)
+	if upstream == "modal" {
+		modalProvider := modal.GetModal()
+		if modalProvider == nil || !modalProvider.IsConfigured() {
+			return nil, nil, fmt.Errorf("modal not configured")
+		}
+		log.Printf("🔀 [Model Routing] %s -> Modal (upstream=%s)", modelID, upstream)
+		return &UpstreamConfig{
+			EndpointURL: modal.ModalEndpoint,
+			APIKey:      "", // handled by Modal provider
+			UseProxy:    false,
+			KeyID:       "modal",
 		}, nil, nil
 	}
 
@@ -813,7 +829,8 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		if upstreamConfig.KeyID == "main" {
 			handleMainTargetRequestOpenAI(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else if upstreamConfig.KeyID == "openhands" {
-			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+			resolvedModelID := config.GetUpstreamModelID(model.ID)
+			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, resolvedModelID, clientAPIKey, username)
 		} else if upstreamConfig.KeyID == "ohmygpt" {
 			handleOhMyGPTOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
 		} else {
@@ -821,9 +838,12 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	case "openhands":
 		// OpenHands LLM Proxy: Always forward OpenAI format to /v1/chat/completions
-		// No transformation needed - OpenHands handles Claude/GPT/Gemini models in OpenAI format
-		if upstreamConfig.KeyID == "openhands" {
-			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, clientAPIKey, username)
+		// Resolve upstream model ID ONCE to determine if we need Modal routing (glm-5)
+		resolvedUpstreamModelID := config.GetUpstreamModelID(model.ID)
+		if resolvedUpstreamModelID == "glm-5" {
+			handleModalOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, resolvedUpstreamModelID, clientAPIKey, username)
+		} else if upstreamConfig.KeyID == "openhands" {
+			handleOpenHandsOpenAIRequest(w, &openaiReq, bodyBytes, model.ID, resolvedUpstreamModelID, clientAPIKey, username)
 		}
 	case "ohmygpt":
 		// OhMyGPT: Always forward OpenAI format to /v1/chat/completions
@@ -1557,7 +1577,7 @@ handleMessagesResponse:
 
 // handleOpenHandsOpenAIRequest handles /v1/chat/completions requests routed to OpenHands
 // Forwards OpenAI format request to OpenHands /v1/chat/completions endpoint
-func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, userApiKey string, username string) {
+func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, resolvedUpstreamModelID string, userApiKey string, username string) {
 	openhandsPool := openhandspool.GetPool()
 	if openhandsPool == nil || openhandsPool.GetKeyCount() == 0 {
 		http.Error(w, `{"error": {"message": "Service not configured", "type": "server_error"}}`, http.StatusInternalServerError)
@@ -1572,9 +1592,8 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 		return
 	}
 
-	// Get upstream model ID and inject system prompt
-	upstreamModelID := config.GetUpstreamModelID(modelID)
-	openaiReq.Model = upstreamModelID
+	// Use pre-resolved upstream model ID (resolved once at routing level to avoid double random selection)
+	openaiReq.Model = resolvedUpstreamModelID
 
 	// Fix tool-related issues for Anthropic/Claude models
 	// 1. If no tools param but messages contain tool_calls/tool messages, strip them
@@ -1675,8 +1694,8 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 		return
 	}
 
-	if upstreamModelID != modelID {
-		log.Printf("🔀 [OpenHands-OpenAI] Model mapping: %s -> %s", modelID, upstreamModelID)
+	if resolvedUpstreamModelID != modelID {
+		log.Printf("🔀 [OpenHands-OpenAI] Model mapping: %s -> %s", modelID, resolvedUpstreamModelID)
 	}
 
 	// PRE-CHECK: Estimate cost and verify user can afford this request BEFORE forwarding
@@ -1725,7 +1744,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	if len(apiKeyPreview) > 12 {
 		apiKeyPreview = apiKeyPreview[:12] + "..."
 	}
-	log.Printf("📤 [OpenHands-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, key=%s, apiKey=%s)", upstreamModelID, isStreaming, key.ID, apiKeyPreview)
+	log.Printf("📤 [OpenHands-OpenAI] Forwarding /v1/chat/completions (model=%s, stream=%v, key=%s, apiKey=%s)", resolvedUpstreamModelID, isStreaming, key.ID, apiKeyPreview)
 
 	// Create HTTP request
 	req, err := http.NewRequest(http.MethodPost, "https://llm-proxy.app.all-hands.dev/v1/chat/completions", bytes.NewBuffer(requestBody))
@@ -1988,6 +2007,95 @@ func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Re
 	}
 
 	maintarget.HandleOpenAINonStreamResponse(w, resp, wrappedOnUsage)
+}
+
+// handleModalOpenAIRequest handles /v1/chat/completions requests routed to Modal (GLM-5)
+// resolvedUpstreamModelID is the pre-resolved model from config.GetUpstreamModelID()
+func handleModalOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, resolvedUpstreamModelID string, userApiKey string, username string) {
+	modalProvider := modal.GetModal()
+	if modalProvider == nil || !modalProvider.IsConfigured() {
+		http.Error(w, `{"error": {"message": "Modal provider not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Map pre-resolved model ID to Modal's actual model ID
+	if resolvedUpstreamModelID == "glm-5" {
+		openaiReq.Model = modal.ModalModelID // "zai-org/GLM-5-FP8"
+	} else {
+		openaiReq.Model = resolvedUpstreamModelID
+	}
+
+	// Serialize request
+	requestBody, err := json.Marshal(openaiReq)
+	if err != nil {
+		log.Printf("❌ [Modal] Failed to serialize request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	isStreaming := openaiReq.Stream
+	log.Printf("📤 [Modal] Forwarding /v1/chat/completions (model=%s, upstream=%s, stream=%v)", modelID, openaiReq.Model, isStreaming)
+
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+
+	// Forward request using Modal provider
+	resp, err := modalProvider.ForwardRequest(requestBody, isStreaming)
+	if err != nil {
+		log.Printf("❌ [Modal] Request failed after %v: %v", time.Since(requestStartTime), err)
+		http.Error(w, `{"error": {"message": "Request to Modal upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback for billing and logging
+	// Modal models bill to creditsNew (billing_upstream="openhands" in config)
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			billingUpstream := config.GetModelBillingUpstream(modelID)
+			if username != "" {
+				// Deduct from creditsNew (same as OpenHands billing)
+				if billingUpstream == "openhands" {
+					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+				} else {
+					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
+				}
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+			// Log request to request_logs collection
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				FactoryKeyID:     "modal",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				CreditType:       billingUpstream,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+			if creditsNew, err := userkey.GetUserCreditsNew(username); err == nil {
+				log.Printf("💰 [Modal] %s: cost=$%.6f tokens=%d remaining=$%.4f", username, billingCost, billingTokens, creditsNew)
+			}
+		}
+	}
+
+	// Handle response — reuse OpenHands response handlers (Modal returns OpenAI-compatible format)
+	if isStreaming {
+		estimatedInput := estimateInputTokens(openaiReq)
+		handleOpenHandsOpenAIStreamResponse(w, resp, onUsage, estimatedInput)
+	} else {
+		handleOpenHandsOpenAINonStreamResponse(w, resp, onUsage)
+	}
 }
 
 // handleOhMyGPTOpenAIRequest handles /v1/chat/completions requests routed to OhMyGPT
@@ -3929,6 +4037,9 @@ func main() {
 			log.Printf("⚠️ OpenHands not configured (no keys in openhands_keys collection)")
 		}
 	}
+
+	// Configure Modal provider (GLM-5 via Modal API)
+	modal.Configure()
 
 	// Load OpenHands LLM Proxy key pool (from MongoDB)
 	openhandsKeyPool := openhandspool.GetPool()
