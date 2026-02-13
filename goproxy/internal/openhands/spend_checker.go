@@ -15,7 +15,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"goproxy/db"
-	"goproxy/internal/openhandspool"
 )
 
 // Constants for spend checking
@@ -32,7 +31,7 @@ const (
 	DefaultIdleCheckInterval   = 1 * time.Hour
 )
 
-// SpendChecker monitors OpenHands key spend and triggers proactive rotation
+// SpendChecker monitors OpenHands key spend (monitor-only, no rotation actions)
 type SpendChecker struct {
 	provider  *OpenHandsProvider
 	threshold float64
@@ -169,35 +168,15 @@ func (sc *SpendChecker) checkAllKeys() {
 			// Check spend for this key
 			result := sc.checkKeySpend(k, active)
 
-			// Handle budget_exceeded - rotate immediately
+			// Update key spend info in DB and memory for successful/known spend responses
+			if result.Error == nil {
+				sc.updateKeySpendInfo(k.ID, result.Spend, result.CheckedAt)
+			}
+
+			// Handle budget_exceeded as monitoring signal only
 			if result.BudgetExceeded {
-				log.Printf("🔄 [OpenHands/SpendChecker] Budget exceeded for key %s (spend: $%.2f) - rotating key",
+				log.Printf("🚨 [OpenHands/SpendChecker] Budget exceeded for key %s (spend: $%.2f) - monitor-only, no rotation",
 					k.ID, result.Spend)
-
-				reason := fmt.Sprintf("budget_exceeded_%.2f", result.Spend)
-
-				// RotateKey handles everything:
-				// 1. Check key exists
-				// 2. Claim backup key
-				// 3. DELETE old key
-				// 4. INSERT new key
-				// 5. UPDATE bindings
-				// 6. Update in-memory pool (OpenHandsProvider)
-				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
-
-				rotatedAt := time.Now()
-				if err != nil {
-					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
-					return
-				}
-
-				if newKeyID == "" {
-					// Key was already rotated by another process - skip
-					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
-					return
-				}
-
-				log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s (at %v)", k.ID, newKeyID, rotatedAt.Format(time.RFC3339))
 				return
 			}
 
@@ -206,38 +185,10 @@ func (sc *SpendChecker) checkAllKeys() {
 				return
 			}
 
-			// Calculate spend percent for threshold check
-			spendPercent := (result.Spend / sc.threshold) * 100
-			_ = spendPercent // Used for threshold comparison below
-
-			// Update key spend info in DB and memory
-			sc.updateKeySpendInfo(k.ID, result.Spend, result.CheckedAt)
-
-			// Check if we need to rotate
+			// Threshold is a monitoring signal only
 			if result.Spend >= sc.threshold {
-				log.Printf("🔄 [OpenHands/SpendChecker] Proactive rotation triggered for key %s (spend: $%.2f >= threshold: $%.2f) - rotating key",
+				log.Printf("⚠️ [OpenHands/SpendChecker] Key %s reached threshold (spend: $%.2f >= $%.2f) - monitor-only, no rotation",
 					k.ID, result.Spend, sc.threshold)
-
-				reason := fmt.Sprintf("proactive_threshold_%.2f", result.Spend)
-
-				// RotateKey handles everything:
-				// 1. Check key exists
-				// 2. Claim backup key
-				// 3. DELETE old key
-				// 4. INSERT new key
-				// 5. UPDATE bindings
-				// 6. Update in-memory pool (OpenHandsProvider)
-				newKeyID, err := sc.provider.RotateKey(k.ID, reason)
-
-				rotatedAt := time.Now()
-				if err != nil {
-					log.Printf("❌ [OpenHands/SpendChecker] Rotation failed for key %s: %v", k.ID, err)
-				} else if newKeyID == "" {
-					// Key was already rotated by another process - skip
-					log.Printf("ℹ️ [OpenHands/SpendChecker] Key %s was already rotated, skipping", k.ID)
-				} else {
-					log.Printf("✅ [OpenHands/SpendChecker] Rotated %s -> %s (at %v)", k.ID, newKeyID, rotatedAt.Format(time.RFC3339))
-				}
 			}
 		}(key, isActive)
 	}
@@ -344,7 +295,7 @@ func (sc *SpendChecker) checkKeySpend(key *OpenHandsKey, isActive bool) SpendChe
 		body, _ := io.ReadAll(resp.Body)
 		bodyStr := string(body)
 
-		// Check if this is a budget_exceeded error - key needs rotation immediately
+		// Check if this is a budget_exceeded error
 		if resp.StatusCode == http.StatusBadRequest && strings.Contains(bodyStr, "budget_exceeded") {
 			// Parse spend from error message if possible: "Spend=10.02107649999999, Budget=10.0"
 			result.BudgetExceeded = true
@@ -357,23 +308,18 @@ func (sc *SpendChecker) checkKeySpend(key *OpenHandsKey, isActive bool) SpendChe
 					}
 				}
 			}
-			// If we couldn't parse spend, set it to threshold to trigger rotation
+			// If we couldn't parse spend, default to threshold as fallback signal
 			if result.Spend == 0 {
 				result.Spend = sc.threshold
 			}
-			log.Printf("🚨 [OpenHands/SpendChecker] Key %s BUDGET EXCEEDED: %s", key.ID, bodyStr)
+			log.Printf("🚨 [OpenHands/SpendChecker] Key %s BUDGET EXCEEDED (monitor-only): %s", key.ID, bodyStr)
 			return result
 		}
 
-		// Check if this is a 401 authentication error - mark key as need_refresh
+		// Check if this is a 401 authentication error
 		if resp.StatusCode == http.StatusUnauthorized {
 			log.Printf("🚨 [OpenHands/SpendChecker] Key %s AUTH ERROR (401): %s", key.ID, bodyStr)
 			result.Error = fmt.Errorf("auth error 401: %s", bodyStr)
-
-			// Use openhandspool to mark key and attempt rotation
-			pool := openhandspool.GetPool()
-			pool.CheckAndRotateOnError(key.ID, 401, bodyStr)
-
 			return result
 		}
 
