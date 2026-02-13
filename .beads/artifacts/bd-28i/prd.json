@@ -22,7 +22,7 @@
 			"title": "Ensure transformer-level masking parity (stream + non-stream)",
 			"description": "All relevant transformers emit requested model ID consistently in final responses and stream chunks, regardless of upstream returned model.",
 			"steps": ["go test ./...", "go test ./internal/openhands/... -v"],
-			"passes": false,
+			"passes": true,
 			"metadata": {
 				"depends_on": ["Lock response-model contract for OpenHands handlers"],
 				"parallel": false,

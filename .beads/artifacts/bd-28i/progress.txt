@@ -17,3 +17,9 @@ Started: 2026-02-13
 - Status: completed
 - Changes: added optional model-rewrite path to Anthropic passthrough handlers and wired OpenHands `/v1/messages` path to pass requested model ID.
 - Verification: `go build -o /dev/null ./...`, `go test ./...`
+
+## Task: Ensure transformer-level masking parity (stream + non-stream)
+
+- Status: completed
+- Changes: verified existing transformer-layer masking already rewrites outgoing `model` to requested model; no extra transformer code change required.
+- Verification: `go test ./...`, `go test ./internal/openhands/... -v`
