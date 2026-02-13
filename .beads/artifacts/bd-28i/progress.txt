@@ -28,4 +28,5 @@ Started: 2026-02-13
 
 - Status: completed
 - Changes: added Anthropic stream/non-stream masking tests and matrix coverage for all OpenHands configured model IDs and aliases.
+- Follow-up: extended matrix coverage to OpenAI stream/non-stream responses for the same OpenHands model/alias set.
 - Verification: `go test -run Mask ./...`, `go test ./...`, `go build -o /dev/null ./...`

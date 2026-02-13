@@ -225,3 +225,53 @@ func TestMask_AnthropicResponses_RewritesForAllConfiguredOpenHandsModels(t *test
 		})
 	}
 }
+
+func TestMask_OpenAIResponses_RewritesForAllConfiguredOpenHandsModels(t *testing.T) {
+	requestedModels := []string{
+		"claude-opus-4-6",
+		"claude-opus-4-5-20251101",
+		"claude-sonnet-4-5-20250929",
+		"claude-sonnet-4-5",
+		"claude-haiku-4-5-20251001",
+		"claude-haiku-4-5",
+	}
+
+	for _, requestedModel := range requestedModels {
+		t.Run(requestedModel, func(t *testing.T) {
+			nonStreamBody := `{"id":"chatcmpl-1","model":"claude-sonnet-4-5-20250929","choices":[],"usage":{"prompt_tokens":11,"completion_tokens":7}}`
+			nonStreamResp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(nonStreamBody))}
+			nonStreamWriter := httptest.NewRecorder()
+
+			HandleOpenAINonStreamResponse(nonStreamWriter, nonStreamResp, requestedModel, nil)
+
+			var parsed map[string]interface{}
+			if err := json.Unmarshal(nonStreamWriter.Body.Bytes(), &parsed); err != nil {
+				t.Fatalf("expected valid non-stream JSON, got error: %v", err)
+			}
+
+			if parsed["model"] != requestedModel {
+				t.Fatalf("expected non-stream model %q, got %v", requestedModel, parsed["model"])
+			}
+
+			streamBody := strings.Join([]string{
+				`data: {"id":"chatcmpl-1","model":"claude-sonnet-4-5-20250929","choices":[{"delta":{"content":"Hi"}}]}`,
+				`data: {"id":"chatcmpl-1","model":"claude-sonnet-4-5-20250929","usage":{"prompt_tokens":5,"completion_tokens":2},"choices":[{"delta":{"content":"!"}}]}`,
+				`data: [DONE]`,
+			}, "\n") + "\n"
+
+			streamResp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(streamBody))}
+			streamWriter := httptest.NewRecorder()
+
+			HandleOpenAIStreamResponse(streamWriter, streamResp, requestedModel, nil)
+
+			output := streamWriter.Body.String()
+			if !strings.Contains(output, `"model":"`+requestedModel+`"`) {
+				t.Fatalf("expected stream model %q in output, got: %s", requestedModel, output)
+			}
+
+			if requestedModel != "claude-sonnet-4-5-20250929" && strings.Contains(output, `"model":"claude-sonnet-4-5-20250929"`) {
+				t.Fatalf("expected upstream model hidden in stream output, got: %s", output)
+			}
+		})
+	}
+}
