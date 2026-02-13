@@ -4104,7 +4104,7 @@ func main() {
 				openhandsProvider.SetProxyPool(proxyPool)
 			}
 
-			// Start SpendChecker for proactive rotation (fixed 10s interval for all keys)
+			// Start SpendChecker for spend monitoring (fixed 10s interval for all keys)
 			// Can be disabled by setting SPEND_CHECKER_ENABLED=false
 			if getEnv("SPEND_CHECKER_ENABLED", "true") == "true" {
 				spendThreshold := openhands.DefaultSpendThreshold
@@ -4120,7 +4120,7 @@ func main() {
 				idleCheckInterval := openhands.DefaultIdleCheckInterval
 
 				openhands.StartSpendChecker(openhandsProvider, spendThreshold, activeCheckInterval, idleCheckInterval)
-				log.Printf("✅ SpendChecker ENABLED (10s interval, threshold: $%.2f)", spendThreshold)
+				log.Printf("✅ SpendChecker ENABLED (monitor-only, 10s interval, threshold: $%.2f)", spendThreshold)
 			} else {
 				log.Printf("⚠️ SpendChecker DISABLED (SPEND_CHECKER_ENABLED=false)")
 			}
