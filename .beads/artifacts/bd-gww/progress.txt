@@ -16,7 +16,7 @@ Started: 2026-02-13
 ## 2026-02-13 Task backend-1
 
 - Status: completed
-- Commit: pending
+- Commit: `475597d`
 - Changes:
   - Added `modelID string` parameter to `HandleOpenAIStreamResponse` and `HandleOpenAINonStreamResponse` in `goproxy/internal/maintarget/handler.go`.
   - Updated current call sites in `goproxy/main.go` to pass placeholder model value (`""`) for compilation before task 4 wiring.
@@ -27,7 +27,7 @@ Started: 2026-02-13
 ## 2026-02-13 Task backend-2
 
 - Status: completed
-- Commit: pending
+- Commit: `2c485d5`
 - Changes:
   - Added SSE chunk `model` field rewriting in `goproxy/internal/maintarget/handler.go` for `data:` lines with valid JSON payload.
   - Preserved graceful fallback behavior: if JSON parsing/marshalling fails, original stream line is forwarded unchanged.
@@ -38,7 +38,7 @@ Started: 2026-02-13
 ## 2026-02-13 Task backend-3
 
 - Status: completed
-- Commit: pending
+- Commit: `a9e9f2a`
 - Changes:
   - Added non-stream OpenAI response model rewriting in `goproxy/internal/maintarget/handler.go`.
   - Preserved graceful fallback: if response JSON cannot be parsed/marshalled, original body is returned unchanged.
@@ -49,7 +49,7 @@ Started: 2026-02-13
 ## 2026-02-13 Task backend-4
 
 - Status: completed
-- Commit: pending
+- Commit: `c469d85`
 - Changes:
   - Threaded user-facing `modelID` through OpenAI passthrough call sites in `goproxy/main.go`.
   - Updated OpenHands response helper signatures to accept `modelID` and pass it to maintarget handlers.
@@ -58,3 +58,17 @@ Started: 2026-02-13
   - `go build ./...` passed
   - `go vet ./...` passed
   - `go test ./...` passed
+
+## 2026-02-13 Task test-1
+
+- Status: completed
+- Commit: pending
+- Changes:
+  - Added regression tests in `goproxy/internal/maintarget/handler_test.go` for stream and non-stream model rewriting behavior.
+  - Covered graceful fallback behavior for invalid JSON in stream and non-stream paths.
+- Verification:
+  - `go test ./internal/maintarget/...` passed
+  - `go test ./...` passed
+  - `go build ./...` passed
+  - `go vet ./...` passed
+  - `golangci-lint run` not available in environment (`command not found`)

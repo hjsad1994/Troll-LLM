@@ -91,7 +91,7 @@
 				"Manual curl test with streaming shows correct model name in all chunks",
 				"Manual curl test without streaming shows correct model name in response"
 			],
-			"passes": false,
+			"passes": true,
 			"metadata": {
 				"depends_on": [
 					"Implement streaming SSE model name rewriting",
