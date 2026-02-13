@@ -46,7 +46,7 @@
 				"go test ./internal/maintarget/... passes",
 				"Manual test: non-streaming response shows user-facing model name"
 			],
-			"passes": false,
+			"passes": true,
 			"metadata": {
 				"depends_on": [
 					"Add modelID parameter to maintarget OpenAI response handlers"
