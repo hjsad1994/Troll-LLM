@@ -1065,9 +1065,9 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 	}
 
 	if isStreaming {
-		maintarget.HandleOpenAIStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAIStreamResponse(w, resp, modelID, onUsage)
 	} else {
-		maintarget.HandleOpenAINonStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAINonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1149,9 +1149,9 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 
 	// Handle response (passthrough OpenAI format)
 	if isStreaming {
-		maintarget.HandleOpenAIStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAIStreamResponse(w, resp, modelID, onUsage)
 	} else {
-		maintarget.HandleOpenAINonStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAINonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1910,9 +1910,9 @@ handleOpenAIResponse:
 
 	// Handle response (OpenHands /v1/chat/completions returns OpenAI-compatible format)
 	if isStreaming {
-		handleOpenHandsOpenAIStreamResponse(w, resp, onUsage, estimatedInput)
+		handleOpenHandsOpenAIStreamResponse(w, resp, modelID, onUsage, estimatedInput)
 	} else {
-		handleOpenHandsOpenAINonStreamResponse(w, resp, onUsage)
+		handleOpenHandsOpenAINonStreamResponse(w, resp, modelID, onUsage)
 	}
 }
 
@@ -1989,7 +1989,7 @@ func estimateAnthropicInputTokens(req *transformers.AnthropicRequest) int64 {
 }
 
 // handleOpenHandsOpenAIStreamResponse handles OpenHands streaming response with proper logging
-func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), estimatedInputTokens int64) {
+func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64), estimatedInputTokens int64) {
 	// Wrap onUsage to inject estimated input tokens if not provided by stream
 	wrappedOnUsage := func(input, output, cacheWrite, cacheHit int64) {
 		// If stream doesn't provide input tokens, use estimation
@@ -2003,11 +2003,11 @@ func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Respo
 		}
 	}
 
-	maintarget.HandleOpenAIStreamResponse(w, resp, wrappedOnUsage)
+	maintarget.HandleOpenAIStreamResponse(w, resp, modelID, wrappedOnUsage)
 }
 
 // handleOpenHandsOpenAINonStreamResponse handles OpenHands non-streaming response with proper logging
-func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64)) {
 	log.Printf("📋 [OpenHands-OpenAI] Handling non-streaming response")
 
 	// Wrap onUsage to add OpenHands-specific logging
@@ -2018,7 +2018,96 @@ func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Re
 		}
 	}
 
-	maintarget.HandleOpenAINonStreamResponse(w, resp, wrappedOnUsage)
+	maintarget.HandleOpenAINonStreamResponse(w, resp, modelID, wrappedOnUsage)
+}
+
+// handleModalOpenAIRequest handles /v1/chat/completions requests routed to Modal (GLM-5)
+// resolvedUpstreamModelID is the pre-resolved model from config.GetUpstreamModelID()
+func handleModalOpenAIRequest(w http.ResponseWriter, openaiReq *transformers.OpenAIRequest, bodyBytes []byte, modelID string, resolvedUpstreamModelID string, userApiKey string, username string) {
+	modalProvider := modal.GetModal()
+	if modalProvider == nil || !modalProvider.IsConfigured() {
+		http.Error(w, `{"error": {"message": "Modal provider not configured", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Map pre-resolved model ID to Modal's actual model ID
+	if resolvedUpstreamModelID == "glm-5" {
+		openaiReq.Model = modal.ModalModelID // "zai-org/GLM-5-FP8"
+	} else {
+		openaiReq.Model = resolvedUpstreamModelID
+	}
+
+	// Serialize request
+	requestBody, err := json.Marshal(openaiReq)
+	if err != nil {
+		log.Printf("❌ [Modal] Failed to serialize request: %v", err)
+		http.Error(w, `{"error": {"message": "Failed to serialize request", "type": "server_error"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	isStreaming := openaiReq.Stream
+	log.Printf("📤 [Modal] Forwarding /v1/chat/completions (model=%s, upstream=%s, stream=%v)", modelID, openaiReq.Model, isStreaming)
+
+	// Track request start time for latency measurement
+	requestStartTime := time.Now()
+
+	// Forward request using Modal provider
+	resp, err := modalProvider.ForwardRequest(requestBody, isStreaming)
+	if err != nil {
+		log.Printf("❌ [Modal] Request failed after %v: %v", time.Since(requestStartTime), err)
+		http.Error(w, `{"error": {"message": "Request to Modal upstream failed", "type": "upstream_error"}}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Usage callback for billing and logging
+	// Modal models bill to creditsNew (billing_upstream="openhands" in config)
+	onUsage := func(input, output, cacheWrite, cacheHit int64) {
+		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+
+		if userApiKey != "" {
+			usage.UpdateUsage(userApiKey, billingTokens)
+			billingUpstream := config.GetModelBillingUpstream(modelID)
+			if username != "" {
+				// Deduct from creditsNew (same as OpenHands billing)
+				if billingUpstream == "openhands" {
+					usage.DeductCreditsOpenHands(username, billingCost, billingTokens, input, output)
+				} else {
+					usage.DeductCreditsOhMyGPT(username, billingCost, billingTokens, input, output)
+				}
+				usage.UpdateFriendKeyUsageIfNeeded(userApiKey, modelID, billingCost)
+			}
+			// Log request to request_logs collection
+			latencyMs := time.Since(requestStartTime).Milliseconds()
+			usage.LogRequestDetailed(usage.RequestLogParams{
+				UserID:           username,
+				UserKeyID:        userApiKey,
+				FactoryKeyID:     "modal",
+				Model:            modelID,
+				InputTokens:      input,
+				OutputTokens:     output,
+				CacheWriteTokens: cacheWrite,
+				CacheHitTokens:   cacheHit,
+				CreditsCost:      billingCost,
+				CreditType:       billingUpstream,
+				TokensUsed:       billingTokens,
+				StatusCode:       resp.StatusCode,
+				LatencyMs:        latencyMs,
+			})
+			if creditsNew, err := userkey.GetUserCreditsNew(username); err == nil {
+				log.Printf("💰 [Modal] %s: cost=$%.6f tokens=%d remaining=$%.4f", username, billingCost, billingTokens, creditsNew)
+			}
+		}
+	}
+
+	// Handle response — reuse OpenHands response handlers (Modal returns OpenAI-compatible format)
+	if isStreaming {
+		estimatedInput := estimateInputTokens(openaiReq)
+		handleOpenHandsOpenAIStreamResponse(w, resp, modelID, onUsage, estimatedInput)
+	} else {
+		handleOpenHandsOpenAINonStreamResponse(w, resp, modelID, onUsage)
+	}
 }
 
 // handleModalOpenAIRequest handles /v1/chat/completions requests routed to Modal (GLM-5)

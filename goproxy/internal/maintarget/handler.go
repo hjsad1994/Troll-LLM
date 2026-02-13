@@ -46,13 +46,13 @@ func getClient() *http.Client {
 		transport := &http.Transport{
 			TLSClientConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
 			ForceAttemptHTTP2:     true,
-			MaxIdleConns:          200,              // Increased from 100
-			MaxIdleConnsPerHost:   50,               // Added - keep connections to main target
-			MaxConnsPerHost:       100,              // Added - limit concurrent connections
+			MaxIdleConns:          200,               // Increased from 100
+			MaxIdleConnsPerHost:   50,                // Added - keep connections to main target
+			MaxConnsPerHost:       100,               // Added - limit concurrent connections
 			IdleConnTimeout:       120 * time.Second, // Increased from 90s
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			DisableCompression:    false,            // Enable compression
+			DisableCompression:    false, // Enable compression
 		}
 		http2.ConfigureTransport(transport)
 		client = &http.Client{Transport: transport, Timeout: 0}
@@ -315,7 +315,7 @@ func HandleNonStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Respons
 }
 
 // HandleOpenAIStreamResponse handles OpenAI streaming response (passthrough)
-func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64)) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("❌ [MainTarget-OpenAI] Error %d", resp.StatusCode)
@@ -370,6 +370,15 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 							}
 						}
 					}
+
+					if modelID != "" {
+						if _, ok := event["model"]; ok {
+							event["model"] = modelID
+							if rewritten, err := json.Marshal(event); err == nil {
+								line = "data: " + string(rewritten)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -404,7 +413,7 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, onUs
 }
 
 // HandleOpenAINonStreamResponse handles OpenAI non-streaming response (passthrough)
-func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
+func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, modelID string, onUsage func(input, output, cacheWrite, cacheHit int64)) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"error":"failed to read response"}`, http.StatusInternalServerError)
@@ -433,6 +442,15 @@ func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, o
 			log.Printf("📊 [MainTarget-OpenAI] Usage: in=%d out=%d", input, output)
 			if onUsage != nil {
 				onUsage(input, output, 0, 0)
+			}
+		}
+
+		if modelID != "" {
+			if _, ok := response["model"]; ok {
+				response["model"] = modelID
+				if rewritten, marshalErr := json.Marshal(response); marshalErr == nil {
+					body = rewritten
+				}
 			}
 		}
 	}
