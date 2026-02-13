@@ -1,0 +1,25 @@
+# Progress Log
+
+Bead: bd-gww
+Started: 2026-02-13
+
+## Codebase Patterns
+
+- OpenAI passthrough responses for Modal/OpenHands/OhMyGPT are handled in goproxy/internal/maintarget/handler.go.
+- Troll OpenAI stream path already rewrites chunk model via eventData["model"] = modelID.
+- Anthropic and Troll transformer response paths already set model from transformer input.
+
+---
+
+<!-- Task logs below - APPEND ONLY -->
+
+## 2026-02-13 Task backend-1
+
+- Status: completed
+- Commit: pending
+- Changes:
+  - Added `modelID string` parameter to `HandleOpenAIStreamResponse` and `HandleOpenAINonStreamResponse` in `goproxy/internal/maintarget/handler.go`.
+  - Updated current call sites in `goproxy/main.go` to pass placeholder model value (`""`) for compilation before task 4 wiring.
+- Verification:
+  - `go build ./...` passed
+  - `go vet ./...` passed

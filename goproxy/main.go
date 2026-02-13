@@ -1065,9 +1065,9 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 	}
 
 	if isStreaming {
-		maintarget.HandleOpenAIStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAIStreamResponse(w, resp, "", onUsage)
 	} else {
-		maintarget.HandleOpenAINonStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAINonStreamResponse(w, resp, "", onUsage)
 	}
 }
 
@@ -1149,9 +1149,9 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 
 	// Handle response (passthrough OpenAI format)
 	if isStreaming {
-		maintarget.HandleOpenAIStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAIStreamResponse(w, resp, "", onUsage)
 	} else {
-		maintarget.HandleOpenAINonStreamResponse(w, resp, onUsage)
+		maintarget.HandleOpenAINonStreamResponse(w, resp, "", onUsage)
 	}
 }
 
@@ -1265,6 +1265,11 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 
 	// Get upstream model ID (may be different from client-requested model ID)
 	upstreamModelID := config.GetUpstreamModelID(modelID)
+	if upstreamModelID == "glm-5" {
+		// /v1/messages uses Anthropic format; GLM-5 is only supported on /v1/chat/completions via Modal.
+		log.Printf("🔁 [OpenHands-Anthropic] Fallback upstream model for /v1/messages: glm-5 -> glm-4.6")
+		upstreamModelID = "glm-4.6"
+	}
 	anthropicReq.Model = upstreamModelID
 
 	// Claude/Anthropic doesn't allow both temperature and top_p
@@ -1991,7 +1996,7 @@ func handleOpenHandsOpenAIStreamResponse(w http.ResponseWriter, resp *http.Respo
 		}
 	}
 
-	maintarget.HandleOpenAIStreamResponse(w, resp, wrappedOnUsage)
+	maintarget.HandleOpenAIStreamResponse(w, resp, "", wrappedOnUsage)
 }
 
 // handleOpenHandsOpenAINonStreamResponse handles OpenHands non-streaming response with proper logging
@@ -2006,7 +2011,7 @@ func handleOpenHandsOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Re
 		}
 	}
 
-	maintarget.HandleOpenAINonStreamResponse(w, resp, wrappedOnUsage)
+	maintarget.HandleOpenAINonStreamResponse(w, resp, "", wrappedOnUsage)
 }
 
 // handleModalOpenAIRequest handles /v1/chat/completions requests routed to Modal (GLM-5)
