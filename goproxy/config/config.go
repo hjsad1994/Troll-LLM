@@ -6,8 +6,6 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 )
@@ -53,19 +51,10 @@ type Config struct {
 }
 
 var (
-	globalConfig     *Config
-	loadedConfigPath string
-	configMutex      sync.RWMutex
-	rng              = rand.New(rand.NewSource(time.Now().UnixNano()))
-	rngMutex         sync.Mutex
-)
-
-const (
-	priorityDiscountConfigFile = "config-openhands-prod-uutien.json"
-	openHandsProdConfigFile    = "config-openhands-prod.json"
-	priorityGLM46ModelID       = "glm-4.6"
-	priorityGLM46CostFactor    = 0.6 // 40% discount (priority line)
-	openHandsGLM46CostFactor   = 0.4 // 60% discount (normal OpenHands line)
+	globalConfig *Config
+	configMutex  sync.RWMutex
+	rng          = rand.New(rand.NewSource(time.Now().UnixNano()))
+	rngMutex     sync.Mutex
 )
 
 // LoadConfig loads configuration file
@@ -90,85 +79,18 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	configMutex.Lock()
 	globalConfig = &cfg
-	loadedConfigPath = configPath
 	configMutex.Unlock()
 
 	return &cfg, nil
 }
 
-// ApplyPriorityGLMDiscount applies GLM-4.6 pricing discounts for OpenHands billing.
-// Rules:
-// - config-openhands-prod-uutien.json: 40% discount, Opus-only.
-// - config-openhands-prod.json: 60% discount for any model.
-// Common conditions:
-// - billing_upstream must be "openhands" (creditsNew billing)
-// - selected upstream model must be GLM-4.6
+// ApplyPriorityGLMDiscount keeps backwards compatibility with existing billing callsites.
+// Discount logic is currently disabled and this function returns the original cost.
 func ApplyPriorityGLMDiscount(modelID string, upstreamModelID string, cost float64) float64 {
-	if cost <= 0 {
-		return cost
-	}
-
-	if GetModelBillingUpstream(modelID) != "openhands" {
-		return cost
-	}
-
-	if !isGLM46Model(upstreamModelID) {
-		return cost
-	}
-
-	if isPriorityDiscountConfigActive() {
-		if !isOpusModel(modelID) {
-			return cost
-		}
-		return cost * priorityGLM46CostFactor
-	}
-
-	if isOpenHandsProdConfigActive() {
-		return cost * openHandsGLM46CostFactor
-	}
-
+	// Discount feature is temporarily disabled.
+	_ = modelID
+	_ = upstreamModelID
 	return cost
-}
-
-func isOpusModel(modelID string) bool {
-	model := GetModelByID(modelID)
-	if model != nil {
-		if strings.Contains(strings.ToLower(model.ID), "opus") {
-			return true
-		}
-		if strings.Contains(strings.ToLower(model.Name), "opus") {
-			return true
-		}
-	}
-
-	return strings.Contains(strings.ToLower(strings.TrimSpace(modelID)), "opus")
-}
-
-func isPriorityDiscountConfigActive() bool {
-	configMutex.RLock()
-	configPath := loadedConfigPath
-	configMutex.RUnlock()
-
-	return strings.EqualFold(filepath.Base(configPath), priorityDiscountConfigFile)
-}
-
-func isOpenHandsProdConfigActive() bool {
-	configMutex.RLock()
-	configPath := loadedConfigPath
-	configMutex.RUnlock()
-
-	return strings.EqualFold(filepath.Base(configPath), openHandsProdConfigFile)
-}
-
-func isGLM46Model(modelID string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(modelID))
-	if normalized == priorityGLM46ModelID || normalized == "glm4-6" {
-		return true
-	}
-
-	// Also allow punctuation variants like glm_4_6 / glm46
-	replacer := strings.NewReplacer("-", "", ".", "", "_", "")
-	return replacer.Replace(normalized) == "glm46"
 }
 
 // GetConfig gets global configuration
