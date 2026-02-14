@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,203 @@ var (
 	serverURL string
 	apiKey    string
 )
+
+func rewriteOpenAIModelField(rawJSON string, modelID string) (string, bool) {
+	if modelID == "" {
+		return rawJSON, false
+	}
+
+	valueRanges, ok := findTopLevelJSONStringFieldValueRanges(rawJSON, "model")
+	if !ok || len(valueRanges) == 0 {
+		return rawJSON, false
+	}
+
+	encodedModel, err := json.Marshal(modelID)
+	if err != nil {
+		return rawJSON, false
+	}
+
+	rewritten := rawJSON
+	for i := len(valueRanges) - 1; i >= 0; i-- {
+		r := valueRanges[i]
+		rewritten = rewritten[:r[0]] + string(encodedModel) + rewritten[r[1]:]
+	}
+
+	return rewritten, true
+}
+
+func findTopLevelJSONStringFieldValueRanges(rawJSON string, fieldName string) ([][2]int, bool) {
+	b := []byte(rawJSON)
+	i := skipJSONWhitespace(b, 0)
+	if i >= len(b) || b[i] != '{' {
+		return nil, false
+	}
+	i++
+	valueRanges := make([][2]int, 0, 1)
+
+	for i < len(b) {
+		i = skipJSONWhitespace(b, i)
+		if i >= len(b) || b[i] == '}' {
+			return valueRanges, true
+		}
+
+		if b[i] != '"' {
+			return nil, false
+		}
+
+		keyStart := i
+		keyEnd, ok := scanJSONStringEnd(b, i)
+		if !ok {
+			return nil, false
+		}
+
+		key, err := strconv.Unquote(string(b[keyStart:keyEnd]))
+		if err != nil {
+			return nil, false
+		}
+
+		i = skipJSONWhitespace(b, keyEnd)
+		if i >= len(b) || b[i] != ':' {
+			return nil, false
+		}
+
+		i = skipJSONWhitespace(b, i+1)
+		if i >= len(b) {
+			return nil, false
+		}
+
+		if key == fieldName && b[i] == '"' {
+			valueEnd, ok := scanJSONStringEnd(b, i)
+			if !ok {
+				return nil, false
+			}
+			valueRanges = append(valueRanges, [2]int{i, valueEnd})
+		}
+
+		next, ok := skipJSONValue(b, i)
+		if !ok {
+			return nil, false
+		}
+		i = skipJSONWhitespace(b, next)
+
+		if i >= len(b) {
+			return nil, false
+		}
+
+		if b[i] == ',' {
+			i++
+			continue
+		}
+
+		if b[i] == '}' {
+			return valueRanges, true
+		}
+
+		return nil, false
+	}
+
+	return nil, false
+}
+
+func skipJSONValue(b []byte, i int) (int, bool) {
+	if i >= len(b) {
+		return 0, false
+	}
+
+	switch b[i] {
+	case '"':
+		return scanJSONStringEnd(b, i)
+	case '{':
+		return skipJSONContainer(b, i, '{', '}')
+	case '[':
+		return skipJSONContainer(b, i, '[', ']')
+	default:
+		j := i
+		for j < len(b) {
+			if isJSONWhitespace(b[j]) || b[j] == ',' || b[j] == ']' || b[j] == '}' {
+				break
+			}
+			j++
+		}
+		if j == i {
+			return 0, false
+		}
+		return j, true
+	}
+}
+
+func skipJSONContainer(b []byte, i int, open byte, close byte) (int, bool) {
+	depth := 0
+	inString := false
+	escaped := false
+
+	for j := i; j < len(b); j++ {
+		c := b[j]
+
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		if c == '"' {
+			inString = true
+			continue
+		}
+
+		if c == open {
+			depth++
+			continue
+		}
+
+		if c == close {
+			depth--
+			if depth == 0 {
+				return j + 1, true
+			}
+		}
+	}
+
+	return 0, false
+}
+
+func scanJSONStringEnd(b []byte, i int) (int, bool) {
+	if i >= len(b) || b[i] != '"' {
+		return 0, false
+	}
+
+	for j := i + 1; j < len(b); j++ {
+		if b[j] == '\\' {
+			j++
+			continue
+		}
+		if b[j] == '"' {
+			return j + 1, true
+		}
+	}
+
+	return 0, false
+}
+
+func skipJSONWhitespace(b []byte, i int) int {
+	for i < len(b) && isJSONWhitespace(b[i]) {
+		i++
+	}
+	return i
+}
+
+func isJSONWhitespace(c byte) bool {
+	return c == ' ' || c == '\n' || c == '\r' || c == '\t'
+}
 
 // Configure sets the main target server URL and API key
 func Configure(url, key string) {
@@ -372,11 +570,8 @@ func HandleOpenAIStreamResponse(w http.ResponseWriter, resp *http.Response, mode
 					}
 
 					if modelID != "" {
-						if _, ok := event["model"]; ok {
-							event["model"] = modelID
-							if rewritten, err := json.Marshal(event); err == nil {
-								line = "data: " + string(rewritten)
-							}
+						if rewritten, ok := rewriteOpenAIModelField(dataStr, modelID); ok {
+							line = "data: " + rewritten
 						}
 					}
 				}
@@ -446,11 +641,8 @@ func HandleOpenAINonStreamResponse(w http.ResponseWriter, resp *http.Response, m
 		}
 
 		if modelID != "" {
-			if _, ok := response["model"]; ok {
-				response["model"] = modelID
-				if rewritten, marshalErr := json.Marshal(response); marshalErr == nil {
-					body = rewritten
-				}
+			if rewritten, ok := rewriteOpenAIModelField(string(body), modelID); ok {
+				body = []byte(rewritten)
 			}
 		}
 	}
