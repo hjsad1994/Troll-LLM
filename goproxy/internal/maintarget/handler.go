@@ -163,11 +163,6 @@ func HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage fu
 
 // HandleStreamResponseWithPrefix handles Anthropic streaming response with custom log prefix
 func HandleStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string) {
-	HandleStreamResponseWithPrefixAndModel(w, resp, onUsage, logPrefix, "")
-}
-
-// HandleStreamResponseWithPrefixAndModel handles Anthropic streaming response with custom log prefix and optional model rewrite
-func HandleStreamResponseWithPrefixAndModel(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string, modelID string) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("❌ [%s] Error %d", logPrefix, resp.StatusCode)
@@ -203,20 +198,6 @@ func HandleStreamResponseWithPrefixAndModel(w http.ResponseWriter, resp *http.Re
 			dataStr := strings.TrimPrefix(line, "data: ")
 			var event map[string]interface{}
 			if json.Unmarshal([]byte(dataStr), &event) == nil {
-				if modelID != "" {
-					if eventType, ok := event["type"].(string); ok && eventType == "message_start" {
-						if message, ok := event["message"].(map[string]interface{}); ok {
-							message["model"] = modelID
-						}
-					}
-					if _, ok := event["model"]; ok {
-						event["model"] = modelID
-					}
-					if rewritten, err := json.Marshal(event); err == nil {
-						line = "data: " + string(rewritten)
-					}
-				}
-
 				eventType, _ := event["type"].(string)
 				if eventType != "" {
 					lastEventType = eventType
@@ -290,11 +271,6 @@ func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage
 
 // HandleNonStreamResponseWithPrefix handles Anthropic non-streaming response with custom log prefix
 func HandleNonStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string) {
-	HandleNonStreamResponseWithPrefixAndModel(w, resp, onUsage, logPrefix, "")
-}
-
-// HandleNonStreamResponseWithPrefixAndModel handles Anthropic non-streaming response with custom log prefix and optional model rewrite
-func HandleNonStreamResponseWithPrefixAndModel(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string, modelID string) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"failed to read response"}}`, http.StatusInternalServerError)
@@ -329,13 +305,6 @@ func HandleNonStreamResponseWithPrefixAndModel(w http.ResponseWriter, resp *http
 			log.Printf("📊 [%s] Usage: in=%d out=%d cacheW=%d cacheH=%d", logPrefix, input, output, cacheWrite, cacheHit)
 			if onUsage != nil {
 				onUsage(input, output, cacheWrite, cacheHit)
-			}
-		}
-
-		if modelID != "" {
-			response["model"] = modelID
-			if rewritten, marshalErr := json.Marshal(response); marshalErr == nil {
-				body = rewritten
 			}
 		}
 	}

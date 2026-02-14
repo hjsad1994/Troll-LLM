@@ -1,0 +1,30 @@
+# Progress Log
+
+Bead: bd-354
+Started: 2026-02-14
+
+## Codebase Patterns
+
+- OpenHands response routing in `goproxy/main.go` delegates stream/non-stream behavior to maintarget handlers.
+- Anthropic response transformations are implemented in `goproxy/internal/maintarget/handler.go` and validated in `goproxy/internal/maintarget/handler_test.go`.
+
+---
+
+<!-- Task logs below - APPEND ONLY -->
+
+## 2026-02-14 Task Progress
+
+- [backend-1] Revert OpenHands response handler wiring
+  - Files: `goproxy/main.go`
+  - Verification: `go test ./...` (pass)
+  - Commit: `58c170f`
+
+- [backend-2] Roll back optional Anthropic rewrite helpers
+  - Files: `goproxy/internal/maintarget/handler.go`
+  - Verification: `go test ./internal/maintarget/...` (pass), `go build -o /dev/null ./...` (pass)
+  - Commit: `297653a`
+
+- [test-1] Re-baseline maintarget tests to stable behavior
+  - Files: `goproxy/internal/maintarget/handler_test.go`
+  - Verification: `go test ./internal/maintarget/...` (pass), `go test ./...` (pass)
+  - Commit: `bb88a9f`
