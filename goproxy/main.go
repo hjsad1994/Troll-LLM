@@ -1400,6 +1400,9 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 		return
 	}
 
+	// Sanitize Anthropic messages to avoid upstream validation errors
+	anthropicReq.Messages = sanitizeAnthropicMessages(anthropicReq.Messages)
+
 	// Get upstream model ID (may be different from client-requested model ID)
 	upstreamModelID := config.GetUpstreamModelID(modelID)
 	anthropicReq.Model = upstreamModelID
@@ -3178,7 +3181,7 @@ func filterSystemEntries(systemEntries []map[string]interface{}) []map[string]in
 	var filtered []map[string]interface{}
 	for _, entry := range systemEntries {
 		text, _ := entry["text"].(string)
-		if text == "" {
+		if strings.TrimSpace(text) == "" {
 			continue
 		}
 		// Skip entries containing reserved Anthropic headers
@@ -3191,13 +3194,97 @@ func filterSystemEntries(systemEntries []map[string]interface{}) []map[string]in
 	return filtered
 }
 
+// sanitizeAnthropicMessages removes empty text blocks to prevent upstream 400 errors:
+// "messages: text content blocks must be non-empty"
+func sanitizeAnthropicMessages(messages []transformers.AnthropicMessage) []transformers.AnthropicMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+
+	sanitized := make([]transformers.AnthropicMessage, 0, len(messages))
+	removedTextBlocks := 0
+	removedMessages := 0
+
+	for _, msg := range messages {
+		switch content := msg.Content.(type) {
+		case string:
+			if strings.TrimSpace(content) == "" {
+				removedMessages++
+				continue
+			}
+			sanitized = append(sanitized, msg)
+
+		case []interface{}:
+			filteredBlocks := make([]interface{}, 0, len(content))
+			for _, block := range content {
+				blockMap, ok := block.(map[string]interface{})
+				if !ok {
+					filteredBlocks = append(filteredBlocks, block)
+					continue
+				}
+
+				blockType, _ := blockMap["type"].(string)
+				if blockType == "text" {
+					text, _ := blockMap["text"].(string)
+					if strings.TrimSpace(text) == "" {
+						removedTextBlocks++
+						continue
+					}
+				}
+
+				filteredBlocks = append(filteredBlocks, block)
+			}
+
+			if len(filteredBlocks) == 0 {
+				removedMessages++
+				continue
+			}
+
+			msg.Content = filteredBlocks
+			sanitized = append(sanitized, msg)
+
+		case []map[string]interface{}:
+			filteredBlocks := make([]map[string]interface{}, 0, len(content))
+			for _, blockMap := range content {
+				blockType, _ := blockMap["type"].(string)
+				if blockType == "text" {
+					text, _ := blockMap["text"].(string)
+					if strings.TrimSpace(text) == "" {
+						removedTextBlocks++
+						continue
+					}
+				}
+
+				filteredBlocks = append(filteredBlocks, blockMap)
+			}
+
+			if len(filteredBlocks) == 0 {
+				removedMessages++
+				continue
+			}
+
+			msg.Content = filteredBlocks
+			sanitized = append(sanitized, msg)
+
+		default:
+			sanitized = append(sanitized, msg)
+		}
+	}
+
+	if removedTextBlocks > 0 || removedMessages > 0 {
+		log.Printf("🧹 [Sanitize] Removed %d empty text blocks and %d empty messages", removedTextBlocks, removedMessages)
+	}
+
+	return sanitized
+}
+
 // combineSystemText flattens Anthropic system prompt entries into a single string
 // Skips entries containing reserved Anthropic headers that cause 400 errors
 func combineSystemText(systemEntries []map[string]interface{}) string {
 	var builder strings.Builder
 	for _, entry := range systemEntries {
 		text, _ := entry["text"].(string)
-		if text == "" {
+		if strings.TrimSpace(text) == "" {
 			continue
 		}
 		// Skip entries containing reserved Anthropic headers
