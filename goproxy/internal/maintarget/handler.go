@@ -237,6 +237,25 @@ func HandleStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, 
 						}
 					}
 				}
+
+				if modelID != "" {
+					modified := false
+					if message, ok := event["message"].(map[string]interface{}); ok {
+						if _, ok := message["model"]; ok {
+							message["model"] = modelID
+							modified = true
+						}
+					}
+					if _, ok := event["model"]; ok {
+						event["model"] = modelID
+						modified = true
+					}
+					if modified {
+						if rewritten, err := json.Marshal(event); err == nil {
+							line = "data: " + string(rewritten)
+						}
+					}
+				}
 			}
 		}
 
@@ -305,6 +324,15 @@ func HandleNonStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Respons
 			log.Printf("📊 [%s] Usage: in=%d out=%d cacheW=%d cacheH=%d", logPrefix, input, output, cacheWrite, cacheHit)
 			if onUsage != nil {
 				onUsage(input, output, cacheWrite, cacheHit)
+			}
+		}
+
+		if modelID != "" {
+			if _, ok := response["model"]; ok {
+				response["model"] = modelID
+				if rewritten, err := json.Marshal(response); err == nil {
+					body = rewritten
+				}
 			}
 		}
 	}
