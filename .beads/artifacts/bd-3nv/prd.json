@@ -1,0 +1,101 @@
+{
+	"beadId": "bd-3nv",
+	"prdName": "openhands-response-escaping-fix",
+	"tasks": [
+		{
+			"id": "test-1",
+			"category": "test",
+			"title": "Add stream regression coverage for escaped formatting",
+			"description": "goproxy/internal/maintarget/handler_test.go contains deterministic stream tests that assert no extra escaping is introduced for newline/unicode/formatting-sensitive content.",
+			"steps": [
+				"go test -run 'TestHandleOpenAIStreamResponse' ./internal/maintarget/..."
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [],
+				"parallel": true,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/maintarget/handler_test.go"]
+			}
+		},
+		{
+			"id": "test-2",
+			"category": "test",
+			"title": "Add non-stream regression coverage for escaped formatting",
+			"description": "goproxy/internal/maintarget/handler_test.go contains deterministic non-stream tests that assert response content is not double-escaped after handler processing.",
+			"steps": [
+				"go test -run 'TestHandleOpenAINonStreamResponse' ./internal/maintarget/..."
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [],
+				"parallel": true,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/maintarget/handler_test.go"]
+			}
+		},
+		{
+			"id": "bugfix-1",
+			"category": "bugfix",
+			"title": "Fix OpenHands OpenAI serialization path to prevent double-escaping",
+			"description": "goproxy/internal/maintarget/handler.go preserves content formatting semantics while retaining required model masking/usage behavior.",
+			"steps": ["go test ./internal/maintarget/..."],
+			"passes": true,
+			"metadata": {
+				"depends_on": [
+					"Add stream regression coverage for escaped formatting",
+					"Add non-stream regression coverage for escaped formatting"
+				],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/maintarget/handler.go"]
+			}
+		},
+		{
+			"id": "verification-1",
+			"category": "verification",
+			"title": "Run focused regression sweep across neighboring handlers",
+			"description": "Response handler packages that share stream/non-stream patterns pass without regressions after the fix.",
+			"steps": [
+				"go test ./internal/maintarget/... ./internal/openhands/... ./internal/ohmygpt/..."
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [
+					"Fix OpenHands OpenAI serialization path to prevent double-escaping"
+				],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": [
+					"goproxy/internal/maintarget/handler.go",
+					"goproxy/internal/maintarget/handler_test.go"
+				]
+			}
+		}
+	],
+	"context": {
+		"patterns": [
+			"OpenHands OpenAI routing delegates to maintarget OpenAI handlers in goproxy/main.go",
+			"OpenAI stream handling parses SSE JSON and may rewrite model in goproxy/internal/maintarget/handler.go",
+			"OpenAI non-stream handling unmarshals and re-marshals payload in goproxy/internal/maintarget/handler.go"
+		],
+		"keyFiles": [
+			"goproxy/main.go",
+			"goproxy/internal/maintarget/handler.go",
+			"goproxy/internal/maintarget/handler_test.go",
+			"goproxy/internal/openhands/types_test.go"
+		],
+		"nonGoals": [
+			"Frontend rendering changes",
+			"Changing OpenHands upstream payload format",
+			"Broader provider rewrites outside this bug scope"
+		]
+	},
+	"beadMetadata": {
+		"depends_on": [],
+		"parallel": true,
+		"conflicts_with": [],
+		"blocks": [],
+		"estimated_hours": 3
+	}
+}

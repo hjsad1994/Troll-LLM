@@ -1,0 +1,50 @@
+# Progress Log
+
+Bead: bd-3nv
+Started: 2026-02-14
+
+## Codebase Patterns
+
+- OpenHands OpenAI routing delegates to maintarget handlers in goproxy.
+- Stream path parses SSE and may rewrite `model`.
+- Non-stream path unmarshals and re-marshals response payload.
+
+---
+
+<!-- Task logs below - APPEND ONLY -->
+
+## 2026-02-14 Execution Log
+
+- Task: Add stream regression coverage for escaped formatting
+  - Status: PASS
+  - Commit: d489502
+  - Files: goproxy/internal/maintarget/handler_test.go
+  - Verify: `go test -run 'TestHandleOpenAIStreamResponse' ./internal/maintarget/...`
+
+- Task: Add non-stream regression coverage for escaped formatting
+  - Status: PASS
+  - Commit: d489502
+  - Files: goproxy/internal/maintarget/handler_test.go
+  - Verify: `go test -run 'TestHandleOpenAINonStreamResponse' ./internal/maintarget/...`
+
+- Task: Fix OpenHands OpenAI serialization path to prevent double-escaping
+  - Status: PASS
+  - Commit: d3376c4
+  - Files: goproxy/internal/maintarget/handler.go
+  - Verify: `go test ./internal/maintarget/...`
+
+- Task: Run focused regression sweep across neighboring handlers
+  - Status: PASS
+  - Commit: pending (verification/progress sync)
+  - Files: goproxy/internal/maintarget/handler.go, goproxy/internal/maintarget/handler_test.go
+  - Verify: `go test ./internal/maintarget/... ./internal/openhands/... ./internal/ohmygpt/...`
+
+## Gate Results
+
+- Essential gates selected by user: build + test
+- Build: `go build ./...` PASS
+- Test: `go test ./...` PASS
+
+## Review
+
+- Review verdict: PASS (no actionable findings)
