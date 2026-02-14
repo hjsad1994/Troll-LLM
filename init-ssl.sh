@@ -18,7 +18,7 @@ events {
 http {
     server {
         listen 80;
-        server_name trollllm.xyz www.trollllm.xyz api.trollllm.xyz chat.trollllm.xyz;
+        server_name trollllm.xyz www.trollllm.xyz api.trollllm.xyz chat.trollllm.xyz chat2.trollllm.xyz chat-priority.trolllm.xyz chat-priority.trollllm.xyz;
 
         location /.well-known/acme-challenge/ {
             root /var/www/certbot;
@@ -53,7 +53,10 @@ docker run --rm \
     -d $DOMAIN \
     -d www.$DOMAIN \
     -d api.$DOMAIN \
-    -d chat.$DOMAIN
+    -d chat.$DOMAIN \
+    -d chat2.$DOMAIN \
+    -d chat-priority.trolllm.xyz \
+    -d chat-priority.$DOMAIN
 
 echo "=== Step 3: Stopping temporary nginx ==="
 docker stop nginx-init
