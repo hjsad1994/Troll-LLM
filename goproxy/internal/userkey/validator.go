@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -160,6 +161,83 @@ func GetKeyByID(apiKey string) (*UserKey, error) {
 	}
 
 	return &userKey, nil
+}
+
+// GetUsernameByAPIKey resolves username from API key without credit checks.
+// Used by endpoints that need identity/role validation only.
+func GetUsernameByAPIKey(apiKey string) (string, error) {
+	if apiKey == "" {
+		return "", ErrKeyNotFound
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var userKey UserKey
+	err := db.UserKeysCollection().FindOne(ctx, bson.M{"_id": apiKey}).Decode(&userKey)
+	if err == nil {
+		if !userKey.IsActive {
+			return "", ErrKeyRevoked
+		}
+		if userKey.IsExpired() {
+			return "", ErrCreditsExpired
+		}
+		return userKey.Name, nil
+	}
+
+	if err != mongo.ErrNoDocuments {
+		return "", err
+	}
+
+	var user LegacyUser
+	err = db.UsersNewCollection().FindOne(ctx, bson.M{"apiKey": apiKey}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", ErrKeyNotFound
+		}
+		return "", err
+	}
+
+	if !user.IsActive {
+		return "", ErrKeyRevoked
+	}
+
+	if user.ExpiresAt != nil && time.Now().After(*user.ExpiresAt) {
+		return "", ErrCreditsExpired
+	}
+
+	return user.ID, nil
+}
+
+// GetUserRole returns normalized role from usersNew collection.
+// Empty username returns ErrKeyNotFound to enforce explicit caller handling.
+func GetUserRole(username string) (string, error) {
+	if username == "" {
+		return "", ErrKeyNotFound
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user struct {
+		Role string `bson:"role"`
+	}
+
+	err := db.UsersNewCollection().FindOne(ctx, bson.M{"_id": username}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", ErrKeyNotFound
+		}
+		return "", err
+	}
+
+	return strings.ToLower(strings.TrimSpace(user.Role)), nil
+}
+
+// IsPriorityRole returns true when role can access priority line.
+func IsPriorityRole(role string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(role))
+	return normalized == "admin" || normalized == "priority"
 }
 
 // UserCredits represents the credits balance info from usersNew collection

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -56,9 +57,135 @@ var (
 
 // Retry configuration
 const (
-	maxRetries     = 2
-	retryBaseDelay = 1 * time.Second
+	maxRetries                = 2
+	retryBaseDelay            = 1 * time.Second
+	priorityLineDeniedMessage = "vui long lien he qua discord de duoc tham gia line uu tien"
 )
+
+var priorityLineHosts = map[string]struct{}{
+	"chat-priority.trolllm.xyz":  {},
+	"chat-priority.trollllm.xyz": {},
+}
+
+var getUserRoleForPriority = userkey.GetUserRole
+
+var resolveUsernameForModelsForPriority = resolveUsernameForModels
+
+func normalizeRequestHost(host string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return ""
+	}
+
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		return parsedHost
+	}
+
+	if strings.Contains(host, ":") {
+		parts := strings.SplitN(host, ":", 2)
+		return parts[0]
+	}
+
+	return host
+}
+
+func isPriorityLineRequest(r *http.Request) bool {
+	host := normalizeRequestHost(r.Host)
+	if host == "" {
+		host = normalizeRequestHost(r.Header.Get("X-Forwarded-Host"))
+	}
+
+	configuredPort := 0
+	if cfg := config.GetConfig(); cfg != nil {
+		configuredPort = cfg.Port
+	}
+
+	return shouldEnforcePriorityAccess(host, configuredPort)
+}
+
+func shouldEnforcePriorityAccess(host string, configuredPort int) bool {
+	if configuredPort == 8006 {
+		return true
+	}
+
+	normalizedHost := normalizeRequestHost(host)
+	_, ok := priorityLineHosts[normalizedHost]
+	return ok
+}
+
+func writePriorityLineAccessDenied(w http.ResponseWriter, r *http.Request, isAnthropic bool, username string, clientAPIKey string) {
+	if isAnthropic {
+		errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"type":"error","error":{"type":"forbidden","message":"%s"}}`, priorityLineDeniedMessage), http.StatusForbidden, username, clientAPIKey)
+		return
+	}
+
+	errorlog.JSONErrorWithUser(w, r, fmt.Sprintf(`{"error":{"message":"%s","type":"insufficient_permissions","code":"priority_line_access_denied"}}`, priorityLineDeniedMessage), http.StatusForbidden, username, clientAPIKey)
+}
+
+func enforcePriorityLineAccess(w http.ResponseWriter, r *http.Request, username string, clientAPIKey string, isAnthropic bool) bool {
+	if !isPriorityLineRequest(r) {
+		return true
+	}
+
+	if username == "" {
+		log.Printf("🚫 Priority line denied: missing username (host=%s)", normalizeRequestHost(r.Host))
+		writePriorityLineAccessDenied(w, r, isAnthropic, username, clientAPIKey)
+		return false
+	}
+
+	role, err := getUserRoleForPriority(username)
+	if err != nil {
+		log.Printf("🚫 Priority line denied: cannot load role for user=%s: %v", username, err)
+		writePriorityLineAccessDenied(w, r, isAnthropic, username, clientAPIKey)
+		return false
+	}
+
+	if !userkey.IsPriorityRole(role) {
+		log.Printf("🚫 Priority line denied: user=%s role=%s", username, role)
+		writePriorityLineAccessDenied(w, r, isAnthropic, username, clientAPIKey)
+		return false
+	}
+
+	log.Printf("✅ Priority line allowed: user=%s role=%s host=%s", username, role, normalizeRequestHost(r.Host))
+	return true
+}
+
+func extractClientAPIKey(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
+			return "", fmt.Errorf("invalid authorization header format")
+		}
+		return parts[1], nil
+	}
+
+	if xAPIKey := r.Header.Get("x-api-key"); xAPIKey != "" {
+		return xAPIKey, nil
+	}
+
+	return "", fmt.Errorf("authorization header is required")
+}
+
+func resolveUsernameForModels(clientAPIKey string) (string, error) {
+	proxyAPIKey := getEnv("PROXY_API_KEY", "")
+	if proxyAPIKey != "" {
+		if clientAPIKey != proxyAPIKey {
+			return "", userkey.ErrKeyNotFound
+		}
+		return "", nil
+	}
+
+	if userkey.IsFriendKey(clientAPIKey) {
+		friendKeyResult, err := userkey.ValidateFriendKeyBasic(clientAPIKey)
+		if err != nil {
+			return "", err
+		}
+		return friendKeyResult.Owner.Username, nil
+	}
+
+	return userkey.GetUsernameByAPIKey(clientAPIKey)
+}
 
 // isRetryableError checks if an error should trigger a retry
 // Note: EOF is NOT retryable because it's caused by proxy timeout (15s) - retrying won't help
@@ -508,6 +635,32 @@ func openhandsBackupKeysHandler(w http.ResponseWriter, r *http.Request) {
 // Model list endpoint
 func modelsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	if isPriorityLineRequest(r) {
+		clientAPIKey, err := extractClientAPIKey(r)
+		if err != nil {
+			errorlog.HTTPError(w, r, fmt.Sprintf(`{"error": {"message": "%s", "type": "invalid_request_error"}}`, err.Error()), http.StatusUnauthorized)
+			return
+		}
+
+		username, err := resolveUsernameForModelsForPriority(clientAPIKey)
+		if err != nil {
+			switch err {
+			case userkey.ErrKeyRevoked:
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "API key has been revoked", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
+			case userkey.ErrCreditsExpired:
+				errorlog.JSONErrorWithUser(w, r, `{"error":{"message":"Credits have expired. Please purchase new credits.","type":"insufficient_quota","code":"credits_expired"}}`, http.StatusPaymentRequired, "", clientAPIKey)
+			case userkey.ErrFriendKeyOwnerNoCredits:
+				errorlog.JSONErrorWithUser(w, r, `{"error":{"message":"Insufficient credits. Please contact the key owner.","type":"insufficient_quota","code":"insufficient_credits"}}`, http.StatusPaymentRequired, "", clientAPIKey)
+			default:
+				errorlog.HTTPErrorWithUser(w, r, `{"error": {"message": "Invalid API key", "type": "authentication_error"}}`, http.StatusUnauthorized, "", clientAPIKey)
+			}
+			return
+		}
+
+		if !enforcePriorityLineAccess(w, r, username, clientAPIKey, false) {
+			return
+		}
+	}
 
 	models := config.GetAllModels()
 	openaiModels := make([]map[string]interface{}, 0, len(models))
@@ -626,6 +779,10 @@ func chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Store Friend Key info for use in response handlers
 	_ = isFriendKeyRequest
 	_ = friendKeyID
+
+	if !enforcePriorityLineAccess(w, r, username, clientAPIKey, false) {
+		return
+	}
 
 	// Check rate limit (with refCredits support for Pro RPM) - OpenAI format for /v1/chat/completions
 	if !checkRateLimitWithUsername(w, clientAPIKey, username, false) {
@@ -3169,6 +3326,10 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Store Friend Key info for use in response handlers
 	_ = isFriendKeyRequest
 	_ = friendKeyID
+
+	if !enforcePriorityLineAccess(w, r, username, clientAPIKey, true) {
+		return
+	}
 
 	// Check rate limit (with refCredits support for Pro RPM) - Anthropic format for /v1/messages
 	if !checkRateLimitWithUsername(w, clientAPIKey, username, true) {
