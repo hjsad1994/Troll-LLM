@@ -1,0 +1,75 @@
+{
+	"beadId": "bd-354",
+	"prdName": "revert-a72b7cb-model-selection-regression",
+	"tasks": [
+		{
+			"id": "backend-1",
+			"category": "backend",
+			"title": "Revert OpenHands response handler wiring",
+			"description": "goproxy/main.go routes OpenHands Anthropic responses through stable pre-a72b7cb handlers without forced model rewrite arguments.",
+			"steps": ["go test ./..."],
+			"passes": true,
+			"metadata": {
+				"depends_on": [],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/main.go"]
+			}
+		},
+		{
+			"id": "backend-2",
+			"category": "backend",
+			"title": "Roll back optional Anthropic rewrite helpers",
+			"description": "goproxy/internal/maintarget/handler.go no longer applies the a72b7cb optional rewrite behavior that mutates outgoing Anthropic model identifiers.",
+			"steps": [
+				"go test ./internal/maintarget/...",
+				"go build -o /dev/null ./..."
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": ["Revert OpenHands response handler wiring"],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/maintarget/handler.go"]
+			}
+		},
+		{
+			"id": "test-1",
+			"category": "test",
+			"title": "Re-baseline maintarget tests to stable behavior",
+			"description": "goproxy/internal/maintarget/handler_test.go validates restored stable behavior and no longer enforces the rewrite expectations added by a72b7cb.",
+			"steps": ["go test ./internal/maintarget/...", "go test ./..."],
+			"passes": true,
+			"metadata": {
+				"depends_on": ["Roll back optional Anthropic rewrite helpers"],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/maintarget/handler_test.go"]
+			}
+		}
+	],
+	"context": {
+		"patterns": [
+			"OpenHands Anthropic response handling starts in goproxy/main.go and delegates to maintarget handlers.",
+			"Maintarget handlers split stream/non-stream response handling in goproxy/internal/maintarget/handler.go.",
+			"Behavior matrix coverage lives in goproxy/internal/maintarget/handler_test.go."
+		],
+		"keyFiles": [
+			"goproxy/main.go",
+			"goproxy/internal/maintarget/handler.go",
+			"goproxy/internal/maintarget/handler_test.go"
+		],
+		"nonGoals": [
+			"New model-masking architecture",
+			"Billing or spend-checker changes",
+			"Adding new model aliases"
+		]
+	},
+	"beadMetadata": {
+		"depends_on": [],
+		"parallel": false,
+		"conflicts_with": [],
+		"blocks": [],
+		"estimated_hours": 1
+	}
+}
