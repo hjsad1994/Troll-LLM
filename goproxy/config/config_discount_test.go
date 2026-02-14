@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestApplyPriorityGLMDiscount(t *testing.T) {
 	tests := []struct {
@@ -44,10 +47,50 @@ func TestApplyPriorityGLMDiscount(t *testing.T) {
 			want:            10,
 		},
 		{
-			name:            "does not apply on non-priority config",
+			name:            "does not apply for sonnet on priority config",
+			modelID:         "claude-sonnet-4-5-20250929",
+			modelName:       "Claude Sonnet 4.5",
+			configPath:      "config-openhands-prod-uutien.json",
+			billingUpstream: "openhands",
+			upstreamModelID: "glm-4.6",
+			cost:            10,
+			want:            10,
+		},
+		{
+			name:            "applies 60 percent discount for opus on normal openhands config",
 			modelID:         "claude-opus-4-6",
 			modelName:       "Claude Opus 4.6",
 			configPath:      "config-openhands-prod.json",
+			billingUpstream: "openhands",
+			upstreamModelID: "glm-4.6",
+			cost:            10,
+			want:            4,
+		},
+		{
+			name:            "applies 60 percent discount for sonnet on normal openhands config",
+			modelID:         "claude-sonnet-4-5-20250929",
+			modelName:       "Claude Sonnet 4.5",
+			configPath:      "config-openhands-prod.json",
+			billingUpstream: "openhands",
+			upstreamModelID: "glm-4.6",
+			cost:            10,
+			want:            4,
+		},
+		{
+			name:            "applies 60 percent discount for haiku on normal openhands config",
+			modelID:         "claude-haiku-4-5-20251001",
+			modelName:       "Claude Haiku 4.5",
+			configPath:      "config-openhands-prod.json",
+			billingUpstream: "openhands",
+			upstreamModelID: "glm-4.6",
+			cost:            10,
+			want:            4,
+		},
+		{
+			name:            "does not apply on unrelated config",
+			modelID:         "claude-opus-4-6",
+			modelName:       "Claude Opus 4.6",
+			configPath:      "config-openhands-staging.json",
 			billingUpstream: "openhands",
 			upstreamModelID: "glm-4.6",
 			cost:            10,
@@ -80,7 +123,7 @@ func TestApplyPriorityGLMDiscount(t *testing.T) {
 			setTestConfigForDiscount(t, tt.modelID, tt.modelName, tt.configPath, tt.billingUpstream)
 
 			got := ApplyPriorityGLMDiscount(tt.modelID, tt.upstreamModelID, tt.cost)
-			if got != tt.want {
+			if math.Abs(got-tt.want) > 1e-9 {
 				t.Fatalf("ApplyPriorityGLMDiscount() = %v, want %v", got, tt.want)
 			}
 		})

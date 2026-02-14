@@ -62,8 +62,10 @@ var (
 
 const (
 	priorityDiscountConfigFile = "config-openhands-prod-uutien.json"
+	openHandsProdConfigFile    = "config-openhands-prod.json"
 	priorityGLM46ModelID       = "glm-4.6"
-	priorityGLM46CostFactor    = 0.6 // 40% discount
+	priorityGLM46CostFactor    = 0.6 // 40% discount (priority line)
+	openHandsGLM46CostFactor   = 0.4 // 60% discount (normal OpenHands line)
 )
 
 // LoadConfig loads configuration file
@@ -94,18 +96,15 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-// ApplyPriorityGLMDiscount applies a 40% discount for GLM-4.6 usage on priority line config.
-// Discount only applies when:
-// - active config file is config-openhands-prod-uutien.json
-// - billing_upstream for the requested model is "openhands" (creditsNew billing)
-// - requested model is an Opus variant (not Haiku)
-// - selected upstream model is GLM-4.6
+// ApplyPriorityGLMDiscount applies GLM-4.6 pricing discounts for OpenHands billing.
+// Rules:
+// - config-openhands-prod-uutien.json: 40% discount, Opus-only.
+// - config-openhands-prod.json: 60% discount for any model.
+// Common conditions:
+// - billing_upstream must be "openhands" (creditsNew billing)
+// - selected upstream model must be GLM-4.6
 func ApplyPriorityGLMDiscount(modelID string, upstreamModelID string, cost float64) float64 {
 	if cost <= 0 {
-		return cost
-	}
-
-	if !isPriorityDiscountConfigActive() {
 		return cost
 	}
 
@@ -113,15 +112,22 @@ func ApplyPriorityGLMDiscount(modelID string, upstreamModelID string, cost float
 		return cost
 	}
 
-	if !isOpusModel(modelID) {
-		return cost
-	}
-
 	if !isGLM46Model(upstreamModelID) {
 		return cost
 	}
 
-	return cost * priorityGLM46CostFactor
+	if isPriorityDiscountConfigActive() {
+		if !isOpusModel(modelID) {
+			return cost
+		}
+		return cost * priorityGLM46CostFactor
+	}
+
+	if isOpenHandsProdConfigActive() {
+		return cost * openHandsGLM46CostFactor
+	}
+
+	return cost
 }
 
 func isOpusModel(modelID string) bool {
@@ -144,6 +150,14 @@ func isPriorityDiscountConfigActive() bool {
 	configMutex.RUnlock()
 
 	return strings.EqualFold(filepath.Base(configPath), priorityDiscountConfigFile)
+}
+
+func isOpenHandsProdConfigActive() bool {
+	configMutex.RLock()
+	configPath := loadedConfigPath
+	configMutex.RUnlock()
+
+	return strings.EqualFold(filepath.Base(configPath), openHandsProdConfigFile)
 }
 
 func isGLM46Model(modelID string) bool {
