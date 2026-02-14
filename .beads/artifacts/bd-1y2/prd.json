@@ -1,0 +1,105 @@
+{
+	"bead_id": "bd-1y2",
+	"title": "Priority OpenHands line with role-gated access",
+	"source": ".beads/artifacts/bd-1y2/prd.md",
+	"tasks": [
+		{
+			"id": 1,
+			"title": "[routing] Add production routing for priority domain",
+			"end_state": "chat-priority.trolllm.xyz terminates at Nginx and proxies to dedicated upstream goproxy-openhands-priority:8006.",
+			"depends_on": [],
+			"parallel": true,
+			"conflicts_with": ["nginx/nginx.conf", "init-ssl.sh"],
+			"files": ["nginx/nginx.conf", "init-ssl.sh"],
+			"verification": [
+				"docker compose -f docker-compose.prod.yml config",
+				"docker compose -f docker-compose.prod.yml up -d --build nginx"
+			],
+			"status": "completed",
+			"passes": true
+		},
+		{
+			"id": 2,
+			"title": "[docker] Add Linux-ready priority GoProxy service wiring",
+			"end_state": "docker-compose.prod.yml includes goproxy-openhands-priority mounting goproxy/config-openhands-prod-uutien.json and wired into Nginx dependency graph.",
+			"depends_on": [],
+			"parallel": true,
+			"conflicts_with": ["docker-compose.prod.yml"],
+			"files": [
+				"docker-compose.prod.yml",
+				"goproxy/config-openhands-prod-uutien.json"
+			],
+			"verification": [
+				"docker compose -f docker-compose.prod.yml config",
+				"docker compose -f docker-compose.prod.yml up -d --build goproxy-openhands-priority"
+			],
+			"status": "completed",
+			"passes": true
+		},
+		{
+			"id": 3,
+			"title": "[auth] Enforce role gate for priority host in request handlers",
+			"end_state": "Priority host requests are allowed only for usersNew.role in {admin, priority}; all others receive HTTP 403 with the exact required message.",
+			"depends_on": [1, 2],
+			"parallel": false,
+			"conflicts_with": [
+				"goproxy/main.go",
+				"goproxy/internal/userkey/validator.go"
+			],
+			"files": [
+				"goproxy/main.go",
+				"goproxy/internal/userkey/validator.go",
+				"goproxy/internal/userkey/model.go"
+			],
+			"verification": [
+				"cd goproxy && go test ./internal/userkey/...",
+				"curl -sS https://chat-priority.trolllm.xyz/v1/models -H \"Authorization: Bearer <USER_ROLE_KEY>\" | jq",
+				"curl -sS https://chat-priority.trolllm.xyz/v1/models -H \"Authorization: Bearer <ADMIN_KEY>\" | jq"
+			],
+			"status": "completed",
+			"passes": true
+		},
+		{
+			"id": 4,
+			"title": "[regression] Preserve current behavior for regular chat line",
+			"end_state": "chat.trollllm.xyz keeps using regular OpenHands config on port 8004 and remains accessible for normal authenticated users.",
+			"depends_on": [3],
+			"parallel": false,
+			"conflicts_with": [
+				"goproxy/main.go",
+				"nginx/nginx.conf",
+				"docker-compose.prod.yml"
+			],
+			"files": [
+				"goproxy/main.go",
+				"nginx/nginx.conf",
+				"docker-compose.prod.yml",
+				"goproxy/config-openhands-prod.json"
+			],
+			"verification": [
+				"curl -sS https://chat.trollllm.xyz/v1/models -H \"Authorization: Bearer <USER_ROLE_KEY>\" | jq",
+				"docker compose -f docker-compose.prod.yml ps"
+			],
+			"status": "completed",
+			"passes": true
+		},
+		{
+			"id": 5,
+			"title": "[test] Add coverage for role access matrix",
+			"end_state": "Automated tests cover deny for user/unknown roles and allow for admin/priority roles on the priority host path.",
+			"depends_on": [3],
+			"parallel": true,
+			"conflicts_with": ["goproxy/internal/userkey/validator_test.go"],
+			"files": [
+				"goproxy/internal/userkey/validator_test.go",
+				"goproxy/main.go"
+			],
+			"verification": [
+				"cd goproxy && go test ./internal/userkey/...",
+				"cd goproxy && go test ./..."
+			],
+			"status": "completed",
+			"passes": true
+		}
+	]
+}

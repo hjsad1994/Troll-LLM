@@ -1,0 +1,40 @@
+## bd-1y2 Progress
+
+### Completed Tasks
+
+1. [routing] Add production routing for priority domain
+   - Files: `nginx/nginx.conf`, `init-ssl.sh`
+   - Commit: `d58f84c`
+   - Verification:
+     - `docker compose -f docker-compose.prod.yml config` -> pass
+
+2. [docker] Add Linux-ready priority GoProxy service wiring
+   - Files: `docker-compose.prod.yml`, `goproxy/config-openhands-prod-uutien.json`
+   - Commit: `f1a7843`
+   - Verification:
+     - `docker compose -f docker-compose.prod.yml config` -> pass
+
+3. [auth] Enforce role gate for priority host in request handlers
+   - Files: `goproxy/main.go`, `goproxy/internal/userkey/validator.go`
+   - Commits: `6a40d98`, `deba108`
+   - Verification:
+     - `cd goproxy && go test ./internal/userkey/...` -> pass
+     - Targeted endpoint tests in `goproxy/main_priority_test.go` -> pass
+
+4. [regression] Preserve current behavior for regular chat line
+   - Files: `nginx/nginx.conf`, `docker-compose.prod.yml`, `goproxy/main.go`
+   - Verification:
+     - `nginx/nginx.conf` still routes `chat.trollllm.xyz` -> `goproxy-openhands`
+     - `docker-compose.prod.yml` keeps `goproxy-openhands` with `config-openhands-prod.json`
+
+5. [test] Add coverage for role access matrix
+   - Files: `goproxy/main_priority_test.go`, `goproxy/internal/userkey/validator_test.go`
+   - Commits: `4e28c4a`, `deba108`
+   - Verification:
+     - `MONGODB_URI=mongodb://localhost:27017/test go test . -run "Test(ShouldEnforcePriorityAccess|ModelsHandler_PriorityHostWithProxyKeyDenied|ChatCompletionsHandler_PriorityHostWithProxyKeyDenied|MessagesHandler_PriorityHostWithProxyKeyDenied|ModelsHandler_RegularHostNotBlockedByPriorityGate|ModelsHandler_PriorityHostAllowsAdminAndPriorityRoles|ModelsHandler_PriorityHostDeniesNonPriorityRoles|ModelsHandler_PriorityHostDeniesWhenRoleLookupFails|EnforcePriorityLineAccess_RoleMatrix)$" -v` -> pass
+     - `cd goproxy && go test ./internal/userkey/...` -> pass
+
+### Remaining Verification Blockers
+
+- `cd goproxy && go test ./...` fails due pre-existing duplicate untracked source in `goproxy/internal/modal/modal 2.go` conflicting with `goproxy/internal/modal/modal.go`.
+- This blocker is outside bd-1y2 scope and was not modified by this bead work.
