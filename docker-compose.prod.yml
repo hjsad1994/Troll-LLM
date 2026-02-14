@@ -13,6 +13,7 @@ services:
       - frontend
       - backend
       - goproxy-openhands
+      - goproxy-openhands-priority
       - goproxy-ohmygpt
     restart: unless-stopped
     networks:
@@ -89,6 +90,20 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./goproxy/config-ohmygpt-prod.json:/app/config.json:ro
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - trollllm-network
+
+  # GoProxy OpenHands Priority (chat-priority.trolllm.xyz - port 8006)
+  # Uses OpenHands upstream and bills to 'creditsNew' field
+  goproxy-openhands-priority:
+    build:
+      context: ./goproxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./goproxy/config-openhands-prod-uutien.json:/app/config.json:ro
     env_file:
       - ./.env
     restart: unless-stopped
