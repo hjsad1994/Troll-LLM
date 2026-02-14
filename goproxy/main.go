@@ -1157,7 +1157,7 @@ func handleMainTargetRequest(w http.ResponseWriter, openaiReq *transformers.Open
 
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := calculatePriorityDiscountedBillingCost(modelID, upstreamModelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
@@ -1255,7 +1255,7 @@ func handleMainTargetRequestOpenAI(w http.ResponseWriter, openaiReq *transformer
 	// Usage callback
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := calculatePriorityDiscountedBillingCost(modelID, upstreamModelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
@@ -1338,7 +1338,7 @@ func handleMainTargetMessagesRequest(w http.ResponseWriter, originalBody []byte,
 	// Usage callback
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := calculatePriorityDiscountedBillingCost(modelID, upstreamModelID, input, output, cacheWrite, cacheHit)
 
 		if userApiKey != "" {
 			usage.UpdateUsage(userApiKey, billingTokens)
@@ -1513,7 +1513,7 @@ func handleOpenHandsMessagesRequest(w http.ResponseWriter, originalBody []byte, 
 	if username != "" {
 		// Estimate input tokens for cost calculation
 		estimatedInputTokens := estimateAnthropicInputTokens(&anthropicReq)
-		estimatedCost := config.CalculateBillingCostWithCache(modelID, estimatedInputTokens, 0, 0, 0)
+		estimatedCost := calculatePriorityDiscountedBillingCost(modelID, upstreamModelID, estimatedInputTokens, 0, 0, 0)
 
 		// Check which credit field to use based on billing_upstream
 		billingUpstream := config.GetModelBillingUpstream(modelID)
@@ -1647,7 +1647,7 @@ handleMessagesResponse:
 	// Usage callback for billing (with cache support)
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := calculatePriorityDiscountedBillingCost(modelID, upstreamModelID, input, output, cacheWrite, cacheHit)
 
 		// Update OpenHands key usage stats in MongoDB
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1840,7 +1840,7 @@ func handleOpenHandsOpenAIRequest(w http.ResponseWriter, openaiReq *transformers
 	if username != "" {
 		// Estimate input tokens for cost calculation
 		estimatedInputTokens := estimateInputTokens(openaiReq)
-		estimatedCost := config.CalculateBillingCostWithCache(modelID, estimatedInputTokens, 0, 0, 0)
+		estimatedCost := calculatePriorityDiscountedBillingCost(modelID, upstreamModelID, estimatedInputTokens, 0, 0, 0)
 
 		// Check which credit field to use based on billing_upstream
 		billingUpstream := config.GetModelBillingUpstream(modelID)
@@ -1973,7 +1973,7 @@ handleOpenAIResponse:
 	// Usage callback for billing (with cache support)
 	onUsage := func(input, output, cacheWrite, cacheHit int64) {
 		billingTokens := config.CalculateBillingTokensWithCache(modelID, input, output, cacheWrite, cacheHit)
-		billingCost := config.CalculateBillingCostWithCache(modelID, input, output, cacheWrite, cacheHit)
+		billingCost := calculatePriorityDiscountedBillingCost(modelID, upstreamModelID, input, output, cacheWrite, cacheHit)
 
 		// Update OpenHands key usage stats in MongoDB
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -2040,6 +2040,17 @@ handleOpenAIResponse:
 	} else {
 		handleOpenHandsOpenAINonStreamResponse(w, resp, onUsage)
 	}
+}
+
+func calculatePriorityDiscountedBillingCost(modelID string, upstreamModelID string, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens int64) float64 {
+	billingCost := config.CalculateBillingCostWithCache(modelID, inputTokens, outputTokens, cacheWriteTokens, cacheHitTokens)
+	discountedCost := config.ApplyPriorityGLMDiscount(modelID, upstreamModelID, billingCost)
+
+	if discountedCost < billingCost {
+		log.Printf("💸 [Priority] Applied GLM-4.6 discount: model=%s upstream=%s original=$%.6f discounted=$%.6f", modelID, upstreamModelID, billingCost, discountedCost)
+	}
+
+	return discountedCost
 }
 
 // estimateInputTokens estimates input tokens from OpenAI request

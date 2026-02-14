@@ -6,6 +6,8 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -51,10 +53,17 @@ type Config struct {
 }
 
 var (
-	globalConfig *Config
-	configMutex  sync.RWMutex
-	rng          = rand.New(rand.NewSource(time.Now().UnixNano()))
-	rngMutex     sync.Mutex
+	globalConfig     *Config
+	loadedConfigPath string
+	configMutex      sync.RWMutex
+	rng              = rand.New(rand.NewSource(time.Now().UnixNano()))
+	rngMutex         sync.Mutex
+)
+
+const (
+	priorityDiscountConfigFile = "config-openhands-prod-uutien.json"
+	priorityGLM46ModelID       = "glm-4.6"
+	priorityGLM46CostFactor    = 0.6 // 40% discount
 )
 
 // LoadConfig loads configuration file
@@ -79,9 +88,73 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	configMutex.Lock()
 	globalConfig = &cfg
+	loadedConfigPath = configPath
 	configMutex.Unlock()
 
 	return &cfg, nil
+}
+
+// ApplyPriorityGLMDiscount applies a 40% discount for GLM-4.6 usage on priority line config.
+// Discount only applies when:
+// - active config file is config-openhands-prod-uutien.json
+// - billing_upstream for the requested model is "openhands" (creditsNew billing)
+// - requested model is an Opus variant (not Haiku)
+// - selected upstream model is GLM-4.6
+func ApplyPriorityGLMDiscount(modelID string, upstreamModelID string, cost float64) float64 {
+	if cost <= 0 {
+		return cost
+	}
+
+	if !isPriorityDiscountConfigActive() {
+		return cost
+	}
+
+	if GetModelBillingUpstream(modelID) != "openhands" {
+		return cost
+	}
+
+	if !isOpusModel(modelID) {
+		return cost
+	}
+
+	if !isGLM46Model(upstreamModelID) {
+		return cost
+	}
+
+	return cost * priorityGLM46CostFactor
+}
+
+func isOpusModel(modelID string) bool {
+	model := GetModelByID(modelID)
+	if model != nil {
+		if strings.Contains(strings.ToLower(model.ID), "opus") {
+			return true
+		}
+		if strings.Contains(strings.ToLower(model.Name), "opus") {
+			return true
+		}
+	}
+
+	return strings.Contains(strings.ToLower(strings.TrimSpace(modelID)), "opus")
+}
+
+func isPriorityDiscountConfigActive() bool {
+	configMutex.RLock()
+	configPath := loadedConfigPath
+	configMutex.RUnlock()
+
+	return strings.EqualFold(filepath.Base(configPath), priorityDiscountConfigFile)
+}
+
+func isGLM46Model(modelID string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(modelID))
+	if normalized == priorityGLM46ModelID || normalized == "glm4-6" {
+		return true
+	}
+
+	// Also allow punctuation variants like glm_4_6 / glm46
+	replacer := strings.NewReplacer("-", "", ".", "", "_", "")
+	return replacer.Replace(normalized) == "glm46"
 }
 
 // GetConfig gets global configuration
