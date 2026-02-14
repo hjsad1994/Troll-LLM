@@ -158,11 +158,11 @@ func ForwardOpenAIRequest(originalBody []byte, isStreaming bool) (*http.Response
 
 // HandleStreamResponse handles Anthropic streaming response (passthrough)
 func HandleStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
-	HandleStreamResponseWithPrefix(w, resp, onUsage, "MainTarget")
+	HandleStreamResponseWithPrefix(w, resp, onUsage, "MainTarget", "")
 }
 
 // HandleStreamResponseWithPrefix handles Anthropic streaming response with custom log prefix
-func HandleStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string) {
+func HandleStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string, modelID string) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("❌ [%s] Error %d", logPrefix, resp.StatusCode)
@@ -266,11 +266,11 @@ data: {"type":"error","error":{"type":"stream_error","message":"Stream interrupt
 
 // HandleNonStreamResponse handles Anthropic non-streaming response (passthrough)
 func HandleNonStreamResponse(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64)) {
-	HandleNonStreamResponseWithPrefix(w, resp, onUsage, "MainTarget")
+	HandleNonStreamResponseWithPrefix(w, resp, onUsage, "MainTarget", "")
 }
 
 // HandleNonStreamResponseWithPrefix handles Anthropic non-streaming response with custom log prefix
-func HandleNonStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string) {
+func HandleNonStreamResponseWithPrefix(w http.ResponseWriter, resp *http.Response, onUsage func(input, output, cacheWrite, cacheHit int64), logPrefix string, modelID string) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, `{"type":"error","error":{"type":"server_error","message":"failed to read response"}}`, http.StatusInternalServerError)
