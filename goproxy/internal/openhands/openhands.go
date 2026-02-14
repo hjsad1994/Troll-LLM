@@ -19,6 +19,7 @@ import (
 	"goproxy/internal/proxy"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/net/http2"
 )
 
@@ -295,7 +296,31 @@ func (p *OpenHandsProvider) DeleteKey(keyID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result, err := db.OpenHandsKeysCollection().DeleteOne(ctx, bson.M{"_id": keyID})
+	keysCol := db.OpenHandsKeysCollection()
+	var existingDoc bson.M
+	err := keysCol.FindOne(ctx, bson.M{"_id": keyID}).Decode(&existingDoc)
+	if err != nil {
+		if err != mongo.ErrNoDocuments {
+			log.Printf("❌ [Troll-LLM] Failed to load key %s before delete: %v", keyID, err)
+			return err
+		}
+	} else {
+		archiveErr := db.ArchiveDeletedDocument(
+			ctx,
+			"openhands_keys",
+			keyID,
+			"manual_delete",
+			"openhands.DeleteKey",
+			existingDoc,
+			nil,
+		)
+		if archiveErr != nil {
+			log.Printf("❌ [Troll-LLM] Failed to archive key %s before delete: %v", keyID, archiveErr)
+			return archiveErr
+		}
+	}
+
+	result, err := keysCol.DeleteOne(ctx, bson.M{"_id": keyID})
 	if err != nil {
 		log.Printf("❌ [Troll-LLM] Failed to delete key %s from DB: %v", keyID, err)
 		return err

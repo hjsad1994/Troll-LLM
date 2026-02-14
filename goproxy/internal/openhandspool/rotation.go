@@ -28,10 +28,8 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 
 	// 1. Check if key exists before fetching backup (idempotency check)
 	openHandsKeysCol := db.OpenHandsKeysCollection()
-	var existingKey struct {
-		ID string `bson:"_id"`
-	}
-	err := openHandsKeysCol.FindOne(ctx, bson.M{"_id": failedKeyID}).Decode(&existingKey)
+	var existingKeyDoc bson.M
+	err := openHandsKeysCol.FindOne(ctx, bson.M{"_id": failedKeyID}).Decode(&existingKeyDoc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			log.Printf("⚠️ [OpenHandsRotation] Key %s already rotated by another process, skipping", failedKeyID)
@@ -67,7 +65,23 @@ func (p *KeyPool) RotateKey(failedKeyID string, reason string) (string, error) {
 	}
 	log.Printf("✅ [OpenHandsRotation] Atomically claimed backup key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 3. DELETE old key completely
+	// 3. Archive then DELETE old key completely
+	err = db.ArchiveDeletedDocument(
+		ctx,
+		"openhands_keys",
+		failedKeyID,
+		reason,
+		"openhandspool.RotateKey",
+		existingKeyDoc,
+		map[string]interface{}{
+			"replacementKeyId": backupKey.ID,
+		},
+	)
+	if err != nil {
+		log.Printf("❌ [OpenHandsRotation] Failed to archive key %s before delete: %v", failedKeyID, err)
+		return "", err
+	}
+
 	deleteResult, err := openHandsKeysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
 		log.Printf("⚠️ [OpenHandsRotation] Failed to delete old key: %v", err)

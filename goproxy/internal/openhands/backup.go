@@ -2,6 +2,7 @@ package openhands
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -115,7 +116,31 @@ func DeleteOpenHandsBackupKey(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := OpenHandsBackupKeysCollection().DeleteOne(ctx, bson.M{"_id": id})
+	backupCol := OpenHandsBackupKeysCollection()
+
+	var existingDoc bson.M
+	err := backupCol.FindOne(ctx, bson.M{"_id": id}).Decode(&existingDoc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil
+		}
+		return err
+	}
+
+	err = db.ArchiveDeletedDocument(
+		ctx,
+		"openhands_backup_keys",
+		id,
+		"manual_delete",
+		"openhands.DeleteOpenHandsBackupKey",
+		existingDoc,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = backupCol.DeleteOne(ctx, bson.M{"_id": id})
 	return err
 }
 
@@ -145,14 +170,49 @@ func CleanupUsedBackupKeys() (int64, error) {
 	cutoffTime := time.Now().Add(-6 * time.Hour)
 	log.Printf("🧹 [OpenHands/Cleanup] Cutoff time: %v (deleting keys used before this time)", cutoffTime)
 
+	backupCol := OpenHandsBackupKeysCollection()
+
 	// Delete keys where isUsed=true AND usedAt exists AND usedAt < cutoffTime
-	result, err := OpenHandsBackupKeysCollection().DeleteMany(ctx, bson.M{
+	deleteFilter := bson.M{
 		"isUsed": true,
 		"usedAt": bson.M{
 			"$exists": true,
 			"$lt":     cutoffTime,
 		},
-	})
+	}
+
+	cursor, err := backupCol.Find(ctx, deleteFilter)
+	if err != nil {
+		log.Printf("⚠️ [OpenHands/Cleanup] Find for archive failed: %v", err)
+		return 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var docsToDelete []bson.M
+	if err := cursor.All(ctx, &docsToDelete); err != nil {
+		log.Printf("⚠️ [OpenHands/Cleanup] Decode docs for archive failed: %v", err)
+		return 0, err
+	}
+
+	for _, doc := range docsToDelete {
+		keyID := fmt.Sprint(doc["_id"])
+		if archiveErr := db.ArchiveDeletedDocument(
+			ctx,
+			"openhands_backup_keys",
+			keyID,
+			"cleanup_used_backup_key_older_than_6h",
+			"openhands.CleanupUsedBackupKeys",
+			doc,
+			map[string]interface{}{
+				"cutoffTime": cutoffTime,
+			},
+		); archiveErr != nil {
+			log.Printf("⚠️ [OpenHands/Cleanup] Archive failed for backup key %s: %v", keyID, archiveErr)
+			return 0, archiveErr
+		}
+	}
+
+	result, err := backupCol.DeleteMany(ctx, deleteFilter)
 	if err != nil {
 		log.Printf("⚠️ [OpenHands/Cleanup] DeleteMany error: %v", err)
 		return 0, err
@@ -204,10 +264,8 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 
 	// 1. Check if key exists before fetching backup (idempotency check)
 	keysCol := db.OpenHandsKeysCollection()
-	var existingKey struct {
-		ID string `bson:"_id"`
-	}
-	err := keysCol.FindOne(ctx, bson.M{"_id": failedKeyID}).Decode(&existingKey)
+	var existingKeyDoc bson.M
+	err := keysCol.FindOne(ctx, bson.M{"_id": failedKeyID}).Decode(&existingKeyDoc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			log.Printf("⚠️ [OpenHands/Rotation] Key %s already rotated by another process, skipping", failedKeyID)
@@ -243,7 +301,23 @@ func (p *OpenHandsProvider) RotateKey(failedKeyID string, reason string) (string
 	}
 	log.Printf("✅ [OpenHands/Rotation] Atomically claimed backup key: %s (%s)", backupKey.ID, newKeyMasked)
 
-	// 3. DELETE old key completely
+	// 3. Archive then DELETE old key completely
+	err = db.ArchiveDeletedDocument(
+		ctx,
+		"openhands_keys",
+		failedKeyID,
+		reason,
+		"openhands.RotateKey",
+		existingKeyDoc,
+		map[string]interface{}{
+			"replacementKeyId": backupKey.ID,
+		},
+	)
+	if err != nil {
+		log.Printf("❌ [OpenHands/Rotation] Failed to archive key %s before delete: %v", failedKeyID, err)
+		return "", err
+	}
+
 	deleteResult, err := keysCol.DeleteOne(ctx, bson.M{"_id": failedKeyID})
 	if err != nil {
 		log.Printf("⚠️ [OpenHands/Rotation] Failed to delete old key: %v", err)
