@@ -97,11 +97,11 @@ func TestAC4_UserWithRefCreditsAllowed(t *testing.T) {
 // Documents expected behavior for future DB integration tests
 func TestCreditsCheckLogicMatrix(t *testing.T) {
 	tests := []struct {
-		name            string
-		credits         float64
-		refCredits      float64
-		shouldBlock     bool // true = insufficient credits
-		shouldUseRef    bool // true = should use refCredits
+		name         string
+		credits      float64
+		refCredits   float64
+		shouldBlock  bool // true = insufficient credits
+		shouldUseRef bool // true = should use refCredits
 	}{
 		{"credits > 0, refCredits = 0", 10.0, 0, false, false},
 		{"credits = 0, refCredits = 0", 0, 0, true, false},
@@ -318,5 +318,41 @@ func TestInsufficientCreditsForRequest_ErrorMessage(t *testing.T) {
 	expectedMsg := "insufficient credits for request. Cost: $0.20, Balance: $0.15"
 	if err.Error() != expectedMsg {
 		t.Errorf("Error message mismatch:\nExpected: %q\nGot:      %q", expectedMsg, err.Error())
+	}
+}
+
+func TestIsPriorityRole(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     string
+		expected bool
+	}{
+		{"admin allowed", "admin", true},
+		{"priority allowed", "priority", true},
+		{"uppercase trimmed allowed", "  PRIORITY  ", true},
+		{"user denied", "user", false},
+		{"empty denied", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPriorityRole(tt.role); got != tt.expected {
+				t.Errorf("IsPriorityRole(%q) = %v, want %v", tt.role, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetUserRole_EmptyUsername(t *testing.T) {
+	role, err := GetUserRole("")
+	if err != ErrKeyNotFound {
+		t.Fatalf("GetUserRole('') expected ErrKeyNotFound, got role=%q err=%v", role, err)
+	}
+}
+
+func TestGetUsernameByAPIKey_EmptyAPIKey(t *testing.T) {
+	username, err := GetUsernameByAPIKey("")
+	if err != ErrKeyNotFound {
+		t.Fatalf("GetUsernameByAPIKey('') expected ErrKeyNotFound, got username=%q err=%v", username, err)
 	}
 }
