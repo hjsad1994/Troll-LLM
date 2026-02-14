@@ -3478,19 +3478,19 @@ func handleAnthropicMessagesEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	// For "main" upstream: forward original request as-is (no transformation)
 	if upstreamConfig.KeyID == "main" {
-		handleMainTargetMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
+		handleMainTargetMessagesRequest(w, bodyBytes, stream, model.ID, clientAPIKey, username)
 		return
 	}
 
 	// For "openhands" upstream: forward via OpenHands LLM Proxy
 	if upstreamConfig.KeyID == "openhands" {
-		handleOpenHandsMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
+		handleOpenHandsMessagesRequest(w, bodyBytes, stream, model.ID, clientAPIKey, username)
 		return
 	}
 
 	// For "ohmygpt" upstream: forward via OhMyGPT Provider
 	if upstreamConfig.KeyID == "ohmygpt" {
-		handleOhMyGPTMessagesRequest(w, bodyBytes, stream, anthropicReq.Model, clientAPIKey, username)
+		handleOhMyGPTMessagesRequest(w, bodyBytes, stream, model.ID, clientAPIKey, username)
 		return
 	}
 	// NEW MODEL-BASED ROUTING - END
