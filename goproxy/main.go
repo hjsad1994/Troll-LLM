@@ -1581,9 +1581,9 @@ handleMessagesResponse:
 
 	// Handle response using maintarget handlers (same format as Anthropic)
 	if isStreaming {
-		maintarget.HandleStreamResponseWithPrefixAndModel(w, resp, onUsage, "OpenHands", modelID)
+		maintarget.HandleStreamResponseWithPrefix(w, resp, onUsage, "OpenHands")
 	} else {
-		maintarget.HandleNonStreamResponseWithPrefixAndModel(w, resp, onUsage, "OpenHands", modelID)
+		maintarget.HandleNonStreamResponseWithPrefix(w, resp, onUsage, "OpenHands")
 	}
 }
 
