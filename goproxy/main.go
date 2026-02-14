@@ -67,6 +67,10 @@ var priorityLineHosts = map[string]struct{}{
 	"chat-priority.trollllm.xyz": {},
 }
 
+var getUserRoleForPriority = userkey.GetUserRole
+
+var resolveUsernameForModelsForPriority = resolveUsernameForModels
+
 func normalizeRequestHost(host string) string {
 	host = strings.ToLower(strings.TrimSpace(host))
 	if host == "" {
@@ -91,7 +95,21 @@ func isPriorityLineRequest(r *http.Request) bool {
 		host = normalizeRequestHost(r.Header.Get("X-Forwarded-Host"))
 	}
 
-	_, ok := priorityLineHosts[host]
+	configuredPort := 0
+	if cfg := config.GetConfig(); cfg != nil {
+		configuredPort = cfg.Port
+	}
+
+	return shouldEnforcePriorityAccess(host, configuredPort)
+}
+
+func shouldEnforcePriorityAccess(host string, configuredPort int) bool {
+	if configuredPort == 8006 {
+		return true
+	}
+
+	normalizedHost := normalizeRequestHost(host)
+	_, ok := priorityLineHosts[normalizedHost]
 	return ok
 }
 
@@ -115,7 +133,7 @@ func enforcePriorityLineAccess(w http.ResponseWriter, r *http.Request, username 
 		return false
 	}
 
-	role, err := userkey.GetUserRole(username)
+	role, err := getUserRoleForPriority(username)
 	if err != nil {
 		log.Printf("🚫 Priority line denied: cannot load role for user=%s: %v", username, err)
 		writePriorityLineAccessDenied(w, r, isAnthropic, username, clientAPIKey)
@@ -624,7 +642,7 @@ func modelsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		username, err := resolveUsernameForModels(clientAPIKey)
+		username, err := resolveUsernameForModelsForPriority(clientAPIKey)
 		if err != nil {
 			switch err {
 			case userkey.ErrKeyRevoked:
