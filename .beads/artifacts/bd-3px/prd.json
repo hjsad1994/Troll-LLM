@@ -1,0 +1,116 @@
+{
+	"beadId": "bd-3px",
+	"prdName": "prevent-openhands-upstream-model-leakage-in-client-responses",
+	"tasks": [
+		{
+			"id": "backend-1",
+			"category": "backend",
+			"title": "Propagate canonical client model ID through OpenHands handlers",
+			"description": "OpenHands request handlers consistently compute and pass one canonical client-facing model ID into all downstream response writers for both OpenAI and Anthropic paths.",
+			"steps": [
+				"cd goproxy && go build -o /dev/null .",
+				"cd goproxy && go test ./..."
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/main.go", "goproxy/config/config.go"]
+			}
+		},
+		{
+			"id": "backend-2",
+			"category": "backend",
+			"title": "Enforce model-name masking in leak-prone response paths",
+			"description": "Any OpenHands response path that can return upstream model names, especially Anthropic passthrough and shared handlers, rewrites client-visible model to the canonical requested identity.",
+			"steps": [
+				"cd goproxy && go test ./internal/maintarget/... -v",
+				"cd goproxy && go test ./internal/openhands/... -v"
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [
+					"Propagate canonical client model ID through OpenHands handlers"
+				],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": ["goproxy/internal/maintarget/handler.go", "goproxy/main.go"]
+			}
+		},
+		{
+			"id": "test-1",
+			"category": "test",
+			"title": "Add regression tests for OpenHands Sonnet/Opus model identity",
+			"description": "Automated tests fail if Sonnet or Opus requests ever return minimax or glm model names on either API surface.",
+			"steps": [
+				"cd goproxy && go test ./internal/maintarget/... -v",
+				"cd goproxy && go test ./internal/openhands/... -v"
+			],
+			"passes": true,
+			"metadata": {
+				"depends_on": [
+					"Enforce model-name masking in leak-prone response paths"
+				],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": [
+					"goproxy/internal/maintarget/handler_test.go",
+					"goproxy/internal/openhands/anthropic_error_test.go",
+					"goproxy/internal/openhands/types_test.go"
+				]
+			}
+		},
+		{
+			"id": "test-2",
+			"category": "test",
+			"title": "End-to-end validation for both APIs",
+			"description": "Manual and automated checks confirm that OpenAI and Anthropic responses expose only requested Sonnet or Opus model identity while upstream routing remains unchanged.",
+			"steps": [
+				"cd goproxy && go test ./...",
+				"cd goproxy && go build -o /dev/null .",
+				"curl -sS http://localhost:8004/v1/chat/completions -H \"Authorization: Bearer <key>\" -H \"Content-Type: application/json\" -d '{\"model\":\"claude-sonnet-4-5-20250929\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":false}' | jq -r '.model'",
+				"curl -sS http://localhost:8004/v1/messages -H \"Authorization: Bearer <key>\" -H \"Content-Type: application/json\" -d '{\"model\":\"claude-opus-4-5-20251101\",\"max_tokens\":128,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' | jq -r '.model'"
+			],
+			"passes": false,
+			"metadata": {
+				"depends_on": [
+					"Add regression tests for OpenHands Sonnet/Opus model identity"
+				],
+				"parallel": false,
+				"conflicts_with": [],
+				"files": []
+			}
+		}
+	],
+	"context": {
+		"patterns": [
+			"goproxy/internal/maintarget/handler.go already rewrites OpenAI model in HandleOpenAIStreamResponse and HandleOpenAINonStreamResponse",
+			"goproxy/internal/maintarget/handler.go generic stream and non-stream handlers currently pass through payloads without model rewriting",
+			"goproxy/main.go OpenHands handlers map request model to upstream model before forwarding",
+			"goproxy/config/config.go resolves aliases via GetModelByID and upstream IDs via GetUpstreamModelID"
+		],
+		"keyFiles": [
+			"goproxy/main.go",
+			"goproxy/internal/maintarget/handler.go",
+			"goproxy/internal/maintarget/handler_test.go",
+			"goproxy/internal/openhands/anthropic_error_test.go",
+			"goproxy/internal/openhands/types_test.go",
+			"goproxy/config/config.go",
+			"goproxy/config-openhands-prod.json"
+		],
+		"nonGoals": [
+			"Change pricing, billing, or credit-deduction behavior",
+			"Change upstream selection policy or model weights in config",
+			"Rewrite unrelated response metadata fields such as id, system_fingerprint, and provider headers",
+			"Perform broad refactors outside OpenHands model-name masking behavior"
+		]
+	},
+	"beadMetadata": {
+		"depends_on": [],
+		"parallel": true,
+		"conflicts_with": [],
+		"blocks": [],
+		"estimated_hours": 3
+	}
+}

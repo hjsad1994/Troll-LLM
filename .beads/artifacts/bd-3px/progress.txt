@@ -1,0 +1,32 @@
+# Progress Log
+
+Bead: bd-3px
+Started: 2026-02-14
+
+## Codebase Patterns
+
+<!-- Consolidate reusable patterns here -->
+
+---
+
+<!-- Task logs below - APPEND ONLY -->
+
+[2026-02-14] backend-1 ✓ Propagate canonical client model ID through OpenHands handlers
+- Commit: 4250203
+- Files: goproxy/internal/maintarget/handler.go, goproxy/main.go
+- Verification: `cd goproxy && go build -o /dev/null . && go test ./...` (pass)
+
+[2026-02-14] backend-2 ✓ Enforce model-name masking in leak-prone response paths
+- Commit: 9e98240
+- Files: goproxy/internal/maintarget/handler.go
+- Verification: `cd goproxy && go test ./internal/maintarget/... -v && go test ./internal/openhands/... -v` (pass)
+
+[2026-02-14] test-1 ✓ Add regression tests for OpenHands Sonnet/Opus model identity
+- Commit: 1ea2421
+- Files: goproxy/internal/maintarget/handler_test.go
+- Verification: `cd goproxy && go test ./internal/maintarget/... -v && go test ./internal/openhands/... -v` (pass)
+
+[2026-02-14] test-2 ⏸ End-to-end validation for both APIs
+- Automated checks passed: `cd goproxy && go test ./... && go build -o /dev/null .`
+- Manual curl checks blocked: localhost:8004 not running in current environment
+- Status: awaiting user-provided local server + valid API key for final model-field verification
