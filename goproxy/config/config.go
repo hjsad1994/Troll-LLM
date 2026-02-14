@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -57,6 +58,12 @@ var (
 	rngMutex     sync.Mutex
 )
 
+const (
+	priorityOpenHandsPort    = 8006
+	priorityGLM46CostFactor  = 0.4 // 60% off (user pays 40%)
+	priorityGLM46CanonicalID = "glm-4.6"
+)
+
 // LoadConfig loads configuration file
 func LoadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
@@ -84,13 +91,65 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-// ApplyPriorityGLMDiscount keeps backwards compatibility with existing billing callsites.
-// Discount logic is currently disabled and this function returns the original cost.
+// ApplyPriorityGLMDiscount applies 60% discount for priority line when upstream model is GLM-4.6.
+// Conditions:
+// - active config is priority line (port 8006)
+// - billing_upstream of requested model is openhands (creditsNew billing)
+// - selected upstream model is glm-4.6 (supports glm4-6 variants)
 func ApplyPriorityGLMDiscount(modelID string, upstreamModelID string, cost float64) float64 {
-	// Discount feature is temporarily disabled.
-	_ = modelID
-	_ = upstreamModelID
-	return cost
+	if cost <= 0 {
+		return cost
+	}
+
+	if !isPriorityLineConfig() {
+		return cost
+	}
+
+	if GetModelBillingUpstream(modelID) != "openhands" {
+		return cost
+	}
+
+	if !isGLM46Model(upstreamModelID) {
+		return cost
+	}
+
+	if isHaikuModel(modelID) {
+		return cost
+	}
+
+	return cost * priorityGLM46CostFactor
+}
+
+func isPriorityLineConfig() bool {
+	cfg := GetConfig()
+	if cfg == nil {
+		return false
+	}
+	return cfg.Port == priorityOpenHandsPort
+}
+
+func isGLM46Model(modelID string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(modelID))
+	if normalized == priorityGLM46CanonicalID || normalized == "glm4-6" {
+		return true
+	}
+
+	replacer := strings.NewReplacer("-", "", ".", "", "_", "")
+	return replacer.Replace(normalized) == "glm46"
+}
+
+func isHaikuModel(modelID string) bool {
+	model := GetModelByID(modelID)
+	if model != nil {
+		if strings.Contains(strings.ToLower(model.ID), "haiku") {
+			return true
+		}
+		if strings.Contains(strings.ToLower(model.Name), "haiku") {
+			return true
+		}
+	}
+
+	return strings.Contains(strings.ToLower(strings.TrimSpace(modelID)), "haiku")
 }
 
 // GetConfig gets global configuration
