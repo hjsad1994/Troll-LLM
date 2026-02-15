@@ -57,7 +57,7 @@
 		"output_price_per_mtok": 15.0,
 		"cache_write_price_per_mtok": 3.75,
 		"cache_hit_price_per_mtok": 0.3,
-		"billing_multiplier": 1.1,
+		"billing_multiplier": 1.02,
 		"billing_upstream": "openhands",
 		"upstream": "openhands",
 		"upstream_model_id": ["glm-4.6", "glm-4.6"],
@@ -73,7 +73,7 @@
 		"output_price_per_mtok": 5.0,
 		"cache_write_price_per_mtok": 1.25,
 		"cache_hit_price_per_mtok": 0.1,
-		"billing_multiplier": 1.4,
+		"billing_multiplier": 1.05,
 		"billing_upstream": "openhands",
 		"upstream": "openhands",
 		"upstream_model_id": "glm-4.6"
